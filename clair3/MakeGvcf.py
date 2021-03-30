@@ -16,7 +16,6 @@ def groupVariant(variantInfo):
     cur_list, cur_gq_bin_index, cur_valid_PL, cur_min_DP, cur_max_DP, cur_chr = ([], None, None, None, None, None)
 
     for cur_item in variantInfo:
-        # print('cur_item',cur_item)
         _gq_bin = cur_item['binned_gq']
         _gt = cur_item["gt"]
         _DP = cur_item["min_dp"]
