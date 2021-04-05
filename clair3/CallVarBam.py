@@ -6,7 +6,7 @@ import signal
 import random
 from os.path import dirname
 from time import sleep
-from argparse import ArgumentParser
+from argparse import ArgumentParser, SUPPRESS
 import logging
 
 from shared.command_options import (
@@ -53,8 +53,8 @@ def check_return_code(signum, frame):
 def Run(args):
     basedir = dirname(__file__)
 
-    CTM_Bin = basedir + "/../clair3.py CreateTensorPileup"
-    CTP_Bin = basedir + "/../clair3.py CreateTensorFullAlign"
+    CTP_Bin = basedir + "/../clair3.py CreateTensorPileup"
+    CTFA_Bin = basedir + "/../clair3.py CreateTensorFullAlignment"
     RR_Bin = basedir + "/../clair3.py RealignReads"
     CVBin = basedir + "/../clair3.py CallVariants"
 
@@ -79,13 +79,13 @@ def Run(args):
     ctgName = args.ctgName
     need_realignment = args.need_realignment and platform == 'illumina' and not pileup
     threshold = args.threshold if args.threshold else param.threshold_dict[platform]
-    snp_threshold = args.snp_threshold
-    indel_threshold = args.indel_threshold
+    snp_min_af = args.snp_min_af
+    indel_min_af = args.indel_min_af
 
     if ctgName is None:
         sys.exit("--ctgName must be specified. You can call variants on multiple chromosomes simultaneously.")
 
-    haploid_precision_mode = command_option_from(args.haploid_precision, 'haploid_precision')
+    haploid_precise_mode = command_option_from(args.haploid_precise, 'haploid_precise')
     haploid_sensitive_mode = command_option_from(args.haploid_sensitive, 'haploid_sensitive')
     output_for_ensemble = command_option_from(args.output_for_ensemble, 'output_for_ensemble')
     showRef_mode = command_option_from(args.showRef, 'showRef')
@@ -111,14 +111,15 @@ def Run(args):
         chunk_id = CommandOption('chunk_id', args.chunk_id)
         chunk_num = CommandOption('chunk_num', args.chunk_num)
 
-    if args.threads is None:
+    if args.tensorflow_threads is None:
         numCpus = multiprocessing.cpu_count()
     else:
-        numCpus = args.threads if args.threads < multiprocessing.cpu_count() else multiprocessing.cpu_count()
+        numCpus = args.tensorflow_threads if args.tensorflow_threads < multiprocessing.cpu_count() else multiprocessing.cpu_count()
 
     maxCpus = multiprocessing.cpu_count()
     _cpuSet = ",".join(str(x) for x in random.sample(range(0, maxCpus), numCpus))
 
+    print (_cpuSet, numCpus)
     taskSet = "taskset -c %s" % (_cpuSet)
     try:
         subprocess.check_output("which %s" % ("taskset"), shell=True)
@@ -147,7 +148,7 @@ def Run(args):
             CommandOption('confident_bed_fn', confident_bed_fn),
         ]
         bam_fn = "PIPE"
-    CT_Bin = CTM_Bin if pileup else CTP_Bin
+    CT_Bin = CTP_Bin if pileup else CTFA_Bin
 
     create_tensor_command_options = [
         pypyBin,
@@ -181,8 +182,8 @@ def Run(args):
         create_tensor_command_options.append(phasing_info_in_bam_mode)
         create_tensor_command_options.append(need_phasing_mode)
     else:
-        create_tensor_command_options.append(CommandOption('snp_threshold', snp_threshold))
-        create_tensor_command_options.append(CommandOption('indel_threshold', indel_threshold))
+        create_tensor_command_options.append(CommandOption('snp_min_af', snp_min_af))
+        create_tensor_command_options.append(CommandOption('indel_min_af', indel_min_af))
         create_tensor_command_options.append(fast_mode)
 
     call_variant_command_options = [
@@ -196,7 +197,7 @@ def Run(args):
         CommandOption('platform', platform),
         CommandOption('ctgName', ctgName),
         CommandOption('temp_file_dir', args.temp_file_dir),
-        haploid_precision_mode,
+        haploid_precise_mode,
         haploid_sensitive_mode,
         output_for_ensemble,
         qual,
@@ -269,46 +270,49 @@ def main():
     parser = ArgumentParser(description="Call variants using a trained model and a BAM file")
 
     parser.add_argument('--chkpnt_fn', type=str, default=None,
-                        help="Checkpoint model path for calling")
+                        help="Input a trained model for variant calling, required")
 
     parser.add_argument('--ref_fn', type=str, default="ref.fa",
-                        help="Reference fasta file input, default: %(default)s")
+                        help="Reference fasta file input, required")
 
     parser.add_argument('--bed_fn', type=str, nargs='?', action="store", default=None,
-                        help="Call variant only in these regions, works in intersection with ctgName, ctgStart and ctgEnd, optional, default: as defined by ctgName, ctgStart and ctgEnd")
+                        help="Call variants only in the provided bed regions, default: %(default)s")
 
     parser.add_argument('--bam_fn', type=str, default="bam.bam",
-                        help="BAM file input, default: %(default)s")
+                        help="BAM file input, required, default: %(default)s")
 
     parser.add_argument('--call_fn', type=str, default=None,
-                        help="Output variant predictions")
+                        help="VCF output filename")
 
     parser.add_argument('--threshold', type=float, default=None,
                         help="Minimum allele frequence of the 1st non-reference allele for a site to be considered as a condidate site, default: %(default)f")
     
-    parser.add_argument('--snp_threshold', type=float, default=0.0,
-                        help="Minimum snp allele frequence of the 1st non-reference allele for a site to be considered as a condidate site, default: %(default)f")
+    parser.add_argument('--snp_min_af', type=float, default=0.0,
+                        help="Minimum snp allele frequence for a site to be considered as a condidate site, default: %(default)f")
 
-    parser.add_argument('--indel_threshold', type=float, default=0.0,
-                        help="Minimum indel allele frequence of the 1st non-reference allele for a site to be considered as a condidate site, default: %(default)f")
-
-    parser.add_argument('--minCoverage', type=float, default=2,
-                        help="Minimum coverage required to call a variant, default: %(default)f")
+    parser.add_argument('--indel_min_af', type=float, default=0.0,
+                        help="Minimum indel allele frequence for a site to be considered as a condidate site, default: %(default)f")
 
     parser.add_argument('--qual', type=int, default=None,
-                        help="If set, variant with equal or higher quality will be marked PASS, or LowQual otherwise, optional")
+                        help="If set, variants with ≥$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
 
     parser.add_argument('--sampleName', type=str, nargs='?', action="store", default="SAMPLE",
-                        help="Define the sample name to be shown in the VCF file")
+                        help="Define the sample name to be shown in the VCF file, optional")
 
     parser.add_argument('--ctgName', type=str, default=None,
-                        help="The name of contigs to be processed, default: %(default)s")
+                        help="The name of sequence to be processed, required,default: %(default)s")
 
-    parser.add_argument('--ctgStart', type=int, default=None,
-                        help="The 1-based starting position of the sequence to be processed")
+    parser.add_argument('--platform', type=str, default=None,
+                        help="Seqeuncing platform of the input. Options: 'ont,pb,illumina', default: %(default)s")
 
-    parser.add_argument('--ctgEnd', type=int, default=None,
-                        help="The 1-based inclusive ending position of the sequence to be processed")
+    parser.add_argument('--pileup', action='store_true',
+                        help="In pileup mode or not (full alignment mode), default: False")
+
+    parser.add_argument('--gvcf', type=str2bool, default=False,
+                        help="Enable GVCF output, default: disabled")
+
+    parser.add_argument('--temp_file_dir', type=str, default='./',
+                        help="The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
 
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
@@ -316,88 +320,92 @@ def main():
     parser.add_argument('--pypy', type=str, default="pypy3",
                         help="Path to the 'pypy', pypy3 verision >= 3.6 is required, default: %(default)s")
 
-    parser.add_argument('--threads', type=int, default=None,
-                        help="Number of threads, optional")
+    parser.add_argument('--python', type=str, default="python3",
+                        help="Path to the 'python3', default: %(default)s")
 
     parser.add_argument('--delay', type=int, default=10,
                         help="Wait a short while for no more than %(default)s to start the job. This is to avoid starting multiple jobs simultaneously that might use up the maximum number of threads allowed, because Tensorflow will create more threads than needed at the beginning of running the program.")
 
-    parser.add_argument('--minMQ', type=int, default=5,
-                        help="Minimum Mapping Quality. Mapping quality lower than the setting will be filtered, default: %(default)d")
-
-    parser.add_argument('--minBQ', type=int, default=0,
-                        help="Minimum Base Quality. Base quality lower than the setting will be filtered, default: %(default)d")
-
-    parser.add_argument('--use_gpu', type=str2bool, default=False,
-                        help="Whether use gpu for training, using gpu will get speed improvement, but not so significant")
-
-    parser.add_argument('--platform', type=str, default=None,
-                        help="Select specific platform for variant calling. Optional: 'ont,pb,illumina', default: %(default)s")
-
-    parser.add_argument('--pileup', action='store_true',
-                        help="Whether in pileup mode. Define two calling mode, pileup or full alignment, default: False")
-
-    parser.add_argument('--haploid_precision', action='store_true',
-                        help="call haploid instead of diploid (output homo-variant only), deprecated")
-
-    parser.add_argument('--haploid_sensitive', action='store_true',
-                        help="call haploid instead of diploid (output non-multi-variant only), deprecated")
-
-    parser.add_argument('--output_for_ensemble', action='store_true',
-                        help="Output for ensemble, this mode is especially useful for extra high depth data")
-
-    parser.add_argument('--python', type=str, default="python3",
-                        help="Path to the 'python3', default: %(default)s")
-
-    parser.add_argument('--chunk_id', type=int, default=None,
-                        help="Specific chunk id works with total chunk_num for parallel execution.")
-
-    parser.add_argument('--chunk_num', type=int, default=None,
-                        help="Total chunk number for parallel execution. Each chunk refer to a smaller reference regions.")
-
-    parser.add_argument('--add_indel_length', action='store_true',
-                        help="Whether add indel length for training and calling, default True for raw alignment")
-
     parser.add_argument('--showRef', action='store_false',
                         help="Show reference calls, default true for pileup model. Optional")
 
-    parser.add_argument('--need_phasing', action='store_true',
-                        help="Whether apply read level phasing when create tensor, which decreases calling time while costs more memory. Default: False")
-
-    parser.add_argument('--need_realignment', action='store_false',
-                        help="Whether apply read realignment for illumina platform, which greatly boost indel performance while increases calling time, only work for illumina now.")
-
-    parser.add_argument('--phasing_info_in_bam', action='store_true',
-                        help="Whether input bam or sam have phasing info in HP tag, default: False")
-
     parser.add_argument('--confident_bed_fn', type=str, nargs='?', action="store", default=None,
-                        help="Call variant only in these regions, works in intersection with ctgName, ctgStart and ctgEnd, optional, default: as defined by ctgName, ctgStart and ctgEnd")
+                        help="Call variant only in provied regions, works in intersection with ctgName, ctgStart and ctgEnd, optional, default: as defined by ctgName, ctgStart and ctgEnd")
 
     parser.add_argument('--extend_confident_bed_fn', nargs='?', action="store", type=str, default=None,
                         help="Extended regions by confident bed regions to handle mpileup with candidates near provide bed regions, default extend 16 bp distance")
 
-    parser.add_argument('--is_from_tables', action='store_true',
-                        help="Use bin file from pytables to speed up calling, only use for testing. Optional")
-
     parser.add_argument('--fast_mode', type=str2bool, default=False,
-                        help="Ignore low allelic frequency <= 0.15 snp calling for ont platform,  optional")
+                        help="Ignore low allelic frequency <= 0.15 for ont platform, default: %(default)s")
 
-    # gvcf options
-    parser.add_argument('--gvcf', type=str2bool, default=False,
-                        help="Whether to generate gvcf")
+    parser.add_argument('--add_indel_length', action='store_true',
+                        help="Include indel length in training and calling, false for pileup and true for raw alignment")
 
-    parser.add_argument('--base_err',default=0.001,type=float,
-                        help='Default estimated base error rate')
+    # options for advanced users
+    parser.add_argument('--minCoverage', type=float, default=2,
+                        help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
-    parser.add_argument('--gq_bin_size',default=5,type=int,
-                        help='Default gq bin size for merge non-variant block')
+    parser.add_argument('--minMQ', type=int, default=5,
+                        help="EXPERIMENTAL: If set, reads with mapping Quality with <$minMQ will be filtered, default: %(default)d")
 
-    parser.add_argument('--temp_file_dir',type=str,default="./",
-                        help="Temporary directory for save the temporary gvcf files")
+    parser.add_argument('--minBQ', type=int, default=0,
+                        help="EXPERIMENTAL: If set, bases with base Quality with <$minBQ will be filtered, default: %(default)d")
 
-    parser.add_argument('--bp_resolution',action='store_true',
-                        help="Whether bp resolution for GVCF")
+    parser.add_argument('--haploid_precise', action='store_true',
+                        help="EXPERIMENTAL: call haploid instead of diploid (output homo-variant only), deprecated")
 
+    parser.add_argument('--haploid_sensitive', action='store_true',
+                        help="EXPERIMENTAL: call haploid instead of diploid (output non-multi-variant only), deprecated")
+
+    # options for debug purpose
+    parser.add_argument('--ctgStart', type=int, default=None,
+                        help="DEBUG: The 1-based starting position of the sequence to be processed")
+
+    parser.add_argument('--ctgEnd', type=int, default=None,
+                        help="DEBUG: The 1-based inclusive ending position of the sequence to be processed")
+
+    parser.add_argument('--phasing_info_in_bam', action='store_true',
+                        help="DEBUG: Input BAM contains phasing info in HP tag, default: False")
+
+    parser.add_argument('--base_err', default=0.001, type=float,
+                        help='DEBUG: Estimated base error rate in gvcf option, default: %(default)f')
+
+    parser.add_argument('--gq_bin_size', default=5, type=int,
+                        help='DEBUG: Default gq bin size for merge non-variant block in gvcf option, default: %(default)d')
+
+    parser.add_argument('--bp_resolution', action='store_true',
+                        help="DEBUG: Enable bp resolution for GVCF, default: disabled")
+
+    parser.add_argument('--use_gpu', type=str2bool, default=False,
+                        help="DEBUG: Use GPU for calling. Speed up is mostly insignficiant. Only use this for building a tested pipeline")
+
+    parser.add_argument('--tensorflow_threads', type=int, default=4,
+                        help="DEBUG: Number of threads per tensorflow job, default: %(default)s")
+
+    # options for internal process control
+    ## Output for ensemble, this mode is especially useful for extra high depth data
+    parser.add_argument('--output_for_ensemble', action='store_true',
+                        help=SUPPRESS)
+
+    ## The number of chucks to be divided into for parallel processing
+    parser.add_argument('--chunk_num', type=int, default=None,
+                        help=SUPPRESS)
+
+    ## The chuck ID to work on
+    parser.add_argument('--chunk_id', type=int, default=None,
+                        help=SUPPRESS)
+
+    ## Apply read level phasing when create tensor, will decreases calling time while costs more memoryd, default: False
+    parser.add_argument('--need_phasing', action='store_true',
+                        help=SUPPRESS)
+
+    ## Apply read realignment for illumina platform, which greatly boost indel performance while increases calling time
+    parser.add_argument('--need_realignment', action='store_false',
+                        help=SUPPRESS)
+
+    ## Use bin file from pytables to speed up calling, only use for testing.
+    parser.add_argument('--is_from_tables', action='store_true',
+                        help=SUPPRESS)
 
     args = parser.parse_args()
 

@@ -1,51 +1,47 @@
 #!/bin/bash
 SCRIPT_NAME=$(basename "$0")
-Usage="\nUsage: ./${SCRIPT_NAME} -b BAM -f REF -o OUTPUT_DIR -t THREADS -p PLATFORM -m MODEL_PATH [--bed_fn=BED] [options]\n"
+Usage="\nUsage: ./${SCRIPT_NAME} -b BAM -f REF -o OUTPUT_DIR -t THREADS -p PLATFORM -m MODEL_PREFIX [--bed_fn=BED] [options]\n"
 
+set -e
 #./run_clair3.sh -b tmp.bam -f ref.fasta -t 32 -o tmp -p ont -m model_path
 print_help_messages()
 {
-    echo -e ${Usage}
-    echo $'Required input parameters:'
-    echo $'  -b, --bam_fn FILE      Indexed BAM file input.\n'
-    echo $'  -f, --ref_fn FILE      Indexed FASTA reference file input. \n'
-    echo $'  -t, --threads INT      Number of additional threads to use.\n'
-    echo $'  -m, --model_path STR   Model checkpoint path for calling.\n'
-    echo $'  -p, --platform STR     Select which platform for variant calling, optional: [ont pb illumina].\n\n'
+    echo ${Usage}
+    echo $'Required parameters:'
+    echo $'  -b, --bam_fn FILE        BAM file input. The input file must be samtools indexed.'
+    echo $'  -f, --ref_fn FILE        FASTA reference file input. The input file must be samtools indexed.'
+    echo $'  -m, --model_path STR     The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00001, pileup.index, pileup.meta, full_alignment.data-00000-of-00001, full_alignment.index, and full_alignment.meta).'
+    echo $'  -t, --threads INT        Max #threads to be used. The full genome will be divided into small chucks for parallel processing. Each chunk will use 4 threads. The #chucks being processed simaltaneously is ceil(#threads/4).'
+    echo $'  -p, --platform STR       Selete the sequencing platform of the input. Possible options: {ont, pb, illumina}.'
+    echo $'  -o, --output PATH        VCF/GVCF output directory.'
+    echo $''
+    echo $'Optional parameters:'
+    echo $'      --bed_fn FILE        Call variants only in the provided bed regions.'
+    echo $'      --ctg_name STR       The name of the sequence to be processed.'
+    echo $'      --sample_name STR    Define the sample name to be shown in the VCF file.'
+    echo $'      --qual INT           If set, variants with >=$qual will be marked PASS, or LowQual otherwise.'
+    echo $'      --samtools STR       Path of samtools, samtools verision >= 1.10 is required.'
+    echo $'      --python STR         Path of python, python3 >= 3.6 is required.'
+    echo $'      --pypy STR           Path of pypy3, pypy3 >= 3.6 is required.'
+    echo $'      --parallel STR       Path of parallel, parallel >= 20191122 is required.'
+    echo $'      --whatshap STR       Path of whatshap, whatshap >= 1.0 is required.'
+    echo $'      --chunk_size INT     The size of each chuck for parallel processing, default: 5Mbp.'
+    echo $'      --pileup_only        Use only the pileup mode for calling, default: False.'
+    echo $'      --gvcf               Enable GVCF output, default: False.'
+    echo $'      --snp_min_af FLOAT   Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
+    echo $'      --indel_min_af FLOAT Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
+    echo $'      --fast_mode          EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: False.'
+    echo $'      --var_pct_full FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.'
+    echo $'      --ref_pct_full FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for illumina and pb, 0.1 for ont.'
+    echo $''
 
-    echo $'Optional input parameters:'
-    echo $'      --bed_fn FILE      Call variant only in provided bed regions, optional..\n'
-    echo $'      --ctg_name STR     Checkpoint model path for calling, optional..\n'
-    echo $'      --sample_name STR  Define the sample name to be shown in the VCF file, optional..\n'
-    echo $'      --chunk_num INT    Total chunk of each number for parallel execution. Each chunk refer to a smaller reference regions, optional.\n'
-    echo $'      --qual INT         If set, variant with equal or higher quality will be marked PASS, or LowQual otherwise, optional.\n'
-    echo $'      --samtools STR     Path of samtools, samtools verision >= 1.10 is required.\n'
-    echo $'      --python STR       Path of python, python3 >= 3.6 is required. \n'
-    echo $'      --pypy STR         Path of pypy3, pypy3 >= 3.6 is required. \n'
-    echo $'      --parallel STR     Path of parallel, parallel >= 20191122 is required. \n'
-    echo $'      --whatshap STR     Path of whatshap, whatshap >= 1.0 is required. \n'
-    echo $'      --chunk_size INT   Define the chunk size for each threads for processing, default 3000000. \n'
-    echo $'      --chunk_num INT    Total chunk number for parallel execution. If set, will ignore the "chunk_size" , optional.\n'
-    echo $'      --fast_mode        Ignore low allelic frequency <= 0.15 snp calling for ont platform,  optional.\n'
-    echo $'      --proportion FLOAT Full alignment calling proportion. \n'
-    echo $'      --ref_proportion FLOAT\n'
-    echo $'                         Full alignment reference calling proportion. \n'
-    echo $'      --threshold_for_snp_only FLOAT\n'
-    echo $'                         SNP allele frequence below this threshold will be filter. \n'
-    echo $'      --threshold_for_indel_only FLOAT\n'
-    echo $'                         INDEL allele frequence below this threshold will be filter. \n'
-
-    echo $'Output parameters:'
-    echo $'  -o, --output PATH      Output (vcf/gvcf) output directory.\n'
-    echo $'  -g, --gvcf             Whether to generate gvcf, default: False.\n'
-    echo $'      --pileup_only      Only call pileup output, default: False.\n'
     exit 1
 }
 
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
-bed_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,proportion::,ref_proportion::,\
-threshold_for_snp_only::,threshold_for_indel_only::,fast_mode,gvcf,pileup_only -n 'run_clair3.sh' -- "$@"`
+bed_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
+snp_min_af::,indel_min_af::,fast_mode,gvcf,pileup_only -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -89,10 +85,10 @@ while true; do
     --pypy ) PYPY="$2"; shift 2 ;;
     --parallel ) PARALLEL="$2"; shift 2 ;;
     --whatshap ) WHATSHAP="$2"; shift 2 ;;
-    --proportion ) PRO="$2"; shift 2 ;;
-    --ref_proportion ) REF_PRO="$2"; shift 2 ;;
-    --threshold_for_snp_only ) SNP_AF="$2"; shift 2 ;;
-    --threshold_for_indel_only ) INDEL_AF="$2"; shift 2 ;;
+    --var_pct_full ) PRO="$2"; shift 2 ;;
+    --ref_pct_full ) REF_PRO="$2"; shift 2 ;;
+    --snp_min_af ) SNP_AF="$2"; shift 2 ;;
+    --indel_min_af ) INDEL_AF="$2"; shift 2 ;;
     --gvcf ) GVCF=True; shift 1 ;;
     --pileup_only ) PILEUP_ONLY=True; shift 1 ;;
     --fast_mode ) FAST_MODE=True; shift 1 ;;
@@ -117,7 +113,7 @@ if [ ! ${BED_FILE_PATH} = "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [ ! -f ${BED
 mkdir -p ${OUTPUT_FOLDER}
 
 #optional parameters should use "="
-time (
+(time (
 echo "[INFO] BAM FILE PATH: ${BAM_FILE_PATH}"
 echo "[INFO] REFERENCE FILE PATH: ${REFERENCE_FILE_PATH}"
 echo "[INFO] MODEL PATH: ${MODEL_PATH}"
@@ -140,7 +136,7 @@ echo "[INFO] USER DEFINED INDEL THRESHOLD: ${INDEL_AF}"
 echo "[INFO] FILEUP ONLY CALLING: ${PILEUP_ONLY}"
 echo "[INFO] FAST MODE CALLING: ${FAST_MODE}"
 echo "[INFO] OUTPUT GVCF: ${GVCF}"
-echo
+echo $''
 scripts/clair3.sh \
     --bam_fn ${BAM_FILE_PATH} \
     --ref_fn ${REFERENCE_FILE_PATH} \
@@ -159,18 +155,12 @@ scripts/clair3.sh \
     --parallel=${PARALLEL} \
     --whatshap=${WHATSHAP} \
     --qual=${QUAL} \
-    --proportion=${PRO} \
-    --ref_proportion=${REF_PRO} \
-    --threshold_for_snp_only=${SNP_AF} \
-    --threshold_for_indel_only=${INDEL_AF} \
+    --var_pct_full=${PRO} \
+    --ref_pct_full=${REF_PRO} \
+    --snp_min_af=${SNP_AF} \
+    --indel_min_af=${INDEL_AF} \
     --pileup_only=${PILEUP_ONLY} \
     --gvcf=${GVCF} \
     --fast_mode=${FAST_MODE}
 
-) |& tee ${OUTPUT_FOLDER}/run_clair3.log
-
-
-
-
-
-
+)) |& tee ${OUTPUT_FOLDER}/run_clair3.log

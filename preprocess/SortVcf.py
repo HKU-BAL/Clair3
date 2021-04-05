@@ -40,14 +40,13 @@ def sort_vcf_from_stdin(args):
 
 
 def main():
-    parser = ArgumentParser(description="Call variants using a trained model and tensors of candididate variants")
+    parser = ArgumentParser(description="Sort vcf file according to the contigs name and start position")
 
     parser.add_argument('--output_fn', type=str, default=None,
-                        help="minimum # of calls to output the probabilities")
+                        help="Output vcf file name")
 
     args = parser.parse_args()
     sort_vcf_from_stdin(args)
-
 
 if __name__ == "__main__":
     main()

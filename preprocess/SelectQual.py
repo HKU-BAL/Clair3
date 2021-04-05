@@ -27,7 +27,7 @@ def select_phase_qual_from_stdin(args):
             phase_qual_list.append(float(qual))
 
     phase_qual_list = sorted(phase_qual_list)
-    qual_cut_off = phase_qual_list[:int(args.low_qual_pro * len(phase_qual_list))][-1]
+    qual_cut_off = phase_qual_list[:int(args.var_pct_full * len(phase_qual_list))][-1]
     print ('[INFO] Select phasing quality cut off {}'.format(round(qual_cut_off), 0))
 
     if args.output_fn:
@@ -44,8 +44,9 @@ def select_qual_from_stdin(args):
     variants), so only use a proportion of low quality variants for full alignment while maintain high quality pileup
     output, as full alignment calling is substantially slower than pileup calling.
     """
-    low_qual_pro = args.pro
-    ref_pro = args.ref_pro if args.ref_pro else args.low_qual_pro
+    var_pct_full = args.var_pct_full
+    ref_pct_full = args.ref_pct_full if args.ref_pct_full else var_pct_fullvar_pct_full
+    ref_pct_full = 0.1 if not args.ref_pct_full and args.platform == 'ont' else ref_pct_full
     variant_qual_list = []
     ref_qual_list = []
     for row in stdin.readlines():
@@ -62,9 +63,9 @@ def select_qual_from_stdin(args):
 
     ref_qual_list = sorted(ref_qual_list)
     variant_qual_list = sorted(variant_qual_list)
-    var_qual_cut_off = variant_qual_list[:int(low_qual_pro * len(variant_qual_list))][-1]
+    var_qual_cut_off = variant_qual_list[:int(var_pct_full * len(variant_qual_list))][-1]
     #for efficency, we use maxinum 30% reference qual, which is almost cover all false negative candidates
-    ref_qual_cut_off = ref_qual_list[:int(min(ref_pro, 0.3) * len(ref_qual_list))][-1]
+    ref_qual_cut_off = ref_qual_list[:int(min(ref_pct_full, 0.3) * len(ref_qual_list))][-1]
     print ('[INFO] Select variant quality cut off {}'.format(round(var_qual_cut_off, 0)))
     print ('[INFO] Select reference quality cut off {}'.format(round(ref_qual_cut_off, 0)))
 
@@ -79,11 +80,14 @@ def main():
     parser.add_argument('--output_fn', type=str, default=None,
                         help="Define the output folder")
 
-    parser.add_argument('--pro', type=float, default=0.2,
+    parser.add_argument('--var_pct_full', type=float, default=0.3,
                         help="Default variant call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
 
-    parser.add_argument('--ref_pro', type=float, default=0.15,
-                        help="Default variant call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
+    parser.add_argument('--ref_pct_full', type=float, default=None,
+                        help="Default reference call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
+
+    parser.add_argument('--platform', type=str, default=None,
+                        help="Select specific platform for variant calling. Optional: 'ont,pb,illumina', default: %(default)s")
 
     parser.add_argument('--phase', action='store_true',
                         help="Whether only select hete candidates for phasing, default: False")

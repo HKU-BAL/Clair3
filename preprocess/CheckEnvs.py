@@ -3,7 +3,7 @@ import sys
 import argparse
 import shlex
 from collections import defaultdict
-
+from argparse import SUPPRESS
 import shared.param_p as param
 from shared.interval_tree import bed_tree_from, is_region_in
 from shared.utils import file_path_from, executable_command_string_from, folder_path_from, subprocess_popen
@@ -167,14 +167,16 @@ def main():
     parser.add_argument('--ref_fn', type=str, default="ref.fa",
                         help="Reference fasta file input, default: %(default)s")
 
-    parser.add_argument('--chunk_num', type=int, default=0,
-                        help="Total chunk number for parallel execution. Each chunk refer to a smaller reference regions.")
-
     parser.add_argument('--chunk_size', type=int, default=5000000,
                         help="Total chunk number for parallel execution. Each chunk refer to a smaller reference regions.")
 
     parser.add_argument('--includingAllContigs', action='store_true',
                         help="Call variants on all contigs, default: chr{1..22,X,Y,M,MT} and {1..22,X,Y,MT}")
+
+    # options for internal process control
+    ## The number of chucks to be divided into for parallel processing
+    parser.add_argument('--chunk_num', type=int, default=0,
+                        help=SUPPRESS)
 
     args = parser.parse_args()
 

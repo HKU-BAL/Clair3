@@ -1,16 +1,17 @@
 import shlex
-from argparse import ArgumentParser
-import shared.param_f as param
-from collections import defaultdict
-import os
-from intervaltree import IntervalTree
 import math
 import sys
 import logging
+import os
+
+from argparse import ArgumentParser, SUPPRESS
+from collections import defaultdict
+from intervaltree import IntervalTree
+import shared.param_f as param
+from shared.utils import subprocess_popen, IUPAC_base_to_num_dict as BASE2NUM, region_from, reference_sequence_from, str2bool
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 
-from shared.utils import subprocess_popen, IUPAC_base_to_num_dict as BASE2NUM, region_from, reference_sequence_from, str2bool
 
 def gaussian_distribution(x, mu, sig=16):
     return math.exp(-math.pow(x - mu, 2.) / (2 * math.pow(sig, 2.)))
@@ -118,7 +119,8 @@ def SelectCandidates(args):
 
     vcf_fn = args.vcf_fn  # true vcf var
     alt_fn = args.alt_fn
-    proportion = args.pro
+    var_pct_full = args.var_pct_full
+    ref_pct_full = args.ref_pct_full
     seq_entropy_pro = args.seq_entropy_pro
     contig_name = args.ctgName
     phasing_window_size = param.phasing_window_size
@@ -192,16 +194,16 @@ def SelectCandidates(args):
             low_qual_ref_list = [[k, v] for k, v in ref_call_pos_list if v < ref_qual]
             low_qual_variant_list = [[k, v] for k, v in need_phasing_list if v < var_qual]
         else:
-            low_qual_ref_list = sorted(ref_call_pos_list, key=lambda x: x[1])[:int(proportion * len(ref_call_pos_list))]
+            low_qual_ref_list = sorted(ref_call_pos_list, key=lambda x: x[1])[:int(ref_pct_full * len(ref_call_pos_list))]
             low_qual_variant_list = sorted(need_phasing_list, key=lambda x: x[1])[
-                                    :int(proportion * len(need_phasing_list))]
+                                    :int(var_pct_full * len(need_phasing_list))]
         
         if call_low_seq_entropy:
             candidate_positions = sorted(ref_call_pos_list, key=lambda x: x[1])[
-                                  :int((proportion + seq_entropy_pro) * len(ref_call_pos_list))] + sorted(need_phasing_list,
+                                  :int((var_pct_full + seq_entropy_pro) * len(ref_call_pos_list))] + sorted(need_phasing_list,
                                                                                                           key=lambda x: x[
                                                                                                               1])[:int(
-                (proportion + seq_entropy_pro) * len(need_phasing_list))]
+                (var_pct_full + seq_entropy_pro) * len(need_phasing_list))]
             candidate_positions = set([item[0] for item in candidate_positions])
     
             candidate_positions_entropy_list = sqeuence_entropy_from(samtools_execute_command=samtools_execute_command,
@@ -307,58 +309,63 @@ def main():
     parser = ArgumentParser(description="Select pileup candidates for full alignment")
 
     parser.add_argument('--output_fn', type=str, default=None,
-                        help="Path to directory that stores small bins. (default: %(default)s)")
+                        help="Path to directory that stores small bins. default: %(default)s")
 
     parser.add_argument('--ref_fn', type=str, default="ref.fa",
                         help="Reference fasta file input, default: %(default)s")
 
     parser.add_argument('--platform', type=str, default='ont',
-                        help="Select specific platform for variant calling. Optional: 'ont,pb,illumina', default: %(default)s")
+                        help="Sequencing platform of the input. Options: 'ont,pb,illumina', default: %(default)s")
 
     parser.add_argument('--split_folder', type=str, default=None,
-                        help="Path to directory that stores candidate region. (default: %(default)s)")
+                        help="Path to directory that stores candidate region. default: %(default)s")
 
     parser.add_argument('--vcf_fn', type=str, default=None,
-                        help="Path of the output folder. (default: %(default)s)")
+                        help="Path of the output folder. default: %(default)s")
 
-    parser.add_argument('--pro', type=float, default=0.2,
-                        help="Define the proportion for full alignment calling. (default: %(default)s)")
+    parser.add_argument('--var_pct_full', type=float, default=0.3,
+                        help="Define the proportion for full alignment calling. default: %(default)f")
     
-    parser.add_argument('--ref_pro', type=float, default=0.2,
-                        help="Define the reference proportion for full alignment calling. (default: %(default)s)")
-
-    parser.add_argument('--call_low_seq_entropy', type=str2bool, default=False,
-                        help="Whether add indel length for training and calling, default true for raw alignment")
-
-    parser.add_argument('--seq_entropy_pro', type=float, default=0.05,
-                        help="Define the proportion for select low sequence entropy proportion for full alignment calling. (default: %(default)s)")
-
-    parser.add_argument('--chr_prefix', type=str, default='chr',
-                        help="Define ctgName prefix for processing. (default: %(default)s)")
+    parser.add_argument('--ref_pct_full', type=float, default=0.3,
+                        help="Define the reference proportion for full alignment calling, default: %(default)f")
 
     parser.add_argument('--ctgName', type=str, default=None,
                         help="The name of sequence to be processed, default: %(default)s")
 
-    parser.add_argument('--region_size', type=int, default=param.region_size,
-                        help="Define the region size for illumina realignment calling. (default: %(default)s)")
-
-    parser.add_argument('--split_bed_size', type=int, default=10000,
-                        help="Define the candidate bed size for each split bed file. (default: %(default)s)")
-
-    parser.add_argument('--alt_fn', type=str, default=None,
-                        help="Path of pileup alternative vcf file. (default: %(default)s)")
-
-    parser.add_argument('--realign_window_size', type=int, default=None,
-                        help="Define the realign window size for long read phasing and realignment, only for testing. (default: %(default)s)")
-
     parser.add_argument('--phasing_info_in_bam', action='store_false',
-                        help="Whether input bam or sam have phasing info in HP tag, default: False")
-
-    parser.add_argument('--all_alt_fn', type=str, default=None,
-                        help="Path of the all alternative vcf folder, only for testing. (default: %(default)s)")
+                        help="Input bam or sam have phasing info in HP tag, default: False")
 
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
+
+    # options for advanced users
+    parser.add_argument('--call_low_seq_entropy', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Add indel length for training and calling, default true for raw alignment, default: False")
+
+    parser.add_argument('--seq_entropy_pro', type=float, default=0.05,
+                        help="EXPERIMENTAL: Define the proportion for select low sequence entropy proportion for full alignment calling, default: %(default)f")
+
+    parser.add_argument('--region_size', type=int, default=param.region_size,
+                        help="EXPERIMENTAL: Define the region size for illumina realignment calling. default: %(default)s")
+
+    parser.add_argument('--split_bed_size', type=int, default=10000,
+                        help="EXPERIMENTAL: Define the candidate bed size for each split bed file. default: %(default)s")
+
+    parser.add_argument('--realign_window_size', type=int, default=None,
+                        help="EXPERIMENTAL: Define the realign window size for long read phasing and realignment, only for testing, default: %(default)s")
+
+    # options for internal process control
+    ## Default chr prefix for contig name
+    parser.add_argument('--chr_prefix', type=str, default='chr',
+                        help=SUPPRESS)
+
+    ## Path of provided altnertive file
+    parser.add_argument('--alt_fn', type=str, default=None,
+                        help=SUPPRESS)
+
+    ## Output all alternative candidates path
+    parser.add_argument('--all_alt_fn', type=str, default=None,
+                        help=SUPPRESS)
 
     args = parser.parse_args()
 

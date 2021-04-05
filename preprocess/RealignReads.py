@@ -5,7 +5,7 @@ import ctypes
 import re
 from subprocess import PIPE
 from os.path import isfile
-from argparse import ArgumentParser
+from argparse import ArgumentParser, SUPPRESS
 from collections import defaultdict
 from intervaltree import IntervalTree
 
@@ -659,38 +659,44 @@ def main():
     parser.add_argument('--threshold', type=float, default=0.08,
                         help="Minimum allele frequence of the 1st non-reference allele for a site to be considered as a condidate site, default: %(default)f")
 
-    parser.add_argument('--minCoverage', type=float, default=2,
-                        help="Minimum coverage required to call a variant, default: %(default)f")
-
-    parser.add_argument('--minMQ', type=int, default=5,
-                        help="Minimum Mapping Quality. Mapping quality lower than the setting will be filtered, default: %(default)d")
+    parser.add_argument('--samtools', type=str, default="samtools",
+                        help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
 
     parser.add_argument('--ctgName', type=str, default="chr17",
                         help="The name of sequence to be processed, default: %(default)s")
 
-    parser.add_argument('--ctgStart', type=int, default=None,
-                        help="The 1-based starting position of the sequence to be processed")
-
-    parser.add_argument('--ctgEnd', type=int, default=None,
-                        help="The 1-based inclusive ending position of the sequence to be processed")
-
-    parser.add_argument('--samtools', type=str, default="samtools",
-                        help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
-
-    parser.add_argument('--read_fn', type=str, default="PIPE",
-                        help="Output read BAM path for storing, could directly pass reads to CreateTensor_phasing using PIPE. Default: %(default)s")
-
-    parser.add_argument('--chunk_id', type=int, default=None,
-                        help="Specific chunk id works with total chunk_num for parallel execution.")
-
-    parser.add_argument('--chunk_num', type=int, default=None,
-                        help="Total chunk number for parallel execution. Each chunk refer to a smaller reference regions.")
-
-    parser.add_argument('--test_pos', type=int, default=0,
-                        help="Test in specific candidate position. Only use for analysis, deprecated")
-
     parser.add_argument('--extend_confident_bed_fn', type=str, default=None,
                         help="Extended regions by confident bed regions to handle mpileup with candidates near provide bed regions, default extend 16 bp distance")
+
+    # options for advanced users
+    parser.add_argument('--minCoverage', type=float, default=2,
+                        help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
+
+    parser.add_argument('--minMQ', type=int, default=5,
+                        help="EXPERIMENTAL: Minimum Mapping Quality. Mapping quality lower than the setting will be filtered, default: %(default)d")
+
+    # options for debug purpose
+    parser.add_argument('--ctgStart', type=int, default=None,
+                        help="DEBUG: The 1-based starting position of the sequence to be processed")
+
+    parser.add_argument('--ctgEnd', type=int, default=None,
+                        help="DEBUG: The 1-based inclusive ending position of the sequence to be processed")
+
+    parser.add_argument('--read_fn', type=str, default="PIPE",
+                        help="DEBUG: Output read BAM path for storing, could directly pass reads to CreateTensor_phasing using PIPE. Default: %(default)s")
+
+    # options for internal process control
+    ## Test in specific candidate position. Only for testing
+    parser.add_argument('--test_pos', type=int, default=0,
+                        help=SUPPRESS)
+
+    ## The number of chucks to be divided into for parallel processing
+    parser.add_argument('--chunk_num', type=int, default=None,
+                        help=SUPPRESS)
+
+    ## The chuck ID to work on
+    parser.add_argument('--chunk_id', type=int, default=None,
+                        help=SUPPRESS)
 
     if len(sys.argv[1:]) == 0:
         parser.print_help()

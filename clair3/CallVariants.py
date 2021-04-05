@@ -6,7 +6,7 @@ import tensorflow as tf
 import numpy as np
 import logging
 from time import time
-from argparse import ArgumentParser
+from argparse import ArgumentParser, SUPPRESS
 from threading import Thread
 from math import log, e
 from collections import namedtuple
@@ -174,7 +174,7 @@ def Run(args):
     output_config = OutputConfig(
         is_show_reference=args.showRef,
         is_debug=args.debug,
-        is_haploid_precision_mode_enabled=args.haploid_precision,
+        is_haploid_precision_mode_enabled=args.haploid_precise,
         is_haploid_sensitive_mode_enabled=args.haploid_sensitive,
         is_output_for_ensemble=args.output_for_ensemble,
         quality_score_for_pass=args.qual,
@@ -199,24 +199,6 @@ def Run(args):
         predict(args=args, output_config=output_config, output_utilities=output_utilities)
     else:
         call_variants(args=args, output_config=output_config, output_utilities=output_utilities)
-
-    # merge vcf and gvcf here
-    if (args.gvcf):
-        gvcf_generator = gvcfGenerator(ref_path=args.ref_fn, samtools=args.samtools)
-        raw_gvcf_path = os.path.join(args.temp_file_dir,
-                                     args.sampleName + '.' + str(args.ctgName) + '.' + str(args.ctgStart) + '.' + str(
-                                         args.ctgEnd) + '.tmp.g.vcf')
-        raw_vcf_path = args.call_fn
-        if (args.gvcf_fn == None):
-            save_path = args.call_fn.split('.')[0] + '.g.vcf'
-        else:
-            save_path = args.gvcf_fn
-        # gvcf_generator.mergeCalls(raw_vcf_path,raw_gvcf_path,save_path,args.sampleName)
-
-        # remove temporary file
-        cmd = "rm " + raw_gvcf_path
-        # os.system(cmd)
-        pass
 
 
 def output_utilties_from(
@@ -1651,95 +1633,92 @@ def main():
     parser = ArgumentParser(description="Call variants using a trained model and tensors of candididate variants")
 
     parser.add_argument('--tensor_fn', type=str, default="PIPE",
-                        help="Tensor input, use PIPE for standard input")
+                        help="Tensor input, default: %(default)s")
 
     parser.add_argument('--chkpnt_fn', type=str, default=None,
-                        help="Input a checkpoint for variant calling")
+                        help="Input a trained model for variant calling, required")
 
-    parser.add_argument('--predict_fn', type=str, default=None,
-                        help="Output variant predictions probabilities for further analysis, only for gpu testing.")
+    parser.add_argument('--call_fn', type=str, default="clair3",
+                        help="VCF output filename")
 
-    parser.add_argument('--call_fn', type=str, default=None,
-                        help="Output variant predictions")
+    parser.add_argument('--gvcf', type=str2bool, default=False,
+                        help="Enable GVCF output, default: disabled")
 
     parser.add_argument('--ref_fn', type=str, default=None,
-                        help="Reference fasta file input, optional, print contig tags in the VCF header if set")
+                        help="Reference fasta file input, required if --gvcf is enabled")
 
-    parser.add_argument('--qual', type=int, default=None,
-                        help="If set, variant with equal or higher quality will be marked PASS, or LowQual otherwise, optional")
+    parser.add_argument('--temp_file_dir', type=str, default='./',
+                        help="The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
 
     parser.add_argument('--sampleName', type=str, default="SAMPLE",
-                        help="Define the sample name to be shown in the VCF file")
+                        help="Define the sample name to be shown in the VCF file, optional")
 
-    parser.add_argument('--showRef', action='store_true',
-                        help="Show reference calls, default true for pileup output, optional")
+    parser.add_argument('--platform', type=str, default="ont",
+                        help="Sequencing platform of the input. Options: 'ont,pb,illumina', default: %(default)s")
 
-    parser.add_argument('--debug', action='store_true',
-                        help="Debug mode, default: False, optional")
-
-    parser.add_argument('--threads', type=int, default=None,
-                        help="Number of threads, optional")
-
-    parser.add_argument('--haploid_precision', action='store_true',
-                        help="Call haploid instead of diploid (output homo-variant only)")
-
-    parser.add_argument('--haploid_sensitive', action='store_true',
-                        help="Call haploid instead of diploid (output non-multi-variant only)")
-
-    parser.add_argument('--input_probabilities', action='store_true',
-                        help="Accept probabilities as input, using those probabilities to call variant")
-
-    parser.add_argument('--output_probabilities', action='store_true',
-                        help="Output probabilities of gt21, genotype, indel_length_1 and indel_length_2 tasks for ensemble")
-
-    parser.add_argument('--output_for_ensemble', action='store_true',
-                        help="Output for ensemble, this mode is especially useful for extra high depth data")
-
-    parser.add_argument('--is_from_tables', action='store_true',
-                        help="Whether the input tensor from pytables, optional")
-
-    parser.add_argument('--chunk_id', type=int, default=None,
-                        help="Specific chunk id works with total chunk_num for parallel execution.")
-
-    parser.add_argument('--chunk_num', type=int, default=None,
-                        help="Total chunk number for parallel execution. Each chunk refer to a smaller reference regions.")
-
-    parser.add_argument('--add_indel_length', type=str2bool, default=False,
-                        help="Whether add indel length for training and calling, default true for raw alignment")
-
-    parser.add_argument('--use_gpu', type=str2bool, default=False,
-                        help="Whether use gpu for calling, using gpu will got speed improvement, only for testing now")
-
-    parser.add_argument('--platform', type=str, default='ont',
-                        help="Select specific platform for variant calling. Optional: 'ont,pb,illumina', default: %(default)s")
-
-    parser.add_argument('--pileup', action='store_true',
-                        help="Whether in pileup mode. Define two calling mode, pileup or full alignment, default: False")
-
-    # options for generating gvcf
-    parser.add_argument('--gvcf', type=str2bool, default=False,
-                        help='Generate gvcf output instead of vcf')
-
-    parser.add_argument('--temp_file_dir', default='./',
-                        help='temporary directory for storing non variant information')
-
-    parser.add_argument('--gvcf_fn', default=None,
-                        help='File name of gvcf outpupt')
-
-    parser.add_argument('--ctgName', type=str, default="",
-                        help="The name of sequence to be processed, default: %(default)s")
+    parser.add_argument('--ctgName', type=str, default=None,
+                        help="The name of the sequence to be processed")
 
     parser.add_argument('--ctgStart', type=int, default=None,
                         help="The 1-based starting position of the sequence to be processed")
 
     parser.add_argument('--ctgEnd', type=int, default=None,
-                        help="The 1-based inclusive ending position of the sequence to be processed")
+                        help="The 1-based ending position (inclusive) of the sequence to be processed")
+
+    parser.add_argument('--showRef', action='store_true',
+                        help="Show reference calls, default true for pileup output, optional")
+
+    parser.add_argument('--qual', type=int, default=None,
+                        help="If set, variants with ≥$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
 
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
 
-    parser.add_argument('--test_pos', type=int, default=1,
-                        help="Test in specific candidate position. Only use for analysis, deprecated")
+    parser.add_argument('--pileup', action='store_true',
+                        help="In pileup mode or not (full alignment mode), default: False")
+
+    # options for advanced users
+    parser.add_argument('--haploid_precise', action='store_true',
+                        help="EXPERIMENTAL: call haploid instead of diploid (output homo-variant only), deprecated")
+
+    parser.add_argument('--haploid_sensitive', action='store_true',
+                        help="EXPERIMENTAL: call haploid instead of diploid (output non-multi-variant only), deprecated")
+
+    # options for debug purpose
+    parser.add_argument('--use_gpu', type=str2bool, default=False,
+                        help="DEBUG: Use GPU for calling. Speed up is mostly insignficiant. Only use this for building a tested pipeline")
+
+    parser.add_argument('--predict_fn', type=str, default=None,
+                        help="DEBUG: Output network output probabilities for further analysis")
+
+    parser.add_argument('--output_probabilities', action='store_true',
+                        help="DEBUG: Output the network probabilities of gt21, genotype, indel_length_1 and indel_length_2")
+
+    parser.add_argument('--input_probabilities', action='store_true',
+                        help="DEBUG: Use network probability outputs as input and generate variants from them")
+
+    parser.add_argument('--output_for_ensemble', action='store_true',
+                        help="DEBUG: Generating outputs for ensemble model")
+
+    parser.add_argument('--is_from_tables', action='store_true',
+                        help="DEBUG: Whether the input tensor is from pytables")
+
+    # options for internal process control
+    ## Enable debug mode, default: False, optional
+    parser.add_argument('--debug', action='store_true',
+                        help=SUPPRESS)
+
+    ## Include indel length in training and calling, false for pileup and true for raw alignment
+    parser.add_argument('--add_indel_length', type=str2bool, default=False,
+                        help=SUPPRESS)
+
+    ## The number of chucks to be divided into for parallel processing
+    parser.add_argument('--chunk_num', type=int, default=None,
+                        help=SUPPRESS)
+
+    ## The chuck ID to work on
+    parser.add_argument('--chunk_id', type=int, default=None,
+                        help=SUPPRESS)
 
     args = parser.parse_args()
 

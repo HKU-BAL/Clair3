@@ -258,29 +258,30 @@ def main():
     parser.add_argument('--chkpnt_fn', type=str, default=None,
                         help="Input a checkpoint for continuing training")
 
-    parser.add_argument('--learning_rate', type=float, default=None,
-                        help="Set the initial learning rate, default: %(default)s")
-
     parser.add_argument('--ochk_prefix', type=str, default=None,
                         help="Prefix for checkpoint outputs when finishing each epoch.")
 
     parser.add_argument('--add_indel_length', type=int, default=0,
-                        help="Whether add indel length for training and calling, default true for full alignment")
-
-    parser.add_argument('--maxEpoch', type=int, default=None,
-                        help="Define maximum training epoch.")
+                        help="Add indel length for training and calling, default true for full alignment")
 
     parser.add_argument('--platform', type=str, default='ont',
                         help="Select specific platform for variant calling. Optional: 'ont,pb,illumina', default: %(default)s")
 
-    parser.add_argument('--validation_dataset', action='store_true',
-                        help="Add validation dataset when training. Default: %(default)s")
-
     parser.add_argument('--pileup', action='store_true',
                         help="Whether in pileup mode. Define two bin generation mode, pileup or full alignment, default: False")
 
+    # options for advanced users
+    parser.add_argument('--maxEpoch', type=int, default=None,
+                        help="EXPERIMENTAL: Define maximum training epoch.")
+
+    parser.add_argument('--learning_rate', type=float, default=None,
+                        help="EXPERIMENTAL: Set the initial learning rate, default: %(default)s")
+
+    parser.add_argument('--validation_dataset', action='store_true',
+                        help="EXPERIMENTAL: Add validation dataset when training. Default: %(default)s")
+
     parser.add_argument('--exclude_training_samples', type=str, default=None,
-                        help="Define training sample need to exclude.")
+                        help="EXPERIMENTAL: Define training sample need to exclude.")
 
     args = parser.parse_args()
 

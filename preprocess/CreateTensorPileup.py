@@ -3,7 +3,7 @@ import shlex
 import logging
 from subprocess import PIPE
 from os.path import isfile
-from argparse import ArgumentParser
+from argparse import ArgumentParser, SUPPRESS
 from collections import Counter, defaultdict
 
 import shared.param_p as param
@@ -193,8 +193,8 @@ def CreateTensorPileup(args):
     tensor_can_output_path = args.tensor_can_fn
     is_bed_file_given = bed_file_path is not None
     minimum_af_for_candidate = args.threshold
-    minimum_snp_af_for_candidate = args.snp_threshold
-    minimum_indel_af_for_candidate = args.indel_threshold
+    minimum_snp_af_for_candidate = args.snp_min_af
+    minimum_indel_af_for_candidate = args.indel_min_af
     min_coverage = args.minCoverage
     platform = args.platform
     confident_bed_fn = args.confident_bed_fn
@@ -429,7 +429,7 @@ def main():
                         help="Reference fasta file input, default: %(default)s")
 
     parser.add_argument('--bed_fn', type=str, default=None,
-                        help="Call variant only in provide candidate positions, bed regions work in intersection with each candidate positions with flanking 16 bp distance to speed up mpileup")
+                        help="Call variants only in the provided bed regions, default: %(default)s")
 
     parser.add_argument('--confident_bed_fn', type=str, default=None,
                         help="Call variant only in these regions, works in intersection with ctgName, ctgStart and ctgEnd, optional, default: as defined by ctgName, ctgStart and ctgEnd")
@@ -440,78 +440,84 @@ def main():
     parser.add_argument('--threshold', type=float, default=0.08,
                         help="Minimum allele frequence of the 1st non-reference allele for a site to be considered as a condidate site, default: %(default)f")
 
-    parser.add_argument('--snp_threshold', type=float, default=0.0,
-                        help="Minimum snp allele frequence of the 1st non-reference allele for a site to be considered as a condidate site, default: %(default)f")
+    parser.add_argument('--snp_min_af', type=float, default=0.0,
+                        help="Minimum snp allele frequence for a site to be considered as a condidate site, default: %(default)f")
 
-    parser.add_argument('--indel_threshold', type=float, default=0.0,
-                        help="Minimum indel allele frequence of the 1st non-reference allele for a site to be considered as a condidate site, default: %(default)f")
-
-    parser.add_argument('--minCoverage', type=float, default=2,
-                        help="Minimum coverage required to call a variant, default: %(default)f")
-
-    parser.add_argument('--minMQ', type=int, default=5,
-                        help="Minimum Mapping Quality. Mapping quality lower than the setting will be filtered, default: %(default)d")
-
-    parser.add_argument('--minBQ', type=int, default=0,
-                        help="Minimum Base Quality. Base quality lower than the setting will be filtered, default: %(default)d")
+    parser.add_argument('--indel_min_af', type=float, default=0.0,
+                        help="Minimum indel allele frequence for a site to be considered as a condidate site, default: %(default)f")
 
     parser.add_argument('--ctgName', type=str, default="chr20",
                         help="The name of sequence to be processed, default: %(default)s")
 
-    parser.add_argument('--ctgStart', type=int, default=None,
-                        help="The 1-based starting position of the sequence to be processed")
-
-    parser.add_argument('--ctgEnd', type=int, default=None,
-                        help="The 1-based inclusive ending position of the sequence to be processed")
-
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required. default: %(default)s")
 
-    parser.add_argument('--tensor_can_fn', type=str, default="PIPE",
-                        help="Tensor output, use PIPE for standard output, default: %(default)s")
-
-    parser.add_argument('--indel_fn', type=str, default=None,
-                        help="Output all alternative indel cigar, only use for analysis, default: %(default)s")
-
-    parser.add_argument('--chunk_id', type=int, default=None,
-                        help="Specific chunk id works with total chunk_num for parallel execution.")
-
-    parser.add_argument('--chunk_num', type=int, default=None,
-                        help="Total chunk number for parallel execution. Each chunk refer to a smaller reference regions.")
-
-    parser.add_argument('--max_depth', type=int, default=144,
-                        help="Maximum pileup depth to be processed. default: %(default)s")
-
-    parser.add_argument('--zstd', type=str, default=param.zstd,
-                        help="Path to the 'zstd' compression, default: %(default)s")
-
-    parser.add_argument('--test_pos', type=int, default=0,
-                        help="Test in specific candidate position. Only use for analysis, deprecated")
-
     parser.add_argument('--platform', type=str, default='ont',
-                        help="Select specific platform for variant calling. Optional: 'ont,pb,illumina', default: %(default)s")
+                        help="Sequencing platform of the input. Options: 'ont,pb,illumina', default: %(default)s")
 
     parser.add_argument('--fast_mode', type=str2bool, default=False,
-                        help="Ignore low allelic frequency <= 0.15 snp calling for ont platform,  optional")
+                        help="Ignore low allelic frequency <= 0.15 for ont platform, default: %(default)s")
 
-    # gvcf options
     parser.add_argument('--sampleName', type=str, default="SAMPLE",
-                        help="Define the sample name to be shown in the VCF file")
+                        help="Define the sample name to be shown in the VCF file, default: %(default)s")
 
     parser.add_argument('--gvcf', type=str2bool, default=False,
-                        help="Whether to generate gvcf")
-
-    parser.add_argument('--base_err', default=0.001, type=float,
-                        help='Default estimated base error rate')
-
-    parser.add_argument('--gq_bin_size', default=5, type=int,
-                        help='Default gq bin size for merge non-variant block')
+                        help="Enable GVCF output, default: disabled")
 
     parser.add_argument('--temp_file_dir', type=str, default="./",
-                        help="Temporary directory for save the temporary gvcf files")
+                        help="The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
+
+    # options for advanced users
+    parser.add_argument('--minCoverage', type=float, default=2,
+                        help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
+
+    parser.add_argument('--minMQ', type=int, default=5,
+                        help="EXPERIMENTAL: If set, reads with mapping Quality with <$minMQ will be filtered, default: %(default)d")
+
+    parser.add_argument('--minBQ', type=int, default=0,
+                        help="EXPERIMENTAL: If set, bases with base Quality with <$minBQ will be filtered, default: %(default)d")
+
+    parser.add_argument('--max_depth', type=int, default=144,
+                        help="EXPERIMENTAL: Maximum pileup depth to be processed. default: %(default)s")
+
+    # options for debug purpose
+    parser.add_argument('--ctgStart', type=int, default=None,
+                        help="DEBUG: The 1-based starting position of the sequence to be processed")
+
+    parser.add_argument('--ctgEnd', type=int, default=None,
+                        help="DEBUG: The 1-based inclusive ending position of the sequence to be processed")
+
+    parser.add_argument('--indel_fn', type=str, default=None,
+                        help="DEBUG: Output all alternative indel cigar, only use for analysis, default: %(default)s")
+
+    parser.add_argument('--tensor_can_fn', type=str, default="PIPE",
+                        help="DEBUG: Tensor output, use PIPE for standard output, default: %(default)s")
+
+    parser.add_argument('--base_err', default=0.001, type=float,
+                        help='DEBUG: Estimated base error rate in gvcf option, default: %(default)f')
+
+    parser.add_argument('--gq_bin_size', default=5, type=int,
+                        help='DEBUG: Default gq bin size for merge non-variant block in gvcf option, default: %(default)d')
 
     parser.add_argument('--bp_resolution', action='store_true',
-                        help="Whether bp resolution for GVCF")
+                        help="DEBUG: Enable bp resolution for GVCF, default: disabled")
+
+    # options for internal process control
+    ## Path to the 'zstd' compression
+    parser.add_argument('--zstd', type=str, default=param.zstd,
+                        help=SUPPRESS)
+
+    ## Test in specific candidate position. Only for testing
+    parser.add_argument('--test_pos', type=int, default=0,
+                        help=SUPPRESS)
+
+    ## The number of chucks to be divided into for parallel processing
+    parser.add_argument('--chunk_num', type=int, default=None,
+                        help=SUPPRESS)
+
+    ## The chuck ID to work on
+    parser.add_argument('--chunk_id', type=int, default=None,
+                        help=SUPPRESS)
 
     args = parser.parse_args()
 

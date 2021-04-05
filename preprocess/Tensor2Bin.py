@@ -1,6 +1,6 @@
 import sys
 import logging
-from argparse import ArgumentParser
+from argparse import ArgumentParser, SUPPRESS
 
 import clair3.utils as utils
 
@@ -49,27 +49,27 @@ def main():
     parser.add_argument('--allow_duplicate_chr_pos', action='store_true',
                         help="Allow duplicate chromosome:position in tensor input")
 
-    parser.add_argument('--calling', action='store_true',
-                        help="will create tf record if in calling process")
-
-    parser.add_argument('--chunk_id', type=int, default=None,
-                        help="Specific chunk id works with total chunk_num for parallel execution.")
-
-    parser.add_argument('--chunk_num', type=int, default=None,
-                        help="Total chunk number for parallel execution. Each chunk refer to a smaller reference regions.")
-
     parser.add_argument('--platform', type=str, default='pb',
-                        help="Select specific platform for variant calling. Optional: 'ont,pb,illumina', default: %(default)s")
+                        help="Sequencing platform of the input. Options: 'ont,pb,illumina', default: %(default)s")
 
     parser.add_argument('--pileup', action='store_true',
-                        help="Whether in pileup mode. Define two bin generation mode, pileup or full alignment, default: False")
+                        help="In pileup mode or not (full alignment mode), default: False")
 
-    # for training data subsample
+    # options for debug purpose
     parser.add_argument('--maximum_non_variant_ratio', type=float, default=None,
-                        help="subsample ratio for non-variant training data, optional")
+                        help="DEBUG: subsample ratio for non-variant training data, optional")
 
     parser.add_argument('--alt_fn_prefix', type=str, default=None,
-                        help="Path of alternative variants, works with maximum_non_variant_ratio in training, optional")
+                        help="DEBUG: Path of alternative variants, works with maximum_non_variant_ratio in training, optional")
+
+    # options for internal process control
+    ## The number of chucks to be divided into for parallel processing
+    parser.add_argument('--chunk_num', type=int, default=None,
+                        help=SUPPRESS)
+
+    ## The chuck ID to work on
+    parser.add_argument('--chunk_id', type=int, default=None,
+                        help=SUPPRESS)
 
     args = parser.parse_args()
 
