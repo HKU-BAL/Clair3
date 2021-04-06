@@ -80,8 +80,8 @@ def main():
     parser.add_argument('--platform', type=str, default="ont",
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
 
-    parser.add_argument('--output_fn', type=str, default=None,
-                        help="Define the output folder")
+    parser.add_argument('--output_fn', type=str, default=None, required=True,
+                        help="Define the output folder, required")
 
     parser.add_argument('--var_pct_full', type=float, default=0.3,
                         help="Default variant call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
@@ -90,7 +90,7 @@ def main():
                         help="Default reference call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
 
     parser.add_argument('--phase', action='store_true',
-                        help="Whether only select hete candidates for phasing, default: False")
+                        help="Select only heterozygous candidates for phasing or not, default: False")
 
     args = parser.parse_args()
     if args.phase:

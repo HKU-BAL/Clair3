@@ -1635,17 +1635,14 @@ def main():
     parser.add_argument('--platform', type=str, default="ont",
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
 
-    parser.add_argument('--ctgName', type=str, default=None,
-                        help="The name of the sequence to be processed")
+    parser.add_argument('--tensor_fn', type=str, default="PIPE",
+                        help="Tensor input filename, or stdin if not set")
 
-    parser.add_argument('--showRef', action='store_true',
-                        help="Show reference calls, default true for pileup output, optional")
+    parser.add_argument('--chkpnt_fn', type=str, default=None, required=True,
+                        help="Input a trained model for variant calling, required")
 
     parser.add_argument('--call_fn', type=str, default="clair3",
-                        help="VCF output filename")
-
-    parser.add_argument('--chkpnt_fn', type=str, default=None,
-                        help="Input a trained model for variant calling, required")
+                        help="VCF output filename, or stdout if not set")
 
     parser.add_argument('--gvcf', type=str2bool, default=False,
                         help="Enable GVCF output, default: disabled")
@@ -1653,58 +1650,52 @@ def main():
     parser.add_argument('--ref_fn', type=str, default=None,
                         help="Reference fasta file input, required if --gvcf is enabled")
 
-    parser.add_argument('--temp_file_dir', type=str, default='./',
-                        help="The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
+    parser.add_argument('--ctgName', type=str, default=None,
+                        help="The name of the sequence to be processed")
+
+    parser.add_argument('--ctgStart', type=int, default=None,
+                        help="The 1-based starting position of the sequence to be processed, optional, will process the whole --ctgName if not set")
+
+    parser.add_argument('--ctgEnd', type=int, default=None,
+                        help="The 1-based inclusive ending position of the sequence to be processed, optional, will process the whole --ctgName if not set")
 
     parser.add_argument('--sampleName', type=str, default="SAMPLE",
                         help="Define the sample name to be shown in the VCF file, optional")
+
+    parser.add_argument('--qual', type=int, default=None,
+                        help="If set, variants with >=$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
 
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
 
     # options for advanced users
-    parser.add_argument('--qual', type=int, default=None,
-                        help="EXPERIMENTAL: If set, variants with ≥$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
+    parser.add_argument('--temp_file_dir', type=str, default='./',
+                        help="EXPERIMENTAL: The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
 
     parser.add_argument('--haploid_precise', action='store_true',
-                        help="EXPERIMENTAL: call haploid instead of diploid (output homo-variant only), deprecated")
+                        help="EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant")
 
     parser.add_argument('--haploid_sensitive', action='store_true',
-                        help="EXPERIMENTAL: call haploid instead of diploid (output non-multi-variant only), deprecated")
+                        help="EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant")
 
     # options for debug purpose
     parser.add_argument('--use_gpu', type=str2bool, default=False,
-                        help="DEBUG: Use GPU for calling. Speed up is mostly insignficiant. Only use this for building a tested pipeline")
-
-    parser.add_argument('--ctgStart', type=int, default=None,
-                        help="DEBUG: The 1-based starting position of the sequence to be processed")
-
-    parser.add_argument('--ctgEnd', type=int, default=None,
-                        help="DEBUG: The 1-based ending position (inclusive) of the sequence to be processed")
+                        help="DEBUG: Use GPU for calling. Speed up is mostly insignficiant. Only use this for building your own pipeline")
 
     parser.add_argument('--predict_fn', type=str, default=None,
                         help="DEBUG: Output network output probabilities for further analysis")
 
-    parser.add_argument('--output_probabilities', action='store_true',
-                        help="DEBUG: Output the network probabilities of gt21, genotype, indel_length_1 and indel_length_2")
-
     parser.add_argument('--input_probabilities', action='store_true',
                         help="DEBUG: Use network probability outputs as input and generate variants from them")
 
-    parser.add_argument('--output_for_ensemble', action='store_true',
-                        help="DEBUG: Generating outputs for ensemble model")
-
-    parser.add_argument('--is_from_tables', action='store_true',
-                        help="DEBUG: Whether the input tensor is from pytables")
+    parser.add_argument('--output_probabilities', action='store_true',
+                        help="DEBUG: Output the network probabilities of gt21, genotype, indel_length_1 and indel_length_2")
 
     # options for internal process control
     ## In pileup mode or not (full alignment mode), default: False
     parser.add_argument('--pileup', action='store_true',
                         help=SUPPRESS)
 
-    ##Tensor input, for internal testing only
-    parser.add_argument('--tensor_fn', type=str, default="PIPE",
-                        help=SUPPRESS)
 
     ## Include indel length in training and calling, false for pileup and true for raw alignment
     parser.add_argument('--add_indel_length', type=str2bool, default=False,
@@ -1720,6 +1711,18 @@ def main():
 
     ## Enable debug mode, default: False, optional
     parser.add_argument('--debug', action='store_true',
+                        help=SUPPRESS)
+
+    ## Generating outputs for ensemble model calling
+    parser.add_argument('--output_for_ensemble', action='store_true',
+                        help=SUPPRESS)
+
+    ## Use bin file from pytables to speed up calling.
+    parser.add_argument('--is_from_tables', action='store_true',
+                        help=SUPPRESS)
+
+    ## Output reference calls
+    parser.add_argument('--showRef', action='store_true',
                         help=SUPPRESS)
 
     args = parser.parse_args()

@@ -165,7 +165,7 @@ def CheckEnvs(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Check the envorinment variables and handle contig and bed if need")
+        description="Check the envorinment and the validity of the input variables, preprocess the BED input if necessary")
 
     parser.add_argument('--bam_fn', type=str, default=None,
                         help="BAM file input, default: %(default)s")
@@ -173,17 +173,17 @@ def main():
     parser.add_argument('--output_fn_prefix', type=str, default=None,
                         help="Path to the output folder")
 
-    parser.add_argument('--ctg_name', type=str, default='EMPTY',
-                        help="The name of contigs to be processed")
+    parser.add_argument('--ctg_name', type=str, default=None,
+                        help="The name of sequence to be processed, required if --bed_fn is not defined")
 
     parser.add_argument('--bed_fn', type=str, nargs='?', action="store", default=None,
-                        help="Call variant only in these regions, works in intersection with ctgName, ctgStart and ctgEnd, optional, default: as defined by ctgName, ctgStart and ctgEnd")
+                        help="Call variant only in these regions. Will take an intersection if --ctgName is set")
 
     parser.add_argument('--ref_fn', type=str, default="ref.fa",
                         help="Reference fasta file input, default: %(default)s")
 
     parser.add_argument('--chunk_size', type=int, default=5000000,
-                        help="Total chunk number for parallel execution. Each chunk refer to a smaller reference regions.")
+                        help="The size of each chuck for parallel processing, default: 5Mbp")
 
     parser.add_argument('--includingAllContigs', action='store_true',
                         help="Call variants on all contigs, default: chr{1..22,X,Y,M,MT} and {1..22,X,Y,MT}")

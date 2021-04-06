@@ -645,16 +645,28 @@ def reads_realignment(args):
 
 
 def main():
-    parser = ArgumentParser(description="Generate 1-based variant candidates using alignments")
+    parser = ArgumentParser(description="Reads realignment")
 
-    parser.add_argument('--bam_fn', type=str, default="input.bam",
-                        help="Sorted bam file input, default: %(default)s")
+    parser.add_argument('--bam_fn', type=str, default=None, required=True,
+                        help="Sorted BAM file input, required")
 
-    parser.add_argument('--ref_fn', type=str, default="ref.fa",
-                        help="Reference fasta file input, default: %(default)s")
+    parser.add_argument('--ref_fn', type=str, default="ref.fa", required=True,
+                        help="Reference fasta file input, required")
 
-    parser.add_argument('--ctgName', type=str, default="chr17",
-                        help="The name of sequence to be processed, default: %(default)s")
+    parser.add_argument('--read_fn', type=str, default="PIPE",
+                        help="Output realigned BAM. Default directly pass reads to CreateTensor_phasing using PIPE. Default: %(default)s")
+
+    parser.add_argument('--ctgName', type=str, default=None,
+                        help="The name of sequence to be processed")
+
+    parser.add_argument('--ctgStart', type=int, default=None,
+                        help="The 1-based starting position of the sequence to be processed")
+
+    parser.add_argument('--ctgEnd', type=int, default=None,
+                        help="The 1-based inclusive ending position of the sequence to be processed")
+
+    parser.add_argument('--bed_fn', type=str, default=None,
+                        help="Realign reads only in the provided bed regions")
 
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
@@ -666,21 +678,9 @@ def main():
     parser.add_argument('--minMQ', type=int, default=5,
                         help="EXPERIMENTAL: Minimum Mapping Quality. Mapping quality lower than the setting will be filtered, default: %(default)d")
 
-    parser.add_argument('--bed_fn', type=str, default=None,
-                        help="EXPERIMENTAL: Call variants only in the provided bed regions, default: %(default)s")
-
-    parser.add_argument('--extend_confident_bed_fn', type=str, default=None,
-                        help="EXPERIMENTAL: Extended regions by confident bed regions to handle mpileup with candidates near provide bed regions, default extend 16 bp distance")
-
     # options for debug purpose
-    parser.add_argument('--ctgStart', type=int, default=None,
-                        help="DEBUG: The 1-based starting position of the sequence to be processed")
-
-    parser.add_argument('--ctgEnd', type=int, default=None,
-                        help="DEBUG: The 1-based inclusive ending position of the sequence to be processed")
-
-    parser.add_argument('--read_fn', type=str, default="PIPE",
-                        help="DEBUG: Output read BAM path for storing, could directly pass reads to CreateTensor_phasing using PIPE. Default: %(default)s")
+    parser.add_argument('--extend_bed', nargs='?', action="store", type=str, default=None,
+                        help="DEBUG: Extend the regions in the --bed_fn by a few bp for tensor creation, default extend 16bp")
 
     # options for internal process control
     ## Test in specific candidate position. Only for testing

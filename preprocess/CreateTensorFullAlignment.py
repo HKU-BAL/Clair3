@@ -435,7 +435,7 @@ def CreateTensorFullAlignment(args):
     phasing_window_size = args.phasing_window_size
     extend_bp = param.extend_bp
     unify_repre = args.unify_repre
-    minimum_af_for_candidate = args.threshold
+    minimum_af_for_candidate = args.min_af
     min_coverage = args.minCoverage
     platform = args.platform
     confident_bed_fn = args.confident_bed_fn
@@ -796,90 +796,63 @@ def CreateTensorFullAlignment(args):
 
 
 def main():
-    parser = ArgumentParser(description="Generate 1-based variant candidates tensor using phased raw alignments")
+    parser = ArgumentParser(description="Generate variant candidate tensors using phased full alignments")
 
     parser.add_argument('--platform', type=str, default='ont',
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
 
-    parser.add_argument('--bam_fn', type=str, default="PIPE",
-                        help="Sorted bam file input, default: %(default)s")
+    parser.add_argument('--bam_fn', type=str, default="input.bam", required=True,
+                        help="Sorted BAM file input, required")
 
     parser.add_argument('--ref_fn', type=str, default="ref.fa", required=True,
-                        help="Reference fasta file input, default: %(default)s")
+                        help="Reference fasta file input, required")
 
-    parser.add_argument('--confident_bed_fn', type=str, default=None,
-                        help="Call variant only in these regions, works in intersection with ctgName, ctgStart and ctgEnd, optional, default: as defined by ctgName, ctgStart and ctgEnd")
+    parser.add_argument('--tensor_can_fn', type=str, default="PIPE",
+                        help="Tensor output, stdout by default, default: %(default)s")
 
-    parser.add_argument('--threshold', type=float, default=0.08,
-                        help="Minimum allele frequence of the 1st non-reference allele for a site to be considered as a condidate site, default: %(default)f")
+    parser.add_argument('--min_af', type=float, default=0.08,
+                        help="Minimum allele frequency for both SNP and Indel for a site to be considered as a condidate site, default: %(default)f")
 
-    parser.add_argument('--ctgName', type=str, default="chr20",
-                        help="The name of sequence to be processed, default: %(default)s")
+    parser.add_argument('--ctgName', type=str, default=None,
+                        help="The name of sequence to be processed, required if --bed_fn is not defined")
+
+    parser.add_argument('--ctgStart', type=int, default=None,
+                        help="The 1-based starting position of the sequence to be processed, optional, will process the whole --ctgName if not set")
+
+    parser.add_argument('--ctgEnd', type=int, default=None,
+                        help="The 1-based inclusive ending position of the sequence to be processed, optional, will process the whole --ctgName if not set")
+
+    parser.add_argument('--bed_fn', type=str, nargs='?', action="store", default=None,
+                        help="Call variant only in the provided regions. Will take an intersection if --ctgName and/or (--ctgStart, --ctgEnd) are set")
 
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required. default: %(default)s")
 
-    parser.add_argument('--phasing_info_in_bam', action='store_true',
-                        help="Input bam or sam have phasing info in HP tag, default: False")
-
-    parser.add_argument('--gvcf', type=str2bool, default=False,
-                        help="Enable GVCF output, default: disabled")
-
-    parser.add_argument('--sampleName', type=str, default="SAMPLE",
-                        help="Define the sample name to be shown in the VCF file")
-
     # options for advanced users
-    parser.add_argument('--bed_fn', type=str, default=None,
-                        help="EXPERIMENTAL: Call variants only in the provided bed regions, default: %(default)s")
-
     parser.add_argument('--minCoverage', type=float, default=2,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
     parser.add_argument('--minMQ', type=int, default=5,
-                        help="EXPERIMENTAL: If set, reads with mapping Quality with <$minMQ will be filtered, default: %(default)d")
+                        help="EXPERIMENTAL: If set, reads with mapping quality with <$minMQ are filtered, default: %(default)d")
 
     parser.add_argument('--minBQ', type=int, default=0,
-                        help="EXPERIMENTAL: If set, bases with base Quality with <$minBQ will be filtered, default: %(default)d")
+                        help="EXPERIMENTAL: If set, bases with base quality with <$minBQ are filtered, default: %(default)d")
 
     parser.add_argument('--max_depth', type=int, default=144,
-                        help="EXPERIMENTAL: Maximum raw alignment depth to be processed. default: %(default)s")
-
-    parser.add_argument('--temp_file_dir', type=str, default="./",
-                        help="EXPERIMENTAL: The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
-
-    parser.add_argument('--extend_confident_bed_fn', type=str, default=None,
-                        help="EXPERIMENTAL: Extended regions by confident bed regions to handle mpileup with candidates near provide bed regions, default extend 16 bp distance")
+                        help="EXPERIMENTAL: Maximum full alignment depth to be processed. default: %(default)s")
 
     # options for debug purpose
-    parser.add_argument('--ctgStart', type=int, default=None,
-                        help="DEBUG: The 1-based starting position of the sequence to be processed")
-
-    parser.add_argument('--ctgEnd', type=int, default=None,
-                        help="DEBUG: The 1-based inclusive ending position of the sequence to be processed")
-
-    parser.add_argument('--tensor_can_fn', type=str, default="PIPE",
-                        help="DEBUG: Tensor output, use PIPE for standard output, default: %(default)s")
-
-    parser.add_argument('--indel_fn', type=str, default=None,
-                        help="DEBUG: Output all alternative indel cigar, only use for analysis, default: %(default)s")
+    parser.add_argument('--phasing_info_in_bam', action='store_true',
+                        help="DEBUG: Skip phasing and use the phasing info provided in the input BAM (HP tag), default: False")
 
     parser.add_argument('--phasing_window_size', type=int, default=param.phasing_window_size,
-                        help="DEBUG: The 1-based inclusive ending position of the sequence to be processed")
+                        help="DEBUG: The window size for read phasing")
 
-    parser.add_argument('--need_phasing', action='store_true',
-                        help="DEBUG: Apply read level phasing when create tensor, will decreases calling time while uses more memory. Default: False")
+    parser.add_argument('--extend_bed', nargs='?', action="store", type=str, default=None,
+                        help="DEBUG: Extend the regions in the --bed_fn by a few bp for tensor creation, default extend 16bp")
 
-    parser.add_argument('--need_realignment', action='store_true',
-                        help="DEBUG: Apply reads local realignment for illumina platform. Default: False")
-
-    parser.add_argument('--base_err', default=0.001, type=float,
-                        help='DEBUG: Estimated base error rate in gvcf option, default: %(default)f')
-
-    parser.add_argument('--gq_bin_size', default=5, type=int,
-                        help='DEBUG: Default gq bin size for merge non-variant block in gvcf option, default: %(default)d')
-
-    parser.add_argument('--bp_resolution', action='store_true',
-                        help="DEBUG: Enable bp resolution for GVCF, default: disabled")
+    parser.add_argument('--indel_fn', type=str, default=None,
+                        help="DEBUG: Output all alternative indel cigar for debug purpose")
 
     # options for internal process control
     ## Path to the 'zstd' compression
@@ -913,6 +886,19 @@ def main():
     ## Path of representation unification output
     parser.add_argument('--unify_repre_fn', type=str, default=None,
                         help=SUPPRESS)
+
+    ## Provide the regions to be included in full-alignment based calling
+    parser.add_argument('--full_aln_regions', type=str, nargs='?', action="store", default=None,
+                        help=SUPPRESS)
+
+    ## Use Clair3's own phasing module for read level phasing when creating tensor, compared to using Whatshap, speed is faster but has higher memory footprint, default: False
+    parser.add_argument('--need_phasing', action='store_true',
+                        help=SUPPRESS)
+
+    ## Apply read realignment for illumina platform. Greatly boost indel performance in trade of running time
+    parser.add_argument('--need_realignment', action='store_true',
+                        help=SUPPRESS)
+
 
     args = parser.parse_args()
 

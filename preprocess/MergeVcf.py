@@ -28,13 +28,13 @@ def MarkLowQual(row, quality_score_for_pass, qual):
 
 def MergeVcf_illumina(args):
     # region vcf merge for illumina, as read realignment will make candidate varaints shift and missing.
-    candidate_bed_fn = args.candidate_bed_fn
+    bed_fn = args.bed_fn
     output_fn = args.output_fn
     full_alignment_vcf_fn = args.full_alignment_vcf_fn
     pileup_vcf_fn = args.pileup_vcf_fn  # true vcf var
     contig_name = args.ctgName
 
-    tree = bed_tree_from(bed_file_path=candidate_bed_fn, padding=param.no_of_positions)
+    tree = bed_tree_from(bed_file_path=bed_fn, padding=param.no_of_positions)
     unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (pileup_vcf_fn)))
     output = []
     pileup_count = 0
@@ -167,54 +167,54 @@ def mergeNonVariant(args):
 
 
 def main():
-    logging.info("Merge pileup and full alignment vcf")
+    logging.info("Merge pileup and full alignment VCF/GVCF")
     parser = ArgumentParser(description="Generate 1-based variant candidates using alignments")
 
     parser.add_argument('--platform', type=str, default="ont",
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
 
-    parser.add_argument('--output_fn', type=str, default=None,
-                        help="Path to directory that stores small bins, default: %(default)s")
-
-    parser.add_argument('--candidate_bed_fn', type=str, default=None,
-                        help="Path of the output folder. default: %(default)s")
-
-    parser.add_argument('--full_alignment_vcf_fn', type=str, default=None,
-                        help="Path of full alignment vcf file, default: %(default)s")
+    parser.add_argument('--ref_fn', type=str, default=None,
+                        help="Reference fasta file input")
 
     parser.add_argument('--pileup_vcf_fn', type=str, default=None,
-                        help="Path of pileup vcf file, default: %(default)s")
+                        help="Path to the pileup vcf file")
 
-    parser.add_argument('--ctgName', type=str, default=None,
-                        help="The name of sequence to be processed, default: %(default)s")
-
-    parser.add_argument('--qual', type=int, default=0,
-                        help="If set, variants with ≥$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
+    parser.add_argument('--full_alignment_vcf_fn', type=str, default=None,
+                        help="Path to the full alignment vcf file")
 
     parser.add_argument('--gvcf', type=str2bool, default=False,
                         help="Enable GVCF output, default: disabled")
 
     parser.add_argument('--non_var_gvcf_fn', type=str, default=None,
-                        help='path of non-variant gvcf')
+                        help='Path to the non-variant GVCF')
 
     parser.add_argument('--gvcf_fn', type=str, default=None,
-                        help='File name of gvcf outpupt')
+                        help='Filename of the GVCF output')
 
-    parser.add_argument('--ref_fn', type=str, default=None,
-                        help="Reference fasta file input, optional")
+    parser.add_argument('--output_fn', type=str, default=None,
+                        help="Filename of the merged output")
 
-    parser.add_argument('--samtools', type=str, default='samtools',
-                        help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
+    parser.add_argument('--ctgName', type=str, default=None,
+                        help="The name of sequence to be processed")
+
+    parser.add_argument('--ctgStart', type=int, default=None,
+                        help="The 1-based starting position of the sequence to be processed")
+
+    parser.add_argument('--ctgEnd', type=int, default=None,
+                        help="The 1-based inclusive ending position of the sequence to be processed")
+
+    parser.add_argument('--bed_fn', type=str, default=None,
+                        help="Process variant only in the provided regions")
+
+    parser.add_argument('--qual', type=int, default=0,
+                        help="If set, variants with >=$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
 
     parser.add_argument('--sampleName', type=str, default="SAMPLE",
                         help="Define the sample name to be shown in the VCF file")
 
-    # options for debug purpose
-    parser.add_argument('--ctgStart', type=int, default=None,
-                        help="DEBUG: The 1-based starting position of the sequence to be processed")
+    parser.add_argument('--samtools', type=str, default='samtools',
+                        help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
 
-    parser.add_argument('--ctgEnd', type=int, default=None,
-                        help="DEBUG: The 1-based inclusive ending position of the sequence to be processed")
 
     args = parser.parse_args()
 

@@ -40,10 +40,10 @@ def sort_vcf_from_stdin(args):
 
 
 def main():
-    parser = ArgumentParser(description="Sort vcf file according to the contigs name and start position")
+    parser = ArgumentParser(description="Sort a VCF file according to contig name and starting position")
 
-    parser.add_argument('--output_fn', type=str, default=None,
-                        help="Output vcf file name")
+    parser.add_argument('--output_fn', type=str, default=None, required=True,
+                        help="Output VCF filename, required")
 
     args = parser.parse_args()
     sort_vcf_from_stdin(args)

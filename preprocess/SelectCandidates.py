@@ -311,48 +311,49 @@ def main():
     parser.add_argument('--platform', type=str, default="ont",
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
 
-    parser.add_argument('--output_fn', type=str, default=None,
-                        help="Path to directory that stores small bins. default: %(default)s")
+    parser.add_argument('--output_fn', type=str, default=None, required=True,
+                        help="Path to directory that stores small bins, required")
 
-    parser.add_argument('--ref_fn', type=str, default="ref.fa",
-                        help="Reference fasta file input, default: %(default)s")
+    parser.add_argument('--ref_fn', type=str, default=None, required=True,
+                        help="Reference fasta file input, required")
 
-    parser.add_argument('--split_folder', type=str, default=None,
-                        help="Path to directory that stores candidate region. default: %(default)s")
+    parser.add_argument('--split_folder', type=str, default=None, required=True,
+                        help="Path to directory that stores candidate region, required")
 
-    parser.add_argument('--vcf_fn', type=str, default=None,
-                        help="Path of the input pileup vcf, default: %(default)s")
+    parser.add_argument('--vcf_fn', type=str, default=None, required=True,
+                        help="Input pileup vcf, required")
 
     parser.add_argument('--var_pct_full', type=float, default=0.3,
-                        help="Define the proportion for full alignment calling. default: %(default)f")
-    
+                        help="Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: %(default)f")
+
     parser.add_argument('--ref_pct_full', type=float, default=0.3,
-                        help="Define the reference proportion for full alignment calling, default: %(default)f")
+                        help="Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: %(default)f")
 
     parser.add_argument('--ctgName', type=str, default=None,
-                        help="The name of sequence to be processed, default: %(default)s")
-
-    parser.add_argument('--phasing_info_in_bam', action='store_false',
-                        help="Input bam or sam have phasing info in HP tag, default: False")
+                        help="The name of sequence to be processed")
 
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
 
     # options for advanced users
     parser.add_argument('--call_low_seq_entropy', type=str2bool, default=False,
-                        help="EXPERIMENTAL: Add indel length for training and calling, default true for raw alignment, default: False")
+                        help="EXPERIMENTAL: Enable full alignment calling on candidate variants with low sequence entropy")
 
     parser.add_argument('--seq_entropy_pro', type=float, default=0.05,
-                        help="EXPERIMENTAL: Define the proportion for select low sequence entropy proportion for full alignment calling, default: %(default)f")
+                        help="EXPERIMENTAL: Define the percentage of the candidate variants with the lowest sequence entropy for full alignment calling, default: %(default)f")
 
     parser.add_argument('--region_size', type=int, default=param.region_size,
-                        help="EXPERIMENTAL: Define the region size for illumina realignment calling. default: %(default)s")
+                        help="EXPERIMENTAL: Define the region size for illumina read realignment. default: %(default)s")
 
     parser.add_argument('--split_bed_size', type=int, default=10000,
                         help="EXPERIMENTAL: Define the candidate bed size for each split bed file. default: %(default)s")
 
     parser.add_argument('--realign_window_size', type=int, default=None,
-                        help="EXPERIMENTAL: Define the realign window size for long read phasing and realignment, only for testing, default: %(default)s")
+                        help="EXPERIMENTAL: Define the realign window size for long read phasing and realignment, default: %(default)s")
+
+    # options for debug purpose
+    parser.add_argument('--phasing_info_in_bam', action='store_false',
+                        help="DEBUG: Skip phasing and use the phasing info provided in the input BAM (HP tag), default: False")
 
     # options for internal process control
     ## Default chr prefix for contig name

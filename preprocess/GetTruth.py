@@ -71,16 +71,16 @@ def OutputVariant(args):
 
 
 def main():
-    parser = ArgumentParser(description="Extract variant type and allele from a Truth dataset")
+    parser = ArgumentParser(description="Extract variant type and allele from a truth dataset")
 
-    parser.add_argument('--vcf_fn', type=str, default="input.vcf",
-                        help="Truth vcf file input, default: %(default)s")
+    parser.add_argument('--vcf_fn', type=str, default="input.vcf", required=True,
+                        help="Truth VCF file input, required")
 
     parser.add_argument('--var_fn', type=str, default="PIPE",
                         help="Truth variants output, use PIPE for standard output, default: %(default)s")
 
     parser.add_argument('--ctgName', type=str, default=None,
-                        help="The name of sequence to be processed, default: %(default)s")
+                        help="The name of sequence to be processed")
 
     parser.add_argument('--ctgStart', type=int, default=None,
                         help="The 1-based starting position of the sequence to be processed")

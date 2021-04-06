@@ -29,35 +29,28 @@ def Run(args):
 
 
 def main():
-    parser = ArgumentParser(description="Generate a binary format input tensor")
+    parser = ArgumentParser(description="Combine the variant and non-variant tensors and convert them to a binary")
 
     parser.add_argument('--platform', type=str, default="ont",
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
 
-    parser.add_argument('--tensor_fn', type=str, default="vartensors",
-                        help="Tensor input")
+    parser.add_argument('--tensor_fn', type=str, default=None, required=True,
+                        help="Tensor input, required")
 
-    parser.add_argument('--var_fn', type=str, default="truthvars",
-                        help="Truth variants list input")
+    parser.add_argument('--var_fn', type=str, default=None, required=True,
+                        help="Truth variants list input, required")
 
-    parser.add_argument('--bed_fn', type=str, default=None,
-                        help="High confident genome regions input in the BED format")
+    parser.add_argument('--bed_fn', type=str, default=None, required=True,
+                        help="High confident genome regions input in the BED format, required")
 
-    parser.add_argument('--bin_fn', type=str, default=None,
-                        help="Output a binary tensor file")
+    parser.add_argument('--bin_fn', type=str, default=None, required=True,
+                        help="Output a binary tensor file, required")
 
     parser.add_argument('--shuffle', action='store_true',
-                        help="Shuffle on building bin")
+                        help="Shuffle the inputs")
 
     parser.add_argument('--allow_duplicate_chr_pos', action='store_true',
-                        help="Allow duplicate chromosome:position in tensor input")
-
-    # options for debug purpose
-    parser.add_argument('--maximum_non_variant_ratio', type=float, default=None,
-                        help="DEBUG: subsample ratio for non-variant training data, optional")
-
-    parser.add_argument('--alt_fn_prefix', type=str, default=None,
-                        help="DEBUG: Path of alternative variants, works with maximum_non_variant_ratio in training, optional")
+                        help="Allow duplicated chromosome:position in the tensor input")
 
     # options for internal process control
     ## In pileup mode or not (full alignment mode), default: False
@@ -70,6 +63,14 @@ def main():
 
     ## The chuck ID to work on
     parser.add_argument('--chunk_id', type=int, default=None,
+                        help=SUPPRESS)
+
+    ## Maximum non-variant ratio against variant in the training data
+    parser.add_argument('--maximum_non_variant_ratio', type=float, default=None,
+                        help=SUPPRESS)
+
+    ## Path to the variant candidate details
+    parser.add_argument('--candidate_details_fn_prefix', type=str, default=None,
                         help=SUPPRESS)
 
     args = parser.parse_args()

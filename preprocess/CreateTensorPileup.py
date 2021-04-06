@@ -420,87 +420,67 @@ def CreateTensorPileup(args):
 
 
 def main():
-    parser = ArgumentParser(description="Generate 1-based variant candidates tensor using pileup alignments")
+    parser = ArgumentParser(description="Generate variant candidate tensors using pileup")
 
     parser.add_argument('--platform', type=str, default='ont',
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
 
     parser.add_argument('--bam_fn', type=str, default="input.bam", required=True,
-                        help="Sorted bam file input, default: %(default)s")
+                        help="Sorted BAM file input, required")
 
     parser.add_argument('--ref_fn', type=str, default="ref.fa", required=True,
-                        help="Reference fasta file input, default: %(default)s")
+                        help="Reference fasta file input, required")
 
-    parser.add_argument('--confident_bed_fn', type=str, default=None,
-                        help="Call variant only in these regions, works in intersection with ctgName, ctgStart and ctgEnd, optional, default: as defined by ctgName, ctgStart and ctgEnd")
+    parser.add_argument('--tensor_can_fn', type=str, default="PIPE",
+                        help="Tensor output, stdout by default, default: %(default)s")
 
-    parser.add_argument('--threshold', type=float, default=0.08,
-                        help="Minimum allele frequence of the 1st non-reference allele for a site to be considered as a condidate site, default: %(default)f")
+    parser.add_argument('--min_af', type=float, default=0.08,
+                        help="Minimum allele frequency for both SNP and Indel for a site to be considered as a condidate site, default: %(default)f")
 
-    parser.add_argument('--snp_min_af', type=float, default=0.0,
+    parser.add_argument('--snp_min_af', type=float, default=0.08,
                         help="Minimum snp allele frequence for a site to be considered as a condidate site, default: %(default)f")
 
-    parser.add_argument('--indel_min_af', type=float, default=0.0,
+    parser.add_argument('--indel_min_af', type=float, default=0.15,
                         help="Minimum indel allele frequence for a site to be considered as a condidate site, default: %(default)f")
 
-    parser.add_argument('--ctgName', type=str, default="chr20",
-                        help="The name of sequence to be processed, default: %(default)s")
+    parser.add_argument('--ctgName', type=str, default=None,
+                        help="The name of sequence to be processed, required if --bed_fn is not defined")
 
-    parser.add_argument('--fast_mode', type=str2bool, default=False,
-                        help="Ignore low allelic frequency <= 0.15 for ont platform, default: %(default)s")
+    parser.add_argument('--ctgStart', type=int, default=None,
+                        help="The 1-based starting position of the sequence to be processed, optional, will process the whole --ctgName if not set")
 
-    parser.add_argument('--sampleName', type=str, default="SAMPLE",
-                        help="Define the sample name to be shown in the VCF file, default: %(default)s")
+    parser.add_argument('--ctgEnd', type=int, default=None,
+                        help="The 1-based inclusive ending position of the sequence to be processed, optional, will process the whole --ctgName if not set")
 
-    parser.add_argument('--gvcf', type=str2bool, default=False,
-                        help="Enable GVCF output, default: disabled")
+    parser.add_argument('--bed_fn', type=str, nargs='?', action="store", default=None,
+                        help="Call variant only in the provided regions. Will take an intersection if --ctgName and/or (--ctgStart, --ctgEnd) are set")
 
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required. default: %(default)s")
 
     # options for advanced users
-    parser.add_argument('--bed_fn', type=str, default=None,
-                        help="EXPERIMENTAL: Call variants only in the provided bed regions, default: %(default)s")
-
-    parser.add_argument('--extend_confident_bed_fn', type=str, default=None,
-                        help="EXPERIMENTAL: Extended regions by confident bed regions to handle mpileup with candidates near provide bed regions, default extend 16 bp distance")
+    parser.add_argument('--fast_mode', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: %(default)s")
 
     parser.add_argument('--minCoverage', type=float, default=2,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
     parser.add_argument('--minMQ', type=int, default=5,
-                        help="EXPERIMENTAL: If set, reads with mapping Quality with <$minMQ will be filtered, default: %(default)d")
+                        help="EXPERIMENTAL: If set, reads with mapping quality with <$minMQ are filtered, default: %(default)d")
 
     parser.add_argument('--minBQ', type=int, default=0,
-                        help="EXPERIMENTAL: If set, bases with base Quality with <$minBQ will be filtered, default: %(default)d")
+                        help="EXPERIMENTAL: If set, bases with base quality with <$minBQ are filtered, default: %(default)d")
 
     parser.add_argument('--max_depth', type=int, default=144,
                         help="EXPERIMENTAL: Maximum pileup depth to be processed. default: %(default)s")
 
-    parser.add_argument('--temp_file_dir', type=str, default="./",
-                        help="EXPERIMENTAL: The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
-
     # options for debug purpose
-    parser.add_argument('--ctgStart', type=int, default=None,
-                        help="DEBUG: The 1-based starting position of the sequence to be processed")
-
-    parser.add_argument('--ctgEnd', type=int, default=None,
-                        help="DEBUG: The 1-based inclusive ending position of the sequence to be processed")
+    parser.add_argument('--extend_bed', nargs='?', action="store", type=str, default=None,
+                        help="DEBUG: Extend the regions in the --bed_fn by a few bp for tensor creation, default extend 16bp")
 
     parser.add_argument('--indel_fn', type=str, default=None,
-                        help="DEBUG: Output all alternative indel cigar, only use for analysis, default: %(default)s")
+                        help="DEBUG: Output all alternative indel cigar for debug purpose")
 
-    parser.add_argument('--tensor_can_fn', type=str, default="PIPE",
-                        help="DEBUG: Tensor output, use PIPE for standard output, default: %(default)s")
-
-    parser.add_argument('--base_err', default=0.001, type=float,
-                        help='DEBUG: Estimated base error rate in gvcf option, default: %(default)f')
-
-    parser.add_argument('--gq_bin_size', default=5, type=int,
-                        help='DEBUG: Default gq bin size for merge non-variant block in gvcf option, default: %(default)d')
-
-    parser.add_argument('--bp_resolution', action='store_true',
-                        help="DEBUG: Enable bp resolution for GVCF, default: disabled")
 
     # options for internal process control
     ## Path to the 'zstd' compression
