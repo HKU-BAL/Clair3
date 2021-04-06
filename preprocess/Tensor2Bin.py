@@ -31,6 +31,9 @@ def Run(args):
 def main():
     parser = ArgumentParser(description="Generate a binary format input tensor")
 
+    parser.add_argument('--platform', type=str, default="ont",
+                        help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
+
     parser.add_argument('--tensor_fn', type=str, default="vartensors",
                         help="Tensor input")
 
@@ -49,12 +52,6 @@ def main():
     parser.add_argument('--allow_duplicate_chr_pos', action='store_true',
                         help="Allow duplicate chromosome:position in tensor input")
 
-    parser.add_argument('--platform', type=str, default='pb',
-                        help="Sequencing platform of the input. Options: 'ont,pb,illumina', default: %(default)s")
-
-    parser.add_argument('--pileup', action='store_true',
-                        help="In pileup mode or not (full alignment mode), default: False")
-
     # options for debug purpose
     parser.add_argument('--maximum_non_variant_ratio', type=float, default=None,
                         help="DEBUG: subsample ratio for non-variant training data, optional")
@@ -63,6 +60,10 @@ def main():
                         help="DEBUG: Path of alternative variants, works with maximum_non_variant_ratio in training, optional")
 
     # options for internal process control
+    ## In pileup mode or not (full alignment mode), default: False
+    parser.add_argument('--pileup', action='store_true',
+                        help=SUPPRESS)
+
     ## The number of chucks to be divided into for parallel processing
     parser.add_argument('--chunk_num', type=int, default=None,
                         help=SUPPRESS)

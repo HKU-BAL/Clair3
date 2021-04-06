@@ -72,8 +72,10 @@ ${PYPY} ${CLAIR3} CheckEnvs \
 --ref_fn ${REFERENCE_FILE_PATH} \
 --ctg_name ${CONTIGS} \
 --chunk_num ${CHUNK_NUM} \
---chunk_size ${CHUNK_SIZE}
+--chunk_size ${CHUNK_SIZE} \
+--threads ${THREADS}
 readarray -t CHR < "${OUTPUT_FOLDER}/tmp/CONTIGS"
+THREADS_LOW=$((${THREADS}*3/4))
 
 
 cd ${OUTPUT_FOLDER}
@@ -81,7 +83,7 @@ cd ${OUTPUT_FOLDER}
 #-----------------------------------------------------------------------------------------------------------------------
 export CUDA_VISIBLE_DEVICES=""
 echo "[INFO] 1/7 Calling variants using pileup model"
-time ${PARALLEL} -C ' ' --joblog ${LOG_PATH}/parallel_1_call_var_bam_pileup.log -j ${THREADS} \
+time ${PARALLEL} -C ' ' --joblog ${LOG_PATH}/parallel_1_call_var_bam_pileup.log -j ${THREADS_LOW} \
 "${PYTHON} ${CLAIR3} CallVarBam \
     --chkpnt_fn ${PILEUP_CHECKPOINT_PATH} \
     --bam_fn ${BAM_FILE_PATH} \
@@ -164,7 +166,7 @@ time ${PARALLEL} --joblog ${LOG_PATH}/parallel_5_select_candidate.log -j${THREAD
 
 echo "[INFO] 6/7 Calling variants using Full Alignment"
 ALL_BED=($(ls ${CANDIDATE_BED_PATH}/*.*))
-time ${PARALLEL} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log -j ${THREADS} \
+time ${PARALLEL} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log -j ${THREADS_LOW} \
 "${PYTHON} ${CLAIR3} CallVarBam \
     --chkpnt_fn ${FULL_ALIGNMENT_CHECKPOINT_PATH} \
     --bam_fn ${PHASE_BAM_PATH}/{1/.}.bam \

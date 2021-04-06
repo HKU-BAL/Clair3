@@ -12,7 +12,7 @@ print_help_messages()
     echo $'  -f, --ref_fn FILE        FASTA reference file input. The input file must be samtools indexed.'
     echo $'  -m, --model_path STR     The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00001, pileup.index, pileup.meta, full_alignment.data-00000-of-00001, full_alignment.index, and full_alignment.meta).'
     echo $'  -t, --threads INT        Max #threads to be used. The full genome will be divided into small chucks for parallel processing. Each chunk will use 4 threads. The #chucks being processed simaltaneously is ceil(#threads/4).'
-    echo $'  -p, --platform STR       Selete the sequencing platform of the input. Possible options: {ont, pb, illumina}.'
+    echo $'  -p, --platform STR       Selete the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.'
     echo $'  -o, --output PATH        VCF/GVCF output directory.'
     echo $''
     echo $'Optional parameters:'

@@ -45,7 +45,7 @@ def select_qual_from_stdin(args):
     output, as full alignment calling is substantially slower than pileup calling.
     """
     var_pct_full = args.var_pct_full
-    ref_pct_full = args.ref_pct_full if args.ref_pct_full else var_pct_fullvar_pct_full
+    ref_pct_full = args.ref_pct_full if args.ref_pct_full else var_pct_full
     ref_pct_full = 0.1 if not args.ref_pct_full and args.platform == 'ont' else ref_pct_full
     variant_qual_list = []
     ref_qual_list = []
@@ -77,6 +77,9 @@ def select_qual_from_stdin(args):
 def main():
     parser = ArgumentParser(description="Select quality cutoff for phasing and full alignment")
 
+    parser.add_argument('--platform', type=str, default="ont",
+                        help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
+
     parser.add_argument('--output_fn', type=str, default=None,
                         help="Define the output folder")
 
@@ -85,9 +88,6 @@ def main():
 
     parser.add_argument('--ref_pct_full', type=float, default=None,
                         help="Default reference call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
-
-    parser.add_argument('--platform', type=str, default=None,
-                        help="Select specific platform for variant calling. Optional: 'ont,pb,illumina', default: %(default)s")
 
     parser.add_argument('--phase', action='store_true',
                         help="Whether only select hete candidates for phasing, default: False")

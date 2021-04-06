@@ -6,11 +6,11 @@ from itertools import accumulate
 zstd='zstd'
 default_optimizer = "Radam"
 default_loss_function = "FocalLoss"
-support_platform = {'illumina', 'pb', 'ont'}
+support_platform = {'ont', 'hifi','ilmn'}
 threshold = 0.08
-threshold_dict = {'illumina':threshold, 'pb':threshold, 'ont':0.15}
+threshold_dict = {'ont':0.15, 'hifi':threshold, 'ilmn':threshold }
 #as three platform training data vary in depth distribution, we recommend below max_depth base on max training data depth for calling
-max_depth_dict = {'illumina':89, 'pb':72, 'ont':144}
+max_depth_dict = {'ont':144, 'hifi':72, 'ilmn':89}
 
 
 #Pileup input feature list

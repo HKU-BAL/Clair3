@@ -422,20 +422,17 @@ def CreateTensorPileup(args):
 def main():
     parser = ArgumentParser(description="Generate 1-based variant candidates tensor using pileup alignments")
 
+    parser.add_argument('--platform', type=str, default='ont',
+                        help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
+
     parser.add_argument('--bam_fn', type=str, default="input.bam", required=True,
                         help="Sorted bam file input, default: %(default)s")
 
     parser.add_argument('--ref_fn', type=str, default="ref.fa", required=True,
                         help="Reference fasta file input, default: %(default)s")
 
-    parser.add_argument('--bed_fn', type=str, default=None,
-                        help="Call variants only in the provided bed regions, default: %(default)s")
-
     parser.add_argument('--confident_bed_fn', type=str, default=None,
                         help="Call variant only in these regions, works in intersection with ctgName, ctgStart and ctgEnd, optional, default: as defined by ctgName, ctgStart and ctgEnd")
-
-    parser.add_argument('--extend_confident_bed_fn', type=str, default=None,
-                        help="Extended regions by confident bed regions to handle mpileup with candidates near provide bed regions, default extend 16 bp distance")
 
     parser.add_argument('--threshold', type=float, default=0.08,
                         help="Minimum allele frequence of the 1st non-reference allele for a site to be considered as a condidate site, default: %(default)f")
@@ -449,12 +446,6 @@ def main():
     parser.add_argument('--ctgName', type=str, default="chr20",
                         help="The name of sequence to be processed, default: %(default)s")
 
-    parser.add_argument('--samtools', type=str, default="samtools",
-                        help="Path to the 'samtools', samtools verision >= 1.10 is required. default: %(default)s")
-
-    parser.add_argument('--platform', type=str, default='ont',
-                        help="Sequencing platform of the input. Options: 'ont,pb,illumina', default: %(default)s")
-
     parser.add_argument('--fast_mode', type=str2bool, default=False,
                         help="Ignore low allelic frequency <= 0.15 for ont platform, default: %(default)s")
 
@@ -464,10 +455,16 @@ def main():
     parser.add_argument('--gvcf', type=str2bool, default=False,
                         help="Enable GVCF output, default: disabled")
 
-    parser.add_argument('--temp_file_dir', type=str, default="./",
-                        help="The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
+    parser.add_argument('--samtools', type=str, default="samtools",
+                        help="Path to the 'samtools', samtools verision >= 1.10 is required. default: %(default)s")
 
     # options for advanced users
+    parser.add_argument('--bed_fn', type=str, default=None,
+                        help="EXPERIMENTAL: Call variants only in the provided bed regions, default: %(default)s")
+
+    parser.add_argument('--extend_confident_bed_fn', type=str, default=None,
+                        help="EXPERIMENTAL: Extended regions by confident bed regions to handle mpileup with candidates near provide bed regions, default extend 16 bp distance")
+
     parser.add_argument('--minCoverage', type=float, default=2,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
@@ -479,6 +476,9 @@ def main():
 
     parser.add_argument('--max_depth', type=int, default=144,
                         help="EXPERIMENTAL: Maximum pileup depth to be processed. default: %(default)s")
+
+    parser.add_argument('--temp_file_dir', type=str, default="./",
+                        help="EXPERIMENTAL: The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
 
     # options for debug purpose
     parser.add_argument('--ctgStart', type=int, default=None,

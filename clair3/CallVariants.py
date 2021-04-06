@@ -1632,14 +1632,20 @@ def predict(args, output_config, output_utilities):
 def main():
     parser = ArgumentParser(description="Call variants using a trained model and tensors of candididate variants")
 
-    parser.add_argument('--tensor_fn', type=str, default="PIPE",
-                        help="Tensor input, default: %(default)s")
+    parser.add_argument('--platform', type=str, default="ont",
+                        help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
 
-    parser.add_argument('--chkpnt_fn', type=str, default=None,
-                        help="Input a trained model for variant calling, required")
+    parser.add_argument('--ctgName', type=str, default=None,
+                        help="The name of the sequence to be processed")
+
+    parser.add_argument('--showRef', action='store_true',
+                        help="Show reference calls, default true for pileup output, optional")
 
     parser.add_argument('--call_fn', type=str, default="clair3",
                         help="VCF output filename")
+
+    parser.add_argument('--chkpnt_fn', type=str, default=None,
+                        help="Input a trained model for variant calling, required")
 
     parser.add_argument('--gvcf', type=str2bool, default=False,
                         help="Enable GVCF output, default: disabled")
@@ -1653,31 +1659,13 @@ def main():
     parser.add_argument('--sampleName', type=str, default="SAMPLE",
                         help="Define the sample name to be shown in the VCF file, optional")
 
-    parser.add_argument('--platform', type=str, default="ont",
-                        help="Sequencing platform of the input. Options: 'ont,pb,illumina', default: %(default)s")
-
-    parser.add_argument('--ctgName', type=str, default=None,
-                        help="The name of the sequence to be processed")
-
-    parser.add_argument('--ctgStart', type=int, default=None,
-                        help="The 1-based starting position of the sequence to be processed")
-
-    parser.add_argument('--ctgEnd', type=int, default=None,
-                        help="The 1-based ending position (inclusive) of the sequence to be processed")
-
-    parser.add_argument('--showRef', action='store_true',
-                        help="Show reference calls, default true for pileup output, optional")
-
-    parser.add_argument('--qual', type=int, default=None,
-                        help="If set, variants with ≥$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
-
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
 
-    parser.add_argument('--pileup', action='store_true',
-                        help="In pileup mode or not (full alignment mode), default: False")
-
     # options for advanced users
+    parser.add_argument('--qual', type=int, default=None,
+                        help="EXPERIMENTAL: If set, variants with ≥$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
+
     parser.add_argument('--haploid_precise', action='store_true',
                         help="EXPERIMENTAL: call haploid instead of diploid (output homo-variant only), deprecated")
 
@@ -1687,6 +1675,12 @@ def main():
     # options for debug purpose
     parser.add_argument('--use_gpu', type=str2bool, default=False,
                         help="DEBUG: Use GPU for calling. Speed up is mostly insignficiant. Only use this for building a tested pipeline")
+
+    parser.add_argument('--ctgStart', type=int, default=None,
+                        help="DEBUG: The 1-based starting position of the sequence to be processed")
+
+    parser.add_argument('--ctgEnd', type=int, default=None,
+                        help="DEBUG: The 1-based ending position (inclusive) of the sequence to be processed")
 
     parser.add_argument('--predict_fn', type=str, default=None,
                         help="DEBUG: Output network output probabilities for further analysis")
@@ -1704,8 +1698,12 @@ def main():
                         help="DEBUG: Whether the input tensor is from pytables")
 
     # options for internal process control
-    ## Enable debug mode, default: False, optional
-    parser.add_argument('--debug', action='store_true',
+    ## In pileup mode or not (full alignment mode), default: False
+    parser.add_argument('--pileup', action='store_true',
+                        help=SUPPRESS)
+
+    ##Tensor input, for internal testing only
+    parser.add_argument('--tensor_fn', type=str, default="PIPE",
                         help=SUPPRESS)
 
     ## Include indel length in training and calling, false for pileup and true for raw alignment
@@ -1718,6 +1716,10 @@ def main():
 
     ## The chuck ID to work on
     parser.add_argument('--chunk_id', type=int, default=None,
+                        help=SUPPRESS)
+
+    ## Enable debug mode, default: False, optional
+    parser.add_argument('--debug', action='store_true',
                         help=SUPPRESS)
 
     args = parser.parse_args()

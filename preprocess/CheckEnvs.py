@@ -2,6 +2,8 @@ import os
 import sys
 import argparse
 import shlex
+import multiprocessing
+
 from collections import defaultdict
 from argparse import SUPPRESS
 import shared.param_p as param
@@ -84,6 +86,19 @@ def CheckEnvs(args):
     DEFAULT_CHUNK_SIZE = args.chunk_size
     contig_length_list = []
     contig_chunk_num = {}
+
+    threads = args.threads
+    numCpus = multiprocessing.cpu_count()
+    if threads > numCpus:
+        print ('[WARNING] Current maximum threads {} is larger than support cpu count {}, You may set a smaller parallel threads by setting --threads=$ for better parallelism.'.format(
+            threads, numCpus))
+
+    ## for better parallelism for create tensor and call variants, we over commit the overall threads/4 for 3 times, which is 0.75 * overall threads.
+    threads_over_commit = max(4, int(threads * 0.75))
+    threads_file = os.path.join(tmp_file_path, 'THREADS_LOW')
+    with open(threads_file, 'w') as output_file:
+        output_file.write('\n'.join(str(threads_over_commit)))
+
     with open(fai_fn, 'r') as fai_fp:
         for row in fai_fp:
             columns = row.strip().split("\t")
@@ -172,6 +187,9 @@ def main():
 
     parser.add_argument('--includingAllContigs', action='store_true',
                         help="Call variants on all contigs, default: chr{1..22,X,Y,M,MT} and {1..22,X,Y,MT}")
+
+    parser.add_argument('--threads', type=int, default=16,
+                        help="Max #threads to be used. The full genome will be divided into small chucks for parallel processing")
 
     # options for internal process control
     ## The number of chucks to be divided into for parallel processing

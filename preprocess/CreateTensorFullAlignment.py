@@ -129,7 +129,6 @@ def sorted_by_hap_read_name(center_pos, haplotag_dict, pileup_dict, hap_dict, pl
         hap = max(haplotag_dict[read_name], hap_dict[read_name])  # no phasing is 0
         sorted_read_name_list.append((hap, order, read_name))
 
-    # if platform != 'illumina':
     sorted_read_name_list = sorted(sorted_read_name_list)
     return sorted_read_name_list
 
@@ -476,7 +475,7 @@ def CreateTensorFullAlignment(args):
             ctg_start = min(position, ctg_start)
             ctg_end = max(end, ctg_end)
 
-            if platform == "illumina":
+            if platform == "ilmn":
                 continue
             if len(row) > 3:  # hete snp positions
                 center_pos = position + extend_bp + 1
@@ -494,7 +493,7 @@ def CreateTensorFullAlignment(args):
         # if '.' in bed_file_path.split('/')[-1] and len(bed_file_path.split('/')[-1].split('.')[-1].split('_')) > 0:
         #     ctg_start, ctg_end = bed_file_path.split('/')[-1].split('.')[-1].split('_')
         #     ctg_start, ctg_end = int(ctg_start), int(ctg_end)
-    if platform == 'illumina' and bam_file_path == "PIPE":
+    if platform == 'ilmn' and bam_file_path == "PIPE":
         add_read_regions = False
 
     fai_fn = file_path_from(fasta_file_path + ".fai", exit_on_not_found=True)
@@ -519,7 +518,7 @@ def CreateTensorFullAlignment(args):
         ctg_end = ctg_start + chunk_size
 
         # for illumina platform, the reads alignment is acquired after reads realignment from ReadsRealign.py
-        if platform == 'illumina' and bam_file_path != "PIPE":
+        if platform == 'ilmn' and bam_file_path != "PIPE":
             bam_file_path += '.{}_{}'.format(ctg_start, ctg_end)
             add_read_regions = False
         if bam_file_path == "PIPE":
@@ -589,8 +588,8 @@ def CreateTensorFullAlignment(args):
     bq_option = ' --min-BQ {}'.format(min_base_quality)
     # pileup bed first
     bed_option = ' -l {}'.format(
-        extend_confident_bed_fn) if is_extend_confident_bed_file_given and platform != 'illumina' else ""
-    bed_option = ' -l {}'.format(bed_file_path) if is_bed_file_given and platform != 'illumina' else bed_option
+        extend_confident_bed_fn) if is_extend_confident_bed_file_given and platform != 'ilmn' else ""
+    bed_option = ' -l {}'.format(bed_file_path) if is_bed_file_given and platform != 'ilmn' else bed_option
     flags_option = ' --excl-flags {}'.format(param.SAMTOOLS_VIEW_FILTER_FLAG)
     max_depth_option = ' --max-depth {}'.format(args.max_depth) if args.max_depth > 0 else ""
     reads_regions_option = ' -r {}'.format(" ".join(reads_regions)) if add_read_regions else ""
@@ -799,20 +798,17 @@ def CreateTensorFullAlignment(args):
 def main():
     parser = ArgumentParser(description="Generate 1-based variant candidates tensor using phased raw alignments")
 
+    parser.add_argument('--platform', type=str, default='ont',
+                        help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
+
     parser.add_argument('--bam_fn', type=str, default="PIPE",
                         help="Sorted bam file input, default: %(default)s")
 
     parser.add_argument('--ref_fn', type=str, default="ref.fa", required=True,
                         help="Reference fasta file input, default: %(default)s")
 
-    parser.add_argument('--bed_fn', type=str, default=None,
-                        help="Call variants only in the provided bed regions, default: %(default)s")
-
     parser.add_argument('--confident_bed_fn', type=str, default=None,
                         help="Call variant only in these regions, works in intersection with ctgName, ctgStart and ctgEnd, optional, default: as defined by ctgName, ctgStart and ctgEnd")
-
-    parser.add_argument('--extend_confident_bed_fn', type=str, default=None,
-                        help="Extended regions by confident bed regions to handle mpileup with candidates near provide bed regions, default extend 16 bp distance")
 
     parser.add_argument('--threshold', type=float, default=0.08,
                         help="Minimum allele frequence of the 1st non-reference allele for a site to be considered as a condidate site, default: %(default)f")
@@ -823,22 +819,19 @@ def main():
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required. default: %(default)s")
 
-    parser.add_argument('--platform', type=str, default='ont',
-                        help="Select specific platform for variant calling. Optional: 'ont,pb,illumina', default: %(default)s")
-
     parser.add_argument('--phasing_info_in_bam', action='store_true',
                         help="Input bam or sam have phasing info in HP tag, default: False")
 
     parser.add_argument('--gvcf', type=str2bool, default=False,
                         help="Enable GVCF output, default: disabled")
 
-    parser.add_argument('--temp_file_dir', type=str, default="./",
-                        help="The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
-
     parser.add_argument('--sampleName', type=str, default="SAMPLE",
                         help="Define the sample name to be shown in the VCF file")
 
     # options for advanced users
+    parser.add_argument('--bed_fn', type=str, default=None,
+                        help="EXPERIMENTAL: Call variants only in the provided bed regions, default: %(default)s")
+
     parser.add_argument('--minCoverage', type=float, default=2,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
@@ -850,6 +843,12 @@ def main():
 
     parser.add_argument('--max_depth', type=int, default=144,
                         help="EXPERIMENTAL: Maximum raw alignment depth to be processed. default: %(default)s")
+
+    parser.add_argument('--temp_file_dir', type=str, default="./",
+                        help="EXPERIMENTAL: The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
+
+    parser.add_argument('--extend_confident_bed_fn', type=str, default=None,
+                        help="EXPERIMENTAL: Extended regions by confident bed regions to handle mpileup with candidates near provide bed regions, default extend 16 bp distance")
 
     # options for debug purpose
     parser.add_argument('--ctgStart', type=int, default=None,

@@ -170,6 +170,9 @@ def main():
     logging.info("Merge pileup and full alignment vcf")
     parser = ArgumentParser(description="Generate 1-based variant candidates using alignments")
 
+    parser.add_argument('--platform', type=str, default="ont",
+                        help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
+
     parser.add_argument('--output_fn', type=str, default=None,
                         help="Path to directory that stores small bins, default: %(default)s")
 
@@ -187,9 +190,6 @@ def main():
 
     parser.add_argument('--qual', type=int, default=0,
                         help="If set, variants with ≥$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
-
-    parser.add_argument('--platform', type=str, default=None,
-                        help="Sequencing platform of the input. Options: 'ont,pb,illumina', default: %(default)s")
 
     parser.add_argument('--gvcf', type=str2bool, default=False,
                         help="Enable GVCF output, default: disabled")
@@ -223,7 +223,7 @@ def main():
         sys.exit(1)
 
     # realignemnt region merge
-    if args.platform == 'illumina':
+    if args.platform == 'ilmn':
         MergeVcf_illumina(args=args)
     else:
         MergeVcf(args=args)

@@ -237,7 +237,7 @@ def SelectCandidates(args):
                 # a windows region for create tensor # samtools mpileup not include last position
                 split_output = need_phasing_row_list[idx * split_bed_size: (idx + 1) * split_bed_size]
 
-                if platform == 'illumina':
+                if platform == 'ilmn':
                     region_size = param.region_size
                     split_output = [(item // region_size * region_size - param.no_of_positions,
                                      item // region_size * region_size + region_size + param.no_of_positions) for item
@@ -308,20 +308,20 @@ def SelectCandidates(args):
 def main():
     parser = ArgumentParser(description="Select pileup candidates for full alignment")
 
+    parser.add_argument('--platform', type=str, default="ont",
+                        help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
+
     parser.add_argument('--output_fn', type=str, default=None,
                         help="Path to directory that stores small bins. default: %(default)s")
 
     parser.add_argument('--ref_fn', type=str, default="ref.fa",
                         help="Reference fasta file input, default: %(default)s")
 
-    parser.add_argument('--platform', type=str, default='ont',
-                        help="Sequencing platform of the input. Options: 'ont,pb,illumina', default: %(default)s")
-
     parser.add_argument('--split_folder', type=str, default=None,
                         help="Path to directory that stores candidate region. default: %(default)s")
 
     parser.add_argument('--vcf_fn', type=str, default=None,
-                        help="Path of the output folder. default: %(default)s")
+                        help="Path of the input pileup vcf, default: %(default)s")
 
     parser.add_argument('--var_pct_full', type=float, default=0.3,
                         help="Define the proportion for full alignment calling. default: %(default)f")

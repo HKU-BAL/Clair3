@@ -5,16 +5,16 @@ from itertools import accumulate
 zstd='zstd'
 default_optimizer = "Radam"
 default_loss_function = "FocalLoss"
-matrix_depth_dict = {'illumina': 55, 'pb': 55, 'ont': 89}
+matrix_depth_dict = {'ont': 89, 'hifi': 55, 'ilmn': 55}
 
 # Full alignment input feature list
 channel = (
-'reference_channel', 'alternative_base', 'mapping_quality', 'base_quality', 'strand', 'support_reads', 'insert_base',
+'reference_base', 'alternative_base', 'mapping_quality', 'base_quality', 'strand_info', 'variant_type', 'insert_base',
 'phasing_info')  # phasing info if add_phasing
 channel_size = len(channel)
 flankingBaseNum = 16
 no_of_positions = 2 * flankingBaseNum + 1
-input_shape = [matrix_depth_dict['pb'], no_of_positions, channel_size]
+input_shape = [matrix_depth_dict['hifi'], no_of_positions, channel_size]
 ont_input_shape = [matrix_depth_dict['ont'], no_of_positions, channel_size]
 label_shape = [21, 3, no_of_positions, no_of_positions]
 label_size = sum(label_shape)
