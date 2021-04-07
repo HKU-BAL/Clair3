@@ -378,7 +378,7 @@ def CreateTensorPileup(args):
                                                                              contig_name=ctg_name,
                                                                              region_start=pos - 1,
                                                                              region_end=pos + max_del_length + 1)  # 0-based
-        if pass_confident_bed and reference_base in 'ACGT' and (pass_af and depth >= min_coverage) or (
+        if (pass_confident_bed and reference_base in 'ACGT' and (pass_af and depth >= min_coverage) and not is_known_vcf_file_provided) or (
                 is_known_vcf_file_provided and pos in known_variants_set):
             candidate_position.append(pos)
             all_alt_dict[pos] = alt_dict

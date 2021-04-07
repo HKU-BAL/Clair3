@@ -60,17 +60,20 @@ def hetero_SNP_bases_from(hetero_SNP_probabilities):
     return output_bases[0], output_bases[1]
 
 
-def filtration_value_from(quality_score_for_pass, quality_score):
+def filtration_value_from(quality_score_for_pass, quality_score, is_reference=False):
     """
     filter qual if set quality score, variant quliaty lower than specific quality socre will be
     marked ass LowQual otherwise PASS. Default there is no quality score cut off.
 
     """
+    if is_reference:
+        return 'RefCall'
 
     if quality_score_for_pass is None:
-        return "."
+        return "PASS"
     if quality_score >= quality_score_for_pass:
         return "PASS"
+
     return "LowQual"
 
 
@@ -245,7 +248,7 @@ def output_utilties_from(
 
         from textwrap import dedent
         output(dedent("""\
-            ##fileformat=VCFv4.1
+            ##fileformat=VCFv4.2
             ##FILTER=<ID=PASS,Description="All filters passed">
             ##FILTER=<ID=LowQual,Description="Confidence in this variant being real is below calling threshold.">
             ##FILTER=<ID=RefCall,Description="Genotyping model thinks this site is reference.">
@@ -1196,7 +1199,9 @@ def output_with(
 
     # filtration value
     filtration_value = filtration_value_from(
-        quality_score_for_pass=output_config.quality_score_for_pass, quality_score=quality_score
+        quality_score_for_pass=output_config.quality_score_for_pass,
+        quality_score=quality_score,
+        is_reference=is_reference
     )
 
     if output_config.is_debug:
@@ -1211,9 +1216,7 @@ def output_with(
         )
     else:
         if output_config.gvcf:
-            if is_reference:
-                filtration_value = 'RefCall'
-                allele_frequency = 1 - allele_frequency
+
             PLs = compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, reference_base,
                              alternate_base)
 

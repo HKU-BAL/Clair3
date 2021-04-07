@@ -28,6 +28,7 @@ print_help_messages()
     echo $'      --whatshap STR       Path of whatshap, whatshap >= 1.0 is required.'
     echo $'      --chunk_size INT     The size of each chuck for parallel processing, default: 5Mbp.'
     echo $'      --pileup_only        Use only the pileup mode for calling, default: False.'
+    echo $'      --print_ref_calls    Show reference calls (0/0) in vcf file, default: False.'
     echo $'      --gvcf               Enable GVCF output, default: False.'
     echo $'      --snp_min_af FLOAT   Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
     echo $'      --indel_min_af FLOAT Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
@@ -42,7 +43,7 @@ print_help_messages()
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
-snp_min_af::,indel_min_af::,fast_mode,gvcf,pileup_only -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,fast_mode,gvcf,pileup_only,print_ref_calls -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -61,10 +62,11 @@ CHUNK_NUM=0
 CHUNK_SIZE=5000000
 QUAL=0
 PRO=0.3
-REF_PRO=0.1
+REF_PRO=0.3
 GVCF=False
 PILEUP_ONLY=False
 FAST_MODE=False
+SHOW_REF=False
 SNP_AF=0.0
 INDEL_AF=0.0
 
@@ -95,6 +97,7 @@ while true; do
     --gvcf ) GVCF=True; shift 1 ;;
     --pileup_only ) PILEUP_ONLY=True; shift 1 ;;
     --fast_mode ) FAST_MODE=True; shift 1 ;;
+    --print_ref_calls ) SHOW_REF=True; shift 1 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
@@ -139,6 +142,7 @@ echo "[INFO] USER DEFINED SNP THRESHOLD: ${SNP_AF}"
 echo "[INFO] USER DEFINED INDEL THRESHOLD: ${INDEL_AF}"
 echo "[INFO] FILEUP ONLY CALLING: ${PILEUP_ONLY}"
 echo "[INFO] FAST MODE CALLING: ${FAST_MODE}"
+echo "[INFO] PRINT REFERENCE CALLING: ${SHOW_REF}"
 echo "[INFO] OUTPUT GVCF: ${GVCF}"
 echo $''
 scripts/clair3.sh \
@@ -166,6 +170,7 @@ scripts/clair3.sh \
     --indel_min_af=${INDEL_AF} \
     --pileup_only=${PILEUP_ONLY} \
     --gvcf=${GVCF} \
-    --fast_mode=${FAST_MODE}
+    --fast_mode=${FAST_MODE} \
+    --print_ref_calls=${SHOW_REF}
 
 )) |& tee ${OUTPUT_FOLDER}/run_clair3.log

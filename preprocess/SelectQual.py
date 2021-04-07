@@ -46,7 +46,7 @@ def select_qual_from_stdin(args):
     """
     var_pct_full = args.var_pct_full
     ref_pct_full = args.ref_pct_full if args.ref_pct_full else var_pct_full
-    ref_pct_full = 0.1 if not args.ref_pct_full and args.platform == 'ont' else ref_pct_full
+    ref_pct_full = 0.1 if  args.platform == 'ont' else ref_pct_full
     variant_qual_list = []
     ref_qual_list = []
     for row in stdin.readlines():

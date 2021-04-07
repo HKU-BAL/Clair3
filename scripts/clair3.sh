@@ -7,7 +7,7 @@ set -e
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
-snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf:: -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -36,6 +36,7 @@ while true; do
     --ref_pct_full ) REF_PRO="$2"; shift 2 ;;
     --pileup_only ) PILEUP_ONLY="$2"; shift 2 ;;
     --fast_mode ) FAST_MODE="$2"; shift 2 ;;
+    --print_ref_calls ) SHOW_REF="$2"; shift 2 ;;
     --gvcf ) GVCF="$2"; shift 2 ;;
     --snp_min_af ) SNP_AF="$2"; shift 2 ;;
     --indel_min_af ) INDEL_AF="$2"; shift 2 ;;
@@ -195,6 +196,7 @@ time ${PARALLEL} --joblog ${LOG_PATH}/parallel_7_merge_vcf.log -j${THREADS} \
     --full_alignment_vcf_fn ${OUTPUT_FOLDER}/full_alignment.vcf \
     --output_fn ${TMP_FILE_PATH}/merge_output/merge_{1}.vcf \
     --platform ${PLATFORM} \
+    --print_ref_calls ${SHOW_REF}
     --gvcf ${GVCF} \
     --gvcf_fn ${TMP_FILE_PATH}/merge_output/merge_{1}.gvcf \
     --non_var_gvcf_fn ${GVCF_TMP_PATH}/non_var.gvcf \
