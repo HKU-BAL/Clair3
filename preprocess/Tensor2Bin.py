@@ -24,7 +24,7 @@ def Run(args):
         pileup=args.pileup,
         platform=args.platform,
         maximum_non_variant_ratio=args.maximum_non_variant_ratio,
-        alt_fn_prefix=args.alt_fn_prefix)
+        candidate_details_fn_prefix=args.candidate_details_fn_prefix)
     logging.info("Finish!")
 
 
@@ -40,11 +40,11 @@ def main():
     parser.add_argument('--var_fn', type=str, default=None, required=True,
                         help="Truth variants list input, required")
 
-    parser.add_argument('--bed_fn', type=str, default=None, required=True,
-                        help="High confident genome regions input in the BED format, required")
-
     parser.add_argument('--bin_fn', type=str, default=None, required=True,
                         help="Output a binary tensor file, required")
+
+    parser.add_argument('--bed_fn', type=str, default=None,
+                        help="High confident genome regions input in the BED format")
 
     parser.add_argument('--shuffle', action='store_true',
                         help="Shuffle the inputs")

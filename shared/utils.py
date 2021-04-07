@@ -138,6 +138,27 @@ def reference_sequence_from(samtools_execute_command, fasta_file_path, regions):
 
     return reference_sequence
 
+def vcf_candidates_from(vcf_fn, contig_name=None):
+
+    known_variants_set =  set()
+    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (vcf_fn)))
+
+    start_pos, end_pos = float('inf'), 0
+    for row in unzip_process.stdout:
+        if row[0] == '#':
+            continue
+        columns = row.strip().split(maxsplit=3)
+        ctg_name = columns[0]
+
+        if contig_name and ctg_name != contig_name:
+            continue
+        center_pos = int(columns[1])
+        known_variants_set.add(center_pos)
+        start_pos = min(start_pos, center_pos)
+        end_pos = max(center_pos, end_pos)
+
+    known_variants_list = sorted(list(known_variants_set))
+    return known_variants_list
 
 def candidate_position_generator_from(
     candidate,

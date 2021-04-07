@@ -320,8 +320,8 @@ def simplfy_read_name(rs_idx):
 
 
 def reads_realignment(args):
-    bed_file_path = args.bed_fn
-    extend_confident_bed_fn = args.extend_confident_bed_fn
+    bed_file_path = args.full_aln_regions
+    extend_bed = args.extend_bed
     fasta_file_path = args.ref_fn
     ctg_name = args.ctgName
     ctg_start = args.ctgStart
@@ -403,7 +403,7 @@ def reads_realignment(args):
     if is_bed_file_given and ctg_name not in tree:
         sys.exit("[ERROR] ctg_name({}) not exists in bed file({}).".format(ctg_name, bed_file_path))
 
-    bed_option = ' -L {}'.format(extend_confident_bed_fn) if extend_confident_bed_fn else ""
+    bed_option = ' -L {}'.format(extend_bed) if extend_bed else ""
     bed_option = ' -L {}'.format(bed_file_path) if is_bed_file_given else bed_option
     mq_option = ' -q {}'.format(minMQ) if minMQ > 0 else ""
     samtools_view_command = "{} view -h {} {}".format(samtools_execute_command, bam_file_path,
@@ -665,7 +665,7 @@ def main():
     parser.add_argument('--ctgEnd', type=int, default=None,
                         help="The 1-based inclusive ending position of the sequence to be processed")
 
-    parser.add_argument('--bed_fn', type=str, default=None,
+    parser.add_argument('--full_aln_regions', type=str, default=None,
                         help="Realign reads only in the provided bed regions")
 
     parser.add_argument('--samtools', type=str, default="samtools",
@@ -679,7 +679,7 @@ def main():
                         help="EXPERIMENTAL: Minimum Mapping Quality. Mapping quality lower than the setting will be filtered, default: %(default)d")
 
     # options for debug purpose
-    parser.add_argument('--extend_bed', nargs='?', action="store", type=str, default=None,
+    parser.add_argument('--extend_bed', type=str, default=None,
                         help="DEBUG: Extend the regions in the --bed_fn by a few bp for tensor creation, default extend 16bp")
 
     # options for internal process control

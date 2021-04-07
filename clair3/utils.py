@@ -1,12 +1,10 @@
-from __future__ import print_function
-
 import sys
 import gc
 import shlex
-import numpy as np
 import os
-from random import random
 import tables
+import numpy as np
+from random import random
 
 from clair3.task.main import *
 from shared.interval_tree import bed_tree_from, is_region_in
@@ -262,7 +260,7 @@ def bin_reader_generator_from(subprocess_list, Y, is_tree_empty, tree, miss_vari
 
 
 def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow_duplicate_chr_pos=True, chunk_id=None,
-                       chunk_num=None, platform='ont', pileup=False, maximum_non_variant_ratio=None, alt_fn_prefix=None):
+                       chunk_num=None, platform='ont', pileup=False, maximum_non_variant_ratio=None, candidate_details_fn_prefix=None):
 
     """
     Generate training array for training. here pytables with blosc:lz4hc are used for extreme fast compression and decompression,
@@ -279,7 +277,7 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
     pileup: whether in pileup mode. Define two calling mode, pileup or full alignment.
     maximum_non_variant_ratio: define a maximum non variant ratio for training, we always expect use more non variant data, while it would greatly increase training
     time, especially in ont data, here we usually use 1:1 or 1:2 for variant candidate: non variant candidate.
-    alt_fn_prefix: a counter to calculate total variant and non variant from the information in alternative file.
+    candidate_details_fn_prefix: a counter to calculate total variant and non variant from the information in alternative file.
     """
 
     tree = bed_tree_from(bed_file_path=bed_fn)
@@ -297,9 +295,9 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
     tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
 
     variant_num, non_variant_num, non_variant_subsample_ratio = 0, 0, 1.0
-    if maximum_non_variant_ratio is not None and alt_fn_prefix:
-        alt_fn_prefix = alt_fn_prefix.split('/')
-        directry, file_prefix = '/'.join(alt_fn_prefix[:-1]), alt_fn_prefix[-1]
+    if maximum_non_variant_ratio is not None and candidate_details_fn_prefix:
+        candidate_details_fn_prefix = candidate_details_fn_prefix.split('/')
+        directry, file_prefix = '/'.join(candidate_details_fn_prefix[:-1]), candidate_details_fn_prefix[-1]
         file_list = [f for f in os.listdir(directry) if f.startswith(file_prefix)]
         for f in file_list:
             for row in open(os.path.join(directry, f), 'r').readlines():

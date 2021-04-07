@@ -117,8 +117,8 @@ def SelectCandidates(args):
     output, as full alignment calling is substantially slower than pileup calling.
     """
 
-    vcf_fn = args.vcf_fn  # true vcf var
-    alt_fn = args.alt_fn
+    phased_vcf_fn = args.phased_vcf_fn
+    pileup_vcf_fn = args.pileup_vcf_fn
     var_pct_full = args.var_pct_full
     ref_pct_full = args.ref_pct_full
     seq_entropy_pro = args.seq_entropy_pro
@@ -134,7 +134,7 @@ def SelectCandidates(args):
     need_phasing_set = set()
     ref_call_pos_list = []
     variant_dict = defaultdict(str)
-    realign_window_size = args.realign_window_size if args.realign_window_size is not None else param.flankingBaseNum
+    flankingBaseNum = param.flankingBaseNum
 
     fasta_file_path = args.ref_fn
     samtools_execute_command = args.samtools
@@ -148,8 +148,8 @@ def SelectCandidates(args):
         var_qual, ref_qual = float(line[0]), float(line[1])
         found_qual_cut_off = True
 
-    if vcf_fn and os.path.exists(vcf_fn):
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (vcf_fn)))
+    if phased_vcf_fn and os.path.exists(phased_vcf_fn):
+        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (phased_vcf_fn)))
         for row in unzip_process.stdout:
             row = row.rstrip()
             if row[0] == '#':
@@ -168,9 +168,9 @@ def SelectCandidates(args):
                 continue
             variant_dict[pos] = '-'.join([ref_base, alt_base, ('1' if genotype == '0|1' else '2'), phase_set])
 
-    if alt_fn is not None:
+    if pileup_vcf_fn and os.path.exists(pileup_vcf_fn):
         # vcf format
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (alt_fn)))
+        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (pileup_vcf_fn)))
         for row in unzip_process.stdout:
             if row[0] == '#':
                 continue
@@ -238,12 +238,12 @@ def SelectCandidates(args):
                 split_output = need_phasing_row_list[idx * split_bed_size: (idx + 1) * split_bed_size]
 
                 if platform == 'ilmn':
-                    region_size = param.region_size
+                    region_size = param.split_region_size
                     split_output = [(item // region_size * region_size - param.no_of_positions,
                                      item // region_size * region_size + region_size + param.no_of_positions) for item
                                     in split_output]
                 else:
-                    split_output = [(item - realign_window_size, item + realign_window_size + 2) for item in
+                    split_output = [(item - flankingBaseNum, item + flankingBaseNum + 2) for item in
                                     split_output]
 
                 split_output = sorted(split_output, key=lambda x: x[0])
@@ -295,7 +295,7 @@ def SelectCandidates(args):
         for overlap in overlaps:
             snp_split_out.append((contig_name, overlap[0] - extend_bp - 1 - 1, overlap[0] + 1 + extend_bp - 1,
                                   variant_dict[overlap[0]]))  # bed format
-        split_output = [(contig_name, item - realign_window_size - 1, item + realign_window_size + 1 - 1) for item in
+        split_output = [(contig_name, item - flankingBaseNum - 1, item + flankingBaseNum + 1 - 1) for item in
                         split_output]  # a windows region for create tensor # bed format
 
         split_output += snp_split_out
@@ -311,17 +311,14 @@ def main():
     parser.add_argument('--platform', type=str, default="ont",
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
 
-    parser.add_argument('--output_fn', type=str, default=None, required=True,
-                        help="Path to directory that stores small bins, required")
-
-    parser.add_argument('--ref_fn', type=str, default=None, required=True,
-                        help="Reference fasta file input, required")
-
     parser.add_argument('--split_folder', type=str, default=None, required=True,
                         help="Path to directory that stores candidate region, required")
 
-    parser.add_argument('--vcf_fn', type=str, default=None, required=True,
-                        help="Input pileup vcf, required")
+    parser.add_argument('--pileup_vcf_fn', type=str, default=None, required=True,
+                        help="Input pileup pileup vcf, required")
+
+    parser.add_argument('--ref_fn', type=str, default=None,
+                        help="Reference fasta file input, required")
 
     parser.add_argument('--var_pct_full', type=float, default=0.3,
                         help="Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: %(default)f")
@@ -342,14 +339,8 @@ def main():
     parser.add_argument('--seq_entropy_pro', type=float, default=0.05,
                         help="EXPERIMENTAL: Define the percentage of the candidate variants with the lowest sequence entropy for full alignment calling, default: %(default)f")
 
-    parser.add_argument('--region_size', type=int, default=param.region_size,
-                        help="EXPERIMENTAL: Define the region size for illumina read realignment. default: %(default)s")
-
     parser.add_argument('--split_bed_size', type=int, default=10000,
                         help="EXPERIMENTAL: Define the candidate bed size for each split bed file. default: %(default)s")
-
-    parser.add_argument('--realign_window_size', type=int, default=None,
-                        help="EXPERIMENTAL: Define the realign window size for long read phasing and realignment, default: %(default)s")
 
     # options for debug purpose
     parser.add_argument('--phasing_info_in_bam', action='store_false',
@@ -360,8 +351,8 @@ def main():
     parser.add_argument('--chr_prefix', type=str, default='chr',
                         help=SUPPRESS)
 
-    ## Path of provided altnertive file
-    parser.add_argument('--alt_fn', type=str, default=None,
+    ## Input phased pileup vcf
+    parser.add_argument('--phased_vcf_fn', type=str, default=None,
                         help=SUPPRESS)
 
     ## Output all alternative candidates path

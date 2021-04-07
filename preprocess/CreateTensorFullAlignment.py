@@ -421,7 +421,7 @@ def update_hete_ref(pos, reference_sequence, reference_start, extend_bp, alt_bas
 def CreateTensorFullAlignment(args):
     ctg_start = args.ctgStart
     ctg_end = args.ctgEnd
-    bed_file_path = args.bed_fn
+    full_aln_regions = args.full_aln_regions
     fasta_file_path = args.ref_fn
     ctg_name = args.ctgName
     need_phasing = args.need_phasing
@@ -430,7 +430,7 @@ def CreateTensorFullAlignment(args):
     chunk_id = args.chunk_id - 1 if args.chunk_id else None  # 1-base to 0-base
     chunk_num = args.chunk_num
     tensor_can_output_path = args.tensor_can_fn
-    is_bed_file_given = bed_file_path is not None
+    is_full_aln_regions_given = full_aln_regions is not None
     phasing_info_in_bam = args.phasing_info_in_bam
     phasing_window_size = args.phasing_window_size
     extend_bp = param.extend_bp
@@ -438,11 +438,11 @@ def CreateTensorFullAlignment(args):
     minimum_af_for_candidate = args.min_af
     min_coverage = args.minCoverage
     platform = args.platform
-    confident_bed_fn = args.confident_bed_fn
+    confident_bed_fn = args.bed_fn
     phased_vcf_fn = args.phased_vcf_fn
     alt_fn = args.indel_fn
-    extend_confident_bed_fn = args.extend_confident_bed_fn
-    is_extend_confident_bed_file_given = extend_confident_bed_fn is not None
+    extend_bed = args.extend_bed
+    is_extend_bed_file_given = extend_bed is not None
     min_mapping_quality = args.minMQ
     min_base_quality = args.minBQ
     unify_repre_fn = args.unify_repre_fn
@@ -454,16 +454,16 @@ def CreateTensorFullAlignment(args):
     hete_snp_tree = IntervalTree()
     need_phasing_pos_set = set()
     add_read_regions = True
-    if bed_file_path:
+    if full_aln_regions:
 
         """
-        If given bed file path, all candidate positions will be directly selected from each bed row, define as 
+        If given full alignment bed regions, all candidate positions will be directly selected from each row, define as 
         'ctg start end', where 0-based center position is the candidate for full alignment calling.
-        if 'need_phasing' option enables, bed region will also include nearby heterozygous snp candidates for reads
+        if 'need_phasing' option enables, full alignment bed regions will also include nearby heterozygous snp candidates for reads
         haplotag, which is faster than whatshap haplotag with more memory occupation.
         """
 
-        candidate_file_path_process = subprocess_popen(shlex.split("gzip -fdc %s" % (bed_file_path)))
+        candidate_file_path_process = subprocess_popen(shlex.split("gzip -fdc %s" % (full_aln_regions)))
         candidate_file_path_output = candidate_file_path_process.stdout
 
         ctg_start, ctg_end = float('inf'), 0
@@ -490,15 +490,15 @@ def CreateTensorFullAlignment(args):
         candidate_file_path_process.wait()
 
         # currently deprecate using ctgName.start_end as file name, which will run similar regions for several times when start and end has slight difference
-        # if '.' in bed_file_path.split('/')[-1] and len(bed_file_path.split('/')[-1].split('.')[-1].split('_')) > 0:
-        #     ctg_start, ctg_end = bed_file_path.split('/')[-1].split('.')[-1].split('_')
+        # if '.' in full_aln_regions.split('/')[-1] and len(full_aln_regions.split('/')[-1].split('.')[-1].split('_')) > 0:
+        #     ctg_start, ctg_end = full_aln_regions.split('/')[-1].split('.')[-1].split('_')
         #     ctg_start, ctg_end = int(ctg_start), int(ctg_end)
     if platform == 'ilmn' and bam_file_path == "PIPE":
         add_read_regions = False
 
     fai_fn = file_path_from(fasta_file_path + ".fai", exit_on_not_found=True)
 
-    if not bed_file_path and chunk_id is not None:
+    if not full_aln_regions and chunk_id is not None:
 
         """
         Whole genome calling option, acquire contig start end position from reference fasta index(.fai), then split the
@@ -588,8 +588,8 @@ def CreateTensorFullAlignment(args):
     bq_option = ' --min-BQ {}'.format(min_base_quality)
     # pileup bed first
     bed_option = ' -l {}'.format(
-        extend_confident_bed_fn) if is_extend_confident_bed_file_given and platform != 'ilmn' else ""
-    bed_option = ' -l {}'.format(bed_file_path) if is_bed_file_given and platform != 'ilmn' else bed_option
+        extend_bed) if is_extend_bed_file_given and platform != 'ilmn' else ""
+    bed_option = ' -l {}'.format(full_aln_regions) if is_full_aln_regions_given and platform != 'ilmn' else bed_option
     flags_option = ' --excl-flags {}'.format(param.SAMTOOLS_VIEW_FILTER_FLAG)
     max_depth_option = ' --max-depth {}'.format(args.max_depth) if args.max_depth > 0 else ""
     reads_regions_option = ' -r {}'.format(" ".join(reads_regions)) if add_read_regions else ""
@@ -621,7 +621,7 @@ def CreateTensorFullAlignment(args):
     extend_bp_distance = phasing_window_size if need_phasing else no_of_positions + param.extend_bp
     confident_bed_tree = bed_tree_from(bed_file_path=confident_bed_fn, contig_name=ctg_name, bed_ctg_start=extend_start,
                                        bed_ctg_end=extend_end)
-    extend_confident_bed_tree = bed_tree_from(bed_file_path=extend_confident_bed_fn, contig_name=ctg_name,
+    extend_bed_tree = bed_tree_from(bed_file_path=extend_bed, contig_name=ctg_name,
                                               bed_ctg_start=extend_start, bed_ctg_end=extend_end)
 
     def samtools_pileup_generator_from(samtools_mpileup_process):
@@ -632,7 +632,7 @@ def CreateTensorFullAlignment(args):
             columns = row.strip().split('\t')
             pos = int(columns[1])
 
-            pass_extend_bed = not is_extend_confident_bed_file_given or is_region_in(extend_confident_bed_tree,
+            pass_extend_bed = not is_extend_bed_file_given or is_region_in(extend_bed_tree,
                                                                                      ctg_name, pos - 1,
                                                                                      pos + 1)  # pos that near bed region should include some indel cover in bed
             pass_ctg_range = not ctg_start or (pos >= ctg_start and pos <= ctg_end)
@@ -822,8 +822,14 @@ def main():
     parser.add_argument('--ctgEnd', type=int, default=None,
                         help="The 1-based inclusive ending position of the sequence to be processed, optional, will process the whole --ctgName if not set")
 
-    parser.add_argument('--bed_fn', type=str, nargs='?', action="store", default=None,
+    parser.add_argument('--bed_fn', type=str, default=None,
                         help="Call variant only in the provided regions. Will take an intersection if --ctgName and/or (--ctgStart, --ctgEnd) are set")
+
+    parser.add_argument('--gvcf', type=str2bool, default=False,
+                        help="Enable GVCF output, default: disabled")
+
+    parser.add_argument('--sampleName', type=str, default="SAMPLE",
+                        help="Define the sample name to be shown in the GVCF file")
 
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required. default: %(default)s")
@@ -854,6 +860,15 @@ def main():
     parser.add_argument('--indel_fn', type=str, default=None,
                         help="DEBUG: Output all alternative indel cigar for debug purpose")
 
+    parser.add_argument('--base_err', default=0.001, type=float,
+                        help='DEBUG: Estimated base error rate in gvcf option, default: %(default)f')
+
+    parser.add_argument('--gq_bin_size', default=5, type=int,
+                        help='DEBUG: Default gq bin size for merge non-variant block in gvcf option, default: %(default)d')
+
+    parser.add_argument('--bp_resolution', action='store_true',
+                        help="DEBUG: Enable bp resolution for GVCF, default: disabled")
+    
     # options for internal process control
     ## Path to the 'zstd' compression
     parser.add_argument('--zstd', type=str, default=param.zstd,
@@ -888,7 +903,7 @@ def main():
                         help=SUPPRESS)
 
     ## Provide the regions to be included in full-alignment based calling
-    parser.add_argument('--full_aln_regions', type=str, nargs='?', action="store", default=None,
+    parser.add_argument('--full_aln_regions', type=str, default=None,
                         help=SUPPRESS)
 
     ## Use Clair3's own phasing module for read level phasing when creating tensor, compared to using Whatshap, speed is faster but has higher memory footprint, default: False

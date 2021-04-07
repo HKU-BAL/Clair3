@@ -8,9 +8,10 @@ from collections import Counter, defaultdict
 
 import shared.param_p as param
 from shared.interval_tree import bed_tree_from, is_region_in
+from preprocess.utils import variantInfoCalculator
 from shared.utils import subprocess_popen, file_path_from, IUPAC_base_to_num_dict as BASE2NUM, region_from, \
-    reference_sequence_from, str2bool
-from clair3.MakeGvcf import variantInfoCalculator
+    reference_sequence_from, str2bool, vcf_candidates_from
+
 
 logging.getLogger().setLevel(logging.INFO)
 BASES = set(list(BASE2NUM.keys()) + ["-"])
@@ -136,9 +137,9 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
     pass_indel_af = False
     fast_mode = platform == 'ont' and fast_mode
     
-    minimum_snp_af_for_candidate = minimum_snp_af_for_candidate if minimum_snp_af_for_candidate > 0 else param.threshold
-    minimum_snp_af_for_candidate = max(minimum_snp_af_for_candidate, param.threshold_dict[platform]) if fast_mode else minimum_snp_af_for_candidate
-    minimum_indel_af_for_candidate = minimum_indel_af_for_candidate if minimum_indel_af_for_candidate > 0 else param.threshold_dict[platform]
+    minimum_snp_af_for_candidate = minimum_snp_af_for_candidate if minimum_snp_af_for_candidate > 0 else param.min_af
+    minimum_snp_af_for_candidate = max(minimum_snp_af_for_candidate, param.min_af_dict[platform]) if fast_mode else minimum_snp_af_for_candidate
+    minimum_indel_af_for_candidate = minimum_indel_af_for_candidate if minimum_indel_af_for_candidate > 0 else param.min_af_dict[platform]
 
     # check whether first non reference candidate in the first position
     pass_af = len(pileup_list) and (pileup_list[0][0] != reference_base)
@@ -183,7 +184,6 @@ def CreateTensorPileup(args):
     """
     ctg_start = args.ctgStart
     ctg_end = args.ctgEnd
-    bed_file_path = args.bed_fn
     fasta_file_path = args.ref_fn
     ctg_name = args.ctgName
     samtools_execute_command = args.samtools
@@ -191,20 +191,21 @@ def CreateTensorPileup(args):
     chunk_id = args.chunk_id - 1 if args.chunk_id else None  # 1-base to 0-base
     chunk_num = args.chunk_num
     tensor_can_output_path = args.tensor_can_fn
-    is_bed_file_given = bed_file_path is not None
-    minimum_af_for_candidate = args.threshold
+    minimum_af_for_candidate = args.min_af
     minimum_snp_af_for_candidate = args.snp_min_af
     minimum_indel_af_for_candidate = args.indel_min_af
     min_coverage = args.minCoverage
     platform = args.platform
-    confident_bed_fn = args.confident_bed_fn
+    confident_bed_fn = args.bed_fn
     is_confident_bed_file_given = confident_bed_fn is not None
     alt_fn = args.indel_fn
-    extend_confident_bed_fn = args.extend_confident_bed_fn
-    is_extend_confident_bed_file_given = extend_confident_bed_fn is not None
+    extend_bed = args.extend_bed
+    is_extend_bed_file_given = extend_bed is not None
     min_mapping_quality = args.minMQ
     min_base_quality = args.minBQ
     fast_mode = args.fast_mode
+    vcf_fn = args.vcf_fn
+    is_known_vcf_file_provided = vcf_fn is not None
 
     global test_pos
     test_pos = None
@@ -215,11 +216,13 @@ def CreateTensorPileup(args):
     # 1-based regions [start, end] (start and end inclusive)
     ref_regions = []
     reads_regions = []
-    tree, bed_start, bed_end = bed_tree_from(bed_file_path=extend_confident_bed_fn, contig_name=ctg_name,
+    known_variants_set = set()
+    tree, bed_start, bed_end = bed_tree_from(bed_file_path=extend_bed,
+                                             contig_name=ctg_name,
                                              return_bed_region=True)
 
     fai_fn = file_path_from(fasta_file_path + ".fai", exit_on_not_found=True)
-    if not is_bed_file_given and chunk_id is not None:
+    if not is_confident_bed_file_given and chunk_id is not None:
         contig_length = 0
         with open(fai_fn, 'r') as fai_fp:
             for row in fai_fp:
@@ -233,11 +236,19 @@ def CreateTensorPileup(args):
         ctg_start = chunk_size * chunk_id  # 0-base to 1-base
         ctg_end = ctg_start + chunk_size
 
-    if is_bed_file_given and chunk_id is not None:
+    if is_confident_bed_file_given and chunk_id is not None:
         chunk_size = (bed_end - bed_start) // chunk_num + 1 if (bed_end - bed_start) % chunk_num else (
                                                                                                                   bed_end - bed_start) // chunk_num
         ctg_start = bed_start + 1 + chunk_size * chunk_id  # 0-base to 1-base
         ctg_end = ctg_start + chunk_size
+
+    if is_known_vcf_file_provided and chunk_id is not None:
+        known_variants_list = vcf_candidates_from(vcf_fn=vcf_fn, contig_name=ctg_name)
+        total_variants_size = len(known_variants_list)
+        chunk_variants_size = total_variants_size // chunk_num if total_variants_size % chunk_num == 0 else total_variants_size // chunk_num + 1
+        chunk_start_pos = chunk_id * chunk_variants_size
+        known_variants_set = set(known_variants_list[chunk_start_pos: chunk_start_pos + chunk_variants_size])
+        ctg_start, ctg_end = min(known_variants_set), max(known_variants_set)
 
     is_ctg_name_given = ctg_name is not None
     is_ctg_range_given = is_ctg_name_given and ctg_start is not None and ctg_end is not None
@@ -262,8 +273,8 @@ def CreateTensorPileup(args):
     if reference_sequence is None or len(reference_sequence) == 0:
         sys.exit("[ERROR] Failed to load reference seqeunce from file ({}).".format(fasta_file_path))
 
-    if is_bed_file_given and ctg_name not in tree:
-        sys.exit("[ERROR] ctg_name({}) not exists in bed file({}).".format(ctg_name, bed_file_path))
+    if is_confident_bed_file_given and ctg_name not in tree:
+        sys.exit("[ERROR] ctg_name({}) not exists in bed file({}).".format(ctg_name, confident_bed_fn))
 
     # samtools mpileup options
     # reverse-del: deletetion in reverse strand marks as '#'
@@ -274,7 +285,7 @@ def CreateTensorPileup(args):
     bq_option = ' --min-BQ {}'.format(min_base_quality)
     flags_option = ' --excl-flags {}'.format(param.SAMTOOLS_VIEW_FILTER_FLAG)
     max_depth_option = ' --max-depth {}'.format(max_depth)
-    bed_option = ' -l {}'.format(extend_confident_bed_fn) if is_extend_confident_bed_file_given else ""
+    bed_option = ' -l {}'.format(extend_bed) if is_extend_bed_file_given else ""
     gvcf_option = ' -a' if args.gvcf else ""
     samtools_mpileup_process = subprocess_popen(
         shlex.split(
@@ -367,7 +378,8 @@ def CreateTensorPileup(args):
                                                                              contig_name=ctg_name,
                                                                              region_start=pos - 1,
                                                                              region_end=pos + max_del_length + 1)  # 0-based
-        if pass_confident_bed and reference_base in 'ACGT' and (pass_af and depth >= min_coverage):
+        if pass_confident_bed and reference_base in 'ACGT' and (pass_af and depth >= min_coverage) or (
+                is_known_vcf_file_provided and pos in known_variants_set):
             candidate_position.append(pos)
             all_alt_dict[pos] = alt_dict
             depth_dict[pos] = depth
@@ -434,6 +446,9 @@ def main():
     parser.add_argument('--tensor_can_fn', type=str, default="PIPE",
                         help="Tensor output, stdout by default, default: %(default)s")
 
+    parser.add_argument('--vcf_fn', type=str, default=None,
+                        help="Candidate sites VCF file input, if provided, variants will only be called at the sites in the VCF file,  default: %(default)s")
+
     parser.add_argument('--min_af', type=float, default=0.08,
                         help="Minimum allele frequency for both SNP and Indel for a site to be considered as a condidate site, default: %(default)f")
 
@@ -452,8 +467,14 @@ def main():
     parser.add_argument('--ctgEnd', type=int, default=None,
                         help="The 1-based inclusive ending position of the sequence to be processed, optional, will process the whole --ctgName if not set")
 
-    parser.add_argument('--bed_fn', type=str, nargs='?', action="store", default=None,
+    parser.add_argument('--bed_fn', type=str, default=None,
                         help="Call variant only in the provided regions. Will take an intersection if --ctgName and/or (--ctgStart, --ctgEnd) are set")
+
+    parser.add_argument('--gvcf', type=str2bool, default=False,
+                        help="Enable GVCF output, default: disabled")
+
+    parser.add_argument('--sampleName', type=str, default="SAMPLE",
+                        help="Define the sample name to be shown in the VCF file, default: %(default)s")
 
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools verision >= 1.10 is required. default: %(default)s")
@@ -475,12 +496,20 @@ def main():
                         help="EXPERIMENTAL: Maximum pileup depth to be processed. default: %(default)s")
 
     # options for debug purpose
-    parser.add_argument('--extend_bed', nargs='?', action="store", type=str, default=None,
+    parser.add_argument('--extend_bed', type=str, default=None,
                         help="DEBUG: Extend the regions in the --bed_fn by a few bp for tensor creation, default extend 16bp")
 
     parser.add_argument('--indel_fn', type=str, default=None,
                         help="DEBUG: Output all alternative indel cigar for debug purpose")
 
+    parser.add_argument('--base_err', default=0.001, type=float,
+                        help='DEBUG: Estimated base error rate in gvcf option, default: %(default)f')
+
+    parser.add_argument('--gq_bin_size', default=5, type=int,
+                        help='DEBUG: Default gq bin size for merge non-variant block in gvcf option, default: %(default)d')
+
+    parser.add_argument('--bp_resolution', action='store_true',
+                        help="DEBUG: Enable bp resolution for GVCF, default: disabled")
 
     # options for internal process control
     ## Path to the 'zstd' compression

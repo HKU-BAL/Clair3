@@ -7,8 +7,8 @@ zstd='zstd'
 default_optimizer = "Radam"
 default_loss_function = "FocalLoss"
 support_platform = {'ont', 'hifi','ilmn'}
-threshold = 0.08
-threshold_dict = {'ont':0.15, 'hifi':threshold, 'ilmn':threshold }
+min_af = 0.08
+min_af_dict = {'ont':0.15, 'hifi':min_af, 'ilmn':min_af }
 #as three platform training data vary in depth distribution, we recommend below max_depth base on max training data depth for calling
 max_depth_dict = {'ont':144, 'hifi':72, 'ilmn':89}
 

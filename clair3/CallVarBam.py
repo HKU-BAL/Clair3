@@ -143,7 +143,6 @@ def Run(args):
             chunk_id,
             chunk_num,
             CommandOption('samtools', samtoolsBin),
-            CommandOption('bed_fn', bed_fn),
             CommandOption('extend_bed', extend_bed),
             CommandOption('full_aln_regions', full_aln_regions),
         ]

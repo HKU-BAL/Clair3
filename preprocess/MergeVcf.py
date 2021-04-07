@@ -9,7 +9,7 @@ logging.basicConfig(format='%(message)s', level=logging.INFO)
 from shared.utils import subprocess_popen, str2bool
 import shared.param_f as param
 from shared.interval_tree import bed_tree_from, is_region_in
-from clair3.MakeGvcf import gvcfGenerator
+from preprocess.utils import gvcfGenerator
 
 
 def filtration_value_from(quality_score_for_pass, quality_score):
@@ -90,6 +90,8 @@ def MergeVcf(args):
     pileup_vcf_fn = args.pileup_vcf_fn  # true vcf var
     contig_name = args.ctgName
     QUAL = args.qual
+    is_haploid_precision_mode_enabled = args.haploid_precise
+    is_haploid_sensitive_mode_enabled = args.haploid_sensitive
     full_alignment_vcf_unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (full_alignment_vcf_fn)))
 
     pileup_output = []
@@ -158,11 +160,6 @@ def mergeNonVariant(args):
         logging.info("merge calls")
         gvcf_generator.mergeCalls(raw_vcf_path, raw_gvcf_path, save_path, args.sampleName, args.ctgName, args.ctgStart,
                                   args.ctgEnd)
-
-    # remove temporary file
-    # cmd = "rm " + raw_gvcf_path
-    # os.system(cmd)
-
     pass
 
 
@@ -214,6 +211,12 @@ def main():
 
     parser.add_argument('--samtools', type=str, default='samtools',
                         help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
+
+    parser.add_argument('--haploid_precise', action='store_true',
+                        help="EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant")
+
+    parser.add_argument('--haploid_sensitive', action='store_true',
+                        help="EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant")
 
 
     args = parser.parse_args()

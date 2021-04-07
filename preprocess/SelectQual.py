@@ -75,7 +75,7 @@ def select_qual_from_stdin(args):
 
 
 def main():
-    parser = ArgumentParser(description="Select quality cutoff for phasing and full alignment")
+    parser = ArgumentParser(description="Select quality cut-off for phasing and full alignment")
 
     parser.add_argument('--platform', type=str, default="ont",
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")

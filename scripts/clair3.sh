@@ -6,7 +6,7 @@ Usage="\nUsage: ./${SCRIPT_NAME} -b BAM -f REF -o OUTPUT_DIR -t THREADS -p PLATF
 set -e
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
-bed_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
+bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
 snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
@@ -20,8 +20,9 @@ while true; do
     -m|--model_path ) MODEL_PATH="$2"; shift 2 ;;
     -p|--platform ) PLATFORM="$2"; shift 2 ;;
     -o|--output ) OUTPUT_FOLDER="$2"; shift 2 ;;
-    -r|--bed_fn ) BED_FILE_PATH="$2"; shift 2 ;;
-    -c|--ctg_name ) CONTIGS="$2"; shift 2 ;;
+    --bed_fn ) BED_FILE_PATH="$2"; shift 2 ;;
+    --vcf_fn ) VCF_FILE_PATH="$2"; shift 2 ;;
+    --ctg_name ) CONTIGS="$2"; shift 2 ;;
     --sample_name ) SAMPLE="$2"; shift 2 ;;
     --chunk_num ) CHUNK_NUM="$2"; shift 2 ;;
     --chunk_size ) CHUNK_SIZE="$2"; shift 2 ;;
@@ -70,6 +71,7 @@ ${PYPY} ${CLAIR3} CheckEnvs \
 --bed_fn ${BED_FILE_PATH} \
 --output_fn ${OUTPUT_FOLDER} \
 --ref_fn ${REFERENCE_FILE_PATH} \
+--vcf_fn ${VCF_FILE_PATH} \
 --ctg_name ${CONTIGS} \
 --chunk_num ${CHUNK_NUM} \
 --chunk_size ${CHUNK_SIZE} \
@@ -90,8 +92,9 @@ time ${PARALLEL} -C ' ' --joblog ${LOG_PATH}/parallel_1_call_var_bam_pileup.log 
     --call_fn ${PILEUP_VCF_PATH}/pileup_{1}_{2}.vcf \
     --sampleName ${SAMPLE} \
     --ref_fn ${REFERENCE_FILE_PATH} \
-    --extend_confident_bed_fn ${SPLIT_BED_PATH}/{1} \
-    --confident_bed_fn ${BED_FILE_PATH} \
+    --extend_bed ${SPLIT_BED_PATH}/{1} \
+    --bed_fn ${BED_FILE_PATH} \
+    --vcf_fn ${VCF_FILE_PATH} \
     --ctgName {1} \
     --chunk_id {2} \
     --chunk_num {3} \
@@ -155,8 +158,7 @@ gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --output
 --var_pct_full ${PRO} --ref_pct_full ${REF_PRO} --platform ${PLATFORM}
 time ${PARALLEL} --joblog ${LOG_PATH}/parallel_5_select_candidate.log -j${THREADS} \
 "${PYPY} ${CLAIR3} SelectCandidates \
-    --vcf_fn ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
-    --alt_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
+    --pileup_vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
     --split_folder ${CANDIDATE_BED_PATH} \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --var_pct_full ${PRO} \
@@ -165,7 +167,7 @@ time ${PARALLEL} --joblog ${LOG_PATH}/parallel_5_select_candidate.log -j${THREAD
     --ctgName {1}" ::: ${CHR[@]}  |& tee ${LOG_PATH}/5_select_candidate.log
 
 echo "[INFO] 6/7 Calling variants using Full Alignment"
-ALL_BED=($(ls ${CANDIDATE_BED_PATH}/*.*))
+FULL_ALINGNMENT_BED=($(ls ${CANDIDATE_BED_PATH}/*.*))
 time ${PARALLEL} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log -j ${THREADS_LOW} \
 "${PYTHON} ${CLAIR3} CallVarBam \
     --chkpnt_fn ${FULL_ALIGNMENT_CHECKPOINT_PATH} \
@@ -173,12 +175,12 @@ time ${PARALLEL} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log
     --call_fn ${FULL_ALIGNMENT_OUTPUT_PATH}/full_alignment_{1/}.vcf \
     --sampleName ${SAMPLE} \
     --ref_fn ${REFERENCE_FILE_PATH} \
-    --bed_fn {1} \
+    --full_aln_regions {1} \
     --ctgName {1/.} \
     --add_indel_length \
     --phasing_info_in_bam \
     --gvcf ${GVCF} \
-    --platform ${PLATFORM}" ::: ${ALL_BED[@]} |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
+    --platform ${PLATFORM}" ::: ${FULL_ALINGNMENT_BED[@]} |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
 
 #Merge pileup and full alignment vcf
 #-----------------------------------------------------------------------------------------------------------------------
@@ -189,7 +191,7 @@ echo "[INFO] 7/7 Merge pileup vcf and full alignment vcf"
 time ${PARALLEL} --joblog ${LOG_PATH}/parallel_7_merge_vcf.log -j${THREADS} \
 "${PYPY} ${CLAIR3} MergeVcf \
     --pileup_vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
-    --candidate_bed_fn ${CANDIDATE_BED_PATH}/{1} \
+    --bed_fn ${CANDIDATE_BED_PATH}/{1} \
     --full_alignment_vcf_fn ${OUTPUT_FOLDER}/full_alignment.vcf \
     --output_fn ${TMP_FILE_PATH}/merge_output/merge_{1}.vcf \
     --platform ${PLATFORM} \

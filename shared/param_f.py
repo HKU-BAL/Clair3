@@ -24,7 +24,6 @@ SAMTOOLS_VIEW_FILTER_FLAG = 2316
 NORMALIZE_NUM = 100
 
 # Realignment parameters
-region_size = 1000
 partition_size = 500000
 realign_chunk_size = 5000
 phasing_window_size = 100000

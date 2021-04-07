@@ -17,8 +17,35 @@ major_contigs = {"chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]}.union(
 major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] + [str(a) for a in
                                                                                    list(range(1, 23)) + ["X", "Y"]]
 
+def split_extend_vcf(vcf_fn, output_fn):
+    expand_region_size = param.no_of_positions
+    output_ctg_dict = defaultdict(list)
+    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (vcf_fn)))
 
-def split_extend_bed(bed_fn, output_fn, contig_set):
+    for row in unzip_process.stdout:
+        if row[0] == '#':
+            continue
+        columns = row.strip().split(maxsplit=3)
+        ctg_name = columns[0]
+
+        center_pos = int(columns[1])
+        ctg_start, ctg_end = center_pos - 1, center_pos
+        output_ctg_dict[ctg_name].append(
+            ' '.join([ctg_name, str(ctg_start - expand_region_size), str(ctg_end + expand_region_size)]))
+
+    for key, value in output_ctg_dict.items():
+        ctg_output_fn = os.path.join(output_fn, key)
+        with open(ctg_output_fn, 'w') as output_file:
+            output_file.write('\n'.join(value))
+
+    unzip_process.stdout.close()
+    unzip_process.wait()
+
+    know_vcf_contig_set = set(list(output_ctg_dict.keys()))
+
+    return know_vcf_contig_set
+
+def split_extend_bed(bed_fn, output_fn, contig_set=None):
     expand_region_size = param.no_of_positions
     output_ctg_dict = defaultdict(list)
     unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (bed_fn)))
@@ -27,7 +54,7 @@ def split_extend_bed(bed_fn, output_fn, contig_set):
             continue
         columns = row.strip().split()
         ctg_name = columns[0]
-        if ctg_name not in contig_set:
+        if contig_set and ctg_name not in contig_set:
             continue
 
         ctg_start, ctg_end = int(columns[1]), int(columns[2])
@@ -50,6 +77,7 @@ def CheckEnvs(args):
     fai_fn = file_path_from(args.ref_fn + ".fai", exit_on_not_found=True)
     bai_fn = file_path_from(args.bam_fn + ".bai", exit_on_not_found=True)
     bed_fn = file_path_from(args.bed_fn)
+    vcf_fn = file_path_from(args.vcf_fn)
     tree = bed_tree_from(bed_file_path=bed_fn)
 
     # create temp file folder
@@ -58,7 +86,7 @@ def CheckEnvs(args):
     log_path = folder_path_from(os.path.join(output_fn_prefix, 'log'), create_not_found=True)
     tmp_file_path = folder_path_from(os.path.join(output_fn_prefix, 'tmp'), create_not_found=True)
     split_bed_path = folder_path_from(os.path.join(tmp_file_path, 'split_beds'),
-                                      create_not_found=True) if bed_fn else None
+                                      create_not_found=True) if bed_fn or vcf_fn else None
     pileup_vcf_path = folder_path_from(os.path.join(tmp_file_path, 'pileup_output'), create_not_found=True)
     merge_vcf_path = folder_path_from(os.path.join(tmp_file_path, 'merge_output'), create_not_found=True)
     phase_output_path = folder_path_from(os.path.join(tmp_file_path, 'phase_output'), create_not_found=True)
@@ -72,14 +100,32 @@ def CheckEnvs(args):
 
     is_include_all_contigs = args.includingAllContigs
     is_bed_file_provided = bed_fn is not None
+    is_known_vcf_file_provided = vcf_fn is not None
+
+    if is_known_vcf_file_provided and is_bed_file_provided:
+        exit("[ERROR] Please provide either --vcf_fn or --bed_fn only.")
+
+    if is_known_vcf_file_provided:
+        know_vcf_contig_set = split_extend_vcf(vcf_fn=vcf_fn, output_fn=split_bed_path)
 
     ctg_name_list = args.ctg_name
     is_ctg_name_list_provided = ctg_name_list is not None and ctg_name_list != "EMPTY"
     contig_set = set(ctg_name_list.split(',')) if is_ctg_name_list_provided else set()
-    contig_set = contig_set.intersection(
-        set(tree.keys())) if is_bed_file_provided and is_ctg_name_list_provided else contig_set
-    contig_set = contig_set.union(
-        set(tree.keys())) if is_bed_file_provided and not is_ctg_name_list_provided else contig_set
+
+    if is_ctg_name_list_provided:
+
+        contig_set = contig_set.intersection(
+            set(tree.keys())) if is_bed_file_provided else contig_set
+
+        contig_set = contig_set.intersection(
+            know_vcf_contig_set) if is_known_vcf_file_provided else contig_set
+    else:
+        contig_set = contig_set.union(
+            set(tree.keys())) if is_bed_file_provided else contig_set
+
+        contig_set = contig_set.union(
+            know_vcf_contig_set) if is_known_vcf_file_provided else contig_set
+
 
     # if each split region is too small(long) for given default chunk num, will increase(decrease) the total chunk num
     default_chunk_num = args.chunk_num
@@ -95,9 +141,6 @@ def CheckEnvs(args):
 
     ## for better parallelism for create tensor and call variants, we over commit the overall threads/4 for 3 times, which is 0.75 * overall threads.
     threads_over_commit = max(4, int(threads * 0.75))
-    threads_file = os.path.join(tmp_file_path, 'THREADS_LOW')
-    with open(threads_file, 'w') as output_file:
-        output_file.write('\n'.join(str(threads_over_commit)))
 
     with open(fai_fn, 'r') as fai_fp:
         for row in fai_fp:
@@ -110,6 +153,9 @@ def CheckEnvs(args):
                 continue
             if is_ctg_name_list_provided and contig_name not in contig_set:
                 continue
+            if is_known_vcf_file_provided and contig_name not in contig_set:
+                continue
+
             contig_set.add(contig_name)
             contig_length_list.append(contig_length)
             chunk_num = int(
@@ -173,11 +219,14 @@ def main():
     parser.add_argument('--output_fn_prefix', type=str, default=None,
                         help="Path to the output folder")
 
-    parser.add_argument('--ctg_name', type=str, default=None,
-                        help="The name of sequence to be processed, required if --bed_fn is not defined")
+    parser.add_argument('--ctg_name', type=str, default='EMPTY',
+                        help="The name of sequence to be processed")
 
     parser.add_argument('--bed_fn', type=str, nargs='?', action="store", default=None,
-                        help="Call variant only in these regions. Will take an intersection if --ctgName is set")
+                        help="Call variant only in these regions. Will take an intersection if --ctg_name is set")
+
+    parser.add_argument('--vcf_fn', type=str, default=None,
+                        help="Candidate sites VCF file input, if provided, variants will only be called at the sites in the VCF file,  default: %(default)s")
 
     parser.add_argument('--ref_fn', type=str, default="ref.fa",
                         help="Reference fasta file input, default: %(default)s")

@@ -11,12 +11,13 @@ print_help_messages()
     echo $'  -b, --bam_fn FILE        BAM file input. The input file must be samtools indexed.'
     echo $'  -f, --ref_fn FILE        FASTA reference file input. The input file must be samtools indexed.'
     echo $'  -m, --model_path STR     The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00001, pileup.index, pileup.meta, full_alignment.data-00000-of-00001, full_alignment.index, and full_alignment.meta).'
-    echo $'  -t, --threads INT        Max #threads to be used. The full genome will be divided into small chucks for parallel processing. Each chunk will use 4 threads. The #chucks being processed simaltaneously is ceil(#threads/4)*2. 2 is the overloading factor.'
+    echo $'  -t, --threads INT        Max #threads to be used. The full genome will be divided into small chucks for parallel processing. Each chunk will use 4 threads. The #chucks being processed simaltaneously is ceil(#threads/4)*3. 3 is the overloading factor.'
     echo $'  -p, --platform STR       Selete the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.'
     echo $'  -o, --output PATH        VCF/GVCF output directory.'
     echo $''
     echo $'Optional parameters:'
     echo $'      --bed_fn FILE        Call variants only in the provided bed regions.'
+    echo $'      --vcf_fn FILE        Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.'
     echo $'      --ctg_name STR       The name of the sequence to be processed.'
     echo $'      --sample_name STR    Define the sample name to be shown in the VCF file.'
     echo $'      --qual INT           If set, variants with >=$qual will be marked PASS, or LowQual otherwise.'
@@ -40,7 +41,7 @@ print_help_messages()
 
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
-bed_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
+bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
 snp_min_af::,indel_min_af::,fast_mode,gvcf,pileup_only -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
@@ -49,6 +50,7 @@ eval set -- "${ARGS}"
 # default options
 SAMPLE="EMPTY"
 BED_FILE_PATH="EMPTY"
+VCF_FILE_PATH='EMPTY'
 CONTIGS="EMPTY"
 SAMTOOLS="samtools"
 PYPY="pypy3"
@@ -74,8 +76,9 @@ while true; do
     -m|--model_path ) MODEL_PATH="$2"; shift 2 ;;
     -p|--platform ) PLATFORM="$2"; shift 2 ;;
     -o|--output ) OUTPUT_FOLDER="$2"; shift 2 ;;
-    -r|--bed_fn ) BED_FILE_PATH="$2"; shift 2 ;;
-    -c|--ctg_name ) CONTIGS="$2"; shift 2 ;;
+    --bed_fn ) BED_FILE_PATH="$2"; shift 2 ;;
+    --vcf_fn ) VCF_FILE_PATH="$2"; shift 2 ;;
+    --ctg_name ) CONTIGS="$2"; shift 2 ;;
     --sample_name ) SAMPLE="$2"; shift 2 ;;
     --chunk_num ) CHUNK_NUM="$2"; shift 2 ;;
     --chunk_size ) CHUNK_SIZE="$2"; shift 2 ;;
@@ -107,7 +110,7 @@ fi
 if [ ! -f ${BAM_FILE_PATH} ] || [ ! -f ${BAM_FILE_PATH}.bai ]; then echo "[ERROR] Bam file or Bam index bai file not found"; exit 1; fi
 if [ ! -f ${REFERENCE_FILE_PATH} ] || [ ! -f ${REFERENCE_FILE_PATH}.fai ]; then echo "[ERROR] Reference file or Reference index fai file not found"; exit 1; fi
 if [ ! ${BED_FILE_PATH} = "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [ ! -f ${BED_FILE_PATH} ] ; then echo "[ERROR] Bed file provides and not found"; exit 1; fi
-
+if [ ! ${VCF_FILE_PATH} = "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [ ! -f ${VCF_FILE_PATH} ] ; then echo "[ERROR] Vcf file provides and not found"; exit 1; fi
 
 
 mkdir -p ${OUTPUT_FOLDER}
@@ -121,6 +124,7 @@ echo "[INFO] OUTPUT FOLDER: ${OUTPUT_FOLDER}"
 echo "[INFO] PLATFORM: ${PLATFORM}"
 echo "[INFO] THREADS: ${THREADS}"
 echo "[INFO] BED FILE PATH: ${BED_FILE_PATH}"
+echo "[INFO] VCF FILE PATH: ${VCF_FILE_PATH}"
 echo "[INFO] CONTIGS: ${CONTIGS}"
 echo "[INFO] SAMTOOLS PATH: ${SAMTOOLS}"
 echo "[INFO] PYTHON PATH: ${PYTHON}"
@@ -145,6 +149,7 @@ scripts/clair3.sh \
     --platform ${PLATFORM} \
     --output ${OUTPUT_FOLDER} \
     --bed_fn=${BED_FILE_PATH} \
+    --vcf_fn=${VCF_FILE_PATH} \
     --ctg_name=${CONTIGS} \
     --sample_name=${SAMPLE} \
     --chunk_num=${CHUNK_NUM} \

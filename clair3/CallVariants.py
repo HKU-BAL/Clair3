@@ -31,7 +31,7 @@ Phred_Trans = (-10 * log(e, 10))
 OutputConfig = namedtuple('OutputConfig', [
     'is_show_reference',
     'is_debug',
-    'is_haploid_precision_mode_enabled',
+    'is_haploid_precise_mode_enabled',
     'is_haploid_sensitive_mode_enabled',
     'is_output_for_ensemble',
     'quality_score_for_pass',
@@ -173,7 +173,7 @@ def Run(args):
     output_config = OutputConfig(
         is_show_reference=args.showRef,
         is_debug=args.debug,
-        is_haploid_precision_mode_enabled=args.haploid_precise,
+        is_haploid_precise_mode_enabled=args.haploid_precise,
         is_haploid_sensitive_mode_enabled=args.haploid_sensitive,
         is_output_for_ensemble=args.output_for_ensemble,
         quality_score_for_pass=args.qual,
@@ -1106,7 +1106,7 @@ def output_with(
     is_multi = "," in str(alternate_base)
 
     # haploid (precision mode)
-    if output_config.is_haploid_precision_mode_enabled and (
+    if output_config.is_haploid_precise_mode_enabled and (
             is_hetero_SNP or is_hetero_ACGT_Ins or is_hetero_InsIns or
             is_hetero_ACGT_Del or is_hetero_DelDel or is_insertion_and_deletion
     ):
@@ -1191,7 +1191,7 @@ def output_with(
     quality_score = quality_score_from(maximum_probability)
 
     # replace genotype string if any haploid mode enabled
-    if output_config.is_haploid_precision_mode_enabled or output_config.is_haploid_sensitive_mode_enabled:
+    if output_config.is_haploid_precise_mode_enabled or output_config.is_haploid_sensitive_mode_enabled:
         genotype_string = "1" if "1" in genotype_string else "0"
 
     # filtration value
