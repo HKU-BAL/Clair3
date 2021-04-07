@@ -66,8 +66,9 @@ def Run(args):
     bam_fn = file_path_from(args.bam_fn, exit_on_not_found=True)
     ref_fn = file_path_from(args.ref_fn, exit_on_not_found=True)
     bed_fn = file_path_from(args.bed_fn)
-    extend_confident_bed_fn = file_path_from(args.extend_confident_bed_fn)
-    confident_bed_fn = file_path_from(args.confident_bed_fn)
+    vcf_fn = file_path_from(args.vcf_fn)
+    extend_bed = file_path_from(args.extend_bed)
+    full_aln_regions = file_path_from(args.full_aln_regions)
 
     platform = args.platform
     if not platform or platform not in param.support_platform:
@@ -78,7 +79,7 @@ def Run(args):
     sampleName = args.sampleName
     ctgName = args.ctgName
     need_realignment = args.need_realignment and platform == 'ilmn' and not pileup
-    threshold = args.threshold if args.threshold else param.threshold_dict[platform]
+    min_af = args.min_af if args.min_af else param.min_af_dict[platform]
     snp_min_af = args.snp_min_af
     indel_min_af = args.indel_min_af
 
@@ -143,8 +144,8 @@ def Run(args):
             chunk_num,
             CommandOption('samtools', samtoolsBin),
             CommandOption('bed_fn', bed_fn),
-            CommandOption('extend_confident_bed_fn', extend_confident_bed_fn),
-            CommandOption('confident_bed_fn', confident_bed_fn),
+            CommandOption('extend_bed', extend_bed),
+            CommandOption('full_aln_regions', full_aln_regions),
         ]
         bam_fn = "PIPE"
     CT_Bin = CTP_Bin if pileup else CTFA_Bin
@@ -155,14 +156,12 @@ def Run(args):
         CommandOption('bam_fn', bam_fn),
         CommandOption('ref_fn', ref_fn),
         CommandOption('ctgName', ctgName),
-        CommandOption('threshold', threshold),
+        CommandOption('min_af', min_af),
         CommandOption('platform', platform),
         CommandOption('samtools', samtoolsBin),
         CommandOption('bed_fn', bed_fn),
-        CommandOption('extend_confident_bed_fn', extend_confident_bed_fn),
-        CommandOption('confident_bed_fn', confident_bed_fn),
+        CommandOption('extend_bed', extend_bed),
         CommandOption('sampleName', args.sampleName),
-
         ctgStart,
         ctgEnd,
         chunk_id,
@@ -180,7 +179,9 @@ def Run(args):
     if not pileup:
         create_tensor_command_options.append(phasing_info_in_bam_mode)
         create_tensor_command_options.append(need_phasing_mode)
+        create_tensor_command_options.append(CommandOption('full_aln_regions', full_aln_regions))
     else:
+        create_tensor_command_options.append(CommandOption('vcf_fn', vcf_fn))
         create_tensor_command_options.append(CommandOption('snp_min_af', snp_min_af))
         create_tensor_command_options.append(CommandOption('indel_min_af', indel_min_af))
         create_tensor_command_options.append(fast_mode)
@@ -282,6 +283,9 @@ def main():
 
     parser.add_argument('--call_fn', type=str, default=None,
                         help="VCF output filename, or stdout if not set")
+
+    parser.add_argument('--vcf_fn', type=str, default=None,
+                        help="Candidate sites VCF file input, if provided, variants will only be called at the sites in the VCF file,  default: %(default)s")
 
     parser.add_argument('--ctgName', type=str, default=None,
                         help="The name of sequence to be processed, required if --bed_fn is not defined")
