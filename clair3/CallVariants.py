@@ -20,7 +20,6 @@ import clair3.utils as utils
 from clair3.task.genotype import Genotype, genotype_string_from, genotype_enum_from, genotype_enum_for_task
 from shared.utils import IUPAC_base_to_ACGT_base_dict as BASE2ACGT, BASIC_BASES, str2bool
 from clair3.task.variant_length import VariantLength
-from clair3.MakeGvcf import gvcfGenerator
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.basicConfig(format='%(message)s', level=logging.INFO)
@@ -253,7 +252,6 @@ def output_utilties_from(
             ##ALT=<ID=DEL,Description="Deletion">
             ##ALT=<ID=INS,Description="Insertion of novel sequence">
             ##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
-            ##INFO=<ID=LENGUESS,Number=.,Type=Integer,Description="Best guess of the indel length">
             ##INFO=<ID=P,Number=0,Type=Flag,Description="Whether calling result from pileup calling">
             ##INFO=<ID=F,Number=0,Type=Flag,Description="Whether calling result from full alignment calling">
             ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
@@ -1212,20 +1210,6 @@ def output_with(
             "Normal output" if not is_reference else "Reference"
         )
     else:
-        if test_pos and position == test_pos:
-            print ("%s\t%d\t.\t%s\t%s\t%.2f\t%s\t%s\tGT:GQ:DP:AF\t%s:%d:%d:%.4f" % (
-                chromosome,
-                position,
-                reference_base,
-                alternate_base,
-                quality_score,
-                filtration_value,
-                information_string,
-                genotype_string,
-                quality_score,
-                read_depth,
-                allele_frequency
-            ))
         if output_config.gvcf:
             if is_reference:
                 filtration_value = 'RefCall'
@@ -1273,19 +1257,15 @@ def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, refe
     for tri-allielic: AA(00),AB(01), BB(11), AC(02), BC(12), CC(22)
 
     '''
-    # print("Computing PLs...")
     alt_array = alternate_base.split(',')
     alt_num = len(alt_array)
-    # print('alt_num',alt_num)
-    # print("reference_base",reference_base,'alternate_base',alternate_base)
+
     genotypes = {1: [[0, 0], [0, 1], [1, 1]], 2: [[0, 0], [0, 1], [1, 1], [0, 2], [1, 2], [2, 2]]}
     likelihoods = []
     all_base = [reference_base]
     all_base.extend(alt_array)
-    # print('all_base',all_base)
     for encoded_genotype in genotypes[alt_num]:
         # obtain the genotype probability from the 21 gt
-        # print("all_base",all_base)
 
         partial_label_1 = partial_label_from(reference_base, all_base[encoded_genotype[0]])
         partial_label_2 = partial_label_from(reference_base, all_base[encoded_genotype[1]])
@@ -1301,7 +1281,6 @@ def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, refe
         _p = genotype_prob_21 * genotype_prob_zygosity
         # _p = genotype_prob_21
         likelihoods.append(_p)
-        # print(str(encoded_genotype[0])+str(encoded_genotype[1]),'gt21_label',gt21_label,'_genotype',_genotype,'_p',_p)
         pass
 
     # genotype likelihood normalization
@@ -1314,7 +1293,6 @@ def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, refe
     PLs = [-10 * (log(x) / LOG_10) for x in likelihoods]
     min_PL = min(PLs)
     PLs = [int(math.ceil(x - min_PL)) for x in PLs]
-    # print("normed likelihoods",likelihoods,'PLs',PLs)
     return PLs
     pass
 
