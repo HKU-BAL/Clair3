@@ -27,12 +27,14 @@ print_help_messages()
     echo $'      --parallel STR       Path of parallel, parallel >= 20191122 is required.'
     echo $'      --whatshap STR       Path of whatshap, whatshap >= 1.0 is required.'
     echo $'      --chunk_size INT     The size of each chuck for parallel processing, default: 5Mbp.'
-    echo $'      --pileup_only        Use only the pileup mode for calling, default: False.'
-    echo $'      --print_ref_calls    Show reference calls (0/0) in vcf file, default: False.'
-    echo $'      --gvcf               Enable GVCF output, default: False.'
+    echo $'      --pileup_only        Use only the pileup mode for calling, default: disable.'
+    echo $'      --print_ref_calls    Show reference calls (0/0) in vcf file, default: disable.'
+    echo $'      --gvcf               Enable GVCF output, default: disable.'
     echo $'      --snp_min_af FLOAT   Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
     echo $'      --indel_min_af FLOAT Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
-    echo $'      --fast_mode          EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: False.'
+    echo $'      --fast_mode          EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.'
+    echo $'      --haploid_precise    EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.'
+    echo $'      --haploid_sensitive  EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.'
     echo $'      --var_pct_full FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.'
     echo $'      --ref_pct_full FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for illumina and pb, 0.1 for ont.'
     echo $''
@@ -40,10 +42,10 @@ print_help_messages()
     exit 1
 }
 
-ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
+ARGS=`getopt -o b:f:t:m:p:o: \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
-snp_min_af::,indel_min_af::,fast_mode,gvcf,pileup_only,print_ref_calls -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -69,6 +71,8 @@ FAST_MODE=False
 SHOW_REF=False
 SNP_AF=0.0
 INDEL_AF=0.0
+HAP_PRE=False
+HAP_SEN=False
 
 while true; do
    case "$1" in
@@ -98,6 +102,8 @@ while true; do
     --pileup_only ) PILEUP_ONLY=True; shift 1 ;;
     --fast_mode ) FAST_MODE=True; shift 1 ;;
     --print_ref_calls ) SHOW_REF=True; shift 1 ;;
+    --haploid_precise ) HAP_PRE=True; shift 1 ;;
+    --haploid_sensitive ) HAP_SEN=True; shift 1 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
@@ -144,6 +150,8 @@ echo "[INFO] ENABLE FILEUP ONLY CALLING: ${PILEUP_ONLY}"
 echo "[INFO] ENABLE FAST MODE CALLING: ${FAST_MODE}"
 echo "[INFO] ENABLE PRINTING REFERENCE CALLS: ${SHOW_REF}"
 echo "[INFO] ENABLE OUTPUT GVCF: ${GVCF}"
+echo "[INFO] ENABLE HAPLOID PRECISE MODE: ${HAP_PRE}"
+echo "[INFO] ENABLE HAPLOID SENSITIVE MODE: ${GVCF}"
 echo $''
 scripts/clair3.sh \
     --bam_fn ${BAM_FILE_PATH} \
@@ -171,6 +179,9 @@ scripts/clair3.sh \
     --pileup_only=${PILEUP_ONLY} \
     --gvcf=${GVCF} \
     --fast_mode=${FAST_MODE} \
-    --print_ref_calls=${SHOW_REF}
+    --print_ref_calls=${SHOW_REF} \
+    --haploid_precise=${HAP_PRE} \
+    --haploid_sensitive=${HAP_SEN} \
+
 
 )) |& tee ${OUTPUT_FOLDER}/run_clair3.log
