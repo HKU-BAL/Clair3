@@ -177,6 +177,7 @@ time ${PARALLEL} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log
     --bam_fn ${PHASE_BAM_PATH}/{1/.}.bam \
     --call_fn ${FULL_ALIGNMENT_OUTPUT_PATH}/full_alignment_{1/}.vcf \
     --sampleName ${SAMPLE} \
+    --vcf_fn ${VCF_FILE_PATH} \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --full_aln_regions {1} \
     --ctgName {1/.} \

@@ -12,7 +12,7 @@ from intervaltree import IntervalTree
 
 import shared.param_f as param
 from shared.utils import subprocess_popen, file_path_from, IUPAC_base_to_num_dict as BASE2NUM, region_from, \
-    reference_sequence_from, str2bool
+    reference_sequence_from, str2bool, vcf_candidates_from
 from shared.interval_tree import bed_tree_from, is_region_in
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
@@ -447,6 +447,8 @@ def CreateTensorFullAlignment(args):
     min_base_quality = args.minBQ
     unify_repre_fn = args.unify_repre_fn
     add_no_phasing_data_training = args.add_no_phasing_data_training
+    vcf_fn = args.vcf_fn
+    is_known_vcf_file_provided = vcf_fn is not None
 
     global test_pos
     test_pos = None
@@ -498,6 +500,9 @@ def CreateTensorFullAlignment(args):
 
     fai_fn = file_path_from(fasta_file_path + ".fai", exit_on_not_found=True)
 
+    if is_known_vcf_file_provided:
+        known_variants_list = vcf_candidates_from(vcf_fn=vcf_fn, contig_name=ctg_name)
+        known_variants_set = set(known_variants_list)
     if not full_aln_regions and chunk_id is not None:
 
         """
@@ -619,10 +624,15 @@ def CreateTensorFullAlignment(args):
     pileup_dict = defaultdict(str)
     phasing_read_seq = defaultdict(PhasingRead)
     extend_bp_distance = phasing_window_size if need_phasing else no_of_positions + param.extend_bp
-    confident_bed_tree = bed_tree_from(bed_file_path=confident_bed_fn, contig_name=ctg_name, bed_ctg_start=extend_start,
+    confident_bed_tree = bed_tree_from(bed_file_path=confident_bed_fn,
+                                       contig_name=ctg_name,
+                                       bed_ctg_start=extend_start,
                                        bed_ctg_end=extend_end)
-    extend_bed_tree = bed_tree_from(bed_file_path=extend_bed, contig_name=ctg_name,
-                                              bed_ctg_start=extend_start, bed_ctg_end=extend_end)
+
+    extend_bed_tree = bed_tree_from(bed_file_path=extend_bed,
+                                    contig_name=ctg_name,
+                                    bed_ctg_start=extend_start,
+                                    bed_ctg_end=extend_end)
 
     def samtools_pileup_generator_from(samtools_mpileup_process):
         need_phasing_pos_list = sorted(list(need_phasing_pos_set))
@@ -655,13 +665,21 @@ def CreateTensorFullAlignment(args):
             if len(read_name_list) != len(base_list):
                 continue
 
-            if not has_pileup_candidates and reference_base in 'ACGT' and (
+            if not is_known_vcf_file_provided and not has_pileup_candidates and reference_base in 'ACGT' and (
                     pass_af and depth >= min_coverage):
                 need_phasing_pos_list.append(pos)
 
-            pileup_dict[pos] = Position(pos=pos, ref_base=reference_base, read_name_list=read_name_list,
-                                        base_list=base_list, raw_base_quality=raw_base_quality,
-                                        raw_mapping_quality=raw_mapping_quality, af=af, depth=depth)
+            if is_known_vcf_file_provided and not has_pileup_candidates and pos in known_variants_set:
+                need_phasing_pos_list.append(pos)
+            
+            pileup_dict[pos] = Position(pos=pos,
+                                        ref_base=reference_base,
+                                        read_name_list=read_name_list,
+                                        base_list=base_list,
+                                        raw_base_quality=raw_base_quality,
+                                        raw_mapping_quality=raw_mapping_quality,
+                                        af=af,
+                                        depth=depth)
 
             overlap_hete_region = hete_snp_tree.at(pos)
             if need_phasing and len(overlap_hete_region):
@@ -701,9 +719,7 @@ def CreateTensorFullAlignment(args):
                                                                                                        reference_sequence=reference_sequence,
                                                                                                        reference_start=reference_start,
                                                                                                        extend_bp=extend_bp,
-                                                                                                       hete_snp_pos_dict=
-                                                                                                       hete_snp_pos_dict[
-                                                                                                           hete_pos].alt_base)
+                                                                                                       hete_snp_pos_dict=hete_snp_pos_dict[hete_pos].alt_base)
     while True:
         pos = next(samtools_pileup_generator)
         if pos is None:
@@ -759,11 +775,15 @@ def CreateTensorFullAlignment(args):
                   pos - reference_start - flanking_base_num: pos - reference_start + flanking_base_num + 1].upper()
 
         if not unify_repre:
-            tensor, alt_info = generate_tensor(ctg_name=ctg_name, center_pos=pos,
+            tensor, alt_info = generate_tensor(ctg_name=ctg_name,
+                                               center_pos=pos,
                                                sorted_read_name_list=sorted_read_name_list,
-                                               pileup_dict=pileup_dict, ref_seq=ref_seq,
-                                               reference_sequence=reference_sequence, reference_start=reference_start,
-                                               platform=platform, confident_bed_tree=confident_bed_tree,
+                                               pileup_dict=pileup_dict,
+                                               ref_seq=ref_seq,
+                                               reference_sequence=reference_sequence,
+                                               reference_start=reference_start,
+                                               platform=platform,
+                                               confident_bed_tree=confident_bed_tree,
                                                add_no_phasing_data_training=add_no_phasing_data_training)
             if not tensor:
                 continue
@@ -775,9 +795,12 @@ def CreateTensorFullAlignment(args):
                 alt_fp.write('\t'.join([ctg_name + ' ' + str(pos), alt_info]) + '\n')
 
         if unify_repre and unify_repre_fn:
-            label_info = get_alt_info(cente_pos=pos, pileup_dict=pileup_dict, ref_seq=ref_seq,
+            label_info = get_alt_info(cente_pos=pos,
+                                      pileup_dict=pileup_dict,
+                                      ref_seq=ref_seq,
                                       reference_sequence=reference_sequence,
-                                      reference_start=reference_start, hap_dict=hap_dict)
+                                      reference_start=reference_start,
+                                      hap_dict=hap_dict)
             label_fp.write('\t'.join([ctg_name + ' ' + str(pos), label_info]) + '\n')
 
     samtools_mpileup_process.stdout.close()
@@ -809,6 +832,9 @@ def main():
 
     parser.add_argument('--tensor_can_fn', type=str, default="PIPE",
                         help="Tensor output, stdout by default, default: %(default)s")
+
+    parser.add_argument('--vcf_fn', type=str, default=None,
+                        help="Candidate sites VCF file input, if provided, variants will only be called at the sites in the VCF file,  default: %(default)s")
 
     parser.add_argument('--min_af', type=float, default=0.08,
                         help="Minimum allele frequency for both SNP and Indel for a site to be considered as a condidate site, default: %(default)f")

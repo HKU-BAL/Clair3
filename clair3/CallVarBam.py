@@ -154,6 +154,7 @@ def Run(args):
         CT_Bin,
         CommandOption('bam_fn', bam_fn),
         CommandOption('ref_fn', ref_fn),
+        CommandOption('vcf_fn', vcf_fn),
         CommandOption('ctgName', ctgName),
         CommandOption('min_af', min_af),
         CommandOption('platform', platform),
@@ -180,7 +181,6 @@ def Run(args):
         create_tensor_command_options.append(need_phasing_mode)
         create_tensor_command_options.append(CommandOption('full_aln_regions', full_aln_regions))
     else:
-        create_tensor_command_options.append(CommandOption('vcf_fn', vcf_fn))
         create_tensor_command_options.append(CommandOption('snp_min_af', snp_min_af))
         create_tensor_command_options.append(CommandOption('indel_min_af', indel_min_af))
         create_tensor_command_options.append(fast_mode)
