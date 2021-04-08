@@ -268,7 +268,7 @@ def main():
     parser.add_argument('--maxEpoch', type=int, default=None,
                         help="Maximum number of training epochs")
 
-    parser.add_argument('--learning_rate', type=float, default=None,
+    parser.add_argument('--learning_rate', type=float, default=1e-3,
                         help="Set the initial learning rate, default: %(default)s")
 
     parser.add_argument('--validation_dataset', action='store_true',

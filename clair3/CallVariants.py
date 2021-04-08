@@ -1145,8 +1145,10 @@ def output_with(
     alt_type_list = decode_alt_info(alt_info_dict)
     supported_reads_count = 0
     if is_reference:
-        alt_num = sum([item for item in alt_type_list[0].values()]) if len(alt_type_list[0]) else 0
-        supported_reads_count = read_depth - alt_num
+        snp_num = sum([item for item in alt_type_list[0].values()]) if len(alt_type_list[0]) else 0
+        insert_num = sum([item for item in alt_type_list[1].values()]) if len(alt_type_list[1]) else 0
+        del_num = sum([item for item in alt_type_list[2].values()]) if len(alt_type_list[2]) else 0
+        supported_reads_count = max(0, read_depth - snp_num - insert_num - del_num)
     elif is_homo_SNP or is_hetero_SNP:
         for base in str(alternate_base):
             if base == ',':

@@ -45,6 +45,8 @@ def MergeVcf_illumina(args):
             continue
         pos = int(columns[1])
         pass_bed = is_region_in(tree, ctg_name, pos)
+        ref_base, alt_base = columns[3], columns[4]
+        is_reference = ref_base == alt_base
         if not pass_bed:
             output.append(row)
             pileup_count += 1
@@ -106,12 +108,12 @@ def MergeVcf(args):
         pos = int(columns[1])
         qual = int(float(columns[5]))
         ref_base, alt_base = columns[3], columns[4]
-
-        if ref_base != alt_base:
+        is_reference = ref_base == alt_base
+        if not is_reference:
             row = MarkLowQual(row, QUAL, qual)
             full_alignment_output.append((pos, row))
 
-        if print_ref:
+        elif print_ref:
             full_alignment_output.append((pos, row))
 
         full_alignment_output_set.add((ctg_name, pos))
@@ -134,15 +136,15 @@ def MergeVcf(args):
         pos = int(columns[1])
         qual = int(float(columns[5]))
         ref_base, alt_base = columns[3], columns[4]
-
+        is_reference = ref_base == alt_base
         if (ctg_name, pos) in full_alignment_output_set:
             continue
 
-        if ref_base != alt_base:
+        if not is_reference:
             row = MarkLowQual(row, QUAL, qual)
             pileup_output.append((pos, row))
 
-        if print_ref:
+        elif print_ref:
             pileup_output.append((pos, row))
 
     logging.info('[INFO] Pileup varaints proceeded in {}: {}'.format(contig_name, len(pileup_output)))

@@ -196,7 +196,7 @@ time ${PARALLEL} --joblog ${LOG_PATH}/parallel_7_merge_vcf.log -j${THREADS} \
     --full_alignment_vcf_fn ${OUTPUT_FOLDER}/full_alignment.vcf \
     --output_fn ${TMP_FILE_PATH}/merge_output/merge_{1}.vcf \
     --platform ${PLATFORM} \
-    --print_ref_calls ${SHOW_REF}
+    --print_ref_calls ${SHOW_REF} \
     --gvcf ${GVCF} \
     --gvcf_fn ${TMP_FILE_PATH}/merge_output/merge_{1}.gvcf \
     --non_var_gvcf_fn ${GVCF_TMP_PATH}/non_var.gvcf \
