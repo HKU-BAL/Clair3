@@ -1108,7 +1108,7 @@ def output_with(
 
     is_multi = "," in str(alternate_base)
 
-    # haploid (precision mode)
+    # haploid (precise mode)
     if output_config.is_haploid_precise_mode_enabled and (
             is_hetero_SNP or is_hetero_ACGT_Ins or is_hetero_InsIns or
             is_hetero_ACGT_Del or is_hetero_DelDel or is_insertion_and_deletion

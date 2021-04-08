@@ -12,7 +12,43 @@ from shared.interval_tree import bed_tree_from, is_region_in
 from preprocess.utils import gvcfGenerator
 
 
+def update_haploid_precise_genotype(columns):
+    INFO = columns[9].split(':')
+    genotype_string = INFO[0].replace('|', '/')
+
+    if genotype_string == '1/1':
+        genotype = ['1']
+    elif genotype_string == '0/0':
+        genotype = ['0']
+    else:
+        return ""
+    # update genotype
+    columns[9] = ':'.join(genotype + INFO[1:])
+    row = '\t'.join(columns) + '\n'
+    return row
+
+def update_haploid_sensitive_genotype(columns):
+    INFO = columns[9].split(':')
+    genotype_string = INFO[0].replace('|', '/')
+    ref_base, alt_base = columns[3], columns[4]
+    is_multi = ',' in alt_base
+
+    if is_multi:
+        return ""
+
+    if genotype_string in ('0/1','1/0','1/1'):
+        genotype = ['1']
+    else:
+        genotype = ['0']
+    # update genotype
+    columns[9] = ':'.join(genotype + INFO[1:])
+    row = '\t'.join(columns) + '\n'
+    return row
+
 def MarkLowQual(row, quality_score_for_pass, qual):
+    if row == '':
+        return row
+
     if quality_score_for_pass and qual <= quality_score_for_pass:
         row = row.split("\t")
         row[6] = "LowQual"
@@ -26,8 +62,9 @@ def MergeVcf_illumina(args):
     full_alignment_vcf_fn = args.full_alignment_vcf_fn
     pileup_vcf_fn = args.pileup_vcf_fn  # true vcf var
     contig_name = args.ctgName
+    QUAL = args.qual
 
-    is_haploid_precision_mode_enabled = args.haploid_precise
+    is_haploid_precise_mode_enabled = args.haploid_precise
     is_haploid_sensitive_mode_enabled = args.haploid_sensitive
     print_ref = args.print_ref_calls
 
@@ -44,12 +81,24 @@ def MergeVcf_illumina(args):
         if contig_name != None and ctg_name != contig_name:
             continue
         pos = int(columns[1])
+        qual = int(float(columns[5]))
         pass_bed = is_region_in(tree, ctg_name, pos)
         ref_base, alt_base = columns[3], columns[4]
         is_reference = ref_base == alt_base
+        if is_haploid_precise_mode_enabled:
+            row = update_haploid_precise_genotype(columns)
+        if is_haploid_sensitive_mode_enabled:
+            row = update_haploid_sensitive_genotype(columns)
+
         if not pass_bed:
-            output.append(row)
-            pileup_count += 1
+             if not is_reference:
+                 row = MarkLowQual(row, QUAL, qual)
+                 output.append(row)
+                 pileup_count += 1
+             elif print_ref:
+                 output.append(row)
+                 pileup_count += 1
+
 
     unzip_process.stdout.close()
     unzip_process.wait()
@@ -65,7 +114,23 @@ def MergeVcf_illumina(args):
             continue
 
         pos = int(columns[1])
+        ref_base, alt_base = columns[3], columns[4]
+        is_reference = ref_base == alt_base
+
+        if is_haploid_precise_mode_enabled:
+            row = update_haploid_precise_genotype(columns)
+        if is_haploid_sensitive_mode_enabled:
+            row = update_haploid_sensitive_genotype(columns)
+
         if is_region_in(tree, ctg_name, pos):
+            if not is_reference:
+                row = MarkLowQual(row, QUAL, qual)
+                output.append(row)
+                pileup_count += 1
+            elif print_ref:
+                output.append(row)
+                pileup_count += 1
+
             output.append(row)
             realiged_read_num += 1
 
@@ -89,7 +154,7 @@ def MergeVcf(args):
     pileup_vcf_fn = args.pileup_vcf_fn  # true vcf var
     contig_name = args.ctgName
     QUAL = args.qual
-    is_haploid_precision_mode_enabled = args.haploid_precise
+    is_haploid_precise_mode_enabled = args.haploid_precise
     is_haploid_sensitive_mode_enabled = args.haploid_sensitive
     print_ref = args.print_ref_calls
     full_alignment_vcf_unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (full_alignment_vcf_fn)))
@@ -109,14 +174,20 @@ def MergeVcf(args):
         qual = int(float(columns[5]))
         ref_base, alt_base = columns[3], columns[4]
         is_reference = ref_base == alt_base
+
+        full_alignment_output_set.add((ctg_name, pos))
+
+        if is_haploid_precise_mode_enabled:
+            row = update_haploid_precise_genotype(columns)
+        if is_haploid_sensitive_mode_enabled:
+            row = update_haploid_sensitive_genotype(columns)
+
         if not is_reference:
-            row = MarkLowQual(row, QUAL, qual)
-            full_alignment_output.append((pos, row))
+                row = MarkLowQual(row, QUAL, qual)
+                full_alignment_output.append((pos, row))
 
         elif print_ref:
             full_alignment_output.append((pos, row))
-
-        full_alignment_output_set.add((ctg_name, pos))
 
     full_alignment_vcf_unzip_process.stdout.close()
     full_alignment_vcf_unzip_process.wait()
@@ -137,12 +208,18 @@ def MergeVcf(args):
         qual = int(float(columns[5]))
         ref_base, alt_base = columns[3], columns[4]
         is_reference = ref_base == alt_base
+
         if (ctg_name, pos) in full_alignment_output_set:
             continue
 
+        if is_haploid_precise_mode_enabled:
+            row = update_haploid_precise_genotype(columns)
+        if is_haploid_sensitive_mode_enabled:
+            row = update_haploid_sensitive_genotype(columns)
+
         if not is_reference:
-            row = MarkLowQual(row, QUAL, qual)
-            pileup_output.append((pos, row))
+                row = MarkLowQual(row, QUAL, qual)
+                pileup_output.append((pos, row))
 
         elif print_ref:
             pileup_output.append((pos, row))
@@ -223,15 +300,15 @@ def main():
     parser.add_argument('--samtools', type=str, default='samtools',
                         help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
 
+    parser.add_argument('--print_ref_calls', type=str2bool, default=False,
+                        help="Show reference calls (0/0) in vcf file output")
+
     # options for advanced users
     parser.add_argument('--haploid_precise', type=str2bool, default=False,
                         help="EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant")
 
     parser.add_argument('--haploid_sensitive', type=str2bool, default=False,
                         help="EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant")
-
-    parser.add_argument('--print_ref_calls', type=str2bool, default=False,
-                        help="Show reference calls (0/0) in vcf file output")
 
     args = parser.parse_args()
 
