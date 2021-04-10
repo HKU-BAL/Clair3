@@ -245,7 +245,7 @@ def mergeNonVariant(args):
         save_path = args.call_fn.split('.')[0] + '.g.vcf'
     else:
         save_path = args.gvcf_fn
-        logging.info("merge calls")
+        logging.info("[INFO] Merge variants and non-variants to GVCF")
         gvcf_generator.mergeCalls(raw_vcf_path, raw_gvcf_path, save_path, args.sampleName, args.ctgName, args.ctgStart,
                                   args.ctgEnd)
     pass
@@ -321,6 +321,7 @@ def main():
         MergeVcf_illumina(args=args)
     else:
         MergeVcf(args=args)
+
     if (args.gvcf):
         mergeNonVariant(args)
 
