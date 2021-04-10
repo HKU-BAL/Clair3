@@ -169,12 +169,7 @@ def Run(args):
         gvcf_mode,
     ]
 
-    if (args.gvcf):
-        create_tensor_command_options.append(CommandOption('base_err', args.base_err))
-        create_tensor_command_options.append(CommandOption('gq_bin_size', args.gq_bin_size))
-        create_tensor_command_options.append(CommandOption('temp_file_dir', args.temp_file_dir))
-        if args.bp_resolution:
-            create_tensor_command_options.append(CommandOptionWithNoValue('bp_resolution'))
+
 
     if not pileup:
         create_tensor_command_options.append(phasing_info_in_bam_mode)
@@ -184,6 +179,13 @@ def Run(args):
         create_tensor_command_options.append(CommandOption('snp_min_af', snp_min_af))
         create_tensor_command_options.append(CommandOption('indel_min_af', indel_min_af))
         create_tensor_command_options.append(fast_mode)
+
+        if (args.gvcf):
+            create_tensor_command_options.append(CommandOption('base_err', args.base_err))
+            create_tensor_command_options.append(CommandOption('gq_bin_size', args.gq_bin_size))
+            create_tensor_command_options.append(CommandOption('temp_file_dir', args.temp_file_dir))
+            if args.bp_resolution:
+                create_tensor_command_options.append(CommandOptionWithNoValue('bp_resolution'))
 
     call_variant_command_options = [
         taskSet,

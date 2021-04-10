@@ -8,7 +8,7 @@ from collections import defaultdict
 from argparse import SUPPRESS
 import shared.param_p as param
 from shared.interval_tree import bed_tree_from, is_region_in
-from shared.utils import file_path_from, executable_command_string_from, folder_path_from, subprocess_popen
+from shared.utils import file_path_from, executable_command_string_from, folder_path_from, subprocess_popen, str2bool
 
 MIN_CHUNK_LENGTH = 200000
 MAX_CHUNK_LENGTH = 20000000
@@ -98,7 +98,7 @@ def CheckEnvs(args):
     candidate_bed_path = folder_path_from(os.path.join(full_alignment_output_path, 'candidate_bed'),
                                           create_not_found=True)
 
-    is_include_all_contigs = args.includingAllContigs
+    is_include_all_contigs = args.include_all_ctgs
     is_bed_file_provided = bed_fn is not None
     is_known_vcf_file_provided = vcf_fn is not None
 
@@ -234,7 +234,7 @@ def main():
     parser.add_argument('--chunk_size', type=int, default=5000000,
                         help="The size of each chuck for parallel processing, default: 5Mbp")
 
-    parser.add_argument('--includingAllContigs', action='store_true',
+    parser.add_argument('--include_all_ctgs', type=str2bool, default=False,
                         help="Call variants on all contigs, default: chr{1..22,X,Y,M,MT} and {1..22,X,Y,MT}")
 
     parser.add_argument('--threads', type=int, default=16,
@@ -251,10 +251,10 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    if not args.includingAllContigs and args.ctg_name == 'EMPTY':
-        print("[INFO] --includingAllContigs not enabled, use chr{1..22,X,Y,M,MT} and {1..22,X,Y,MT} by default")
+    if not args.include_all_ctgs and args.ctg_name == 'EMPTY':
+        print("[INFO] --include_all_ctgs not enabled, use chr{1..22,X,Y,M,MT} and {1..22,X,Y,MT} by default")
     else:
-        print("[INFO] --includingAllContigs enabled")
+        print("[INFO] --include_all_ctgs enabled")
 
     CheckEnvs(args)
 

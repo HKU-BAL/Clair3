@@ -7,7 +7,7 @@ set -e
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
-snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive:: -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -42,6 +42,7 @@ while true; do
     --indel_min_af ) INDEL_AF="$2"; shift 2 ;;
     --haploid_precise ) HAP_PRE="$2"; shift 2 ;;
     --haploid_sensitive ) HAP_SEN="$2"; shift 2 ;;
+    --include_all_ctgs ) INCLUDE_ALL_CTGS="$2"; shift 2 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
@@ -78,6 +79,7 @@ ${PYPY} ${CLAIR3} CheckEnvs \
 --ctg_name ${CONTIGS} \
 --chunk_num ${CHUNK_NUM} \
 --chunk_size ${CHUNK_SIZE} \
+--include_all_ctgs ${INCLUDE_ALL_CTGS} \
 --threads ${THREADS}
 readarray -t CHR < "${OUTPUT_FOLDER}/tmp/CONTIGS"
 THREADS_LOW=$((${THREADS}*3/4))

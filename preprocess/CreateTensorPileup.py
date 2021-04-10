@@ -499,6 +499,9 @@ def main():
     parser.add_argument('--extend_bed', type=str, default=None,
                         help="DEBUG: Extend the regions in the --bed_fn by a few bp for tensor creation, default extend 16bp")
 
+    parser.add_argument('--temp_file_dir', type=str, default="./",
+                        help="EXPERIMENTAL: The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
+
     parser.add_argument('--indel_fn', type=str, default=None,
                         help="DEBUG: Output all alternative indel cigar for debug purpose")
 
