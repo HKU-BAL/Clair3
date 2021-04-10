@@ -207,6 +207,7 @@ time ${PARALLEL} --joblog ${LOG_PATH}/parallel_7_merge_vcf.log -j${THREADS} \
     --haploid_sensitive ${HAP_SEN} \
     --gvcf_fn ${TMP_FILE_PATH}/merge_output/merge_{1}.gvcf \
     --non_var_gvcf_fn ${GVCF_TMP_PATH}/non_var.gvcf \
+    --ref_fn ${REFERENCE_FILE_PATH} \
     --ctgName {1}" ::: ${CHR[@]} |& tee ${LOG_PATH}/7_merge_vcf.log
 
 cat ${TMP_FILE_PATH}/merge_output/merge_*.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_FOLDER}/merge_output.vcf
