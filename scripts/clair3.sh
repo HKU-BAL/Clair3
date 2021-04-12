@@ -191,6 +191,8 @@ time ${PARALLEL} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log
 #Merge pileup and full alignment vcf
 #-----------------------------------------------------------------------------------------------------------------------
 cat ${FULL_ALIGNMENT_OUTPUT_PATH}/full_alignment_*.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_FOLDER}/full_alignment.vcf
+bgzip -f ${OUTPUT_FOLDER}/full_alignment.vcf
+tabix -f -p vcf ${OUTPUT_FOLDER}/full_alignment.vcf.gz
 if [ ${GVCF} == True ]; then cat ${GVCF_TMP_PATH}/*.tmp.g.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${GVCF_TMP_PATH}/non_var.gvcf; fi
 ${PARALLEL} -j ${THREADS} "cat ${CANDIDATE_BED_PATH}/{1}.* > ${CANDIDATE_BED_PATH}/{1}" ::: ${CHR[@]}
 echo "[INFO] 7/7 Merge pileup vcf and full alignment vcf"
@@ -198,7 +200,7 @@ time ${PARALLEL} --joblog ${LOG_PATH}/parallel_7_merge_vcf.log -j${THREADS} \
 "${PYPY} ${CLAIR3} MergeVcf \
     --pileup_vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
     --bed_fn ${CANDIDATE_BED_PATH}/{1} \
-    --full_alignment_vcf_fn ${OUTPUT_FOLDER}/full_alignment.vcf \
+    --full_alignment_vcf_fn ${OUTPUT_FOLDER}/full_alignment.vcf.gz \
     --output_fn ${TMP_FILE_PATH}/merge_output/merge_{1}.vcf \
     --platform ${PLATFORM} \
     --print_ref_calls ${SHOW_REF} \

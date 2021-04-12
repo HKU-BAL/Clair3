@@ -157,7 +157,9 @@ echo "[INFO] ENABLE HAPLOID PRECISE MODE: ${HAP_PRE}"
 echo "[INFO] ENABLE HAPLOID SENSITIVE MODE: ${GVCF}"
 echo "[INFO] ENABLE INCLUDE ALL CTGS CALLING: ${INCLUDE_ALL_CTGS}"
 echo $''
-scripts/clair3.sh \
+
+set -x
+${SCRIPT_NAME}/scripts/clair3.sh \
     --bam_fn ${BAM_FILE_PATH} \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --threads ${THREADS} \
