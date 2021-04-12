@@ -146,7 +146,7 @@ def CheckEnvs(args):
         for row in fai_fp:
             columns = row.strip().split("\t")
             contig_name, contig_length = columns[0], int(columns[1])
-            if not is_include_all_contigs and str(contig_name) not in major_contigs:
+            if not is_include_all_contigs and (not (is_bed_file_provided or is_ctg_name_list_provided or is_known_vcf_file_provided)) and str(contig_name) not in major_contigs:
                 continue
 
             if is_bed_file_provided and contig_name not in tree:
