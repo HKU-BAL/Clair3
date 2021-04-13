@@ -81,7 +81,7 @@ def MergeVcf_illumina(args):
         if contig_name != None and ctg_name != contig_name:
             continue
         pos = int(columns[1])
-        qual = int(float(columns[5]))
+        qual = float(columns[5])
         pass_bed = is_region_in(tree, ctg_name, pos)
         ref_base, alt_base = columns[3], columns[4]
         is_reference = ref_base == alt_base
@@ -114,6 +114,7 @@ def MergeVcf_illumina(args):
             continue
 
         pos = int(columns[1])
+        qual = float(columns[5])
         ref_base, alt_base = columns[3], columns[4]
         is_reference = ref_base == alt_base
 
@@ -171,7 +172,7 @@ def MergeVcf(args):
         if contig_name != None and ctg_name != contig_name:
             continue
         pos = int(columns[1])
-        qual = int(float(columns[5]))
+        qual = float(columns[5])
         ref_base, alt_base = columns[3], columns[4]
         is_reference = ref_base == alt_base
 
@@ -205,7 +206,7 @@ def MergeVcf(args):
         if contig_name and contig_name != ctg_name:
             continue
         pos = int(columns[1])
-        qual = int(float(columns[5]))
+        qual = float(columns[5])
         ref_base, alt_base = columns[3], columns[4]
         is_reference = ref_base == alt_base
 
@@ -291,7 +292,7 @@ def main():
     parser.add_argument('--bed_fn', type=str, default=None,
                         help="Process variant only in the provided regions")
 
-    parser.add_argument('--qual', type=int, default=0,
+    parser.add_argument('--qual', type=int, default=2,
                         help="If set, variants with >=$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
 
     parser.add_argument('--sampleName', type=str, default="SAMPLE",

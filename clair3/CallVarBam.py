@@ -169,8 +169,6 @@ def Run(args):
         gvcf_mode,
     ]
 
-
-
     if not pileup:
         create_tensor_command_options.append(phasing_info_in_bam_mode)
         create_tensor_command_options.append(need_phasing_mode)
@@ -186,6 +184,8 @@ def Run(args):
             create_tensor_command_options.append(CommandOption('temp_file_dir', args.temp_file_dir))
             if args.bp_resolution:
                 create_tensor_command_options.append(CommandOptionWithNoValue('bp_resolution'))
+
+    print (command_string_from(create_tensor_command_options))
 
     call_variant_command_options = [
         taskSet,
@@ -210,6 +210,8 @@ def Run(args):
         chunk_num,
         gvcf_mode,
     ]
+
+    print (command_string_from(call_variant_command_options))
 
     try:
         if need_realignment:

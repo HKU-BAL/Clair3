@@ -19,7 +19,7 @@ data_preprocess_folder = [
     "CreateTensorFullAlignment",
     'SplitExtendBed',
     'MergeVcf',
-    'FiterHeteSnp',
+    'SelectHetSnp',
     'SelectCandidates',
     'UnifyCandidates',
     'CheckEnvs',

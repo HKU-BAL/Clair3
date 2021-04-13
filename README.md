@@ -75,7 +75,7 @@ chmod +x scripts/clair3.sh
 
 ##Pileup output file: ${OUTPUT_FOLDER}/pileup.vcf.gz
 ##Full alignment output file: ${OUTPUT_FOLDER}/full_alignment.vcf
-##FInal merge output file: ${OUTPUT_FOLDER}/merge_output.vcf.gz
+##Final merge output file: ${OUTPUT_FOLDER}/merge_output.vcf.gz
 ```
 
 #### 

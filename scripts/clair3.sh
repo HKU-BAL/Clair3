@@ -7,7 +7,7 @@ set -e
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
-snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs:: -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,no_phasing_for_fa:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -43,6 +43,7 @@ while true; do
     --haploid_precise ) HAP_PRE="$2"; shift 2 ;;
     --haploid_sensitive ) HAP_SEN="$2"; shift 2 ;;
     --include_all_ctgs ) INCLUDE_ALL_CTGS="$2"; shift 2 ;;
+    --no_phasing_for_fa ) NO_PHASING="$2"; shift 2 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
@@ -125,36 +126,43 @@ fi
 
 #Whatshap phasing and haplotag
 #-----------------------------------------------------------------------------------------------------------------------
-echo "[INFO] 2/7 Filter Hete SNP varaints for Whatshap phasing and haplotag"
-gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --phase --output_fn ${PHASE_VCF_PATH}
-time ${PARALLEL} --joblog ${LOG_PATH}/parallel_2_fiter_hete_snp.log -j${THREADS} \
-"${PYPY} ${CLAIR3} FiterHeteSnp \
-    --vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
-    --split_folder ${PHASE_VCF_PATH} \
-    --ctgName {1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} |& tee ${LOG_PATH}/2_fiter_hete_snp.log
+if [ ${NO_PHASING} == True ]
+then
+    echo "[INFO] 2/7 No phasing for full alignment calling"
+    time ${PARALLEL} -j${THREADS} ln -s ${BAM_FILE_PATH} ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
+    time ${PARALLEL} -j${THREADS} ln -s ${BAM_FILE_PATH}.bai ${PHASE_BAM_PATH}/{1}.bam.bai ::: ${CHR[@]}
+else
+    echo "[INFO] 2/7 Filter Hete SNP varaints for Whatshap phasing and haplotag"
+    gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --phase --output_fn ${PHASE_VCF_PATH}
+    time ${PARALLEL} --joblog ${LOG_PATH}/parallel_2_select_hetero_snp.log -j${THREADS} \
+    "${PYPY} ${CLAIR3} SelectHetSnp \
+        --vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
+        --split_folder ${PHASE_VCF_PATH} \
+        --ctgName {1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} |& tee ${LOG_PATH}/2_select_hetero_snp.log
 
-echo "[INFO] 3/7 Whatshap phase vcf file"
-time ${PARALLEL} --joblog ${LOG_PATH}/parallel_3_phase.log -j${THREADS} \
-"${WHATSHAP} phase \
-    --output ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
-    --reference ${REFERENCE_FILE_PATH} \
-    --chromosome {1} \
-    --distrust-genotypes \
-    --ignore-read-groups \
-    ${PHASE_VCF_PATH}/{1}.vcf \
-    ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
-${PARALLEL} -j${THREADS} tabix -f -p vcf ${PHASE_VCF_PATH}/phased_{}.vcf.gz ::: ${CHR[@]}
+    echo "[INFO] 3/7 Whatshap phase vcf file"
+    time ${PARALLEL} --joblog ${LOG_PATH}/parallel_3_phase.log -j${THREADS} \
+    "${WHATSHAP} phase \
+        --output ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
+        --reference ${REFERENCE_FILE_PATH} \
+        --chromosome {1} \
+        --distrust-genotypes \
+        --ignore-read-groups \
+        ${PHASE_VCF_PATH}/{1}.vcf \
+        ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
+    ${PARALLEL} -j${THREADS} tabix -f -p vcf ${PHASE_VCF_PATH}/phased_{}.vcf.gz ::: ${CHR[@]}
 
-echo "[INFO] 4/7 Whatshap haplotag input bam file"
-time ${PARALLEL} --joblog ${LOG_PATH}/parallel_4_haplotag.log -j${THREADS} \
-"${WHATSHAP} haplotag \
-    --output ${PHASE_BAM_PATH}/{1}.bam \
-    --reference ${REFERENCE_FILE_PATH} \
-    --ignore-read-groups \
-    --regions {1} \
-    ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
-    ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/4_haplotag.log
-time ${PARALLEL} -j${THREADS} ${SAMTOOLS} index -@12 ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
+    echo "[INFO] 4/7 Whatshap haplotag input bam file"
+    time ${PARALLEL} --joblog ${LOG_PATH}/parallel_4_haplotag.log -j${THREADS} \
+    "${WHATSHAP} haplotag \
+        --output ${PHASE_BAM_PATH}/{1}.bam \
+        --reference ${REFERENCE_FILE_PATH} \
+        --ignore-read-groups \
+        --regions {1} \
+        ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
+        ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/4_haplotag.log
+    time ${PARALLEL} -j${THREADS} ${SAMTOOLS} index -@12 ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
+fi
 
 # Full alignment calling
 #-----------------------------------------------------------------------------------------------------------------------
