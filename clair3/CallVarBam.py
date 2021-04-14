@@ -185,8 +185,6 @@ def Run(args):
             if args.bp_resolution:
                 create_tensor_command_options.append(CommandOptionWithNoValue('bp_resolution'))
 
-    print (command_string_from(create_tensor_command_options))
-
     call_variant_command_options = [
         taskSet,
         pythonBin,
@@ -210,8 +208,6 @@ def Run(args):
         chunk_num,
         gvcf_mode,
     ]
-
-    print (command_string_from(call_variant_command_options))
 
     try:
         if need_realignment:
