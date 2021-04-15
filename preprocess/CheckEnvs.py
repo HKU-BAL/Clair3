@@ -12,10 +12,10 @@ from shared.utils import file_path_from, executable_command_string_from, folder_
 
 MIN_CHUNK_LENGTH = 200000
 MAX_CHUNK_LENGTH = 20000000
-major_contigs = {"chr" + str(a) for a in list(range(1, 23)) + ["X", "Y", "M"]}.union(
-    {str(a) for a in list(range(1, 23)) + ["X", "Y", "M"]})
-major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y", "M"]] + [str(a) for a in
-                                                                                   list(range(1, 23)) + ["X", "Y", "M"]]
+major_contigs = {"chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]}.union(
+    {str(a) for a in list(range(1, 23)) + ["X", "Y"]})
+major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] + [str(a) for a in
+                                                                                   list(range(1, 23)) + ["X", "Y"]]
 
 def split_extend_vcf(vcf_fn, output_fn):
     expand_region_size = param.no_of_positions
@@ -252,7 +252,7 @@ def main():
         sys.exit(1)
 
     if not args.include_all_ctgs and args.ctg_name == 'EMPTY':
-        print("[INFO] --include_all_ctgs not enabled, use chr{1..22,X,Y,M} and {1..22,X,Y,M} by default")
+        print("[INFO] --include_all_ctgs not enabled, use chr{1..22,X,Y} and {1..22,X,Y} by default")
     else:
         print("[INFO] --include_all_ctgs enabled")
 
