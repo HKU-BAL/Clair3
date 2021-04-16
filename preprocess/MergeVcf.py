@@ -68,7 +68,7 @@ def MergeVcf_illumina(args):
     is_haploid_sensitive_mode_enabled = args.haploid_sensitive
     print_ref = args.print_ref_calls
 
-    tree = bed_tree_from(bed_file_path=bed_fn, padding=param.no_of_positions)
+    tree = bed_tree_from(bed_file_path=bed_fn, padding=param.no_of_positions, contig_name=contig_name)
     unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (pileup_vcf_fn)))
     output = []
     pileup_count = 0

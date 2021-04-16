@@ -124,13 +124,13 @@ if [ ${PILEUP_ONLY} == True ]; then
     exit
 fi
 
-#Whatshap phasing and haplotag
+# Whatshap phasing and haplotaging
 #-----------------------------------------------------------------------------------------------------------------------
 if [ ${NO_PHASING} == True ]
 then
     echo "[INFO] 2/7 No phasing for full alignment calling"
-    time ${PARALLEL} -j${THREADS} ln -s ${BAM_FILE_PATH} ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
-    time ${PARALLEL} -j${THREADS} ln -s ${BAM_FILE_PATH}.bai ${PHASE_BAM_PATH}/{1}.bam.bai ::: ${CHR[@]}
+    time ${PARALLEL} -j${THREADS} ln -sf ${BAM_FILE_PATH} ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
+    time ${PARALLEL} -j${THREADS} ln -sf ${BAM_FILE_PATH}.bai ${PHASE_BAM_PATH}/{1}.bam.bai ::: ${CHR[@]}
 else
     echo "[INFO] 2/7 Filter Hete SNP varaints for Whatshap phasing and haplotag"
     gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --phase --output_fn ${PHASE_VCF_PATH}
@@ -196,18 +196,19 @@ time ${PARALLEL} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log
     --gvcf ${GVCF} \
     --platform ${PLATFORM}" ::: ${FULL_ALINGNMENT_BED[@]} |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
 
-#Merge pileup and full alignment vcf
-#-----------------------------------------------------------------------------------------------------------------------
+##Merge pileup and full alignment vcf
+##-----------------------------------------------------------------------------------------------------------------------
 cat ${FULL_ALIGNMENT_OUTPUT_PATH}/full_alignment_*.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_FOLDER}/full_alignment.vcf
+cat ${CANDIDATE_BED_PATH}/*.* > ${CANDIDATE_BED_PATH}/full_aln_regions
 bgzip -f ${OUTPUT_FOLDER}/full_alignment.vcf
 tabix -f -p vcf ${OUTPUT_FOLDER}/full_alignment.vcf.gz
 if [ ${GVCF} == True ]; then cat ${GVCF_TMP_PATH}/*.tmp.g.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${GVCF_TMP_PATH}/non_var.gvcf; fi
-${PARALLEL} -j ${THREADS} "cat ${CANDIDATE_BED_PATH}/{1}.* > ${CANDIDATE_BED_PATH}/{1}" ::: ${CHR[@]}
+
 echo "[INFO] 7/7 Merge pileup vcf and full alignment vcf"
 time ${PARALLEL} --joblog ${LOG_PATH}/parallel_7_merge_vcf.log -j${THREADS} \
 "${PYPY} ${CLAIR3} MergeVcf \
     --pileup_vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
-    --bed_fn ${CANDIDATE_BED_PATH}/{1} \
+    --bed_fn ${CANDIDATE_BED_PATH}/full_aln_regions \
     --full_alignment_vcf_fn ${OUTPUT_FOLDER}/full_alignment.vcf.gz \
     --output_fn ${TMP_FILE_PATH}/merge_output/merge_{1}.vcf \
     --platform ${PLATFORM} \

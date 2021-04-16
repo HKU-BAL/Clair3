@@ -29,7 +29,7 @@ print_help_messages()
     echo $'      --chunk_size INT     The size of each chuck for parallel processing, default: 5Mbp.'
     echo $'      --pileup_only        Use only the pileup mode for calling, default: disable.'
     echo $'      --print_ref_calls    Show reference calls (0/0) in vcf file, default: disable.'
-    echo $'      --include_all_ctgs   Call variants on all contigs, otherwise call in chr{1..22,X,Y,M,MT} and {1..22,X,Y,MT}, default: disable.'
+    echo $'      --include_all_ctgs   Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.'
     echo $'      --gvcf               Enable GVCF output, default: disable.'
     echo $'      --snp_min_af FLOAT   Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
     echo $'      --indel_min_af FLOAT Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
@@ -38,6 +38,7 @@ print_help_messages()
     echo $'      --fast_mode          EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.'
     echo $'      --haploid_precise    EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.'
     echo $'      --haploid_sensitive  EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.'
+    echo $'      --no_ra_for_illmn    EXPERIMENTAL: Call variants without reads realignment for illumina platform, default: disable.'
     echo $'      --no_phasing_for_fa  EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.'
     echo $''
 
