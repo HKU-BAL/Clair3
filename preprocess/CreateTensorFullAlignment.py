@@ -795,7 +795,7 @@ def CreateTensorFullAlignment(args):
                 alt_fp.write('\t'.join([ctg_name + ' ' + str(pos), alt_info]) + '\n')
 
         if unify_repre and unify_repre_fn:
-            label_info = get_alt_info(cente_pos=pos,
+            label_info = get_alt_info(center_pos=pos,
                                       pileup_dict=pileup_dict,
                                       ref_seq=ref_seq,
                                       reference_sequence=reference_sequence,
