@@ -55,6 +55,12 @@ def tensor_generator_from(tensor_file_path, batch_size, pileup, platform):
         chrom, coord, seq, tensor, alt_info = row.split("\t")
         if pileup:
             tensor = np.array(tensor.split(), dtype=np.dtype(float_type))
+            depth = alt_info.split('-', maxsplit=1)
+            max_depth = param.max_depth_dict[platform]
+            # for extreme high coverage data, make sure we could have a truncated coverage
+            if depth > max_depth * 1.5:
+                scale_factor = depth / max_depth
+                tensor = tensor / scale_factor
         else:
             # need add padding if depth is lower than maximum depth.
             tensor = [int(item) for item in tensor.split()]
@@ -300,7 +306,7 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
         directry, file_prefix = '/'.join(candidate_details_fn_prefix[:-1]), candidate_details_fn_prefix[-1]
         file_list = [f for f in os.listdir(directry) if f.startswith(file_prefix)]
         for f in file_list:
-            for row in open(os.path.join(directry, f), 'r').readlines():
+            for row in open(os.path.join(directry, f), 'r'):
                 chr_pos = row.split('\t')[0]
                 key = chr_pos.replace(' ', ':')
                 if key in Y:

@@ -116,6 +116,7 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
                 max_del_0 = max(max_del_0, count)
             else:
                 pileup_tensor[BASE2INDEX["d"]] += count
+                max_del_1 = max(max_del_1, count)
         else:
             if key.upper() in 'ACGT':
                 pileup_dict[key.upper()] += count

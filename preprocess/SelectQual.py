@@ -13,7 +13,7 @@ def select_phase_qual_from_stdin(args):
     """
 
     phase_qual_list = []
-    for row in stdin.readlines():
+    for row in stdin:
         if row[0] == '#':
             continue
         row = row.rstrip().split()
@@ -46,10 +46,10 @@ def select_qual_from_stdin(args):
     """
     var_pct_full = args.var_pct_full
     ref_pct_full = args.ref_pct_full if args.ref_pct_full else var_pct_full
-    ref_pct_full = 0.1 if  args.platform == 'ont' else ref_pct_full
+    ref_pct_full = 0.1 if args.platform == 'ont' and ref_pct_full == 0.3 else ref_pct_full
     variant_qual_list = []
     ref_qual_list = []
-    for row in stdin.readlines():
+    for row in stdin:
         if row[0] == '#':
             continue
         row = row.rstrip().split()

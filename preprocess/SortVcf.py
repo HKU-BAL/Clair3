@@ -15,7 +15,7 @@ def sort_vcf_from_stdin(args):
     header = []
     contig_dict = defaultdict(defaultdict)
 
-    for row in stdin.readlines():
+    for row in stdin:
         row_count += 1
         if row[0] == '#':
             if row not in header:

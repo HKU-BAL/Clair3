@@ -87,32 +87,27 @@ def FiterHeteSnp_FP(args):
     need_phasing_list = []
     chr_prefix_length = len(chr_prefix)
     variant_dict = defaultdict(str)
-    while True:
-        row = unzip_process.stdout.readline()
-        is_finish_reading_output = row == '' and unzip_process.poll() is not None
-        if is_finish_reading_output:
-            break
+    for row in unzip_process.stdout:
 
-        if row:
-            if row[0] == '#':
-                output.append(row.rstrip())
-                continue
-            columns = row.strip().split()
+        if row[0] == '#':
+            output.append(row.rstrip())
+            continue
+        columns = row.strip().split()
 
-            ctg_name = columns[0]
-            if contig_name and contig_name != ctg_name:
-                continue
-            pos = int(columns[1])
-            ref_base = columns[3]
-            alt_base = columns[4]
-            genotype = columns[9].split(':')[0].replace('|', '/')
-            qual = int(columns[5])
-            if len(ref_base) == 1 and len(alt_base) == 1:
-                if genotype == '0/1':
-                    snp.append((qual, pos))
-                    variant_dict[pos] = ref_base + '-' + alt_base
-            else:
-                need_phasing_list.append((qual, pos))
+        ctg_name = columns[0]
+        if contig_name and contig_name != ctg_name:
+            continue
+        pos = int(columns[1])
+        ref_base = columns[3]
+        alt_base = columns[4]
+        genotype = columns[9].split(':')[0].replace('|', '/')
+        qual = int(columns[5])
+        if len(ref_base) == 1 and len(alt_base) == 1:
+            if genotype == '0/1':
+                snp.append((qual, pos))
+                variant_dict[pos] = ref_base + '-' + alt_base
+        else:
+            need_phasing_list.append((qual, pos))
 
     qual_list = sorted(snp, key=lambda x: x[0])
     print('[INFO] Total hete snp variants:', len(qual_list))
@@ -318,7 +313,7 @@ def FiterHeteSnp(args):
             output_file.write('\n'.join(['\t'.join(map(str, x)) for x in split_output]) + '\n') # bed format
 
 def main():
-    parser = ArgumentParser(description="Generate 1-based variant candidates using alignments")
+    parser = ArgumentParser(description="Select heterozygous snp candidates for WhatsHap phasing")
 
     parser.add_argument('--split_folder', type=str, default=None,
                         help="Path to directory that stores small bed region for raw alignment. (default: %(default)s)")

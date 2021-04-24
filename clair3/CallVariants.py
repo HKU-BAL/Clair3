@@ -1408,12 +1408,10 @@ def call_variants(args, output_config, output_utilities):
     output_utilities.close_opened_files()
     # remove file if on variant in output
     if os.path.exists(args.call_fn):
-        vcf_file = open(args.call_fn, 'r').readlines()
-        if not len(vcf_file):
-            os.remove(args.call_fn)
-        for row in vcf_file:
+        for row in open(args.call_fn, 'r'):
             if row[0] != '#':
                 return
+
         logging.info("[INFO] No vcf output for file {}, remove empty file".format(args.call_fn))
         os.remove(args.call_fn)
 

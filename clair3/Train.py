@@ -10,6 +10,7 @@ import sys
 from itertools import accumulate
 
 import clair3.model as model_path
+from shared.utils import str2bool
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 tables.set_blosc_max_threads(512)
@@ -124,12 +125,15 @@ def train_model(args):
     logging.info("[INFO] total {} training bin files: {}".format(len(bin_list), ','.join(bin_list)))
     total_data_size = 0
     table_dataset_list = []
+    validate_table_dataset_list = []
     chunk_offset = np.zeros(len(bin_list), dtype=int)
 
     effective_label_num = None
     for bin_idx, bin_file in enumerate(bin_list):
         table_dataset = tables.open_file(os.path.join(args.bin_fn, bin_file), 'r')
+        validate_table_dataset = tables.open_file(os.path.join(args.bin_fn, bin_file), 'r')
         table_dataset_list.append(table_dataset)
+        validate_table_dataset_list.append(validate_table_dataset)
         chunk_num = (len(table_dataset.root.label) - batch_size) // chunk_size
         data_size = int(chunk_num * chunk_size)
         chunk_offset[bin_idx] = chunk_num
@@ -182,7 +186,7 @@ def train_model(args):
         lambda: DataGenerator(table_dataset_list, train_data_size, train_shuffle_chunk_list, True), TensorDtype,
         TensorShape).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
     validate_dataset = tf.data.Dataset.from_generator(
-        lambda: DataGenerator(table_dataset_list, validate_data_size, validate_shuffle_chunk_list, False), TensorDtype,
+        lambda: DataGenerator(validate_table_dataset_list, validate_data_size, validate_shuffle_chunk_list, False), TensorDtype,
         TensorShape).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
     total_steps = max_epoch * train_data_size // batch_size
@@ -240,6 +244,9 @@ def train_model(args):
     for table_dataset in table_dataset_list:
         table_dataset.close()
 
+    for table_dataset in validate_table_dataset_list:
+        table_dataset.close()
+
     # show the parameter set with the smallest validation loss
     if 'val_loss' in train_history.history:
         best_validation_epoch = np.argmin(np.array(train_history.history["val_loss"])) + 1
@@ -283,7 +290,7 @@ def main():
                         help=SUPPRESS)
 
     ## Add indel length for training and calling, default true for full alignment
-    parser.add_argument('--add_indel_length', type=int, default=0,
+    parser.add_argument('--add_indel_length', type=str2bool, default=False,
                         help=SUPPRESS)
 
 

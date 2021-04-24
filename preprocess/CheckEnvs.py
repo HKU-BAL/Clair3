@@ -210,8 +210,7 @@ def CheckEnvs(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Check the envorinment and the validity of the input variables, preprocess the BED input if necessary")
+    parser = argparse.ArgumentParser(description="Check the environment and the validity of the input variables, preprocess the BED input if necessary")
 
     parser.add_argument('--bam_fn', type=str, default=None,
                         help="BAM file input, default: %(default)s")

@@ -23,6 +23,22 @@ This is the formal release of Clair3, the successor of Clair. Clair is published
 
 ---
 
+## What's Difference in Clair3?
+
+* Clair3 firstly
+
+* 20200416
+
+  - added two new options for haploid calling, `--haploid_precision` and `--haploid_sensitive` (in [#24](https://github.com/hku-bal/clair/issues/24))
+  - added a simple after calling solution to handle overlapped variants (in [#15](https://github.com/hku-bal/clair/issues/15))
+  - fixed haploid GT output (in [#17](https://github.com/hku-bal/clair/issues/17))
+
+* 20200309
+
+  - an ONT model trained with up to 578-fold coverage HG002 data from [The Human Pangenome Reference Consortium](https://humanpangenome.org/data/) is now available in [Pretrained Models](#pretrained-models). The below table shows the biased test results, i.e. testing samples were included in training, thus are not for benchmarking but suggest the performance cap of each model at different coverages. The new model shows significantly improved performance at high coverages.
+
+    
+
 ## Installation
 
 ### Option 1. Build an anaconda virtual environment step by step
@@ -58,7 +74,7 @@ chmod +x scripts/clair3.sh
 ./run_clair3.sh --help
 ```
 
-### Option 3. Docker
+### Option 2. Docker
 
 ** **
 
@@ -91,7 +107,7 @@ docker run -it clair3 # You might need root privilege
     -f ${REF} \
     -m ${MODEL_PREFIX} \
     -t ${THREADS} \
-    -p ${PLATFORM} \  #{ont,hifi,ilmn}
+    -p "ont" \  # {ont,hifi,ilmn}
     -o ${OUTPUT_DIR}
 
 ##Pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
@@ -116,8 +132,7 @@ docker run -it clair3 # You might need root privilege
 **Optional parameters:**
 
 ```
-Optional parameters:
-      --bed_fn FILE        Call variants only in the provided bed regions.
+	  --bed_fn FILE        Call variants only in the provided bed regions.
       --vcf_fn FILE        Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.
       --ctg_name STR       The name of the sequence to be processed.
       --sample_name STR    Define the sample name to be shown in the VCF file.
