@@ -1613,7 +1613,7 @@ def predict(args, output_config, output_utilities):
 
 
 def main():
-    parser = ArgumentParser(description="Call variants using a trained model and tensors of candididate variants")
+    parser = ArgumentParser(description="Call variants using a trained model and tensors of candidate variants")
 
     parser.add_argument('--platform', type=str, default="ont",
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
@@ -1645,7 +1645,7 @@ def main():
     parser.add_argument('--sampleName', type=str, default="SAMPLE",
                         help="Define the sample name to be shown in the VCF file, optional")
 
-    parser.add_argument('--qual', type=int, default=None,
+    parser.add_argument('--qual', type=int, default=2,
                         help="If set, variants with >=$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
 
     parser.add_argument('--samtools', type=str, default="samtools",
@@ -1678,7 +1678,6 @@ def main():
     ## In pileup mode or not (full alignment mode), default: False
     parser.add_argument('--pileup', action='store_true',
                         help=SUPPRESS)
-
 
     ## Include indel length in training and calling, false for pileup and true for raw alignment
     parser.add_argument('--add_indel_length', type=str2bool, default=False,
