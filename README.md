@@ -27,52 +27,32 @@ This is the formal release of Clair3, the successor of Clair. Clair is published
 
 * Clair3 firstly
 
-* 20200416
-
-  - added two new options for haploid calling, `--haploid_precision` and `--haploid_sensitive` (in [#24](https://github.com/hku-bal/clair/issues/24))
-  - added a simple after calling solution to handle overlapped variants (in [#15](https://github.com/hku-bal/clair/issues/15))
-  - fixed haploid GT output (in [#17](https://github.com/hku-bal/clair/issues/17))
-
-* 20200309
-
-  - an ONT model trained with up to 578-fold coverage HG002 data from [The Human Pangenome Reference Consortium](https://humanpangenome.org/data/) is now available in [Pretrained Models](#pretrained-models). The below table shows the biased test results, i.e. testing samples were included in training, thus are not for benchmarking but suggest the performance cap of each model at different coverages. The new model shows significantly improved performance at high coverages.
-
-    
+  
 
 ## Installation
 
-### Option 1. Build an anaconda virtual environment step by step
+### Option 1.  Docker pre-built image (recommended)
 
-#### Please install anaconda using the installation guide at https://docs.anaconda.com/anaconda/install/
+A pre-built docker image can be found here: https://hub.docker.com/zxzheng/clair3. Then you can run clair3 using one command:
 
 ```bash
-# create and activate the environment named clair3
-conda create -n clair3 python=3.6
-source activate clair3
+INPUT_DIR="[YOUR_INPUT_FOLDER]"												# e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"											# e.g. output/
 
-# install pypy and packages on clair3 environemnt
-conda install -c conda-forge pypy3.6
-pypy3 -m ensurepip
-pypy3 -m pip install intervaltree==3.0.2
-pypy3 -m pip install mpmath==1.2.1 python-Levenshtein==0.12.0 
+docker run \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  hku-bal/clair3:"${BIN_VERSION}" \
+  /opt/deepvariant/bin/run_clair3.sh \
+  --bam_fn=${INPUT_DIR}/input.bam \ 		## Change your bam file name here
+  --ref=${INPUT_DIR}/ref.fa \   			## Change your reference name here
+  --threads=${THREADS} \  					## 
+  --platform='ont' \      					## Possible options: {ont,hifi,ilmn}
+  --output=${OUTPUT_DIR} \
 
-# install python packages on clair3 environment
-pip3 install tensorflow==2.2.0
-pip3 install intervaltree==3.0.2  tensorflow-addons==0.11.2 tables==3.6.1 python-Levenshtein==0.12.0
-conda install -c anaconda pigz==2.4
-conda install -c conda-forge parallel=20191122 zstd=1.4.4
-conda install -c conda-forge -c bioconda samtools=1.10 vcflib=1.0.0 bcftools=1.10.2
-conda install -c conda-forge -c bioconda whatshap=1.0
-
-# clone Clair3
-git clone --depth 1 https://github.com/HKU-BAL/Clair3.git
-cd Clair3
-chmod +x run_clair3.sh
-chmod +x scripts/clair3.sh
-
-# run clair3 like this afterwards
-./run_clair3.sh --help
 ```
+
+for more details, see [Usage](#Usage)  and find more options
 
 ### Option 2. Docker
 
@@ -84,14 +64,49 @@ git clone --depth 1 https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 
 # build a docker image named clair3_docker
-docker build -f ./Dockerfile -t clair3_docker . # 
+docker build -f ./Dockerfile -t clair3_docker .
 
 # run docker image
 # You might require docker authentication to build by docker
-docker run -it clair3 # You might need root privilege
+docker run -it clair3
 
 # run clair like this afterwards
-./run_clair3.sh
+./run_clair3.sh -h
+```
+
+
+
+### Option 3. Build an anaconda virtual environment step by step
+
+#### Please install anaconda using the installation guide at https://docs.anaconda.com/anaconda/install/
+
+```bash
+# create and activate the environment named clair3
+conda create -n clair3 python=3.6 -y
+source activate clair3
+
+# install pypy and packages on clair3 environemnt
+conda install -c conda-forge pypy3.6 -y
+pypy3 -m ensurepip
+pypy3 -m pip install intervaltree==3.0.2
+pypy3 -m pip install mpmath==1.2.1 python-Levenshtein==0.12.0 
+
+# install python packages on clair3 environment
+pip3 install tensorflow==2.2.0
+pip3 install intervaltree==3.0.2  tensorflow-addons==0.11.2 tables==3.6.1 python-Levenshtein==0.12.0
+conda install -c anaconda pigz==2.4 -y
+conda install -c conda-forge parallel=20191122 zstd=1.4.4 -y
+conda install -c conda-forge -c bioconda samtools=1.10 -y
+conda install -c conda-forge -c bioconda whatshap=1.0 -y
+
+# clone Clair3
+git clone --depth 1 https://github.com/HKU-BAL/Clair3.git
+cd Clair3
+chmod +x run_clair3.sh
+chmod +x scripts/clair3.sh
+
+# run clair3 like this afterwards
+./run_clair3.sh --help
 ```
 
 
@@ -123,7 +138,7 @@ docker run -it clair3 # You might need root privilege
   -b, --bam_fn FILE        BAM file input. The input file must be samtools indexed.
   -f, --ref_fn FILE        FASTA reference file input. The input file must be samtools indexed.
   -m, --model_path STR     The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00001, pileup.index, pileup.meta, full_alignment.data-00000-of-00001, full_alignment.index, and full_alignment.meta).
-  -t, --threads INT        Max #threads to be used. The full genome will be divided into small chucks for parallel processing. Each chunk will use 4 threads. The #chucks being processed simaltaneously is ceil(#threads/4)*3. 3 is the overloading factor.
+  -t, --threads INT        Max threads to be used. The full genome will be divided into small chucks for parallel processing. Each chunk will use 4 threads. The #chucks being processed simaltaneously is ceil(#threads/4)*3. 3 is the overloading factor.
   -p, --platform STR       Selete the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.
   -o, --output PATH        VCF/GVCF output directory.
 
@@ -158,10 +173,6 @@ docker run -it clair3 # You might need root privilege
       --no_phasing_for_fa  EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.
 ```
 
-
-
-
-
 ## Folder Structure and Submodule Descriptions
 
 Submodules in __`clair3/`__ are for variant calling and model training. Submodules in __`preprocess`__ are for data preparation.
@@ -172,16 +183,14 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 ---: | ---
 `CallVariants` | Call variants using a trained model and tensors of candidate variants.
 `CallVarBam` | Call variants using a trained model and a BAM file.
-`Train` |  Training a model using warm-up learning rate startup with `RectifiedAdam` optimizer. We also use `Lookahead` optimizer to  adaptively adjust `RectifiedAdam` parameters. The initial learning rate is `1e-3` with 0.1 learning rate warm-up. Input a binary tensors are created by `Tensor2Bin`, using `blosc:lz4hc` meta-compressor, the overall training memory is only 10~15G.
+`Train` |  Training a model using warm-up learning rate startup with `RectifiedAdam` optimizer. We also use `Lookahead` optimizer to  adaptively adjust `RectifiedAdam` parameters. The initial learning rate is `1e-3` with 0.1 learning rate warm-up. Input a binary tensors are created by `Tensor2Bin`. 
 
 `preprocess/` | Note: submodules under this folder is Pypy compatible unless specified.
 ---: | ---
 `CheckEnvs`| Check the environment and the validity of the input variables, preprocess the BED input if necessary, `--chunk_size` set the genome chuck size per job.<br>
 `CreateTensorPileup`| Generate variant candidate tensors using pileup for training or calling.
 `CreateTensorFullAlignment`| Generate variant candidate tensors using phased full-alignment for training or calling.<br>
-`GetTruth`| Extract the variants from a truth VCF. Input: VCF; Reference FASTA if the vcf contains asterisks in ALT field.<br>`RealignReads` | Reads local realignment for illumina platform.<br>`SelectCandidates` | Select pileup candidates for full alignment calling.<br>`SelectHetSnp` | Select heterozygous snp candidates for WhatsHap phasing.<br>`SelectQual` | Select quality cut-off for phasing and full alignment calling globally from all candidates.<br>`MergeVcf` | Merge pileup and full alignment VCF/GVCF.<br>`UnifyRepresentation` | Representation unification for candidate site and true variant.<br>
-
-`Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary.<br>(pypy incompatible)
+`GetTruth`| Extract the variants from a truth VCF. Input: VCF; Reference FASTA if the VCF contains asterisks in ALT field.<br>`RealignReads` | Reads local realignment for illumina platform.<br>`SelectCandidates` | Select pileup candidates for full alignment calling.<br>`SelectHetSnp` | Select heterozygous SNP candidates for WhatsHap phasing.<br>`SelectQual` | Select quality cut-off for phasing and full alignment calling globally from all candidates.<br>`MergeVcf` | Merge pileup and full alignment VCF/GVCF.<br>`UnifyRepresentation` | Representation unification for candidate site and true variant.<br>`Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary, using `blosc:lz4hc` meta-compressor, the overall training memory is 10~15G.(pypy incompatible)<br>
 
 
 
