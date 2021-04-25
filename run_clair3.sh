@@ -1,5 +1,6 @@
 #!/bin/bash
 SCRIPT_NAME=$(basename "$0")
+SCRIPT_PATH=`dirname "$0"`
 Usage="\nUsage: ./${SCRIPT_NAME} -b BAM -f REF -o OUTPUT_DIR -t THREADS -p PLATFORM -m MODEL_PREFIX [--bed_fn=BED] [options]\n"
 
 set -e
@@ -164,7 +165,7 @@ echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
 echo $''
 
 set -x
-scripts/clair3.sh \
+${SCRIPT_PATH}/scripts/clair3.sh \
     --bam_fn ${BAM_FILE_PATH} \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --threads ${THREADS} \
