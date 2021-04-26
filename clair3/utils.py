@@ -55,10 +55,10 @@ def tensor_generator_from(tensor_file_path, batch_size, pileup, platform):
         chrom, coord, seq, tensor, alt_info = row.split("\t")
         if pileup:
             tensor = np.array(tensor.split(), dtype=np.dtype(float_type))
-            depth = alt_info.split('-', maxsplit=1)
+            depth = int(alt_info.split('-', maxsplit=1)[0])
             max_depth = param.max_depth_dict[platform]
             # for extreme high coverage data, make sure we could have a truncated coverage
-            if depth > max_depth * 1.5:
+            if depth > 0 and depth > max_depth * 1.5:
                 scale_factor = depth / max_depth
                 tensor = tensor / scale_factor
         else:
