@@ -15,17 +15,18 @@ This document shows how to train or fine-tune a deep learning model for Clair3 p
     
 
 ## Contents
-* [I. Training data subsamping](#i-training-data-subsamping--recommended-)
-* [II. Build compressed binary files](#ii-build-a-compressed-binary-file-for-pileup-training)
-  - [1. Setup variables](#1-setup-variables)
-  - [2. Create working directories ](#2-create-temporary-working-folders-for-each-submodule)
-  - [3. Split bed regions](#3-split-bed-regions-using-the--splitextendbed--submodule)
-  - [4. Create pileup tensor](#4-create-pileup-tensor-using-the--createtensorpileup--submodule)
-  - [5. Get truth variants from unified VCF file](#5-get-truth-variants-from-unified-vcf-using-the--gettruth--submodule)
-  - [6. Convert pileup tensor to compressed binary file](#6-convert-pileup-tensor-to-compressed-binary-file-using-the--tensor2bin--submodule)
-* [III. Model training](#III. Model training)
-  - [1. Pileup model training](#1. Pileup model training )
-  - [2. Pileup model fine-tune (optional)](2. Pileup model fine-tune using pre-trained model)
+
+* [I. Training data subsamping](#i-training-data-subsamping-recommended)
+* [II. Build compressed binary files](#ii-build-compressed-binary-files-for-pileup-model-training)
+    - [1. Setup variables](#1-setup-variables)
+    - [2. Create working directories ](#2-create-temporary-working-folders-for-each-submodule)
+    - [3. Split and extend bed regions](#3-split-bed-regions-using-the-splitextendbed-submodule)
+    - [4. Create pileup tensor](#4-create-pileup-tensor-using-the-createtensorpileup-submodule)
+    - [5. Get truth variants from unified VCF file](#5-get-truth-variants-from-unified-vcf-using-the-gettruth-submodule)
+    - [6. Convert pileup tensor to compressed binary file](#6-convert-pileup-tensor-to-compressed-binary-file-using-the-tensor2bin-submodule)
+* [III. Model training](#iii-model-training)
+    - [1. Pileup model training](#1-pileup-model-training)
+    - [2. Pileup model fine-tune using pre-trained model](#2-pileup-model-fine-tune-using-pre-trained-model-optional)
 
 ---
 
@@ -78,7 +79,8 @@ ${PARALLEL} "ln -s {2}.bai ${SUBSAMPLED_BAMS_FOLDER_PATH}/{1}_1000.bam.bai" ::: 
 
 ## II. Build compressed binary files for pileup model training
 
-### Hints
+**Hints**
+
 > - The whole procedure was break into blocks for better readability and error-tracing.
 > - For each `parallel` command ran with the `--joblog` option, we can check the `Exitval` column from the job log output. If the column contains a non-zero value, it means error occurred, please try to rerun the block again.
 > - We suggest to use absolute path everywhere.
@@ -193,7 +195,7 @@ mkdir -p ${SPLIT_BED_PATH}
 mkdir -p ${VAR_OUTPUT_PATH}
 ```
 
-#### 3. Split bed regions using the `SplitExtendBed` submodule
+#### 3. Split and extend bed regions using the `SplitExtendBed` submodule
 ```bash
 # Split bed file regions according to the contig name and extend bed region
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/split_extend_bed.log -j${THREADS} \
