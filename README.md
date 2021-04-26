@@ -43,7 +43,7 @@ docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hku-bal/clair3:"${BIN_VERSION}" \
-  /opt/deepvariant/bin/run_clair3.sh \
+  /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \ 		## Change your bam file name here
   --ref=${INPUT_DIR}/ref.fa \   			## Change your reference name here
   --threads=${THREADS} \  					## 
@@ -68,7 +68,7 @@ docker build -f ./Dockerfile -t clair3_docker .
 
 # run docker image
 # You might require docker authentication to build by docker
-docker run -it clair3
+docker run -it clair3_docker
 
 # run clair like this afterwards
 ./run_clair3.sh -h
@@ -192,9 +192,7 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 `CreateTensorFullAlignment`| Generate variant candidate tensors using phased full-alignment for training or calling.<br>
 `GetTruth`| Extract the variants from a truth VCF. Input: VCF; Reference FASTA if the VCF contains asterisks in ALT field.<br>`RealignReads` | Reads local realignment for illumina platform.<br>`SelectCandidates` | Select pileup candidates for full alignment calling.<br>`SelectHetSnp` | Select heterozygous SNP candidates for WhatsHap phasing.<br>`SelectQual` | Select quality cut-off for phasing and full alignment calling globally from all candidates.<br>`MergeVcf` | Merge pileup and full alignment VCF/GVCF.<br>`UnifyRepresentation` | Representation unification for candidate site and true variant.<br>`Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary, using `blosc:lz4hc` meta-compressor, the overall training memory is 10~15G.(pypy incompatible)<br>
 
-
-
 ## VCF Output Format
 
 `clair3/CallVariants.py` outputs variants in VCF format with version 4.2 specifications.
-Clair3 includes pileup calling and full-alignment calling submodule. For result of pileup calling are denoted with a `P` INFO tag, while the full-alignment calling result are denoted with a `F` INFO tag.
+Clair3 includes pileup calling and full-alignment calling submodule. Pileup calling result are denoted with a `P` INFO tag, while the full-alignment calling result are denoted with a `F` INFO tag.
