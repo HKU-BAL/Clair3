@@ -9,21 +9,25 @@ Email: rbluo@cs.hku.hk
 
 ## Introduction
 
-
-
 This is the formal release of Clair3, the successor of Clair. Clair is published in Nature Machine Intelligence. A preprint is available in bioRxiv
 
 ---
 
 ## Contents
 
-- [Installation](#installation)
-
-
+* [Introduction](#introduction)
+* [What's Difference in Clair3](#whats-difference-in-clair3)
+* [Installation](#installation)
+  + [Option 1. Docker pre-built image (recommended)](#(#option-1--docker-pre-built-image-recommended))
+  + [Option 2. Docker Dockerfile](#option-2-docker-dockerfile)
+  + [Option 3. Build an anaconda virtual environment](#option-3-build-an-anaconda-virtual-environment)
+* [Usage](#usage)
+* [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
+* [VCF Output Format](#vcf-output-format)
 
 ---
 
-## What's Difference in Clair3?
+## What's Difference in Clair3
 
 * Clair3 firstly
 
@@ -47,14 +51,14 @@ docker run \
   --bam_fn=${INPUT_DIR}/input.bam \ 		## Change your bam file name here
   --ref=${INPUT_DIR}/ref.fa \   			## Change your reference name here
   --threads=${THREADS} \  					## 
-  --platform='ont' \      					## Possible options: {ont,hifi,ilmn}
+  --platform='ont' \      					## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR} \
 
 ```
 
 for more details, see [Usage](#Usage)  and find more options.
 
-### Option 2. Docker
+### Option 2. Docker Dockerfile
 
 ** **
 
@@ -74,9 +78,19 @@ docker run -it clair3_docker
 ./run_clair3.sh -h
 ```
 
-### Option 3. Build an anaconda virtual environment step by step
+### Option 3. Build an anaconda virtual environment
 
-#### Please install anaconda using the installation guide at https://docs.anaconda.com/anaconda/install/
+**Anaconda install**:
+
+Please install anaconda using the installation guide at https://docs.anaconda.com/anaconda/install/ or using the command below:
+
+```bash
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+chmod +x ./Miniconda3-latest-Linux-x86_64.sh 
+./Miniconda3-latest-Linux-x86_64.sh
+```
+
+**Install Clair3 using anaconda step by step:**
 
 ```bash
 # create and activate the environment named clair3
