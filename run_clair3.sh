@@ -30,15 +30,17 @@ print_help_messages()
     echo $'      --chunk_size INT     The size of each chuck for parallel processing, default: 5Mbp.'
     echo $'      --pileup_only        Use only the pileup mode for calling, default: disable.'
     echo $'      --print_ref_calls    Show reference calls (0/0) in vcf file, default: disable.'
-    echo $'      --include_all_ctgs   Call variants on all contigs, otherwise call in chr{1..22,X,Y,M,MT} and {1..22,X,Y,MT}, default: disable.'
+    echo $'      --include_all_ctgs   Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.'
     echo $'      --gvcf               Enable GVCF output, default: disable.'
     echo $'      --snp_min_af FLOAT   Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
     echo $'      --indel_min_af FLOAT Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
+    echo $'      --var_pct_full FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.'
+    echo $'      --ref_pct_full FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for illumina and pb, 0.1 for ont.'
     echo $'      --fast_mode          EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.'
     echo $'      --haploid_precise    EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.'
     echo $'      --haploid_sensitive  EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.'
-    echo $'      --var_pct_full FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.'
-    echo $'      --ref_pct_full FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for illumina and pb, 0.1 for ont.'
+    echo $'      --no_ra_for_illmn    EXPERIMENTAL: Call variants without reads realignment for illumina platform, default: disable.'
+    echo $'      --no_phasing_for_fa  EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.'
     echo $''
 
     exit 1
@@ -47,7 +49,7 @@ print_help_messages()
 ARGS=`getopt -o b:f:t:m:p:o: \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
-snp_min_af::,indel_min_af::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,no_phasing_for_fa -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -76,6 +78,7 @@ INDEL_AF=0.0
 HAP_PRE=False
 HAP_SEN=False
 INCLUDE_ALL_CTGS=False
+NO_PHASING=False
 
 while true; do
    case "$1" in
@@ -108,6 +111,7 @@ while true; do
     --haploid_precise ) HAP_PRE=True; shift 1 ;;
     --haploid_sensitive ) HAP_SEN=True; shift 1 ;;
     --include_all_ctgs ) INCLUDE_ALL_CTGS=True; shift 1 ;;
+    --no_phasing_for_fa ) NO_PHASING=True; shift 1 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
@@ -157,6 +161,7 @@ echo "[INFO] ENABLE OUTPUT GVCF: ${GVCF}"
 echo "[INFO] ENABLE HAPLOID PRECISE MODE: ${HAP_PRE}"
 echo "[INFO] ENABLE HAPLOID SENSITIVE MODE: ${GVCF}"
 echo "[INFO] ENABLE INCLUDE ALL CTGS CALLING: ${INCLUDE_ALL_CTGS}"
+echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
 echo $''
 
 set -x
@@ -189,7 +194,8 @@ ${SCRIPT_PATH}/scripts/clair3.sh \
     --print_ref_calls=${SHOW_REF} \
     --haploid_precise=${HAP_PRE} \
     --haploid_sensitive=${HAP_SEN} \
-    --include_all_ctgs=${INCLUDE_ALL_CTGS}
+    --include_all_ctgs=${INCLUDE_ALL_CTGS} \
+    --no_phasing_for_fa=${NO_PHASING}
 
 
 )) |& tee ${OUTPUT_FOLDER}/run_clair3.log

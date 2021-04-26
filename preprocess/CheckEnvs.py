@@ -210,8 +210,7 @@ def CheckEnvs(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Check the envorinment and the validity of the input variables, preprocess the BED input if necessary")
+    parser = argparse.ArgumentParser(description="Check the environment and the validity of the input variables, preprocess the BED input if necessary")
 
     parser.add_argument('--bam_fn', type=str, default=None,
                         help="BAM file input, default: %(default)s")
@@ -252,7 +251,7 @@ def main():
         sys.exit(1)
 
     if not args.include_all_ctgs and args.ctg_name == 'EMPTY':
-        print("[INFO] --include_all_ctgs not enabled, use chr{1..22,X,Y,M,MT} and {1..22,X,Y,MT} by default")
+        print("[INFO] --include_all_ctgs not enabled, use chr{1..22,X,Y} and {1..22,X,Y} by default")
     else:
         print("[INFO] --include_all_ctgs enabled")
 

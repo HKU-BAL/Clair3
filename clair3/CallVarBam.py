@@ -169,8 +169,6 @@ def Run(args):
         gvcf_mode,
     ]
 
-
-
     if not pileup:
         create_tensor_command_options.append(phasing_info_in_bam_mode)
         create_tensor_command_options.append(need_phasing_mode)

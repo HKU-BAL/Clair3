@@ -9,8 +9,9 @@ POST_PROCESS_SCRIPTS_FOLDER="clair3.post_processing"
 deep_learning_folder = [
     "CallVarBam",
     "CallVariants",
-    "train",
+    "Train",
 ]
+
 data_preprocess_folder = [
     "GetTruth",
     "Tensor2Bin",
@@ -19,9 +20,9 @@ data_preprocess_folder = [
     "CreateTensorFullAlignment",
     'SplitExtendBed',
     'MergeVcf',
-    'FiterHeteSnp',
+    'SelectHetSnp',
     'SelectCandidates',
-    'UnifyCandidates',
+    'UnifyRepresentation',
     'CheckEnvs',
     'SortVcf',
     'SelectQual'

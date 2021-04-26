@@ -19,7 +19,7 @@ def Run(args):
         bin_fn=args.bin_fn,
         shuffle=args.shuffle,
         is_allow_duplicate_chr_pos=args.allow_duplicate_chr_pos,
-        chunk_id=args.chunk_id-1, # 1-base to 0-base
+        chunk_id=args.chunk_id-1 if args.chunk_id else None, # 1-base to 0-base
         chunk_num=args.chunk_num,
         pileup=args.pileup,
         platform=args.platform,

@@ -7,7 +7,7 @@ set -e
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
-snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs:: -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,no_phasing_for_fa:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -43,6 +43,7 @@ while true; do
     --haploid_precise ) HAP_PRE="$2"; shift 2 ;;
     --haploid_sensitive ) HAP_SEN="$2"; shift 2 ;;
     --include_all_ctgs ) INCLUDE_ALL_CTGS="$2"; shift 2 ;;
+    --no_phasing_for_fa ) NO_PHASING="$2"; shift 2 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
@@ -123,38 +124,45 @@ if [ ${PILEUP_ONLY} == True ]; then
     exit
 fi
 
-#Whatshap phasing and haplotag
+# Whatshap phasing and haplotaging
 #-----------------------------------------------------------------------------------------------------------------------
-echo "[INFO] 2/7 Filter Hete SNP varaints for Whatshap phasing and haplotag"
-gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --phase --output_fn ${PHASE_VCF_PATH}
-time ${PARALLEL} --joblog ${LOG_PATH}/parallel_2_fiter_hete_snp.log -j${THREADS} \
-"${PYPY} ${CLAIR3} FiterHeteSnp \
-    --vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
-    --split_folder ${PHASE_VCF_PATH} \
-    --ctgName {1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} |& tee ${LOG_PATH}/2_fiter_hete_snp.log
+if [ ${NO_PHASING} == True ]
+then
+    echo "[INFO] 2/7 No phasing for full alignment calling"
+    time ${PARALLEL} -j${THREADS} ln -sf ${BAM_FILE_PATH} ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
+    time ${PARALLEL} -j${THREADS} ln -sf ${BAM_FILE_PATH}.bai ${PHASE_BAM_PATH}/{1}.bam.bai ::: ${CHR[@]}
+else
+    echo "[INFO] 2/7 Filter Hete SNP varaints for Whatshap phasing and haplotag"
+    gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --phase --output_fn ${PHASE_VCF_PATH}
+    time ${PARALLEL} --joblog ${LOG_PATH}/parallel_2_select_hetero_snp.log -j${THREADS} \
+    "${PYPY} ${CLAIR3} SelectHetSnp \
+        --vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
+        --split_folder ${PHASE_VCF_PATH} \
+        --ctgName {1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} |& tee ${LOG_PATH}/2_select_hetero_snp.log
 
-echo "[INFO] 3/7 Whatshap phase vcf file"
-time ${PARALLEL} --joblog ${LOG_PATH}/parallel_3_phase.log -j${THREADS} \
-"${WHATSHAP} phase \
-    --output ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
-    --reference ${REFERENCE_FILE_PATH} \
-    --chromosome {1} \
-    --distrust-genotypes \
-    --ignore-read-groups \
-    ${PHASE_VCF_PATH}/{1}.vcf \
-    ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
-${PARALLEL} -j${THREADS} tabix -f -p vcf ${PHASE_VCF_PATH}/phased_{}.vcf.gz ::: ${CHR[@]}
+    echo "[INFO] 3/7 Whatshap phase vcf file"
+    time ${PARALLEL} --joblog ${LOG_PATH}/parallel_3_phase.log -j${THREADS} \
+    "${WHATSHAP} phase \
+        --output ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
+        --reference ${REFERENCE_FILE_PATH} \
+        --chromosome {1} \
+        --distrust-genotypes \
+        --ignore-read-groups \
+        ${PHASE_VCF_PATH}/{1}.vcf \
+        ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
+    ${PARALLEL} -j${THREADS} tabix -f -p vcf ${PHASE_VCF_PATH}/phased_{}.vcf.gz ::: ${CHR[@]}
 
-echo "[INFO] 4/7 Whatshap haplotag input bam file"
-time ${PARALLEL} --joblog ${LOG_PATH}/parallel_4_haplotag.log -j${THREADS} \
-"${WHATSHAP} haplotag \
-    --output ${PHASE_BAM_PATH}/{1}.bam \
-    --reference ${REFERENCE_FILE_PATH} \
-    --ignore-read-groups \
-    --regions {1} \
-    ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
-    ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/4_haplotag.log
-time ${PARALLEL} -j${THREADS} ${SAMTOOLS} index -@12 ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
+    echo "[INFO] 4/7 Whatshap haplotag input bam file"
+    time ${PARALLEL} --joblog ${LOG_PATH}/parallel_4_haplotag.log -j${THREADS} \
+    "${WHATSHAP} haplotag \
+        --output ${PHASE_BAM_PATH}/{1}.bam \
+        --reference ${REFERENCE_FILE_PATH} \
+        --ignore-read-groups \
+        --regions {1} \
+        ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
+        ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/4_haplotag.log
+    time ${PARALLEL} -j${THREADS} ${SAMTOOLS} index -@12 ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
+fi
 
 # Full alignment calling
 #-----------------------------------------------------------------------------------------------------------------------
@@ -188,18 +196,19 @@ time ${PARALLEL} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log
     --gvcf ${GVCF} \
     --platform ${PLATFORM}" ::: ${FULL_ALINGNMENT_BED[@]} |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
 
-#Merge pileup and full alignment vcf
-#-----------------------------------------------------------------------------------------------------------------------
+##Merge pileup and full alignment vcf
+##-----------------------------------------------------------------------------------------------------------------------
 cat ${FULL_ALIGNMENT_OUTPUT_PATH}/full_alignment_*.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_FOLDER}/full_alignment.vcf
+cat ${CANDIDATE_BED_PATH}/*.* > ${CANDIDATE_BED_PATH}/full_aln_regions
 bgzip -f ${OUTPUT_FOLDER}/full_alignment.vcf
 tabix -f -p vcf ${OUTPUT_FOLDER}/full_alignment.vcf.gz
 if [ ${GVCF} == True ]; then cat ${GVCF_TMP_PATH}/*.tmp.g.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${GVCF_TMP_PATH}/non_var.gvcf; fi
-${PARALLEL} -j ${THREADS} "cat ${CANDIDATE_BED_PATH}/{1}.* > ${CANDIDATE_BED_PATH}/{1}" ::: ${CHR[@]}
+
 echo "[INFO] 7/7 Merge pileup vcf and full alignment vcf"
 time ${PARALLEL} --joblog ${LOG_PATH}/parallel_7_merge_vcf.log -j${THREADS} \
 "${PYPY} ${CLAIR3} MergeVcf \
     --pileup_vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
-    --bed_fn ${CANDIDATE_BED_PATH}/{1} \
+    --bed_fn ${CANDIDATE_BED_PATH}/full_aln_regions \
     --full_alignment_vcf_fn ${OUTPUT_FOLDER}/full_alignment.vcf.gz \
     --output_fn ${TMP_FILE_PATH}/merge_output/merge_{1}.vcf \
     --platform ${PLATFORM} \

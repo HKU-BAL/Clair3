@@ -174,7 +174,7 @@ def decode_pileup_bases(pileup_bases, reference_base, minimum_af_for_candidate, 
     Decode mpileup input string.
     pileup_bases: pileup base string for each position, include all mapping information.
     reference_base: upper reference base for cigar calculation.
-    pileup_dict: dictionary (pos: pos info) which keep read information that cover specific position .
+    pileup_dict: dictionary (pos: pos info) which keep read information that cover specific position.
     ref_seq: chunked reference sequence in window, start: center pos - flankingBaseNum, end: center + flankingBaseNum + 1.
     reference_sequence: reference sequence index by contig:start-end. 0-based.
     minimum_af_for_candidate: default minimum alleic frequency for candidate filtering, filter if below specific thredshold.
@@ -795,7 +795,7 @@ def CreateTensorFullAlignment(args):
                 alt_fp.write('\t'.join([ctg_name + ' ' + str(pos), alt_info]) + '\n')
 
         if unify_repre and unify_repre_fn:
-            label_info = get_alt_info(cente_pos=pos,
+            label_info = get_alt_info(center_pos=pos,
                                       pileup_dict=pileup_dict,
                                       ref_seq=ref_seq,
                                       reference_sequence=reference_sequence,
@@ -819,7 +819,7 @@ def CreateTensorFullAlignment(args):
 
 
 def main():
-    parser = ArgumentParser(description="Generate variant candidate tensors using phased full alignments")
+    parser = ArgumentParser(description="Generate variant candidate tensors using phased full-alignment")
 
     parser.add_argument('--platform', type=str, default='ont',
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
