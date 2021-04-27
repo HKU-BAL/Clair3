@@ -217,8 +217,8 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS
     --indel_fn ${CANDIDATE_DETAILS_PATH}/{2}_{3}_{1}_{7} \
     --ctgName ${CHR_PREFIX}{1} \
     --samtools ${SAMTOOLS} \
-    --min_snp_af ${MIN_SNP_AF} \
-    --min_indel_af ${MIN_INDEL_AF} \
+    --snp_min_af ${MIN_SNP_AF} \
+    --indel_min_af ${MIN_INDEL_AF} \
     --extend_bed ${SPLIT_BED_PATH}/{2}_{3}_{1} \
     --bed_fn {6} \
     --chunk_id {7} \
