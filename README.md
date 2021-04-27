@@ -9,21 +9,25 @@ Email: rbluo@cs.hku.hk
 
 ## Introduction
 
-
-
 This is the formal release of Clair3, the successor of Clair. Clair is published in Nature Machine Intelligence. A preprint is available in bioRxiv
 
 ---
 
 ## Contents
 
-- [Installation](#installation)
-
-
+* [Introduction](#introduction)
+* [What's Difference in Clair3](#whats-difference-in-clair3)
+* [Installation](#installation)
+  + [Option 1. Docker pre-built image (recommended)](#(#option-1--docker-pre-built-image-recommended))
+  + [Option 2. Docker Dockerfile](#option-2-docker-dockerfile)
+  + [Option 3. Build an anaconda virtual environment](#option-3-build-an-anaconda-virtual-environment)
+* [Usage](#usage)
+* [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
+* [VCF Output Format](#vcf-output-format)
 
 ---
 
-## What's Difference in Clair3?
+## What's Difference in Clair3
 
 * Clair3 firstly
 
@@ -33,7 +37,7 @@ This is the formal release of Clair3, the successor of Clair. Clair is published
 
 ### Option 1.  Docker pre-built image (recommended)
 
-A pre-built docker image can be found here: https://hub.docker.com/zxzheng/clair3. Then you can run clair3 using one command:
+A pre-built docker image can be found here: https://hub.docker.com/zxzheng/clair3. Then you can run Clair3 using one command:
 
 ```bash
 INPUT_DIR="[YOUR_INPUT_FOLDER]"												# e.g. input/
@@ -47,14 +51,14 @@ docker run \
   --bam_fn=${INPUT_DIR}/input.bam \ 		## Change your bam file name here
   --ref=${INPUT_DIR}/ref.fa \   			## Change your reference name here
   --threads=${THREADS} \  					## 
-  --platform='ont' \      					## Possible options: {ont,hifi,ilmn}
+  --platform='ont' \      					## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR} \
 
 ```
 
-for more details, see [Usage](#Usage)  and find more options
+for more details, see [Usage](#Usage)  and find more options.
 
-### Option 2. Docker
+### Option 2. Docker Dockerfile
 
 ** **
 
@@ -74,11 +78,19 @@ docker run -it clair3_docker
 ./run_clair3.sh -h
 ```
 
+### Option 3. Build an anaconda virtual environment
 
+**Anaconda install**:
 
-### Option 3. Build an anaconda virtual environment step by step
+Please install anaconda using the installation guide at https://docs.anaconda.com/anaconda/install/ or using the command below:
 
-#### Please install anaconda using the installation guide at https://docs.anaconda.com/anaconda/install/
+```bash
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+chmod +x ./Miniconda3-latest-Linux-x86_64.sh 
+./Miniconda3-latest-Linux-x86_64.sh
+```
+
+**Install Clair3 using anaconda step by step:**
 
 ```bash
 # create and activate the environment named clair3
@@ -106,8 +118,6 @@ cd Clair3
 # run clair3 like this afterwards
 ./run_clair3.sh --help
 ```
-
-
 
 ## Usage
 
@@ -185,10 +195,19 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 
 `preprocess/` | Note: submodules under this folder is Pypy compatible unless specified.
 ---: | ---
-`CheckEnvs`| Check the environment and the validity of the input variables, preprocess the BED input if necessary, `--chunk_size` set the genome chuck size per job.<br>
+`CheckEnvs`| Check the environment and the validity of the input variables, preprocess the BED input if necessary, `--chunk_size` set the genome chuck size per job.
 `CreateTensorPileup`| Generate variant candidate tensors using pileup for training or calling.
-`CreateTensorFullAlignment`| Generate variant candidate tensors using phased full-alignment for training or calling.<br>
-`GetTruth`| Extract the variants from a truth VCF. Input: VCF; Reference FASTA if the VCF contains asterisks in ALT field.<br>`RealignReads` | Reads local realignment for illumina platform.<br>`SelectCandidates` | Select pileup candidates for full alignment calling.<br>`SelectHetSnp` | Select heterozygous SNP candidates for WhatsHap phasing.<br>`SelectQual` | Select quality cut-off for phasing and full alignment calling globally from all candidates.<br>`MergeVcf` | Merge pileup and full alignment VCF/GVCF.<br>`UnifyRepresentation` | Representation unification for candidate site and true variant.<br>`Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary, using `blosc:lz4hc` meta-compressor, the overall training memory is 10~15G.(pypy incompatible)<br>
+`CreateTensorFullAlignment`| Generate variant candidate tensors using phased full-alignment for training or calling.
+`GetTruth`| Extract the variants from a truth VCF. Input: VCF; Reference FASTA if the VCF contains asterisks in ALT field.
+`MergeVcf` | Merge pileup and full alignment VCF/GVCF.
+`RealignReads` | Reads local realignment for illumina platform.
+`SelectCandidates`| Select pileup candidates for full alignment calling.
+`SelectHetSnp` | Select heterozygous SNP candidates for WhatsHap phasing.
+`SelectQual` | Select quality cut-off for phasing and full alignment calling globally from all candidates.
+`SortVcf` | Sort vcf file according to variants start position and contig name.
+`SplitExtendBed` | Split bed file regions according to the contig name and extend bed region.
+`UnifyRepresentation` | Representation unification for candidate site and true variant.
+`Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary, using `blosc:lz4hc` meta-compressor, the overall training memory is 10~15G.(pypy incompatible)
 
 ## VCF Output Format
 

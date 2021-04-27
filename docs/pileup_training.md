@@ -6,7 +6,7 @@ This document shows how to train or fine-tune a deep learning model for Clair3 p
 - Clair3 installed
 - GNU Parallel installed
 - Sufficient hard-disk space
-- Unified VCF file(recommended), check here on how to generate unified VCF
+- Unified VCF file(recommended), check [here]() on how to generate unified VCF
 - A powerful GPU
   
     - RTX Titan (tested)
@@ -228,8 +228,8 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS
 
 **Options**
 
- - `--zstd` , we recommended using [zstd](https://github.com/facebook/zstd) , an extremely fast and lossless compression tool to compress temporary tensor output, which provided much higher compression ratios compared with other compression tools.
- - `--max_depth` ,  pileup input summarizes position-level read alignments, therefore depth information varies for various training materials. If need to re-train or fine-tune Clair3 pileup model, we recommend setting a maximum depth based on the maximum-coverage training materials accordingly.
+ - `--zstd` : we recommended using [zstd](https://github.com/facebook/zstd) , an extremely fast and lossless compression tool to compress temporary tensor output, which provided much higher compression ratios compared with other compression tools.
+ - `--max_depth` :  pileup input summarizes position-level read alignments, therefore depth information varies for various training materials. If need to re-train or fine-tune Clair3 pileup model, we recommend setting a maximum depth based on the maximum-coverage training materials accordingly.
 
 #### 5. Get truth variants from unified VCF using the `GetTruth` submodule
 
@@ -263,9 +263,9 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/tensor2Bin.log -j${THREADS} \
 
 **Options**
 
- - `--allow_duplicate_chr_pos` , For multiple coverages training, this options are required to avoid replace same variant sites from different coverages.
- - `--shuffle` ,  As the input tensor are scanned in order of starting position, we shuffle the training data binary files with chunked iterator in advance to provide more variety. in the training process, we also apply index shuffling to reduce memory occupation.
- - `--maximum_non_variant_ratio` ,  we set a maximum non-variant ratio (variant: non-variant = 1:5) for pileup model training, non-variants are randomly select from candidate set if exceeds the ratio,  otherwise, all non-variant will be selected for training. 
+ - `--allow_duplicate_chr_pos` : for multiple coverages training, this options are required to avoid replace same variant sites from different coverages.
+ - `--shuffle` :  as the input tensor are scanned in order of starting position, we shuffle the training data binary files with chunked iterator in advance to provide more variety. in the training process, we also apply index shuffling to reduce memory occupation.
+ - `--maximum_non_variant_ratio` :  we set a maximum non-variant ratio (variant: non-variant = 1:5) for pileup model training, non-variants are randomly select from candidate set if exceeds the ratio,  otherwise, all non-variant will be selected for training. 
 
 ## III. Model training
 
@@ -292,9 +292,9 @@ ${PYTHON3} ${CLAIR3} Train \
 
 **Options**
 
- - `--pileup` , `pileup`  flag is the only flag to distinguish pileup model and full-alignment model.
- - `--add_indel_length` ,  for pileup model, we currently disabled two indel-length tasks.
- - `--validation_dataset`, we random select 10% from all candidate site as hold-out validation data, best-performance epoch from validation dataset are select for our default model.
+ - `--pileup` : `pileup`  flag is the only flag to distinguish pileup model and full-alignment model.
+ - `--add_indel_length` :  for pileup model, we currently disabled two indel-length tasks.
+ - `--validation_dataset`: we random select 10% from all candidate site as hold-out validation data, best-performance epoch from validation dataset are select for our default model.
 
 #### 2. Pileup model fine-tune using pre-trained model (optional)
 
