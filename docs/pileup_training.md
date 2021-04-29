@@ -108,7 +108,7 @@ ALL_SAMPLE="[YOUR_SAMPLE_NAME_ARRAY]"                          # e.g. hg002
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER_PATH]"					       # e.g. output_folder
 
 # Each line represent one input bam with matched coverage with "DEPTH" array
-## check the first section on how to apply BAM subsample
+## check the "Training data subsamping" section on how to apply BAM subsampling
 ALL_BAM_FILE_PATH=(
 'hg002_1000.bam'
 'hg002_800.bam'
@@ -150,11 +150,11 @@ UNIFIED_VCF_FILE_PATH=(
 'hg004_1000.unified.vcf.gz'
 )
 
-
 # Chromosome prefix ("chr" if chromosome names have the "chr"-prefix)
 CHR_PREFIX="chr"
 
 # array of chromosomes (do not include "chr"-prefix) to training in all sample
+## pls note that we have excluded chr20 as hold-out set, so do not use chr20 for traning.
 CHR=(21 22)
 
 # Number of threads to be used
@@ -217,9 +217,10 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS
     --indel_fn ${CANDIDATE_DETAILS_PATH}/{2}_{3}_{1}_{7} \
     --ctgName ${CHR_PREFIX}{1} \
     --samtools ${SAMTOOLS} \
-    --min_snp_af ${MIN_SNP_AF} \
-    --min_indel_af ${MIN_INDEL_AF} \
+    --snp_min_af ${MIN_SNP_AF} \
+    --indel_min_af ${MIN_INDEL_AF} \
     --extend_bed ${SPLIT_BED_PATH}/{2}_{3}_{1} \
+    --platform ${PLATFORM} \
     --bed_fn {6} \
     --chunk_id {7} \
     --chunk_num ${chunk_num}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${ALL_BAM_FILE_PATH[@]} :::+ ${ALL_REFERENCE_FILE_PATH[@]} :::+ ${ALL_BED_FILE_PATH[@]} ::: ${CHUNK_LIST[@]} |& tee  ${DATASET_FOLDER_PATH}/CTP.log
@@ -272,7 +273,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/tensor2Bin.log -j${THREADS} \
 #### 1. Pileup model training 
 
 ```bash
-MODEL_FOLDER_PATH="${TEST_FOLDER}/train"
+MODEL_FOLDER_PATH="${OUTPUT_DIR}/train"
 mkdir -p ${MODEL_FOLDER_PATH}
 
 cd ${MODEL_FOLDER_PATH}
@@ -300,17 +301,22 @@ ${PYTHON3} ${CLAIR3} Train \
 
 ```bash
 # Pileup model fine-tune in new sample
-# Currently, we trained model in single GPU, we did not include multi-GPU and multi-worker workflow
+
+# Full-alignment model fine-tune in new sample
+MODEL_FOLDER_PATH="${OUTPUT_DIR}/train"
+mkdir -p ${MODEL_FOLDER_PATH}
+
+cd ${MODEL_FOLDER_PATH}
+
 export CUDA_VISIBLE_DEVICES="0"
 ${PYTHON3} ${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
     --ochk_prefix ${MODEL_FOLDER_PATH} \
-    --pileup \
-    --add_indel_length False \
+    --add_indel_length True \
     --validation_dataset \
     --platform ${PLATFORM} \
-    --chkpnt_fn ${PRETRAINED_MODEL} \
-    --learning_rate 0.0005
+    --learning_rate 0.0005 \
+    --chkpnt_fn "[YOUR_PRETRAINED_MODEL]"  ## use pre-trained full-alignment model weight here
 ```
 
 We experimentally offer pileup model fine-tune using pre-trained Clair3 model, by using a smaller `learning_rate` and pre-trained checkpoint file `ochk_prefix`, We recommend to use a smaller learning rate `5e-4` to fine-tune pre-trained model.
