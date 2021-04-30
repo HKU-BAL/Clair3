@@ -159,7 +159,7 @@ chmod +x scripts/clair3.sh
 **Optional parameters:**
 
 ```
---bed_fn FILE        Call variants only in the provided bed regions.
+      --bed_fn FILE        Call variants only in the provided bed regions.
       --vcf_fn FILE        Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.
       --ctg_name STR       The name of the sequence to be processed.
       --sample_name STR    Define the sample name to be shown in the VCF file.
