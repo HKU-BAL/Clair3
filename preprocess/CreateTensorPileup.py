@@ -85,7 +85,7 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
             base_list.append(base + pileup_bases[base_idx: base_idx + advance])
             base_idx += advance - 1
 
-        elif base in "ACGTNacgtn#*":
+        elif base in "ACGTacgt#*":
             base_list.append(base)
         elif base == '^':  # start of a read, next character is mapping quality
             base_idx += 1
