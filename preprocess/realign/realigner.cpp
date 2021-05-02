@@ -1,4 +1,3 @@
-
 /*
 Copyright 2020 Google LLC.
 Copyright 2021 The University of Hong Kong, Department of Computer Science
@@ -869,5 +868,4 @@ extern "C" {
     }
 }
 
-//g++ -std=c++11 -O2 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c  realigner.cpp
 

@@ -8,7 +8,7 @@ major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] 
 
 def sort_vcf_from_stdin(args):
     """
-    Sort vcf file accroding to variants start position and contig name.
+    Sort vcf file according to variants start position and contig name.
     """
     
     row_count = 0

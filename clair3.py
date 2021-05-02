@@ -4,7 +4,7 @@ from shared.param_p import REPO_NAME
 
 DATA_PREP_SCRIPTS_FOLDER="preprocess"
 DEEP_LEARNING_FOLDER="clair3"
-POST_PROCESS_SCRIPTS_FOLDER="clair3.post_processing"
+POST_PROCESS_SCRIPTS_FOLDER="clair3.metrics"
 
 deep_learning_folder = [
     "CallVarBam",
@@ -28,12 +28,17 @@ data_preprocess_folder = [
     'SelectQual'
 ]
 
+post_process_scripts_folder = [
+    'GetOverallMetrics',
+]
 
 def directory_for(submodule_name):
     if submodule_name in deep_learning_folder:
         return DEEP_LEARNING_FOLDER
     if submodule_name in data_preprocess_folder:
         return DATA_PREP_SCRIPTS_FOLDER
+    if submodule_name in post_process_scripts_folder:
+        return POST_PROCESS_SCRIPTS_FOLDER
     return ""
 
 
@@ -49,6 +54,7 @@ def print_help_messages():
             REPO_NAME,
             "\n".join("          - %s" % submodule_name for submodule_name in data_preprocess_folder),
             "\n".join("          - %s" % submodule_name for submodule_name in deep_learning_folder),
+            "\n".join("          - %s" % submodule_name for submodule_name in post_process_scripts_folder),
         )
     ))
 
@@ -61,7 +67,8 @@ def main():
     submodule_name = sys.argv[1]
     if (
         submodule_name not in deep_learning_folder and
-        submodule_name not in data_preprocess_folder
+        submodule_name not in data_preprocess_folder and
+        submodule_name not in post_process_scripts_folder
     ):
         sys.exit("[ERROR] Submodule %s not found." % (submodule_name))
 
