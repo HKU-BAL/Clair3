@@ -219,7 +219,7 @@ def main():
                         help="Path to the output folder")
 
     parser.add_argument('--ctg_name', type=str, default='EMPTY',
-                        help="The name of sequence to be processed")
+                        help="The name of sequence to be processed, seperated by comma")
 
     parser.add_argument('--bed_fn', type=str, nargs='?', action="store", default=None,
                         help="Call variant only in these regions. Will take an intersection if --ctg_name is set")
@@ -252,7 +252,7 @@ def main():
 
     if not args.include_all_ctgs and args.ctg_name == 'EMPTY':
         print("[INFO] --include_all_ctgs not enabled, use chr{1..22,X,Y} and {1..22,X,Y} by default")
-    else:
+    elif args.include_all_ctgs:
         print("[INFO] --include_all_ctgs enabled")
 
     CheckEnvs(args)

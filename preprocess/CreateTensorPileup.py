@@ -301,7 +301,7 @@ def CreateTensorPileup(args):
     else:
         tensor_can_fp = TensorStdout(sys.stdout)
 
-    # whether save all all alternative information, only for debug mode
+    # whether save all alternative information, only for debug mode
     if alt_fn:
         alt_fp = open(alt_fn, 'w')
 
