@@ -116,8 +116,6 @@ conda install -c conda-forge -c bioconda whatshap=1.0 -y
 # clone Clair3
 git clone --depth 1 https://github.com/HKU-BAL/Clair3.git
 cd Clair3
-chmod +x run_clair3.sh
-chmod +x scripts/clair3.sh
 
 # run clair3 like this afterwards
 ./run_clair3.sh --help

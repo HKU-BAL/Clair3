@@ -146,7 +146,7 @@ def CheckEnvs(args):
         for row in fai_fp:
             columns = row.strip().split("\t")
             contig_name, contig_length = columns[0], int(columns[1])
-            if not is_include_all_contigs and str(contig_name) not in major_contigs:
+            if not is_include_all_contigs and (not (is_bed_file_provided or is_ctg_name_list_provided or is_known_vcf_file_provided)) and str(contig_name) not in major_contigs:
                 continue
 
             if is_bed_file_provided and contig_name not in tree:
@@ -219,7 +219,7 @@ def main():
                         help="Path to the output folder")
 
     parser.add_argument('--ctg_name', type=str, default='EMPTY',
-                        help="The name of sequence to be processed")
+                        help="The name of sequence to be processed, seperated by comma")
 
     parser.add_argument('--bed_fn', type=str, nargs='?', action="store", default=None,
                         help="Call variant only in these regions. Will take an intersection if --ctg_name is set")
@@ -252,7 +252,7 @@ def main():
 
     if not args.include_all_ctgs and args.ctg_name == 'EMPTY':
         print("[INFO] --include_all_ctgs not enabled, use chr{1..22,X,Y} and {1..22,X,Y} by default")
-    else:
+    elif args.include_all_ctgs:
         print("[INFO] --include_all_ctgs enabled")
 
     CheckEnvs(args)
