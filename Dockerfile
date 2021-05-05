@@ -10,7 +10,8 @@ RUN apt-get update --fix-missing && \
         bzip2 \
         make \
         gcc \
-        g++ && \
+        g++ \
+        libboost-all-dev && \
     rm -rf /bar/lib/apt/lists/*
 
 WORKDIR /opt/clair3
@@ -39,16 +40,9 @@ RUN /bin/bash -c "source activate clair3" && \
     pip install tensorflow==2.2.0 && \
     pip install intervaltree==3.0.2  tensorflow-addons==0.11.2 tables==3.6.1 python-Levenshtein==0.12.0 && \
     conda install -c anaconda pigz==2.4 -y && \
+    conda install -c anaconda git && \
     conda install -c conda-forge parallel=20191122 zstd=1.4.4 -y && \
     conda install -c conda-forge -c bioconda samtools=1.10 -y && \
     conda install -c conda-forge -c bioconda whatshap=1.0 -y && \
-    conda install -c conda-forge boost=1.67.0 -y && \
-    echo "source activate clair3" > ~/.bashrc
+    echo "source activate clair3" > ~/.bashrc &&
 
-#cd Clair3/preprocess/realign
-#g++ -std=c++14 -O2 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c  realigner.cpp
-#g++ -std=c++11   -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp
-#/bin/bash -c "source activate clair3" &&
-# docker rmi -f clair3
-#docker build -f /autofs/bal33/zxzheng/nas2/Clair_private.2to3/Clair3/Dockerfile -t clair3 .
-# docker run -it  -v /autofs/bal33/zxzheng:/autofs/bal33/zxzheng  -v /mnt/bal36/zxzheng/testData:/mnt/bal36/zxzheng/testData clair3 /bin/bash
