@@ -73,14 +73,11 @@ git clone --depth 1 https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 
 # build a docker image named clair3_docker
-docker build -f ./Dockerfile -t clair3_docker .
-
-# run docker image
 # You might require docker authentication to build by docker
-docker run -it clair3_docker
+docker build --no-cache -f ./Dockerfile -t clair3_docker .
 
-# run clair like this afterwards
-./run_clair3.sh -h
+# run clair docker image like this afterwards
+docker run clair3_docker -h
 ```
 
 ### Option 3. Build an anaconda virtual environment
