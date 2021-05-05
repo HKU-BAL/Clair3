@@ -26,6 +26,7 @@ This is the formal release of Clair3, the successor of Clair. Clair is published
 * [VCF Output Format](#vcf-output-format)
 * [Pileup Model Training](docs/pileup_training.md)
 * [Full-Alignment Model Training](docs/full_alignment_training.md)
+* [Representation Unification](docs/representation_unification.md)
 
 ---
 
