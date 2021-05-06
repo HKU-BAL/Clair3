@@ -12,6 +12,8 @@ This document shows how Clair3 unifies representation between training materials
 
 ## Input/Output
 
+![alt text](http://www.bio8.cs.hku.hk/clair3/figures/HG002-chr1:52814693-52814723.png)
+
 **Input:**
 
 - BAM: Indexed BAM  input
@@ -92,7 +94,6 @@ To apply representation unification,  using a phased read alignment is highly re
 cd ${OUTPUT_DIR}
 
 # WhatsHap phasing vcf file if vcf file includes '|' in INFO tag
-echo "[INFO] Whatshap UnPhasing"
 ${WHATSHAP} unphase ${VCF_FILE_PATH} > ${OUTPUT_DIR}/INPUT.vcf.gz
 
 # WhatsHap phase vcf file
@@ -121,7 +122,7 @@ ${PARALLEL} --joblog ${PHASE_BAM_PATH}/haplotag.log -j${THREADS} \
     ${BAM_FILE_PATH}" ::: ${CHR[@]}
 
 # Index the phased bam file using samtools
-time ${PARALLEL} --joblog ${PHASE_BAM_PATH}/index.log -j ${THREADS} ${SAMTOOLS} index -@12 ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
+${PARALLEL} --joblog ${PHASE_BAM_PATH}/index.log -j ${THREADS} ${SAMTOOLS} index -@12 ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
 ```
 
 #### 4.  Prepare true variant set and candidate input
@@ -205,6 +206,6 @@ ${OUTPUT_DIR}/unified.vcf.gz \
 -f ${BED_FILE_PATH} \
 --threads ${THREADS} \
 --engine=vcfeval \
--l "[YOUR_BENCHMARK_REGION]"  											# e.g. chr22
+-l "[YOUR_BENCHMARK_REGION]" # e.g. chr22
 
 ```
