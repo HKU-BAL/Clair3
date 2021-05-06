@@ -40,7 +40,7 @@ This is the formal release of Clair3, the successor of ([Clair](https://github.c
 
 ### Option 1.  Docker pre-built image (recommended)
 
-A pre-built docker image can be found here: https://hub.docker.com/zxzheng/clair3. Then you can run Clair3 using one command:
+A pre-built docker image can be found [here](https://hub.docker.com/hku-bal/clair3). Then you can run Clair3 using one command:
 
 ```bash
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
@@ -126,7 +126,7 @@ cd Clair3
 
 Run Clair via pre-built docker image:**
 
-```
+```bash
 # Change the file prefix if want to demo other platforms.
 # Options: {ont,hifi,ilmn}
 wget "http://www.bio8.cs.hku.hk/clair3/demo/ont_clair3_demo.sh"
