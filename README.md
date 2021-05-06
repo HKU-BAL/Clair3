@@ -21,6 +21,7 @@ This is the formal release of Clair3, the successor of Clair. Clair is published
   + [Option 1. Docker pre-built image (recommended)](#(#option-1--docker-pre-built-image-recommended))
   + [Option 2. Docker Dockerfile](#option-2-docker-dockerfile)
   + [Option 3. Build an anaconda virtual environment](#option-3-build-an-anaconda-virtual-environment)
+* [Quick Demo](#Quick demo)
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
 * [VCF Output Format](#vcf-output-format)
@@ -45,7 +46,7 @@ A pre-built docker image can be found here: https://hub.docker.com/zxzheng/clair
 ```bash
 INPUT_DIR="[YOUR_INPUT_FOLDER]"			# e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"		# e.g. output/
-THREADS="[MAXIMUM_THREADS]"				  # e.g. 36
+THREADS="[MAXIMUM_THREADS]"				# e.g. 36
 BIN_VERSION="v0.1"
 
 docker run \
@@ -53,10 +54,11 @@ docker run \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hku-bal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \ 	## Change your bam file name here
-  --ref=${INPUT_DIR}/ref.fa \   		  ## Change your reference name here
-  --threads=${THREADS} \  				    ## Maximum threads to be used
-  --platform='ont' \      				    ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \ 	 ## Change your bam file name here
+  --ref=${INPUT_DIR}/ref.fa \   		 ## Change your reference name here
+  --threads=${THREADS} \  				 ## Maximum threads to be used
+  --platform="ont" \      				 ## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont"		 ## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR}
 
 ```
@@ -77,7 +79,7 @@ cd Clair3
 docker build --no-cache -f ./Dockerfile -t clair3_docker .
 
 # run clair docker image like this afterwards
-docker run clair3_docker -h
+docker -it run clair3_docker --help
 ```
 
 ### Option 3. Build an anaconda virtual environment
@@ -121,6 +123,19 @@ cd Clair3
 ./run_clair3.sh --help
 ```
 
+## Quick demo
+
+**Run Clair via pre-built docker image:**
+
+```
+# change the file prefix if want to demo other platforms.
+# Options: {ont,hifi,ilmn}
+wget "http://www.bio8.cs.hku.hk/clair3/demo/ont_clair3_demo.sh"
+./ont_clair3_demo.sh
+```
+
+Check the results using `less ./clair_demo/output/merge_output.vcf.gz`
+
 ## Usage
 
 ### General usage
@@ -128,13 +143,13 @@ cd Clair3
 ```bash
 #optional parameters should use "="
 ./run_clair3.sh \
-    -b ${BAM} \
-    -f ${REF} \
-    -m ${MODEL_PREFIX} \
-    -t ${THREADS} \
-    -p "ont" \  # {ont,hifi,ilmn}
-    -o ${OUTPUT_DIR}
-
+  --bam_fn=${BAM} \
+  --ref=${REF} \
+  --threads=${THREADS} \  		     
+  --platform='ont' \      			 ## Options: {ont,hifi,ilmn}
+  --model_path=${MODEL_PREFIX}		 ## Options: {ont,hifi,ilmn}
+  --output=${OUTPUT_DIR}
+  
 ##Pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
 ##Full alignment output file: ${OUTPUT_DIR}/full_alignment.vcf
 ##Final merge output file: ${OUTPUT_DIR}/merge_output.vcf.gz
@@ -148,7 +163,7 @@ cd Clair3
   -b, --bam_fn FILE        BAM file input. The input file must be samtools indexed.
   -f, --ref_fn FILE        FASTA reference file input. The input file must be samtools indexed.
   -m, --model_path STR     The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00001, pileup.index, pileup.meta, full_alignment.data-00000-of-00001, full_alignment.index, and full_alignment.meta).
-  -t, --threads INT        Max threads to be used. The full genome will be divided into small chucks for parallel processing. Each chunk will use 4 threads. The #chucks being processed simaltaneously is ceil(#threads/4)*3. 3 is the overloading factor.
+  -t, --threads INT        Max threads to be used. The full genome will be divided into small chucks for parallel processing. Each chunk will use 4 threads. The $chucks being processed simaltaneously is ceil($threads/4)*3. 3 is the overloading factor.
   -p, --platform STR       Selete the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.
   -o, --output PATH        VCF/GVCF output directory.
 
@@ -183,6 +198,83 @@ cd Clair3
       --no_phasing_for_fa  EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.
 ```
 
+#### Call variants in a chromosome
+
+```bash
+INPUT_DIR="[YOUR_INPUT_FOLDER]"			# e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"		# e.g. output/
+THREADS="[MAXIMUM_THREADS]"				# e.g. 36
+CONTIGS_LIST="[YOUR_CONTIGS_LIST]"	    # e.g "chr21" or "chr21,chr22"
+BIN_VERSION="v0.1"
+
+docker run \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  hku-bal/clair3:"${BIN_VERSION}" \
+  /opt/bin/run_clair3.sh \
+  --bam_fn=${INPUT_DIR}/input.bam \ 	## Change your bam file name here
+  --ref=${INPUT_DIR}/ref.fa \   		## Change your reference name here
+  --threads=${THREADS} \  				## Maximum threads to be used
+  --platform="ont" \      				## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont"		## Options: {ont,hifi,ilmn}
+  --output=${OUTPUT_DIR} \
+  --ctg_name=${CONTIGS_LIST}
+```
+
+#### Call variants at known variant sites
+
+```bash
+INPUT_DIR="[YOUR_INPUT_FOLDER]"			# e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"		# e.g. output/
+THREADS="[MAXIMUM_THREADS]"				# e.g. 36
+KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]" 	# e.g. known_variants.vcf
+BIN_VERSION="v0.1"
+
+docker run \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  hku-bal/clair3:"${BIN_VERSION}" \
+  /opt/bin/run_clair3.sh \
+  --bam_fn=${INPUT_DIR}/input.bam \ 	## Change your bam file name here
+  --ref=${INPUT_DIR}/ref.fa \   		## Change your reference name here
+  --threads=${THREADS} \  				## Maximum threads to be used
+  --platform="ont" \      				## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont"		## Options: {ont,hifi,ilmn}
+  --output=${OUTPUT_DIR} \
+  --vcf_fn=${KNOWN_VARIANTS_VCF}
+```
+
+#### Call variants at specific sites or bed regions
+
+In Clair3, we highly recommended using bed format file to define single or multiple start
+
+```bash
+# define 0-based "ctg start end" if at specific sites
+CONTIGS="[YOUR_CONTIGS_NAME]""			# e.g. chr22
+START_POS="[YOUR_START_POS]"			# e.g. 0 0-based end position
+END_POS="[YOUR_END_POS]"				# e.g 10000 0-based end position
+echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > tmp.bed
+
+INPUT_DIR="[YOUR_INPUT_FOLDER]"			# e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"		# e.g. output/
+THREADS="[MAXIMUM_THREADS]"				# e.g. 36
+BED_FILE_PATH="[YOUR_BED_FILE]"			# e.g. tmp.bed
+BIN_VERSION="v0.1"
+
+docker run \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  hku-bal/clair3:"${BIN_VERSION}" \
+  /opt/bin/run_clair3.sh \
+  --bam_fn=${INPUT_DIR}/input.bam \ 	 ## Change your bam file name here
+  --ref=${INPUT_DIR}/ref.fa \   		 ## Change your reference name here
+  --threads=${THREADS} \  				 ## Maximum threads to be used
+  --platform="ont" \      				 ## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont"		 ## Options: {ont,hifi,ilmn}
+  --output=${OUTPUT_DIR} \
+  --bed_fn=${BED_FILE_PATH}
+```
+
 ## Folder Structure and Submodule Descriptions
 
 Submodules in __`clair3/`__ are for variant calling and model training. Submodules in __`preprocess`__ are for data preparation.
@@ -202,7 +294,7 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 `CreateTensorFullAlignment`| Generate variant candidate tensors using phased full-alignment for training or calling.
 `GetTruth`| Extract the variants from a truth VCF. Input: VCF; Reference FASTA if the VCF contains asterisks in ALT field.
 `MergeVcf` | Merge pileup and full alignment VCF/GVCF.
-`RealignReads` | Reads local realignment for illumina platform.
+`RealignReads` | Reads local realignment for Illumina platform.
 `SelectCandidates`| Select pileup candidates for full alignment calling.
 `SelectHetSnp` | Select heterozygous SNP candidates for WhatsHap phasing.
 `SelectQual` | Select quality cut-off for phasing and full alignment calling globally from all candidates.
