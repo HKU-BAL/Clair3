@@ -44,8 +44,8 @@ This is the formal release of Clair3, the successor of Clair. Clair is published
 A pre-built docker image can be found here: https://hub.docker.com/zxzheng/clair3. Then you can run Clair3 using one command:
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"			# e.g. input/
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"		# e.g. output/
+INPUT_DIR="[YOUR_INPUT_FOLDER]"         # e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"       # e.g. output/
 THREADS="[MAXIMUM_THREADS]"             # e.g. 36
 BIN_VERSION="v0.1"
 
@@ -54,11 +54,11 @@ docker run \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hku-bal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \ 	 ## Change your bam file name here
-  --ref=${INPUT_DIR}/ref.fa \   		 ## Change your reference name here
-  --threads=${THREADS} \  				 ## Maximum threads to be used
-  --platform="ont" \      				 ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont"		 ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \     ## Change your bam file name here
+  --ref=${INPUT_DIR}/ref.fa \           ## Change your reference name here
+  --threads=${THREADS} \                ## Maximum threads to be used
+  --platform="ont" \                    ## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont"        ## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR}
 
 ```
