@@ -18,10 +18,10 @@ This is the formal release of Clair3, the successor of ([Clair](https://github.c
 * [Introduction](#introduction)
 * [What's Difference in Clair3](#whats-difference-in-clair3)
 * [Installation](#installation)
-  + [Option 1. Docker pre-built image (recommended)](#(#option-1--docker-pre-built-image-recommended))
+  + [Option 1. Docker pre-built image (recommended)](#option-1--docker-pre-built-image-recommended)
   + [Option 2. Docker Dockerfile](#option-2-docker-dockerfile)
   + [Option 3. Build an anaconda virtual environment](#option-3-build-an-anaconda-virtual-environment)
-* [Quick Demo](#Quick demo)
+* [Quick Demo](#quick demo)
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
 * [VCF Output Format](#vcf-output-format)
@@ -35,7 +35,6 @@ This is the formal release of Clair3, the successor of ([Clair](https://github.c
 
 * TO DO
 
-  
 
 ## Installation
 
