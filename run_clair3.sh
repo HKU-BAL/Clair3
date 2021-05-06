@@ -1,13 +1,15 @@
 #!/bin/bash
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH=`dirname "$0"`
-Usage="\nUsage: ./${SCRIPT_NAME} -b BAM -f REF -o OUTPUT_DIR -t THREADS -p PLATFORM -m MODEL_PREFIX [--bed_fn=BED] [options]\n"
+Usage="Usage: ./${SCRIPT_NAME} -b BAM -f REF -o OUTPUT_DIR -t THREADS -p PLATFORM -m MODEL_PREFIX [--bed_fn=BED] [options]"
 
 set -e
 #./run_clair3.sh -b tmp.bam -f ref.fasta -t 32 -o tmp -p ont -m model_path
 print_help_messages()
 {
+    echo $''
     echo ${Usage}
+    echo $''
     echo $'Required parameters:'
     echo $'  -b, --bam_fn FILE        BAM file input. The input file must be samtools indexed.'
     echo $'  -f, --ref_fn FILE        FASTA reference file input. The input file must be samtools indexed.'
