@@ -9,7 +9,7 @@ Email: rbluo@cs.hku.hk
 
 ## Introduction
 
-This is the formal release of Clair3, the successor of Clair. Clair is published in Nature Machine Intelligence. A preprint is available in bioRxiv
+This is the formal release of Clair3, the successor of ([Clair](https://github.com/HKU-BAL/Clair) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante)).
 
 ---
 
@@ -33,7 +33,7 @@ This is the formal release of Clair3, the successor of Clair. Clair is published
 
 ## What's Difference in Clair3
 
-* Clair3 firstly
+* TO DO
 
   
 
@@ -44,9 +44,9 @@ This is the formal release of Clair3, the successor of Clair. Clair is published
 A pre-built docker image can be found here: https://hub.docker.com/zxzheng/clair3. Then you can run Clair3 using one command:
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"         # e.g. input/
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"       # e.g. output/
-THREADS="[MAXIMUM_THREADS]"             # e.g. 36
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+THREADS="[MAXIMUM_THREADS]"            # e.g. 36
 BIN_VERSION="v0.1"
 
 docker run \
@@ -54,11 +54,11 @@ docker run \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hku-bal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \     ## Change your bam file name here
-  --ref=${INPUT_DIR}/ref.fa \           ## Change your reference name here
-  --threads=${THREADS} \                ## Maximum threads to be used
-  --platform="ont" \                    ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont"        ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
+  --ref=${INPUT_DIR}/ref.fa \          ## Change your reference name here
+  --threads=${THREADS} \               ## Maximum threads to be used
+  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont"       ## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR}
 
 ```
@@ -86,7 +86,7 @@ docker -it run clair3_docker --help
 
 **Anaconda install**:
 
-Please install anaconda using the installation guide at https://docs.anaconda.com/anaconda/install/ or using the command below:
+Please install anaconda using the installation guide at [Install](https://docs.anaconda.com/anaconda/install) or using the command below:
 
 ```bash
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -128,9 +128,10 @@ cd Clair3
 **Run Clair via pre-built docker image:**
 
 ```
-# change the file prefix if want to demo other platforms.
+# Change the file prefix if want to demo other platforms.
 # Options: {ont,hifi,ilmn}
 wget "http://www.bio8.cs.hku.hk/clair3/demo/ont_clair3_demo.sh"
+chmod +x ont_clair3_demo.sh
 ./ont_clair3_demo.sh
 ```
 
@@ -146,13 +147,13 @@ Check the results using `less ./clair_demo/output/merge_output.vcf.gz`
   --bam_fn=${BAM} \
   --ref=${REF} \
   --threads=${THREADS} \  		     
-  --platform='ont' \      			 ## Options: {ont,hifi,ilmn}
-  --model_path=${MODEL_PREFIX}		 ## Options: {ont,hifi,ilmn}
+  --platform='ont' \               ## Options: {ont,hifi,ilmn}
+  --model_path=${MODEL_PREFIX}     ## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR}
   
-##Pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
-##Full alignment output file: ${OUTPUT_DIR}/full_alignment.vcf
-##Final merge output file: ${OUTPUT_DIR}/merge_output.vcf.gz
+## Pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
+## Full alignment output file: ${OUTPUT_DIR}/full_alignment.vcf
+## Final Clair3 output file: ${OUTPUT_DIR}/merge_output.vcf.gz
 ```
 
 ### Options
@@ -166,7 +167,6 @@ Check the results using `less ./clair_demo/output/merge_output.vcf.gz`
   -t, --threads INT        Max threads to be used. The full genome will be divided into small chucks for parallel processing. Each chunk will use 4 threads. The $chucks being processed simaltaneously is ceil($threads/4)*3. 3 is the overloading factor.
   -p, --platform STR       Selete the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.
   -o, --output PATH        VCF/GVCF output directory.
-
 ```
 
 **Optional parameters:**
@@ -201,10 +201,10 @@ Check the results using `less ./clair_demo/output/merge_output.vcf.gz`
 #### Call variants in a chromosome
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"			# e.g. input/
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"		# e.g. output/
-THREADS="[MAXIMUM_THREADS]"				# e.g. 36
-CONTIGS_LIST="[YOUR_CONTIGS_LIST]"	    # e.g "chr21" or "chr21,chr22"
+CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+THREADS="[MAXIMUM_THREADS]"            # e.g. 36
 BIN_VERSION="v0.1"
 
 docker run \
@@ -212,11 +212,11 @@ docker run \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hku-bal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \ 	## Change your bam file name here
-  --ref=${INPUT_DIR}/ref.fa \   		## Change your reference name here
-  --threads=${THREADS} \  				## Maximum threads to be used
-  --platform="ont" \      				## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont"		## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
+  --ref=${INPUT_DIR}/ref.fa \          ## Change your reference name here
+  --threads=${THREADS} \               ## Maximum threads to be used
+  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont"       ## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR} \
   --ctg_name=${CONTIGS_LIST}
 ```
@@ -224,10 +224,10 @@ docker run \
 #### Call variants at known variant sites
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"			# e.g. input/
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"		# e.g. output/
-THREADS="[MAXIMUM_THREADS]"				# e.g. 36
-KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]" 	# e.g. known_variants.vcf
+KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. known_variants.vcf
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+THREADS="[MAXIMUM_THREADS]"            # e.g. 36
 BIN_VERSION="v0.1"
 
 docker run \
@@ -235,12 +235,12 @@ docker run \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hku-bal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \ 	## Change your bam file name here
-  --ref=${INPUT_DIR}/ref.fa \   		## Change your reference name here
-  --threads=${THREADS} \  				## Maximum threads to be used
-  --platform="ont" \      				## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont"		## Options: {ont,hifi,ilmn}
-  --output=${OUTPUT_DIR} \
+  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
+  --ref=${INPUT_DIR}/ref.fa \          ## Change your reference name here
+  --threads=${THREADS} \               ## Maximum threads to be used
+  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont"       ## Options: {ont,hifi,ilmn}
+  --output=${OUTPUT_DIR}
   --vcf_fn=${KNOWN_VARIANTS_VCF}
 ```
 
@@ -250,15 +250,15 @@ In Clair3, we highly recommended using bed format file to define single or multi
 
 ```bash
 # define 0-based "ctg start end" if at specific sites
-CONTIGS="[YOUR_CONTIGS_NAME]""			# e.g. chr22
-START_POS="[YOUR_START_POS]"			# e.g. 0 0-based end position
-END_POS="[YOUR_END_POS]"				# e.g 10000 0-based end position
+CONTIGS="[YOUR_CONTIGS_NAME]"          # e.g. chr22
+START_POS="[YOUR_START_POS]"           # e.g. 0
+END_POS="[YOUR_END_POS]"               # e.g 10000
 echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > tmp.bed
 
-INPUT_DIR="[YOUR_INPUT_FOLDER]"			# e.g. input/
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"		# e.g. output/
-THREADS="[MAXIMUM_THREADS]"				# e.g. 36
-BED_FILE_PATH="[YOUR_BED_FILE]"			# e.g. tmp.bed
+BED_FILE_PATH="[YOUR_BED_FILE]"		   # e.g. tmp.bed
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+THREADS="[MAXIMUM_THREADS]"            # e.g. 36
 BIN_VERSION="v0.1"
 
 docker run \
@@ -266,11 +266,11 @@ docker run \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hku-bal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \ 	 ## Change your bam file name here
-  --ref=${INPUT_DIR}/ref.fa \   		 ## Change your reference name here
-  --threads=${THREADS} \  				 ## Maximum threads to be used
-  --platform="ont" \      				 ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont"		 ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
+  --ref=${INPUT_DIR}/ref.fa \          ## Change your reference name here
+  --threads=${THREADS} \               ## Maximum threads to be used
+  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont"       ## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR} \
   --bed_fn=${BED_FILE_PATH}
 ```
@@ -302,6 +302,27 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 `SplitExtendBed` | Split bed file regions according to the contig name and extend bed region.
 `UnifyRepresentation` | Representation unification for candidate site and true variant.
 `Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary, using `blosc:lz4hc` meta-compressor, the overall training memory is 10~15G.(pypy incompatible)
+
+## Training Data
+
+More details about the training data and download links in [here](docs/training_data.md).
+
+|  Platform   |   Reference   |      Aligner      | Training Samples |
+| :---------: | :-----------: | :---------------: | :--------------: |
+|     ONT     | GRCh38_no_alt |     minimap2      |        5         |
+| PacBio HiFi | GRCh38_no_alt |       pbmm2       |        4         |
+|  Illumina   |    GRCh38     | BWA-MEM/NovoAlign |        4         |
+
+#### Pretained Model
+
+Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
+
+|   Folder    |  Platform   | Training Sample | Default in Docker |     Link     |
+| :---------: | :---------: | :-------------: | :---------------: | :----------: |
+|     ont     |     ONT     |   HG001,2,4,5   |        Yes        | [Download]() |
+|  ont_hg004  |     ONT     |   HG001,2,3,5   |                   | [Download]() |
+|  illumina   |  Illumina   |   HG001,2,4,5   |        Yes        | [Download]() |
+| pacbio_hifi | PacBio HiFi |   HG001,2,4,5   |        Yes        | [Download]() |
 
 ## VCF Output Format
 
