@@ -21,7 +21,7 @@ This is the formal release of Clair3, the successor of ([Clair](https://github.c
   + [Option 1. Docker pre-built image (recommended)](#option-1--docker-pre-built-image-recommended)
   + [Option 2. Docker Dockerfile](#option-2-docker-dockerfile)
   + [Option 3. Build an anaconda virtual environment](#option-3-build-an-anaconda-virtual-environment)
-* [Quick Demo](#quick demo)
+* [Quick Demo](#quick-demo)
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
 * [VCF Output Format](#vcf-output-format)
@@ -122,9 +122,9 @@ cd Clair3
 ./run_clair3.sh --help
 ```
 
-## Quick demo
+## Quick Demo
 
-**Run Clair via pre-built docker image:**
+Run Clair via pre-built docker image:**
 
 ```
 # Change the file prefix if want to demo other platforms.
