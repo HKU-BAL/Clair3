@@ -46,7 +46,7 @@ A pre-built docker image can be found here: https://hub.docker.com/zxzheng/clair
 ```bash
 INPUT_DIR="[YOUR_INPUT_FOLDER]"			# e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"		# e.g. output/
-THREADS="[MAXIMUM_THREADS]"				# e.g. 36
+THREADS="[MAXIMUM_THREADS]"             # e.g. 36
 BIN_VERSION="v0.1"
 
 docker run \
