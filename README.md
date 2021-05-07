@@ -57,7 +57,7 @@ docker run \
   --ref=${INPUT_DIR}/ref.fa \          ## Change your reference name here
   --threads=${THREADS} \               ## Maximum threads to be used
   --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont"       ## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR}
 
 ```
@@ -124,7 +124,7 @@ cd Clair3
 
 ## Quick Demo
 
-Run Clair via pre-built docker image:**
+**Run Clair via pre-built docker image:**
 
 ```bash
 # Change the file prefix if want to demo other platforms.
@@ -140,6 +140,8 @@ Check the results using `less ./clair_demo/output/merge_output.vcf.gz`
 
 ### General usage
 
+You can download in [pre-trained model](#pretained-model) (no need to download if using docker pre-built image)
+
 ```bash
 #optional parameters should use "="
 ./run_clair3.sh \
@@ -147,7 +149,7 @@ Check the results using `less ./clair_demo/output/merge_output.vcf.gz`
   --ref=${REF} \
   --threads=${THREADS} \  		     
   --platform='ont' \               ## Options: {ont,hifi,ilmn}
-  --model_path=${MODEL_PREFIX}     ## Options: {ont,hifi,ilmn}
+  --model_path=${MODEL_PREFIX} \   ## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR}
   
 ## Pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
@@ -170,7 +172,7 @@ Check the results using `less ./clair_demo/output/merge_output.vcf.gz`
 
 **Optional parameters:**
 
-```
+```bash
       --bed_fn FILE        Call variants only in the provided bed regions.
       --vcf_fn FILE        Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.
       --ctg_name STR       The name of the sequence to be processed.
@@ -215,7 +217,7 @@ docker run \
   --ref=${INPUT_DIR}/ref.fa \          ## Change your reference name here
   --threads=${THREADS} \               ## Maximum threads to be used
   --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont"       ## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR} \
   --ctg_name=${CONTIGS_LIST}
 ```
@@ -238,8 +240,8 @@ docker run \
   --ref=${INPUT_DIR}/ref.fa \          ## Change your reference name here
   --threads=${THREADS} \               ## Maximum threads to be used
   --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont"       ## Options: {ont,hifi,ilmn}
-  --output=${OUTPUT_DIR}
+  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
+  --output=${OUTPUT_DIR} \
   --vcf_fn=${KNOWN_VARIANTS_VCF}
 ```
 
@@ -269,7 +271,7 @@ docker run \
   --ref=${INPUT_DIR}/ref.fa \          ## Change your reference name here
   --threads=${THREADS} \               ## Maximum threads to be used
   --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont"       ## Options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR} \
   --bed_fn=${BED_FILE_PATH}
 ```
