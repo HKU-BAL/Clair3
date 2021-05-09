@@ -2,15 +2,15 @@
 
 ## Introduction
 
-This document shows Clair3's representation Unification Visualization cases in three platforms.  All visualization cases are carried on GIAB HG002 sample chromosome. 
+This document shows Clair3's representation unification visualization cases in three platforms.  All visualization cases are carried on GIAB HG002 sample chromosome 1. 
 
-1. how this algorithm works: clink [represatation unification](representation_unification.md)
+1. How this algorithm works: clink [represatation unification](representation_unification.md).
 2. If wish to get more visualization cases of three platform, download from here: [ONT](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/ont.tar.gz), [PacBio HiFi](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/pacbio_hifi.tar.gz), [Illumina](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/illumina.tar.gz). 
 
 ## Contents
 
 - [ONT](#ONT)
-- [PacBio HiFi](##pacbio-hifi)
+- [PacBio HiFi](#pacbio-hifi)
 - [Illumina](#Illumina)
 
 How to visualize result:
@@ -70,3 +70,4 @@ How to visualize result:
 **HG002 chr1:235255208-235255298**
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/ilumina_chr1:235255208-235255298.png)
+
