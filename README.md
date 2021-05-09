@@ -9,7 +9,7 @@ Email: rbluo@cs.hku.hk
 
 ## Introduction
 
-This is the formal release of Clair3, the successor of ([Clair](https://github.com/HKU-BAL/Clair) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante)).
+This is the formal release of Clair3, the successor of [Clair](https://github.com/HKU-BAL/Clair) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante).
 
 ---
 
