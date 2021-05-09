@@ -10,7 +10,7 @@ This document shows Clair3's representation Unification Visualization cases in t
 ## Contents
 
 - [ONT](#ONT)
-- [PacBio HiFi](#PacBio HiFi)
+- [PacBio HiFi](#pacbio hifi)
 - [Illumina](#Illumina)
 
 How to visualize result:
