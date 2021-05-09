@@ -12,8 +12,6 @@ This document shows how Clair3 unifies representation between training materials
 
 ## Input/Output
 
-![alt text](http://www.bio8.cs.hku.hk/clair3/figures/HG002-chr1:52814693-52814723.png)
-
 **Input:**
 
 - BAM: Indexed BAM  input
