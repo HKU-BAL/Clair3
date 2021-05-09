@@ -41,7 +41,6 @@ print_help_messages()
     echo $'      --fast_mode          EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.'
     echo $'      --haploid_precise    EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.'
     echo $'      --haploid_sensitive  EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.'
-    echo $'      --no_ra_for_illmn    EXPERIMENTAL: Call variants without reads realignment for illumina platform, default: disable.'
     echo $'      --no_phasing_for_fa  EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.'
     echo $''
 
