@@ -1,6 +1,6 @@
 # Train a model for Clair3 full-alignment calling
 
-This document shows how to train or fine-tune a deep learning model for Clair3 full-alignment calling.  Compared with Clair3 [pileup]() model. Full-alignment need much more time to train as the input as input size greatly increased. 
+This document shows how to train or fine-tune a deep learning model for Clair3 full-alignment calling.  Compared with Clair3 [pileup](pileup_training.md) model. Full-alignment need much more time to train as the input as input size greatly increased. 
 
 For full-alignment model, we also maintain multiple sample and multiple coverages training workflow. We divided all training materials into `SAMPLES`, `DEPTHS` and `CHR` tags, which represent different training samples, different training coverages, and contig name, respectively.  All candidate variants are selected to create binary file and then were fed into training or fine-tune workflow.
 
@@ -9,7 +9,7 @@ For full-alignment model, we also maintain multiple sample and multiple coverage
 - Clair3 installed
 - GNU Parallel installed
 - Sufficient hard-disk space
-- Unified VCF file (recommended), check [here]() for more details
+- Unified VCF file (recommended), check [here](representation_unification.md) for more details
 - A powerful GPU
 
   - RTX Titan (tested)
@@ -41,7 +41,7 @@ Full-alignment model integrates with phased alignment to achieve better performa
 
 **Hints**
 
-> - If representation unification has applied, all phased alignment would be automatically generated in the `${OUTPUT_DIR}/phased_bam` folder, check [here]() for more details.
+> - If representation unification has applied, all phased alignment would be automatically generated in the `${OUTPUT_DIR}/phased_bam` folder, check [here](representation_unification.md#3--haplotag-read-alignment-using-whatshap) for more details.
 > - WhatsHap `haplotag` submodule would occupy hard-disk usage of the same size of the input BAM.
 
 #### 1. Setup variables
