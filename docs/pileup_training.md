@@ -1,6 +1,6 @@
 # Train a model for Clair3 pileup calling
 
-This document shows how to train or fine-tune a deep learning model for Clair3 pileup calling.  We simplified the training workflow in [Clair](https://github.com/HKU-BAL/Clair/blob/master/docs/TRAIN.md), while still maintaining multiple sample and multiple coverages training workflow. We divided all training materials into `SAMPLES`, `DEPTHS` and `CHR` tags, which represent different training samples, different training coverages, and contig name, respectively.  All candidate variants are selected to create binary file and then were fed into training or fine-tune workflow.
+This document shows how to train or fine-tune a deep learning model for Clair3 pileup calling.  Check [here](full_alignment_training.md) for full-alignment training process. We simplified the training workflow in [Clair](https://github.com/HKU-BAL/Clair/blob/master/docs/TRAIN.md), while still maintaining multiple sample and multiple coverages training workflow. We divided all training materials into `SAMPLES`, `DEPTHS` and `CHR` tags, which represent different training samples, different training coverages, and contig name, respectively.  All candidate variants are selected to create binary file and then were fed into training or fine-tune workflow.
 
 ## Prerequisites
 - Clair3 installed
