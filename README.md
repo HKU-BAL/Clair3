@@ -1,7 +1,7 @@
 
 # Clair3 - Integrating pileup and full-alignment for high-performance long-read variant calling
 
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/clair/README.html) \
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) \
 Contact: Ruibang Luo \
 Email: rbluo@cs.hku.hk
 
