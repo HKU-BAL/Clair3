@@ -9,6 +9,8 @@ Email: rbluo@cs.hku.hk
 
 ## Introduction
 
+
+
 This is the formal release of Clair3, the successor of [Clair](https://github.com/HKU-BAL/Clair) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante).
 
 ---
@@ -16,7 +18,7 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 ## Contents
 
 * [Introduction](#introduction)
-* [What's Difference in Clair3](#whats-difference-in-clair3)
+* [What's New in Clair3](#whats-new-in-clair3)
 * [Installation](#installation)
   + [Option 1. Docker pre-built image (recommended)](#option-1--docker-pre-built-image-recommended)
   + [Option 2. Docker Dockerfile](#option-2-docker-dockerfile)
@@ -28,15 +30,18 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 * [Pileup Model Training](docs/pileup_training.md)
 * [Full-Alignment Model Training](docs/full_alignment_training.md)
 * [Representation Unification](docs/representation_unification.md)
-* [Visualization](#docs/representation-unification-visualization.md)
-  * [Model Input]()
-  * [Representation Unification](#docs/representation-unification-visualization.md)
+* [Visualization](docs)
+  * [Model Input](docs/model_input.md)
+  * [Representation Unification](docs/representation_unification_visualization.md)
 
 ---
 
-## What's Difference in Clair3
+## What's New in Clair3
 
-* TO DO
+* **Accuracy Improvements.** Clair3 outperforms Clair, reducing SNP errors by **~78%** and Indel errors by **~48%** in HG003 ONT case study. SNP F1-score reaches 99.69% and Indel F1-score reaches 80.58% in ONT HG003 ~85-fold coverage dataset.  
+* **New Architecture.** Clair3 is an integration of pileup model and full-alignment model. Pileup model detects all candidate variants using summarized pileup input. Full-alignment model adopts more complete read-level representations with phased haplotype information to further decide the variant type of low-quality pileup candidates. 
+* **High Efficiency.** Clair3 takes about 8~9 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5 times faster than PEPPER and ~18 times faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
+* **New Base caller Support.**  We support datasets base called using Guppy version 3.6.0~4.2.2  for ONT platform, check the [training data](docs/training_data.md) for specific dataset link. We did not suggest using dataset base called using **Guppy version <= 3.6.0** for calling as we have discarded those datasets in model training.  
 
 
 ## Installation
@@ -65,7 +70,7 @@ docker run \
 
 ```
 
-for more details, see [Usage](#Usage)  and find more options.
+Check [Usage](#Usage)  for more options.
 
 ### Option 2. Docker Dockerfile
 
@@ -250,15 +255,19 @@ docker run \
 
 #### Call variants at specific sites or bed regions
 
-In Clair3, we highly recommended using bed format file to define single or multiple start
+We highly recommended using bed format file to define single or multiple start like:
 
-```bash
+```shell
 # define 0-based "ctg start end" if at specific sites
 CONTIGS="[YOUR_CONTIGS_NAME]"          # e.g. chr22
 START_POS="[YOUR_START_POS]"           # e.g. 0
 END_POS="[YOUR_END_POS]"               # e.g 10000
 echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > tmp.bed
+```
 
+Then run Clair3 like this:
+
+```bash
 BED_FILE_PATH="[YOUR_BED_FILE]"		   # e.g. tmp.bed
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
