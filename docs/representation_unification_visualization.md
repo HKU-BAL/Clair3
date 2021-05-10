@@ -1,11 +1,9 @@
 # Clair3 Representation Unification Visualization
 
-## Introduction
-
 This document shows Clair3's representation unification visualization cases in three platforms.  All visualization cases are carried on GIAB HG002 sample chromosome 1. 
 
-1. How this algorithm works: clink [represatation unification](representation_unification.md).
-2. If wish to get more visualization cases of three platform, download from here: [ONT](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/ont.tar.gz), [PacBio HiFi](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/pacbio_hifi.tar.gz), [Illumina](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/illumina.tar.gz). 
+1. How this algorithm works: [represatation unification](representation_unification.md).
+2. If wish to get more visualization cases of three platforms, download from here: [ONT](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/ont.tar.gz), [PacBio HiFi](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/pacbio_hifi.tar.gz), [Illumina](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/illumina.tar.gz). 
 
 ## Contents
 
@@ -13,7 +11,7 @@ This document shows Clair3's representation unification visualization cases in t
 - [PacBio HiFi](#pacbio-hifi)
 - [Illumina](#Illumina)
 
-How to visualize result:
+Each figure includes truths variants information from GIAB truths set VCF, phased alignment information from alignment file and unified details on how candidates haplotypes match truths haplotypes.  Check the demo here:
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/represatation_unification_demo.png)
 
