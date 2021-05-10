@@ -84,7 +84,7 @@ def unique_genotypes_selection(genotype_options):
 
 def find_read_support(variants, ref, variant_type, max_calculate_count, variant_dict=None, read_name_info_dict=None, truths=None, alt_dict=None, no_match_found=False):
     """
-    Find read-level suppprt for each matched haplotype, we only extended the reference sequence with the alternative base,
+    Find read-level support for each matched haplotype, we only extended the reference sequence with the alternative base,
     and discard low allele frequency systematic error.
     """
     read_seqs_counter = None
@@ -163,7 +163,7 @@ def find_read_support(variants, ref, variant_type, max_calculate_count, variant_
 
 def remove_common_suffix(ref_base, alt_base):
     """
-    For each hapliod match, we simplify the reference base and alternative base and remove their common suffix characters.
+    For each haploid match, we simplify the reference base and alternative base and remove their common suffix characters.
     """
 
     min_length = min(len(ref_base) - 1, min([len(item) - 1 for item in alt_base]))  # keep at least one base
@@ -381,12 +381,12 @@ class Read(object):
 def decode_alt_info(cigar_count, ref_base, depth, minimum_allele_gap):
     """
     Decode the input read-level alternative information
-    cigar_count: each alternative base including snp, insetrion and deletion of each position
+    cigar_count: each alternative base including snp, insertion and deletion of each position
     pileup_bases: pileup bases list of each read in specific candidate position from samtools mpileup 1.10
     reference_sequence: the whole reference sequence index by contig:start-end. 0-based.
     ref_base: upper reference base for cigar calculation.
     depth: depth of candidate position for calculation.
-    minimum_allele_gap: default minimum alleic frequency for candidate to consider as a potential true variant for unification.
+    minimum_allele_gap: default minimum allele frequency for candidate to consider as a potential true variant for unification.
     """
     alt_type_list = []  # SNP I D
     seqs = cigar_count.split(' ')
@@ -523,7 +523,7 @@ def decode_variant(variant, reference_base):
 
 def update_variant_hap_dict(alt_dict, pos, reference_sequence, reference_start, is_variant_confident, variant_dict, allele_gap, platform):
     """
-    For a phased alignment, the caidate are easier to lock as confident if the signal exists strongly in one side and have confident
+    For a phased alignment, the candidates are easier to lock as confident if the signal exists strongly in one side and have confident
     match with true variant.
     """
     phased_genotype = [-1,-1]
