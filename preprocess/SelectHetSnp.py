@@ -151,7 +151,7 @@ def FiterHeteSnp(args):
     """
     Filter heterozygous snp variant for training, if there are too many candidates for full alignment training, we
     would select more in low quality variants, which is more challenging for pileup model to predict and using more
-    information will benefit calling those varaints.
+    information will benefit calling those variants.
     """
 
     vcf_fn = args.vcf_fn # true vcf var
@@ -226,8 +226,8 @@ def FiterHeteSnp(args):
 
         #calling with phasing_info_in_bam: select low qual ref and low qual vairant for phasing calling
         if phasing_info_in_bam:
-            print('[INFO] {} {} total low qual ref calling to procceed: {}'.format(sample_name, contig_name, len(low_qual_ref_list)))
-            print('[INFO] {} {} total low qual variant calling to procceed: {}'.format(sample_name, contig_name, len(low_qual_variant_list)))
+            print('[INFO] {} {} total low qual ref calling to proceed: {}'.format(sample_name, contig_name, len(low_qual_ref_list)))
+            print('[INFO] {} {} total low qual variant calling to proceed: {}'.format(sample_name, contig_name, len(low_qual_variant_list)))
 
             need_phasing_row_list = set([item[0] for item in low_qual_ref_list] + [item[0] for item in low_qual_variant_list])
             need_phasing_row_list = sorted(list(need_phasing_row_list))
@@ -348,7 +348,7 @@ def main():
                         help="DEBUG: Path of the output folder, default: %(default)s")
 
     parser.add_argument('--realign_window_size', type=int, default=None,
-                        help="DEBUG: The window size of read realignemnt, work with need_realignment")
+                        help="DEBUG: The window size of read realignment, work with need_realignment")
 
     parser.add_argument('--split_region_size', type=int, default=40000000,
                         help="DEBUG: Vcf phasing split_region_size default: %(default)s")
@@ -374,7 +374,7 @@ def main():
     parser.add_argument('--depth', type=int, default=1000,
                         help=SUPPRESS)
 
-    ## Path of provided altnertive file
+    ## Path of provided alternative file
     parser.add_argument('--alt_fn', type=str, default=None,
                         help=SUPPRESS)
 

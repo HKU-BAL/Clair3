@@ -397,7 +397,7 @@ def reads_realignment(args):
         regions=ref_regions
     )
     if reference_sequence is None or len(reference_sequence) == 0:
-        sys.exit("[ERROR] Failed to load reference seqeunce from file ({}).".format(fasta_file_path))
+        sys.exit("[ERROR] Failed to load reference sequence from file ({}).".format(fasta_file_path))
 
     tree = bed_tree_from(bed_file_path=bed_file_path)
     if is_bed_file_given and ctg_name not in tree:
@@ -669,7 +669,7 @@ def main():
                         help="Realign reads only in the provided bed regions")
 
     parser.add_argument('--samtools', type=str, default="samtools",
-                        help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
+                        help="Path to the 'samtools', samtools version >= 1.10 is required, default: %(default)s")
 
     # options for advanced users
     parser.add_argument('--minCoverage', type=float, default=2,

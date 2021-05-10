@@ -64,7 +64,7 @@ def select_qual_from_stdin(args):
     ref_qual_list = sorted(ref_qual_list)
     variant_qual_list = sorted(variant_qual_list)
     var_qual_cut_off = variant_qual_list[:int(var_pct_full * len(variant_qual_list))][-1]
-    #for efficency, we use maxinum 30% reference qual, which is almost cover all false negative candidates
+    #for efficency, we use maximum 30% reference qual, which is almost cover all false negative candidates
     ref_qual_cut_off = ref_qual_list[:int(min(ref_pct_full, 0.3) * len(ref_qual_list))][-1]
     print ('[INFO] Select variant quality cut off {}'.format(round(var_qual_cut_off, 0)))
     print ('[INFO] Select reference quality cut off {}'.format(round(ref_qual_cut_off, 0)))

@@ -135,8 +135,8 @@ def MergeVcf_illumina(args):
             output.append(row)
             realiged_read_num += 1
 
-    logging.info('[INFO] Pileup positions varaints proceeded in {}: {}'.format(contig_name, pileup_count))
-    logging.info('[INFO] Realiged positions varaints proceeded in {}: {}'.format(contig_name, realiged_read_num))
+    logging.info('[INFO] Pileup positions variants proceeded in {}: {}'.format(contig_name, pileup_count))
+    logging.info('[INFO] Realigned positions variants proceeded in {}: {}'.format(contig_name, realiged_read_num))
     realigned_vcf_unzip_process.stdout.close()
     realigned_vcf_unzip_process.wait()
 
@@ -225,8 +225,8 @@ def MergeVcf(args):
         elif print_ref:
             pileup_output.append((pos, row))
 
-    logging.info('[INFO] Pileup varaints proceeded in {}: {}'.format(contig_name, len(pileup_output)))
-    logging.info('[INFO] Full alignemnt varaints proceeded in {}: {}'.format(contig_name, len(full_alignment_output)))
+    logging.info('[INFO] Pileup variants proceeded in {}: {}'.format(contig_name, len(pileup_output)))
+    logging.info('[INFO] Full alignment variants proceeded in {}: {}'.format(contig_name, len(full_alignment_output)))
 
     with open(output_fn, 'w') as output_file:
         output_file.write(''.join(header))
@@ -299,7 +299,7 @@ def main():
                         help="Define the sample name to be shown in the VCF file")
 
     parser.add_argument('--samtools', type=str, default='samtools',
-                        help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
+                        help="Path to the 'samtools', samtools version >= 1.10 is required, default: %(default)s")
 
     parser.add_argument('--print_ref_calls', type=str2bool, default=False,
                         help="Show reference calls (0/0) in vcf file output")
@@ -317,7 +317,7 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    # realignemnt region merge
+    # realignment region merge
     if args.platform == 'ilmn':
         MergeVcf_illumina(args=args)
     else:

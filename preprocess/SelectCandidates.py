@@ -330,7 +330,7 @@ def main():
                         help="The name of sequence to be processed")
 
     parser.add_argument('--samtools', type=str, default="samtools",
-                        help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
+                        help="Path to the 'samtools', samtools version >= 1.10 is required, default: %(default)s")
 
     # options for advanced users
     parser.add_argument('--call_low_seq_entropy', type=str2bool, default=False,
