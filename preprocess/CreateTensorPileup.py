@@ -179,9 +179,9 @@ class TensorStdout(object):
 def CreateTensorPileup(args):
     """
     Create pileup tensor for pileup model training or calling.
-    use slide window to scan the whole candidate regions, keep all candidates over specific minimum allelic frequency
-    and minumum depth, use samtools mpileup to store pileup info for pileup tensor generation. Only scan candidate
-    regions once, we could directly get all variant candidates.
+    Use slide window to scan the whole candidate regions, keep all candidates over specific minimum allelic frequency
+    and minimum depth, use samtools mpileup to store pileup info for pileup tensor generation. Only scan candidate
+    regions once, we could directly get all variant candidates directly.
     """
     ctg_start = args.ctgStart
     ctg_end = args.ctgEnd
@@ -210,7 +210,7 @@ def CreateTensorPileup(args):
 
     global test_pos
     test_pos = None
-    # preparation for candidates near variants
+
     if not isfile("{}.fai".format(fasta_file_path)):
         sys.exit("Fasta index {}.fai doesn't exist.".format(fasta_file_path))
 
@@ -278,7 +278,7 @@ def CreateTensorPileup(args):
         sys.exit("[ERROR] ctg_name({}) not exists in bed file({}).".format(ctg_name, confident_bed_fn))
 
     # samtools mpileup options
-    # reverse-del: deletetion in reverse strand marks as '#'
+    # reverse-del: deletion in forward/reverse strand were marked as '*'/'#'
     min_mapping_quality = 0 if args.gvcf else min_mapping_quality
     min_base_quality = 0 if args.gvcf else min_base_quality
     max_depth = param.max_depth_dict[args.platform] if args.platform else args.max_depth
@@ -451,13 +451,13 @@ def main():
                         help="Candidate sites VCF file input, if provided, variants will only be called at the sites in the VCF file,  default: %(default)s")
 
     parser.add_argument('--min_af', type=float, default=0.08,
-                        help="Minimum allele frequency for both SNP and Indel for a site to be considered as a condidate site, default: %(default)f")
+                        help="Minimum allele frequency for both SNP and Indel for a site to be considered as a candidate site, default: %(default)f")
 
     parser.add_argument('--snp_min_af', type=float, default=0.08,
-                        help="Minimum snp allele frequence for a site to be considered as a condidate site, default: %(default)f")
+                        help="Minimum snp allele frequency for a site to be considered as a candidate site, default: %(default)f")
 
     parser.add_argument('--indel_min_af', type=float, default=0.15,
-                        help="Minimum indel allele frequence for a site to be considered as a condidate site, default: %(default)f")
+                        help="Minimum indel allele frequency for a site to be considered as a candidate site, default: %(default)f")
 
     parser.add_argument('--ctgName', type=str, default=None,
                         help="The name of sequence to be processed, required if --bed_fn is not defined")
@@ -478,7 +478,7 @@ def main():
                         help="Define the sample name to be shown in the VCF file, default: %(default)s")
 
     parser.add_argument('--samtools', type=str, default="samtools",
-                        help="Path to the 'samtools', samtools verision >= 1.10 is required. default: %(default)s")
+                        help="Path to the 'samtools', samtools version >= 1.10 is required. default: %(default)s")
 
     # options for advanced users
     parser.add_argument('--fast_mode', type=str2bool, default=False,

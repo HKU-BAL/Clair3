@@ -145,7 +145,7 @@ def get_tensor_info(base_info, bq, ref_base, read_mq):
     base, indel = base_info
     ins_base = ""
     query_base = ""
-    read_channel = [0] * channel_size  # ref_base, alt_base, strand, base_quality, mapping_quality, match_ref, hap
+    read_channel = [0] * channel_size
     if base[0] in '*#':
         return read_channel, ins_base, query_base
     strand = STRAND_1
@@ -231,7 +231,7 @@ def decode_pileup_bases(pileup_bases, reference_base, minimum_af_for_candidate, 
 
 def get_alt_info(center_pos, pileup_dict, ref_seq, reference_sequence, reference_start, hap_dict):
     """
-    Get altnative information for represatation unification, keep all read level alignment information including phasing info.
+    Get alternative information for representation unification, keep all read level alignment information including phasing info.
     center_pos: center position for processing, default window size = no_of_positions = flankingBaseNum + 1 + flankingBaseNum
     pileup_dict: dictionary (pos: pos info) which keep read information that cover specific position .
     ref_seq: chunked reference sequence in window, start: center pos - flankingBaseNum, end: center + flankingBaseNum + 1.
@@ -638,13 +638,13 @@ def CreateTensorFullAlignment(args):
         need_phasing_pos_list = sorted(list(need_phasing_pos_set))
         current_pos_index = 0
         has_pileup_candidates = len(need_phasing_pos_set)
-        for row in samtools_mpileup_process.stdout:  # chr postion N depth seq BQ read_name mapping_quality phasing_info
+        for row in samtools_mpileup_process.stdout:  # chr position N depth seq BQ read_name mapping_quality phasing_info
             columns = row.strip().split('\t')
             pos = int(columns[1])
-
+            # pos that near bed region should include some indel cover in bed
             pass_extend_bed = not is_extend_bed_file_given or is_region_in(extend_bed_tree,
                                                                                      ctg_name, pos - 1,
-                                                                                     pos + 1)  # pos that near bed region should include some indel cover in bed
+                                                                                     pos + 1)
             pass_ctg_range = not ctg_start or (pos >= ctg_start and pos <= ctg_end)
             if not has_pileup_candidates and not pass_extend_bed and pass_ctg_range:
                 continue
@@ -653,8 +653,10 @@ def CreateTensorFullAlignment(args):
             read_name_list = columns[6].split(',')
             raw_mapping_quality = columns[7]
             reference_base = evc_base_from(reference_sequence[pos - reference_start].upper())  # ev
-            base_list, depth, pass_af, af = decode_pileup_bases(pileup_bases, reference_base, minimum_af_for_candidate,
-                                                                has_pileup_candidates)
+            base_list, depth, pass_af, af = decode_pileup_bases(pileup_bases=pileup_bases,
+                                                                reference_base=reference_base,
+                                                                minimum_af_for_candidate=minimum_af_for_candidate,
+                                                                has_pileup_candidates=has_pileup_candidates)
 
             if phasing_info_in_bam:
                 phasing_info = columns[8].split(',')
@@ -858,7 +860,7 @@ def main():
                         help="Define the sample name to be shown in the GVCF file")
 
     parser.add_argument('--samtools', type=str, default="samtools",
-                        help="Path to the 'samtools', samtools verision >= 1.10 is required. default: %(default)s")
+                        help="Path to the 'samtools', samtools version >= 1.10 is required. default: %(default)s")
 
     # options for advanced users
     parser.add_argument('--minCoverage', type=float, default=2,

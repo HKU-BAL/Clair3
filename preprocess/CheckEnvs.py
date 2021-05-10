@@ -219,7 +219,7 @@ def main():
                         help="Path to the output folder")
 
     parser.add_argument('--ctg_name', type=str, default='EMPTY',
-                        help="The name of sequence to be processed, seperated by comma")
+                        help="The name of sequence to be processed, separated by comma")
 
     parser.add_argument('--bed_fn', type=str, nargs='?', action="store", default=None,
                         help="Call variant only in these regions. Will take an intersection if --ctg_name is set")
