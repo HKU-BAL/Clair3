@@ -167,6 +167,18 @@ def CheckEnvs(args):
     if default_chunk_num > 0:
         min_chunk_length = min(contig_length_list) / float(default_chunk_num)
         max_chunk_length = max(contig_length_list) / float(default_chunk_num)
+
+    contigs_order = major_contigs_order + list(contig_set)
+
+    sorted_contig_list = sorted(list(contig_set), key=lambda x: contigs_order.index(x))
+
+    if not len(contig_set):
+        exit("[ERROR] No contig name provide by --ctg_name or --bed_fn or provide contig name not found")
+    else:
+        print('[INFO] Call variant in contigs: {}'.format(' '.join(sorted_contig_list)))
+        print('[INFO] Chunk number for each contig: {}'.format(
+            ' '.join([str(contig_chunk_num[c]) for c in sorted_contig_list])))
+
     if default_chunk_num > 0 and max_chunk_length > MAX_CHUNK_LENGTH:
         print(
         '[WARNING] Current maximum chunk size {} is larger than default maximum chunk size {}, You may set a larger chunk_num by setting --chunk_num=$ for better parallelism.'.format(
@@ -181,18 +193,7 @@ def CheckEnvs(args):
         print(
         '[WARNING] Current maximum contig length {} is much smaller than default chunk size {}, You may set a smaller chunk size by setting --chunk_size=$ for better parallelism.'.format(
             max(contig_length_list), DEFAULT_CHUNK_SIZE))
-
-    contigs_order = major_contigs_order + list(contig_set)
-
-    sorted_contig_list = sorted(list(contig_set), key=lambda x: contigs_order.index(x))
-
-    if not len(contig_set):
-        exit("[ERROR] No contig name provide by --ctg_name or --bed_fn or provide contig name not found")
-    else:
-        print('[INFO] Call variant in contigs: {}'.format(' '.join(sorted_contig_list)))
-        print('[INFO] Chunk number for each contig: {}'.format(
-            ' '.join([str(contig_chunk_num[c]) for c in sorted_contig_list])))
-
+        
     if is_bed_file_provided:
         split_extend_bed(bed_fn=bed_fn, output_fn=split_bed_path, contig_set=contig_set)
 
