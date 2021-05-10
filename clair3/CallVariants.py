@@ -1647,7 +1647,7 @@ def main():
                         help="If set, variants with >=$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
 
     parser.add_argument('--samtools', type=str, default="samtools",
-                        help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
+                        help="Path to the 'samtools', samtools version >= 1.10 is required, default: %(default)s")
 
     # options for advanced users
     parser.add_argument('--temp_file_dir', type=str, default='./',

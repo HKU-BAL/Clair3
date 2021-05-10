@@ -302,13 +302,13 @@ def main():
                         help="Define the sample name to be shown in the VCF file, optional")
 
     parser.add_argument('--min_af', type=float, default=None,
-                        help="Minimum allele frequency for both SNP and Indel for a site to be considered as a condidate site, default: %(default)f")
+                        help="Minimum allele frequency for both SNP and Indel for a site to be considered as a candidate site, default: %(default)f")
 
     parser.add_argument('--snp_min_af', type=float, default=0.08,
-                        help="Minimum SNP allele frequency for a site to be considered as a condidate site, default: %(default)f")
+                        help="Minimum SNP allele frequency for a site to be considered as a candidate site, default: %(default)f")
 
     parser.add_argument('--indel_min_af', type=float, default=0.08,
-                        help="Minimum Indel allele frequency for a site to be considered as a condidate site, default: %(default)f")
+                        help="Minimum Indel allele frequency for a site to be considered as a candidate site, default: %(default)f")
 
     parser.add_argument('--gvcf', type=str2bool, default=False,
                         help="Enable GVCF output, default: disabled")
@@ -317,10 +317,10 @@ def main():
                         help="If set, variants with >=$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
 
     parser.add_argument('--samtools', type=str, default="samtools",
-                        help="Path to the 'samtools', samtools verision >= 1.10 is required, default: %(default)s")
+                        help="Path to the 'samtools', samtools version >= 1.10 is required, default: %(default)s")
 
     parser.add_argument('--pypy', type=str, default="pypy3",
-                        help="Path to the 'pypy', pypy3 verision >= 3.6 is required, default: %(default)s")
+                        help="Path to the 'pypy', pypy3 version >= 3.6 is required, default: %(default)s")
 
     parser.add_argument('--python', type=str, default="python3",
                         help="Path to the 'python3', default: %(default)s")
@@ -361,7 +361,7 @@ def main():
                         help="DEBUG: The cache directory for storing temporary non-variant information if --gvcf is enabled, default: %(default)s")
 
     parser.add_argument('--use_gpu', type=str2bool, default=False,
-                        help="DEBUG: Use GPU for calling. Speed up is mostly insignficiant. Only use this for building your own pipeline")
+                        help="DEBUG: Use GPU for calling. Speed up is mostly insignificant. Only use this for building your own pipeline")
 
     parser.add_argument('--tensorflow_threads', type=int, default=4,
                         help="DEBUG: Number of threads per tensorflow job. Tune if you are building your own pipeline")

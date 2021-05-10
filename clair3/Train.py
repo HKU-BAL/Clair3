@@ -36,7 +36,7 @@ def cal_class_weight(samples_per_cls, no_of_classes, beta=0.999):
 
 class FocalLoss(tf.keras.losses.Loss):
     """
-    updated version of focal loss function, for multiclass classification, we remove alpha parameter, which the loss
+    updated version of focal loss function, for multi class classification, we remove alpha parameter, which the loss
     more stable, and add gradient clipping to avoid gradient explosion and precision overflow.
     """
 
@@ -279,7 +279,7 @@ def main():
                         help="Set the initial learning rate, default: %(default)s")
 
     parser.add_argument('--validation_dataset', action='store_true',
-                        help="Use validation dataset or not in trianing, default: %(default)s")
+                        help="Use validation dataset when training, default: %(default)s")
 
     parser.add_argument('--exclude_training_samples', type=str, default=None,
                         help="Define training samples to be excluded")
