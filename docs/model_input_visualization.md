@@ -6,25 +6,25 @@ Visualization includes unphased read alignment, phased read alignment, pileup mo
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/demo.png)
 
-### **[SNP](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/snp.png) **
+### [SNP](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/snp.png) 
 
 **chr1:813926-813959**
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/snp.png)
 
-### **[Insertion](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/ins.png) **
+### [Insertion](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/ins.png)
 
 **chr1:5400817-5400850**
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/ins.png)
 
-### **[Deletion](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/del.png) **
+### [Deletion](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/del.png)
 
 **chr1:1624307-1624340**
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/del.png)
 
-### **[Non Variant](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/non_variant.png) **
+### [Non Variant](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/non_variant.png)
 
 **chr1:6638383-6638416**
 

@@ -31,7 +31,7 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 * [Full-Alignment Model Training](docs/full_alignment_training.md)
 * [Representation Unification](docs/representation_unification.md)
 * [Visualization](docs)
-  * [Model Input](docs/model_input.md)
+  * [Model Input](docs/model_input_visualization.md)
   * [Representation Unification](docs/representation_unification_visualization.md)
 
 ---
