@@ -35,7 +35,7 @@
 | :----: | :-----------: | :-------: | :------: | :---------: | ------------------------------------------------------------ |
 | HG001  |    GRCh38     |  BWA-MEM  |   41.5   |   HiSeqX    | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/hiseqx/wgs_pcr_free/40x/HG001.hiseqx.pcr-free.40x.dedup.grch38.bam) |
 | HG001  |    GRCh38     |  BWA-MEM  |   46.3   |   NovaSeq   | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/novaseq/wgs_pcr_free/50x/HG001.novaseq.pcr-free.50x.dedup.grch38.bam) |
-| HG002  | GRCh38_no_alt | NovoAlign |  276.3   |   HiSeqX    | [link](ftp://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG002.GRCh38.300x.bam) |
+| HG002  | GRCh38_no_alt | NovoAlign |  276.3   |   HiSeqX    | [link](https://ftp://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG002.GRCh38.300x.bam) |
 | HG002  |    GRCh38     |  BWA-MEM  |   38.8   |   HiSeqX    | [link](https://precision.fda.gov/files/file-FpZBpZQ0xbJbqX5fGjgz9B1G-1) |
 | HG002  |    GRCh38     |  BWA-MEM  |   42.1   |   HiSeqX    | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/hiseqx/wgs_pcr_free/40x/HG002.hiseqx.pcr-free.40x.dedup.grch38.bam) |
 | HG002  |    GRCh38     |  BWA-MEM  |   49.8   |   NovaSeq   | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/novaseq/wgs_pcr_free/50x/HG002.novaseq.pcr-free.50x.dedup.grch38.bam) |
