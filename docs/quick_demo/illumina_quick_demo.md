@@ -1,5 +1,5 @@
 ## Illumina Variant Calling Quick Demo
-Here is a quick demo for the Illumina variant calling using GIAB HG003 chromosome 20.
+Here is a quick demo for the Illumina variant calling using GIAB HG003 chromosome 20 data.
 
 ```bash
 Platform:    Illumina
@@ -82,10 +82,10 @@ ${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
 
 **Hap.py Expected output:**
 
-| Type  | TRUTH.TP | TRUTH.FN | QUERY.FP | Recall | Precision | F1-Score |
-| :---: | :------: | :------: | :------: | :----: | :-------: | :------: |
-| INDEL |    59    |    0     |    0     | 1.000  |   1.000   |  1.000   |
-|  SNP  |   386    |    16    |    1     | 0.960  |   0.997   |  0.978   |
+|   Type    | TRUTH.TP | TRUTH.FN | QUERY.FP | METRIC.Recall | METRIC.Precision | METRIC.F1-Score |
+| :-------: | :------: | :------: | :------: | :-----------: | :--------------: | :-------------: |
+| **INDEL** |    59    |    0     |    0     |     1.000     |      1.000       |      1.000      |
+|  **SNP**  |   386    |    16    |    1     |     0.960     |      0.997       |      0.978      |
 
 Run all commands above:
 

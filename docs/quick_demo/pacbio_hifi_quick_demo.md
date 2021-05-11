@@ -1,5 +1,5 @@
 ## PacBio HiFi Variant Calling Quick Demo
-Here is a quick demo for the PacBio HiFi variant calling using GIAB HG003 chromosome 20.
+Here is a quick demo for the PacBio HiFi variant calling using GIAB HG003 chromosome 20 data.
 
 ```bash
 Platform:   PacBio HiFi
@@ -10,6 +10,8 @@ Reference:  GRCh38_no_alt
 Region:     chr20:100000-300000
 Chemistry:  CCS-15kb Sequel II, chemistry 2.0
 ```
+
+**Run Clair3:**
 
 ```bash
 PLATFORM='hifi'
@@ -81,10 +83,10 @@ ${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
 
 **Hap.py Expected output:**
 
-| Type  | TRUTH.TP | TRUTH.FN | QUERY.FP | Recall | Precision | F1-Score |
-| :---: | :------: | :------: | :------: | :----: | :-------: | :------: |
-| INDEL |    59    |    0     |    0     |  1.0   |    1.0    |   1.0    |
-|  SNP  |   402    |    0     |    0     |  1.0   |    1.0    |   1.0    |
+|   Type    | TRUTH.TP | TRUTH.FN | QUERY.FP | METRIC.Recall | METRIC.Precision | METRIC.F1-Score |
+| :-------: | :------: | :------: | :------: | :-----------: | :--------------: | :-------------: |
+| **INDEL** |    59    |    0     |    0     |      1.0      |       1.0        |       1.0       |
+|  **SNP**  |   402    |    0     |    0     |      1.0      |       1.0        |       1.0       |
 
 Run all commands above:
 

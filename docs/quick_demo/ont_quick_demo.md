@@ -1,5 +1,5 @@
 ## ONT Variant Calling Quick Demo
-Here is a quick demo for the Oxford Nanopore variant calling using GIAB HG003 chromosome 20.
+Here is a quick demo for the Oxford Nanopore (ONT) variant calling using GIAB HG003 chromosome 20 data.
 
 ```bash
 Platform:   ONT
@@ -9,6 +9,8 @@ Reference:  GRCh38_no_alt
 Region:     chr20:100000-300000
 Basecaller: Guppy 3.6.0
 ```
+
+**Run Clair3:**
 
 ```bash
 # Parameters
@@ -81,10 +83,10 @@ ${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
 
 **Hap.py Expected output:**
 
-| Type  | TRUTH.TP | TRUTH.FN | QUERY.FP | Recall | Precision | F1-Score |
-| :---: | :------: | :------: | :------: | :----: | :-------: | :------: |
-| INDEL |    45    |    14    |    4     | 0.762  |   0.918   |  0.833   |
-|  SNP  |   402    |    0     |    1     | 1.000  |   0.997   |  0.998   |
+|   Type    | TRUTH.TP | TRUTH.FN | QUERY.FP | METRIC.Recall | METRIC.Precision | METRIC.F1-Score |
+| :-------: | :------: | :------: | :------: | :-----------: | :--------------: | :-------------: |
+| **INDEL** |    45    |    14    |    4     |     0.762     |      0.918       |      0.833      |
+|  **SNP**  |   402    |    0     |    1     |     1.000     |      0.997       |      0.998      |
 
 Run all commands above:
 
@@ -95,3 +97,4 @@ chmod +x clair3_ont_quick_demo.sh
 ./clair3_ont_quick_demo.sh
 ```
 
+Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.vcf.gz`
