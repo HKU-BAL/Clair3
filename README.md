@@ -43,6 +43,23 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 * **High Efficiency.** Clair3 takes about 8~9 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5 times faster than PEPPER and ~18 times faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
 * **New Base Caller Support.**  We support datasets base called using Guppy version 3.6.0~4.2.2  for ONT platform, check the [training data](docs/training_data.md) for specific dataset link. We did not suggest using datasets base called using **Guppy version <= 3.6.0** for calling as we have discarded those datasets in model training.  
 
+## Quick Demo
+
+Clair3 supports germline variant calling in three sequencing platforms:
+
+*   Oxford Nanopore (ONT) long-read data, see [ONT Quick Demo](docs/ont_quick_demo.md).
+*   PacBio HiFi data, see [PaBio HiFi Quick Demo](docs/hifi_quick_demo.md).
+*   Illumina NGS data, see [Illumina Quick Demo](ilmn_quick_demo.md).
+
+**Run Clair3 using pre-built docker image:**
+
+```bash
+wget "http://www.bio8.cs.hku.hk/clair3/demo/clair3_ont_quick_demo.sh"
+chmod +x clair3_ont_quick_demo.sh
+./clair3_ont_quick_demo.sh
+```
+
+Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.vcf.gz`
 
 ## Installation
 
@@ -129,20 +146,6 @@ cd Clair3
 # run clair3 like this afterwards
 ./run_clair3.sh --help
 ```
-
-## Quick Demo
-
-**Run Clair via pre-built docker image:**
-
-```bash
-# Change the file prefix if want to demo other platforms.
-# Options: {ont,hifi,ilmn}
-wget "http://www.bio8.cs.hku.hk/clair3/demo/ont_clair3_demo.sh"
-chmod +x ont_clair3_demo.sh
-./ont_clair3_demo.sh
-```
-
-Check the results using `less ./clair_demo/output/merge_output.vcf.gz`
 
 ## Usage
 
@@ -321,9 +324,9 @@ More details about the training data and download links in [here](docs/training_
 
 |  Platform   |   Reference   |      Aligner      | Training Samples |
 | :---------: | :-----------: | :---------------: | :--------------: |
-|     ONT     | GRCh38_no_alt |     minimap2      |        5         |
-| PacBio HiFi | GRCh38_no_alt |       pbmm2       |        4         |
-|  Illumina   |    GRCh38     | BWA-MEM/NovoAlign |        4         |
+|     ONT     | GRCh38_no_alt |     minimap2      | HG001,2,(3/4),5  |
+| PacBio HiFi | GRCh38_no_alt |       pbmm2       |   HG001,2,4,5    |
+|  Illumina   |    GRCh38     | BWA-MEM/NovoAlign |   HG001,2,4,5    |
 
 #### Pretained Model
 
