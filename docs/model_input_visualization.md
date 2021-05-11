@@ -4,13 +4,13 @@ This document shows visualization of Clair3's pileup and full-alignment input te
 
 Visualization includes unphased read alignment, phased read alignment, pileup model input and full-alignment model input. The colors in the reads alignment, bases A, C, G and T are green, blue, yellow, and red, respectively. Insertions and deletions are purple dots and dark grey, respectively. Two phased haplotope in phased alignment were marked in two colors. The color intensity represents the strength of a certain signal in both pileup and full-alignment model input. Check the demo below:
 
-![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/demo.png)
+![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/vis.png)
 
-### [SNP](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/snp.png) 
+### [SNP](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/SNP.png) 
 
 **chr1:813926-813959**
 
-![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/snp.png)
+![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/SNP.png)
 
 ### [Insertion](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/ins.png)
 
