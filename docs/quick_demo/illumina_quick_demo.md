@@ -1,19 +1,20 @@
-## ONT Variant Calling Quick Demo
-Here is a quick demo for the Oxford Nanopore variant calling using GIAB HG003 chromosome 20.
+## Illumina Variant Calling Quick Demo
+Here is a quick demo for the Illumina variant calling using GIAB HG003 chromosome 20.
 
 ```bash
-Platform:   ONT
-Sample:     GIAB HG003
-Coverage:   ~85x
-Reference:  GRCh38_no_alt
-Region:     chr20:100000-300000
-Basecaller: Guppy 3.6.0
+Platform:    Illumina
+Sample:      GIAB HG003
+Coverage:    ~35x
+Reference:   GRCh38
+Aligner:     BWA-MEM ALT-Aware
+Region:      chr20:100000-300000
+Instruments: NovaSeq
 ```
 
 ```bash
 # Parameters
-PLATFORM='ont'
-INPUT_DIR="${HOME}/clair3_ont_quickDemo"
+PLATFORM='ilmn'
+INPUT_DIR="${HOME}/clair3_illumina_quickDemo"
 OUTPUT_DIR="${INPUT_DIR}/output"
 THREADS=4
 BIN_VERSION="v0.1"
@@ -23,18 +24,18 @@ mkdir -p ${INPUT_DIR}
 mkdir -p ${OUTPUT_DIR}
 
 # Download quick demo data
-# GRCh38_no_alt Reference
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/GRCh38_no_alt_chr20.fa
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/GRCh38_no_alt_chr20.fa.fai
+#GRCh38_no_alt Reference
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/illumina/GRCh38_chr20.fa
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/illumina/GRCh38_chr20.fa.fai
 # BAM chr20:100000-300000
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_chr20_demo.bam
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_chr20_demo.bam.bai
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/illumina/HG003_chr20_demo.bam
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/illumina/HG003_chr20_demo.bam.bai
 # GIAB Truth VCF and BED
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz.tbi
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark_noinconsistent.bed
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/illumina/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/illumina/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz.tbi
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/illumina/HG003_GRCh38_chr20_v4.2.1_benchmark_noinconsistent.bed
 
-REF="GRCh38_no_alt_chr20.fa"
+REF="GRCh38_chr20.fa"
 BAM="HG003_chr20_demo.bam"
 BASELINE_VCF_FILE_PATH="HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz"
 BASELINE_BED_FILE_PATH="HG003_GRCh38_chr20_v4.2.1_benchmark_noinconsistent.bed"
@@ -45,6 +46,7 @@ START_POS='100000'
 END_POS="300000"
 echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > ${INPUT_DIR}/quick_demo.bed
 
+cd ${OUTPUT_DIR}
 # Run Clair3 using one command
 docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -63,7 +65,6 @@ docker run \
 **Run hap.py for benchmarking (Optional)**
 
 ```bash
-# Run hap.py
 docker run \
 -v "${INPUT_DIR}":"${INPUT_DIR}" \
 -v "${OUTPUT_DIR}":"${OUTPUT_DIR}" \
@@ -83,15 +84,17 @@ ${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
 
 | Type  | TRUTH.TP | TRUTH.FN | QUERY.FP | Recall | Precision | F1-Score |
 | :---: | :------: | :------: | :------: | :----: | :-------: | :------: |
-| INDEL |    45    |    14    |    4     | 0.762  |   0.918   |  0.833   |
-|  SNP  |   402    |    0     |    1     | 1.000  |   0.997   |  0.998   |
+| INDEL |    59    |    0     |    0     | 1.000  |   1.000   |  1.000   |
+|  SNP  |   386    |    16    |    1     | 0.960  |   0.997   |  0.978   |
 
 Run all commands above:
 
 ```bash
 cd ${HOME}
-wget "http://www.bio8.cs.hku.hk/clair3/demo/clair3_ont_quick_demo.sh"
-chmod +x clair3_ont_quick_demo.sh
-./clair3_ont_quick_demo.sh
+wget "http://www.bio8.cs.hku.hk/clair3/demo/clair3_ilmn_quick_demo.sh"
+chmod +x clair3_ilmn_quick_demo.sh
+./clair3_ilmn_quick_demo.sh
 ```
+
+Check the results using `less ${HOME}/clair3_illumina_quickDemo/output/merge_output.vcf.gz`
 

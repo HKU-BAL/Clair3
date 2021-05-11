@@ -1,19 +1,19 @@
-## ONT Variant Calling Quick Demo
-Here is a quick demo for the Oxford Nanopore variant calling using GIAB HG003 chromosome 20.
+## PacBio HiFi Variant Calling Quick Demo
+Here is a quick demo for the PacBio HiFi variant calling using GIAB HG003 chromosome 20.
 
 ```bash
-Platform:   ONT
+Platform:   PacBio HiFi
 Sample:     GIAB HG003
-Coverage:   ~85x
+Coverage:   ~35x
+Aligner:    pbmm2
 Reference:  GRCh38_no_alt
 Region:     chr20:100000-300000
-Basecaller: Guppy 3.6.0
+Chemistry:  CCS-15kb Sequel II, chemistry 2.0
 ```
 
 ```bash
-# Parameters
-PLATFORM='ont'
-INPUT_DIR="${HOME}/clair3_ont_quickDemo"
+PLATFORM='hifi'
+INPUT_DIR="${HOME}/clair3_pacbio_hifi_quickDemo"
 OUTPUT_DIR="${INPUT_DIR}/output"
 THREADS=4
 BIN_VERSION="v0.1"
@@ -23,16 +23,16 @@ mkdir -p ${INPUT_DIR}
 mkdir -p ${OUTPUT_DIR}
 
 # Download quick demo data
-# GRCh38_no_alt Reference
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/GRCh38_no_alt_chr20.fa
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/GRCh38_no_alt_chr20.fa.fai
+#GRCh38_no_alt Reference
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/pacbio_hifi/GRCh38_no_alt_chr20.fa
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/pacbio_hifi/GRCh38_no_alt_chr20.fa.fai
 # BAM chr20:100000-300000
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_chr20_demo.bam
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_chr20_demo.bam.bai
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/pacbio_hifi/HG003_chr20_demo.bam
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/pacbio_hifi/HG003_chr20_demo.bam.bai
 # GIAB Truth VCF and BED
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz.tbi
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark_noinconsistent.bed
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/pacbio_hifi/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/pacbio_hifi/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz.tbi
+wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/pacbio_hifi/HG003_GRCh38_chr20_v4.2.1_benchmark_noinconsistent.bed
 
 REF="GRCh38_no_alt_chr20.fa"
 BAM="HG003_chr20_demo.bam"
@@ -83,15 +83,16 @@ ${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
 
 | Type  | TRUTH.TP | TRUTH.FN | QUERY.FP | Recall | Precision | F1-Score |
 | :---: | :------: | :------: | :------: | :----: | :-------: | :------: |
-| INDEL |    45    |    14    |    4     | 0.762  |   0.918   |  0.833   |
-|  SNP  |   402    |    0     |    1     | 1.000  |   0.997   |  0.998   |
+| INDEL |    59    |    0     |    0     |  1.0   |    1.0    |   1.0    |
+|  SNP  |   402    |    0     |    0     |  1.0   |    1.0    |   1.0    |
 
 Run all commands above:
 
 ```bash
 cd ${HOME}
-wget "http://www.bio8.cs.hku.hk/clair3/demo/clair3_ont_quick_demo.sh"
-chmod +x clair3_ont_quick_demo.sh
-./clair3_ont_quick_demo.sh
+wget "http://www.bio8.cs.hku.hk/clair3/demo/clair3_hifi_quick_demo.sh"
+chmod +x clair3_hifi_quick_demo.sh
+./clair3_hifi_quick_demo.sh
 ```
 
+Check the results using `less ${HOME}/clair3_pacbio_hifi_quickDemo/output/merge_output.vcf.gz`
