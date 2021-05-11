@@ -41,25 +41,28 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 * **Accuracy Improvements.** Clair3 outperforms Clair, reducing SNP errors by **~78%**,  and Indel errors by **~48%** in HG003 ONT case study. SNP F1-score reaches 99.69% and Indel F1-score reaches 80.58% in ONT HG003 ~85-fold coverage dataset.  
 * **New Architecture.** Clair3 is an integration of pileup model and full-alignment model. Pileup model detects all candidate variants using summarized pileup input. Full-alignment model adopts more complete read-level representations with phased haplotype information to further decide the variant type of low-quality pileup candidates. 
 * **High Efficiency.** Clair3 takes about 8~9 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5 times faster than PEPPER and ~18 times faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
-* **New Base Caller Support.**  We support datasets base called using Guppy version 3.6.0~4.2.2  for ONT platform, check the [training data](docs/training_data.md) for specific dataset link. We did not suggest using datasets base called using **Guppy version <= 3.6.0** for calling as we have discarded those datasets in model training.  
+* **New Base Caller Support.**  We support datasets base called using Guppy version 3.6.0~4.2.2  for ONT platform, check the [training data](docs/training_data.md) for specific datasets' link. We did not suggest using datasets base called using **Guppy version <= 3.6.0** for calling as we have discarded those datasets in model training.  
 
 ## Quick Demo
 
 Clair3 supports germline variant calling in three sequencing platforms:
 
-*   Oxford Nanopore (ONT) long-read data, see [ONT Quick Demo](docs/ont_quick_demo.md).
-*   PacBio HiFi data, see [PaBio HiFi Quick Demo](docs/hifi_quick_demo.md).
-*   Illumina NGS data, see [Illumina Quick Demo](ilmn_quick_demo.md).
+*   Oxford Nanopore (ONT) long-read data, see [ONT Quick Demo](docs/quick_demo/ont_quick_demo.md).
+*   PacBio HiFi data, see [PaBio HiFi Quick Demo](docs/quick_demo/pacbio_hifi_quick_demo.md).
+*   Illumina NGS data, see [Illumina Quick Demo](docs/quick_demo/illumina_quick_demo.md).
 
 **Run Clair3 using pre-built docker image:**
 
 ```bash
+cd ${HOME}
 wget "http://www.bio8.cs.hku.hk/clair3/demo/clair3_ont_quick_demo.sh"
 chmod +x clair3_ont_quick_demo.sh
 ./clair3_ont_quick_demo.sh
 ```
 
 Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.vcf.gz`
+
+
 
 ## Installation
 
