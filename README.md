@@ -41,7 +41,7 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 * **Accuracy Improvements.** Clair3 outperforms Clair, reducing SNP errors by **~78%**,  and Indel errors by **~48%** in HG003 ONT case study. SNP F1-score reaches 99.69% and Indel F1-score reaches 80.58% in ONT HG003 ~85-fold coverage dataset.  
 * **New Architecture.** Clair3 is an integration of pileup model and full-alignment model. Pileup model detects all candidate variants using summarized pileup input. Full-alignment model adopts more complete read-level representations with phased haplotype information to further decide the variant type of low-quality pileup candidates. 
 * **High Efficiency.** 
-  * Clair3 takes about ~8 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5x faster than PEPPER and ~18x faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
+  * Clair3 takes about ~8 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5x faster than PEPPER and ~14x faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
   * Clair3 takes about ~2 hours For PacBio HiFi ~35-fold coverage whole-genome-sequencing data using 36 CPUs, which is 13x faster than DeepVariant workflow.
 * **New Base Caller Support.**  We support datasets base called using Guppy version 3.6.0~4.2.2  for ONT platform, check the [training data](docs/training_data.md) for specific datasets' link. We did not suggest using datasets base called using **Guppy version <= 3.6.0** for calling as we have discarded those datasets in model training.  
 
@@ -160,11 +160,11 @@ tar -zxvf clair3_models.tar.gz -C ./models
   --output=${OUTPUT_DIR}
 ```
 
+If using Clair3 Illumina model for variant calling, follows the [guidance](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process) to install [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html) additionally.
+
 ## Usage
 
 ### General Usage
-
-You can download in [pre-trained model](#pretained-model) (no need to download if using docker pre-built image)
 
 ```bash
 # optional parameters should use "="
@@ -208,7 +208,7 @@ You can download in [pre-trained model](#pretained-model) (no need to download i
       --parallel STR       Path of parallel, parallel >= 20191122 is required.
       --whatshap STR       Path of whatshap, whatshap >= 1.0 is required.
       --chunk_size INT     The size of each chuck for parallel processing, default: 5Mbp.
-      --pileup_only        Use the pileup model only when calling, default: disable.'
+      --pileup_only        Use the pileup model only when calling, default: disable.
       --print_ref_calls    Show reference calls (0/0) in vcf file, default: disable.
       --include_all_ctgs   Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
       --gvcf               Enable GVCF output, default: disable.
@@ -237,7 +237,7 @@ docker run \
   hku-bal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \          ## Change your reference name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
   --threads=${THREADS} \               ## Maximum threads to be used
   --platform="ont" \                   ## Options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
@@ -260,7 +260,7 @@ docker run \
   hku-bal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \          ## Change your reference name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
   --threads=${THREADS} \               ## Maximum threads to be used
   --platform="ont" \                   ## Options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
@@ -295,7 +295,7 @@ docker run \
   hku-bal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \          ## Change your reference name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
   --threads=${THREADS} \               ## Maximum threads to be used
   --platform="ont" \                   ## Options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
