@@ -1,5 +1,5 @@
 ## Illumina Variant Calling Quick Demo
-Here is a quick demo for the Illumina variant calling using GIAB HG003 chromosome 20 data.
+Here is a quick demo for the Illumina NGS variant calling using GIAB HG003 chromosome 20 data. We provide docker pre-built image (**with root privileges**) and  anaconda virtual environment (**without root privileges**) quick demo.
 
 ```bash
 Platform:    Illumina
@@ -11,7 +11,7 @@ Region:      chr20:100000-300000
 Instruments: NovaSeq
 ```
 
-### Download Data
+### Download data
 
 ```bash
 # Parameters
@@ -19,12 +19,11 @@ PLATFORM='ilmn'
 INPUT_DIR="${HOME}/clair3_illumina_quickDemo"
 OUTPUT_DIR="${INPUT_DIR}/output"
 
-## Create local directory structure
 mkdir -p ${INPUT_DIR}
 mkdir -p ${OUTPUT_DIR}
 
 # Download quick demo data
-#GRCh38_no_alt Reference
+# GRCh38 Reference
 wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/illumina/GRCh38_chr20.fa
 wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/illumina/GRCh38_chr20.fa.fai
 # BAM chr20:100000-300000
@@ -45,15 +44,15 @@ CONTIGS='chr20'
 START_POS='100000'
 END_POS="300000"
 echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > ${INPUT_DIR}/quick_demo.bed
-
 ```
 
-### Option 1. Docker
+### Option 1. Docker pre-built image
 
 ```bash
 BIN_VERSION='v0.1'
 THREADS=4
 cd ${OUTPUT_DIR}
+
 # Run Clair3 using one command
 docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -69,22 +68,22 @@ docker run \
   --bed_fn=${INPUT_DIR}/quick_demo.bed
 ```
 
-**Run hap.py for benchmarking (Optional)**
+**Run hap.py for benchmarking (optional)**
 
 ```bash
 docker run \
 -v "${INPUT_DIR}":"${INPUT_DIR}" \
 -v "${OUTPUT_DIR}":"${OUTPUT_DIR}" \
 jmcdani20/hap.py:v0.3.12 /opt/hap.py/bin/hap.py \
-${INPUT_DIR}/${BASELINE_VCF_FILE_PATH} \
-${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
--f "${INPUT_DIR}/${BASELINE_BED_FILE_PATH}" \
--r "${INPUT_DIR}/${REF}" \
--o "${OUTPUT_DIR}/happy" \
--l ${CONTIGS}:${START_POS}-${END_POS} \
---engine=vcfeval \
---threads="${THREADS}" \
---pass-only
+    ${INPUT_DIR}/${BASELINE_VCF_FILE_PATH} \
+    ${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
+    -f "${INPUT_DIR}/${BASELINE_BED_FILE_PATH}" \
+    -r "${INPUT_DIR}/${REF}" \
+    -o "${OUTPUT_DIR}/happy" \
+    -l ${CONTIGS}:${START_POS}-${END_POS} \
+    --engine=vcfeval \
+    --threads="${THREADS}" \
+    --pass-only
 ```
 
 **Hap.py Expected output:**
@@ -107,15 +106,15 @@ Check the results using `less ${HOME}/clair3_illumina_quickDemo/output/merge_out
 
 ### Option 2. Anaconda virtual environment
 
-##### Step 1. Install Clair3 and download pre-trained model, using [Installation - Option 3]()
+##### Step 1. Install Clair3 and download pre-trained model, using [Installation - Option 3](https://github.com/HKU-BAL/Clair3#option-3-build-an-anaconda-virtual-environment)
 
 ##### Step 2. Install [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html) for Illumina realignment process
 
 ```bash
-# activate Clair3
-source activate clair3
+# Activate Clair3
+conda activate clair3
 
-# install boost library
+# Install boost library
 conda install -c conda-forge boost=1.67.0
 echo "Environment:" ${CONDA_PREFIX}
 cd Clair3/preprocess/realign
@@ -124,7 +123,7 @@ g++ -std=c++11 -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp -I ${CONDA
 
 ```
 
-**Step3. Run Clair3 without root privileges**
+**Step 3. Run Clair3 without root privileges**
 
 ```bash
 cd Clair3
@@ -138,7 +137,7 @@ cd Clair3
   --bed_fn=${INPUT_DIR}/quick_demo.bed
 ```
 
-**Run hap.py without root privileges for benchmarking (Optional)**
+**Run hap.py without root privileges for benchmarking (optional)**
 
 ```bash
 conda config --add channels defaults
@@ -149,14 +148,20 @@ conda activate happy-env
 
 # Benchmark using hap.py
 hap.py \
-${INPUT_DIR}/${BASELINE_VCF_FILE_PATH} \
-${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
--f "${INPUT_DIR}/${BASELINE_BED_FILE_PATH}" \
--r "${INPUT_DIR}/${REF}" \
--o "${OUTPUT_DIR}/happy" \
--l ${CONTIGS}:${START_POS}-${END_POS} \
---engine=vcfeval \
---threads="${THREADS}" \
---pass-only
+    ${INPUT_DIR}/${BASELINE_VCF_FILE_PATH} \
+    ${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
+    -f "${INPUT_DIR}/${BASELINE_BED_FILE_PATH}" \
+    -r "${INPUT_DIR}/${REF}" \
+    -o "${OUTPUT_DIR}/happy" \
+    -l ${CONTIGS}:${START_POS}-${END_POS} \
+    --engine=vcfeval \
+    --threads="${THREADS}" \
+    --pass-only
 ```
 
+**Hap.py Expected output:**
+
+|   Type    | TRUTH.TP | TRUTH.FN | QUERY.FP | METRIC.Recall | METRIC.Precision | METRIC.F1-Score |
+| :-------: | :------: | :------: | :------: | :-----------: | :--------------: | :-------------: |
+| **INDEL** |    59    |    0     |    0     |     1.000     |      1.000       |      1.000      |
+|  **SNP**  |   386    |    16    |    1     |     0.960     |      0.997       |      0.978      |
