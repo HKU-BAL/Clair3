@@ -48,10 +48,12 @@
 
 #### Pretained Model
 
-|   Folder    |  Platform   | Training Sample | Default in Docker |     Link     |
-| :---------: | :---------: | :-------------: | :---------------: | :----------: |
-|     ont     |     ONT     |   HG001,2,4,5   |        Yes        | [Download]() |
-|  ont_hg004  |     ONT     |   HG001,2,3,5   |                   | [Download]() |
-|  illumina   |  Illumina   |   HG001,2,4,5   |        Yes        | [Download]() |
-| pacbio_hifi | PacBio HiFi |   HG001,2,4,5   |        Yes        | [Download]() |
+Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
+
+|      File       |  Platform   | Training Sample | Default in Docker |                             Link                             |
+| :-------------: | :---------: | :-------------: | :---------------: | :----------------------------------------------------------: |
+|   ont.tar.gz    |     ONT     |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
+| ont_1235.tar.gz |     ONT     |   HG001,2,3,5   |                   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
+|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 

@@ -43,7 +43,7 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 * **High Efficiency.** 
   * Clair3 takes about ~8 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5x faster than PEPPER and ~14x faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
   * Clair3 takes about ~2 hours For PacBio HiFi ~35-fold coverage whole-genome-sequencing data using 36 CPUs, which is 13x faster than DeepVariant workflow.
-* **New Base Caller Support.**  We support datasets base called using Guppy version 3.6.0~4.2.2  for ONT platform, check the [training data](docs/training_data.md) for specific datasets' link. We did not suggest using datasets base called using **Guppy version <= 3.6.0** for calling as we have discarded those datasets in model training.  
+* **New BaseCaller Support.**  We support datasets base called using Guppy version 3.6.0~4.2.2  for ONT platform, check the [training data](docs/training_data.md) for specific datasets' link. We did not suggest using datasets base called using **Guppy version <= 3.6.0** for calling as we have discarded those datasets in model training.  
 
 ## Quick Demo
 
@@ -53,7 +53,7 @@ Clair3 supports germline variant calling in three sequencing platforms:
 *   PacBio HiFi data, see [PaBio HiFi Quick Demo](docs/quick_demo/pacbio_hifi_quick_demo.md).
 *   Illumina NGS data, see [Illumina Quick Demo](docs/quick_demo/illumina_quick_demo.md).
 
-**Run Clair3 using pre-built docker image:**
+**Run Clair3 ONT quick demo using pre-built docker image:**
 
 ```bash
 cd ${HOME}
@@ -333,7 +333,7 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 
 ## Training Data
 
-More details about the training data and download links in [here](docs/training_data.md).
+More details about the training data and download links:  [training data](docs/training_data.md).
 
 |  Platform   |   Reference   |      Aligner      | Training Samples |
 | :---------: | :-----------: | :---------------: | :--------------: |
@@ -345,14 +345,14 @@ More details about the training data and download links in [here](docs/training_
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
-|       File       |  Platform   | Training Sample | Default in Docker |     Link     |
-| :--------------: | :---------: | :-------------: | :---------------: | :----------: |
-|    ont.tar.gz    |     ONT     |   HG001,2,4,5   |        Yes        | [Download]() |
-| ont_hg004.tar.gz |     ONT     |   HG001,2,3,5   |                   | [Download]() |
-|   ilmn.tar.gz    |  Illumina   |   HG001,2,4,5   |        Yes        | [Download]() |
-|   hifi.tar.gz    | PacBio HiFi |   HG001,2,4,5   |        Yes        | [Download]() |
+|      File       |  Platform   | Training Sample | Default in Docker |                             Link                             |
+| :-------------: | :---------: | :-------------: | :---------------: | :----------------------------------------------------------: |
+|   ont.tar.gz    |     ONT     |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
+| ont_1235.tar.gz |     ONT     |   HG001,2,3,5   |                   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
+|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
 ## VCF Output Format
 
 `clair3/CallVariants.py` outputs variants in VCF format with version 4.2 specifications.
-Clair3 includes pileup calling and full-alignment calling submodule. Pileup calling results are denoted with a `P` INFO tag, while the full-alignment calling results are denoted with a `F` INFO tag.
+Clair3 includes pileup calling and full-alignment calling submodule. Pileup calling results are denoted with a `P` INFO tag, full-alignment calling results are denoted with a `F` INFO tag.
