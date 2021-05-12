@@ -40,7 +40,9 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 
 * **Accuracy Improvements.** Clair3 outperforms Clair, reducing SNP errors by **~78%**,  and Indel errors by **~48%** in HG003 ONT case study. SNP F1-score reaches 99.69% and Indel F1-score reaches 80.58% in ONT HG003 ~85-fold coverage dataset.  
 * **New Architecture.** Clair3 is an integration of pileup model and full-alignment model. Pileup model detects all candidate variants using summarized pileup input. Full-alignment model adopts more complete read-level representations with phased haplotype information to further decide the variant type of low-quality pileup candidates. 
-* **High Efficiency.** Clair3 takes about 8~9 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5 times faster than PEPPER and ~18 times faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
+* **High Efficiency.** 
+  * Clair3 takes about ~8 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5x faster than PEPPER and ~18x faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
+  * Clair3 takes about ~2 hours For PacBio HiFi ~35-fold coverage whole-genome-sequencing data using 36 CPUs, which is 13x faster than DeepVariant workflow.
 * **New Base Caller Support.**  We support datasets base called using Guppy version 3.6.0~4.2.2  for ONT platform, check the [training data](docs/training_data.md) for specific datasets' link. We did not suggest using datasets base called using **Guppy version <= 3.6.0** for calling as we have discarded those datasets in model training.  
 
 ## Quick Demo
@@ -61,8 +63,6 @@ chmod +x clair3_ont_quick_demo.sh
 ```
 
 Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.vcf.gz`
-
-
 
 ## Installation
 
@@ -87,7 +87,6 @@ docker run \
   --platform="ont" \                   ## Options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR}
-
 ```
 
 Check [Usage](#Usage)  for more options.
@@ -102,11 +101,11 @@ git clone --depth 1 https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 
 # build a docker image named clair3_docker
-# You might require docker authentication to build by docker
-docker build --no-cache -f ./Dockerfile -t clair3_docker .
+# might require docker authentication to build by docker
+docker build -f ./Dockerfile -t clair3_docker .
 
 # run clair docker image like this afterward
-docker -it run clair3_docker --help
+docker run -it clair3_docker /opt/bin/run_clair3.sh --help
 ```
 
 ### Option 3. Build an anaconda virtual environment
@@ -125,18 +124,18 @@ chmod +x ./Miniconda3-latest-Linux-x86_64.sh
 
 ```bash
 # create and activate the environment named clair3
-conda create -n clair3 python=3.6 -y
+conda create -n clair3 python=3.6.10 -y
 source activate clair3
 
 # install pypy and packages on clair3 environemnt
 conda install -c conda-forge pypy3.6 -y
 pypy3 -m ensurepip
 pypy3 -m pip install intervaltree==3.0.2
-pypy3 -m pip install mpmath==1.2.1 python-Levenshtein==0.12.0 
+pypy3 -m pip install mpmath==1.2.1
 
 # install python packages on clair3 environment
 pip3 install tensorflow==2.2.0
-pip3 install intervaltree==3.0.2  tensorflow-addons==0.11.2 tables==3.6.1 python-Levenshtein==0.12.0
+pip3 install intervaltree==3.0.2  tensorflow-addons==0.11.2 tables==3.6.1
 conda install -c anaconda pigz==2.4 -y
 conda install -c conda-forge parallel=20191122 zstd=1.4.4 -y
 conda install -c conda-forge -c bioconda samtools=1.10 -y
@@ -146,8 +145,19 @@ conda install -c conda-forge -c bioconda whatshap=1.0 -y
 git clone --depth 1 https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 
-# run clair3 like this afterwards
-./run_clair3.sh --help
+# download pre-trained model
+mkdir models
+wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz 
+tar -zxvf clair3_models.tar.gz -C ./models
+
+# run clair3 like this afterward
+./run_clair3.sh \
+  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
+  --threads=${THREADS} \               ## Maximum threads to be used
+  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
+  --model_path=`pwd`"/models/ont" \    ## Absolute model path prefix, change platform accordingly
+  --output=${OUTPUT_DIR}
 ```
 
 ## Usage
@@ -157,7 +167,7 @@ cd Clair3
 You can download in [pre-trained model](#pretained-model) (no need to download if using docker pre-built image)
 
 ```bash
-#optional parameters should use "="
+# optional parameters should use "="
 ./run_clair3.sh \
   --bam_fn=${BAM} \
   --ref_fn=${REF} \
