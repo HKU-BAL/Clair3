@@ -21,7 +21,7 @@ This document shows how Clair3 unifies representation between training materials
 
 **Ouput:**
 
-- Unified VCF
+- Unified VCF file
 
 ## Contents
 

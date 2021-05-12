@@ -1,8 +1,11 @@
 # Train a model for Clair3 pileup calling
 
-This document shows how to train or fine-tune a deep learning model for Clair3 pileup calling.  Check [here](full_alignment_training.md) for full-alignment training process. We simplified the training workflow in [Clair](https://github.com/HKU-BAL/Clair/blob/master/docs/TRAIN.md), while still maintaining multiple sample and multiple coverages training workflow. We divided all training materials into `SAMPLES`, `DEPTHS` and `CHR` tags, which represent different training samples, different training coverages, and contig name, respectively.  All candidate variants are selected to create binary file and then were fed into training or fine-tune workflow.
+This document shows how to train or fine-tune a deep learning model for Clair3 pileup calling.  Check [here](full_alignment_training.md) for full-alignment training process. We simplified the training workflow in [Clair](https://github.com/HKU-BAL/Clair/blob/master/docs/TRAIN.md), while still maintaining multiple samples and multiple coverages training workflow. We divided all training materials into `SAMPLES`, `DEPTHS` and `CHR` tags representing different training samples, different training coverages, and contig name, respectively.  All candidate variants are selected to create a binary and then were fed into training or fine-tune workflow.
+
+![image](images/clair3_data_generation.png)
 
 ## Prerequisites
+
 - Clair3 installed
 - GNU Parallel installed
 - Sufficient hard-disk space
@@ -35,7 +38,7 @@ This document shows how to train or fine-tune a deep learning model for Clair3 p
 To build a training dataset with multiple coverages, we need to create multiple subsampled BAM files from the original full-depth BAM file.
 
 ```bash
-# Please make sure the provided bam file is sorted and samtools indexed
+# Please make sure the provided bam file is sorted and indexed
 ALL_BAM_FILE_PATH=(
 'hg002.bam'
 'hg002.bam'
@@ -49,10 +52,10 @@ ALL_SAMPLE=(
 'hg002'
 )
 
-# Each line represents subsample ration to each sample
+# Each line represents subsample ratio to each sample
 ## FRAC values for 'samtools view -s INT.FRAC'
 ## please refer to samtools' documentation for further information
-## here we set 90%, 60% and 30% of the full coverage as example
+## we set 90%, 60% and 30% of the full coverage as example
 DEPTHS=(
 900
 600
@@ -81,12 +84,12 @@ ${PARALLEL} "ln -s {2}.bai ${SUBSAMPLED_BAMS_FOLDER_PATH}/{1}_1000.bam.bai" ::: 
 
 **Hints**
 
-> - The whole procedure was break into blocks for better readability and error-tracing.
-> - For each `parallel` command ran with the `--joblog` option, we can check the `Exitval` column from the job log output. If the column contains a non-zero value, it means error occurred, please try to rerun the block again.
-> - We suggest to use absolute path everywhere.
-> - We suggest to use a unified VCF for true variant and non-variant labeling, check here for more details on how to generate a unified VCF for each training sample. 
+> - The whole procedure was broken into blocks for better readability and error-tracing.
+> - For each `parallel` command ran with the `--joblog` option, we can check the `Exitval` column from the job log output. If the column contains a non-zero value, it means error occurred; please try to rerun the block again.
+> - We suggest using absolute path everywhere.
+> - We suggest using a unified VCF for true variant and non-variant labeling; check [representation unification](representation_unification.md) for more details on how to generate a unified VCF for each training sample. 
 
-This section shows how to build multiple compressed binary file for multiple samples with or without multiple coverages.
+This section shows how to build multiple compressed binary files for multiple samples with or without multiple coverages.
 
 #### 1. Setup variables
 ```bash
@@ -154,7 +157,7 @@ UNIFIED_VCF_FILE_PATH=(
 CHR_PREFIX="chr"
 
 # array of chromosomes (do not include "chr"-prefix) to training in all sample
-## pls note that we have excluded chr20 as hold-out set, so do not use chr20 for traning.
+## pls note that we have excluded chr20 as a hold-out set, so do not use chr20 for training.
 CHR=(21 22)
 
 # Number of threads to be used
@@ -230,7 +233,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS
 **Options**
 
  - `--zstd` : we recommended using [zstd](https://github.com/facebook/zstd) , an extremely fast and lossless compression tool to compress temporary tensor output, which provided much higher compression ratios compared with other compression tools.
- - `--max_depth` :  pileup input summarizes position-level read alignments, therefore depth information varies for various training materials. If need to re-train or fine-tune Clair3 pileup model, we recommend setting a maximum depth based on the maximum-coverage training materials accordingly.
+ - `--max_depth` :  pileup input summarizes position-level read alignments where depth information varies for various training materials. If need to re-train or fine-tune Clair3 pileup model, we recommend setting a maximum depth based on the maximum-coverage training materials accordingly.
 
 #### 5. Get truth variants from unified VCF using the `GetTruth` submodule
 
@@ -264,8 +267,8 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/tensor2Bin.log -j${THREADS} \
 
 **Options**
 
- - `--allow_duplicate_chr_pos` : for multiple coverages training, this options are required to avoid replace same variant sites from different coverages.
- - `--shuffle` :  as the input tensor are scanned in order of starting position, we shuffle the training data binary files with chunked iterator in advance to provide more variety. in the training process, we also apply index shuffling to reduce memory occupation.
+ - `--allow_duplicate_chr_pos` : for multiple coverages training, this options are required to avoid replacing same variant sites from different coverages.
+ - `--shuffle` :  as the input tensor are scanned in order of starting position, we shuffle the training data binary files with chunked iterator in advance to provide more variety. In the training process, we also apply index shuffling to reduce memory occupation.
  - `--maximum_non_variant_ratio` :  we set a maximum non-variant ratio (variant: non-variant = 1:5) for pileup model training, non-variants are randomly select from candidate set if exceeds the ratio,  otherwise, all non-variant will be selected for training. 
 
 ## III. Model training
@@ -278,7 +281,7 @@ mkdir -p ${MODEL_FOLDER_PATH}
 
 cd ${MODEL_FOLDER_PATH}
 
-# Currently, we trained model in single GPU, we did not include multi-GPU and multi-worker workflow here
+# We trained model in single GPU, so we did not include multi-GPU and multi-worker workflow here
 export CUDA_VISIBLE_DEVICES="0"
 
 ${PYTHON3} ${CLAIR3} Train \
@@ -300,9 +303,9 @@ ${PYTHON3} ${CLAIR3} Train \
 #### 2. Pileup model fine-tune using pre-trained model (optional)
 
 ```bash
-# Pileup model fine-tune in new sample
+# Pileup model fine-tune in a new sample
 
-# Full-alignment model fine-tune in new sample
+# Full-alignment model fine-tune in a new sample
 MODEL_FOLDER_PATH="${OUTPUT_DIR}/train"
 mkdir -p ${MODEL_FOLDER_PATH}
 
@@ -315,8 +318,8 @@ ${PYTHON3} ${CLAIR3} Train \
     --add_indel_length True \
     --validation_dataset \
     --platform ${PLATFORM} \
-    --learning_rate 0.0005 \
+    --learning_rate 0.0001 \
     --chkpnt_fn "[YOUR_PRETRAINED_MODEL]"  ## use pre-trained full-alignment model weight here
 ```
 
-We experimentally offer pileup model fine-tune using pre-trained Clair3 model, by using a smaller `learning_rate` and pre-trained checkpoint file `ochk_prefix`, We recommend to use a smaller learning rate `5e-4` to fine-tune pre-trained model.
+We experimentally offer pileup model fine-tune using pre-trained Clair3 model, by using a smaller `learning_rate` and pre-trained checkpoint file `ochk_prefix`, We recommend to use a smaller learning rate `1e-4` to fine-tune pre-trained model.

@@ -55,6 +55,10 @@ Each figure includes truths variants information from GIAB truths set VCF, phase
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/pb_HG002-chr1:16034409-16034448.png)
 
+**HG002  chr1:116120386-116120580**
+
+![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/pb_HG002-chr1.116120386-116120580.png)
+
 ## Illumina
 
 **HG002 chr1:236541577-236541610**
@@ -69,3 +73,6 @@ Each figure includes truths variants information from GIAB truths set VCF, phase
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/ilumina_chr1:235255208-235255298.png)
 
+**HG002  chr1:210982210-210982283**
+
+![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/illumina_chr1:210982210-210982283.png)
