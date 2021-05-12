@@ -82,7 +82,7 @@ docker run \
   hku-bal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \          ## Change your reference name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
   --threads=${THREADS} \               ## Maximum threads to be used
   --platform="ont" \                   ## Options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
@@ -160,7 +160,7 @@ tar -zxvf clair3_models.tar.gz -C ./models
   --output=${OUTPUT_DIR}
 ```
 
-If using Clair3 Illumina model for variant calling, follows the [guidance](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process) to install [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html) additionally.
+For Illumina model, follows the [guidance](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process) to install [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html).
 
 ## Usage
 
@@ -177,8 +177,8 @@ If using Clair3 Illumina model for variant calling, follows the [guidance](docs/
   --output=${OUTPUT_DIR}
   
 ## Pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
-## Full alignment output file: ${OUTPUT_DIR}/full_alignment.vcf
-## Final Clair3 output file: ${OUTPUT_DIR}/merge_output.vcf.gz
+## Full-alignment output file: ${OUTPUT_DIR}/full_alignment.vcf
+## Clair3 final output file: ${OUTPUT_DIR}/merge_output.vcf.gz
 ```
 
 ### Options
@@ -321,11 +321,11 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 `CreateTensorPileup`| Generate variant candidate tensors using pileup for training or calling.
 `CreateTensorFullAlignment`| Generate variant candidate tensors using phased full-alignment for training or calling.
 `GetTruth`| Extract the variants from a truth VCF. Input: VCF; Reference FASTA if the VCF contains asterisks in ALT field.
-`MergeVcf` | Merge pileup and full alignment VCF/GVCF.
+`MergeVcf` | Merge pileup and full-alignment VCF/GVCF.
 `RealignReads` | Reads local realignment for Illumina platform.
-`SelectCandidates`| Select pileup candidates for full alignment calling.
+`SelectCandidates`| Select pileup candidates for full-alignment calling.
 `SelectHetSnp` | Select heterozygous SNP candidates for whatshap phasing.
-`SelectQual` | Select quality cut-off for phasing and full alignment calling globally from all candidates.
+`SelectQual` | Select quality cut-off for phasing and full-alignment calling globally from all candidates.
 `SortVcf` | Sort VCF file according to variants start position and contig name.
 `SplitExtendBed` | Split bed file regions according to the contig name and extend bed region.
 `UnifyRepresentation` | Representation unification for candidate site and true variant.
@@ -337,7 +337,7 @@ More details about the training data and download links in [here](docs/training_
 
 |  Platform   |   Reference   |      Aligner      | Training Samples |
 | :---------: | :-----------: | :---------------: | :--------------: |
-|     ONT     | GRCh38_no_alt |     minimap2      | HG001,2,(3/4),5  |
+|     ONT     | GRCh38_no_alt |     minimap2      | HG001,2,(3\|4),5 |
 | PacBio HiFi | GRCh38_no_alt |       pbmm2       |   HG001,2,4,5    |
 |  Illumina   |    GRCh38     | BWA-MEM/NovoAlign |   HG001,2,4,5    |
 
@@ -345,12 +345,12 @@ More details about the training data and download links in [here](docs/training_
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
-|   Folder    |  Platform   | Training Sample | Default in Docker |     Link     |
-| :---------: | :---------: | :-------------: | :---------------: | :----------: |
-|     ont     |     ONT     |   HG001,2,4,5   |        Yes        | [Download]() |
-|  ont_hg004  |     ONT     |   HG001,2,3,5   |                   | [Download]() |
-|  illumina   |  Illumina   |   HG001,2,4,5   |        Yes        | [Download]() |
-| pacbio_hifi | PacBio HiFi |   HG001,2,4,5   |        Yes        | [Download]() |
+|       File       |  Platform   | Training Sample | Default in Docker |     Link     |
+| :--------------: | :---------: | :-------------: | :---------------: | :----------: |
+|    ont.tar.gz    |     ONT     |   HG001,2,4,5   |        Yes        | [Download]() |
+| ont_hg004.tar.gz |     ONT     |   HG001,2,3,5   |                   | [Download]() |
+|   ilmn.tar.gz    |  Illumina   |   HG001,2,4,5   |        Yes        | [Download]() |
+|   hifi.tar.gz    | PacBio HiFi |   HG001,2,4,5   |        Yes        | [Download]() |
 
 ## VCF Output Format
 
