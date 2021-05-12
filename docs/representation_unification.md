@@ -197,13 +197,13 @@ conda activate happy-env
 
 # Benchmark using hap.py
 hap.py \
-${VCF_FILE_PATH} \
-${OUTPUT_DIR}/unified.vcf.gz \
--o ${OUTPUT_DIR}/happy \
--r ${REFERENCE_FILE_PATH} \
--f ${BED_FILE_PATH} \
---threads ${THREADS} \
---engine=vcfeval \
--l "[YOUR_BENCHMARK_REGION]" # e.g. chr22
+    ${VCF_FILE_PATH} \
+    ${OUTPUT_DIR}/unified.vcf.gz \
+    -o ${OUTPUT_DIR}/happy \
+    -r ${REFERENCE_FILE_PATH} \
+    -f ${BED_FILE_PATH} \
+    --threads ${THREADS} \
+    --engine=vcfeval \
+    -l "[YOUR_BENCHMARK_REGION]" # e.g. chr22
 
 ```
