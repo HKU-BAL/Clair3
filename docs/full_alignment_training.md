@@ -2,7 +2,7 @@
 
 This document shows how to train or fine-tune a deep learning model for Clair3 full-alignment calling.  Compared with Clair3 [pileup](pileup_training.md) model. Full-alignment need much more time to train as the input as input size greatly increased. 
 
-For full-alignment model, we also maintain multiple sample and multiple coverages training workflow. We divided all training materials into `SAMPLES`, `DEPTHS` and `CHR` tags, which represent different training samples, different training coverages, and contig name, respectively.  All candidate variants are selected to create binary file and then were fed into training or fine-tune workflow.
+For full-alignment model, we also maintain multiple sample and multiple coverages training workflow. We divided all training materials into `SAMPLES`, `DEPTHS` and `CHR` tags, representing different training samples, different training coverages, and contig name, respectively.  All candidate variants are selected to create binary files and then were fed into training or fine-tune workflow.
 
 ## Prerequisites
 
@@ -135,10 +135,10 @@ ${SAMTOOLS} index -@${THREADS} ${OUTPUT_DIR}/${SAMPLE}.haplotagged.bam
 
 **Hints**
 
-> - The whole procedure was break into blocks for better readability and error-tracing.
-> - For each `parallel` command ran with the `--joblog` option, we can check the `Exitval` column from the job log output. If the column contains a non-zero value, it means error occurred, please try to rerun the block again.
-> - We suggest to use absolute path everywhere.
-> - We suggest to use a unified VCF for true variant and non-variant labeling, check here for more details on how to generate a unified VCF for each training sample. 
+> - The whole procedure was broken into blocks for better readability and error-tracing.
+> - For each `parallel` command ran with the `--joblog` option, we can check the `Exitval` column from the job log output. If the column contains a non-zero value, it means error occurred; please try to rerun the block.
+> - We suggest using absolute path everywhere.
+> - We suggest using a unified VCF for true variant and non-variant labeling, check here for more details on how to generate a unified VCF for each training sample. 
 
 This section shows how to build multiple compressed binary file for multiple samples with or without multiple coverages.
 
@@ -169,7 +169,7 @@ ALL_PHASED_BAM_FILE_PATH=(
 'hg004_1000.bam'
 )
 
-# Each line represents subsample ration to each sample, 1000 if no subsample applied
+# Each line represents subsample ratio to each sample, 1000 if no subsample applied
 DEPTHS=(
 1000
 800
@@ -287,9 +287,9 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_full_alignment.log -j$
 
 **Options**
 
- - `--zstd` : we recommended using [zstd](https://github.com/facebook/zstd) , an extremely fast and lossless compression tool to compress temporary tensor output, which provided much higher compression ratios compared with other compression tools.
- - `--phasing_info_in_bam` : we enable this option by default, that means we have phased a alignment using WhatsHap `haplotag`, phased alignment will have a `HP` tag in the alignment with haplotype information. 
- - `--add_no_phasing_data_training` :  full-alignment training uses phased alignment materials for training, in order increase model robustness, we also add alignment without phasing information into training. For those candidate having phased information, we also generate another tensor disabling phasing channel for training.   
+ - `--zstd` : we recommended using [zstd](https://github.com/facebook/zstd) , an extremely fast and lossless compression tool to compress temporary tensor output, which provided much higher compression ratios than other compression tools.
+ - `--phasing_info_in_bam` : we enable this option by default, which means we have phased a alignment using WhatsHap `haplotag`, phased alignment will have a `HP` tag in the alignment with haplotype information. 
+ - `--add_no_phasing_data_training` :  full-alignment training uses phased alignment materials for training. To increase model robustness, we also add alignment without phasing information into training. For those candidates having phased information, we also generate another tensor disabling phasing channel for training.   
 
 #### 5. Get truth variants from unified VCF using the `GetTruth` submodule
 
@@ -324,8 +324,8 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/tensor2Bin.log -j${THREADS} \
 
 **Options**
 
- - `--allow_duplicate_chr_pos` : for multiple coverages training, this options are required to avoid replace same variant sites from different coverages.
- - `--shuffle` :  as the input tensor are scanned in order of starting position, we shuffle the training data binary files with chunked iterator in advance to provide more variety. in the training process, we also apply index shuffling to reduce memory occupation.
+ - `--allow_duplicate_chr_pos` : for multiple coverages training, this options are required to avoid replacing same variant sites from different coverages.
+ - `--shuffle` :  as the input tensor are scanned in order of starting position, we shuffle the training data binary files with chunked iterator in advance to provide more variety. In the training process, we also apply index shuffling to reduce memory occupation.
  - `--maximum_non_variant_ratio` :  we set a maximum non-variant ratio (variant: non-variant = 1:1) for full-alignment model training, non-variants are randomly select from candidate set if exceeds the ratio,  otherwise, all non-variant will be selected for training. 
 
 ## III. Model training
@@ -370,8 +370,8 @@ ${PYTHON3} ${CLAIR3} Train \
     --add_indel_length True \
     --validation_dataset \
     --platform ${PLATFORM} \
-    --learning_rate 0.0005 \
+    --learning_rate 0.0001 \
     --chkpnt_fn "[YOUR_PRETRAINED_MODEL]"  ## use pre-trained full-alignment model weight here
 ```
 
-We experimentally offer full-alignment model fine-tune using pre-trained Clair3 model, by using a smaller `learning_rate` and pre-trained checkpoint file `ochk_prefix`, We recommend to use a smaller learning rate `5e-4` to fine-tune pre-trained model.
+We experimentally offer full-alignment model fine-tune using pre-trained Clair3 model, by using a smaller `learning_rate` and pre-trained checkpoint file `ochk_prefix`, We recommend to use a smaller learning rate 1e-4` to fine-tune pre-trained model.
