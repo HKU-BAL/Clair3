@@ -349,8 +349,8 @@ Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or 
 | :-------------: | :---------: | :-------------: | :---------------: | :----------------------------------------------------------: |
 |   ont.tar.gz    |     ONT     |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
 | ont_1235.tar.gz |     ONT     |   HG001,2,3,5   |                   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
-|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
 ## VCF Output Format
 
