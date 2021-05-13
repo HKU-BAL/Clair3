@@ -9,7 +9,7 @@ Email: rbluo@cs.hku.hk
 
 ## Introduction
 
-
+Long-read sequencing techniques produce sequences that can across repetitive regions to resolve various biological challenges such as contiguous de novo genome assembly, distant haplotyping and structural variants detection. Variant calling using long-read sequencing data also provides great potential in complex genomic regions against short-read sequencing.  In this study, we present Clair3, a novel approach integrating pileup and full-alignment representation for fast and high-performance germline variant calling using long-read sequencing data. For ONT data, Clair3 achieves state-of-the-art and outperforms other variant callers, including Clair, PEPPER and Medaka. 
 
 This is the formal release of Clair3, the successor of [Clair](https://github.com/HKU-BAL/Clair) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante).
 
@@ -39,11 +39,12 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 ## What's New in Clair3
 
 * **Accuracy Improvements.** Clair3 outperforms Clair, reducing SNP errors by **~78%**,  and Indel errors by **~48%** in HG003 ONT case study. SNP F1-score reaches 99.69% and Indel F1-score reaches 80.58% in ONT HG003 ~85-fold coverage dataset.  
-* **New Architecture.** Clair3 is an integration of pileup model and full-alignment model. Pileup model detects all candidate variants using summarized pileup input. Full-alignment model adopts more complete read-level representations with phased haplotype information to further decide the variant type of low-quality pileup candidates. 
+* **New Architecture.** Clair3 is an integration of pileup model and full-alignment model. Pileup model detects all candidate variants using summarized pileup input. Full-alignment model uses more complete read-level representations with haplotype phasing information to further decide the variant type of low-quality pileup candidates. Integration of two submodules enable Clair3 filter candidates rapidly while maintain high sensitivity.  
 * **High Efficiency.** 
   * Clair3 takes about ~8 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5x faster than PEPPER and ~14x faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
   * Clair3 takes about ~2 hours For PacBio HiFi ~35-fold coverage whole-genome-sequencing data using 36 CPUs, which is 13x faster than DeepVariant workflow.
-* **New BaseCaller Support.**  We support datasets base called using Guppy version 3.6.0~4.2.2  for ONT platform, check the [training data](docs/training_data.md) for specific datasets' link. We did not suggest using datasets base called using **Guppy version <= 3.6.0** for calling as we have discarded those datasets in model training.  
+* **New BaseCaller Support.**  Clair3 supports datasets base called by Guppy version 3.6.0~4.2.2  for ONT platform, check the [Training Data](docs/training_data.md) for datasets' details. We did not suggest using datasets base called using **Guppy version < 3.6.0** for calling as we have discarded those datasets in model training.  
+* **GVCF Output Support.**  Clair3 supports Genomic VCF output format when enabling ```--gvcf``` option.  GVCF contains extra infos that are required for variants analyses in a cohort of individuals, such as joint genotyping  and cohort merging. 
 
 ## Quick Demo
 
@@ -333,7 +334,7 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 
 ## Training Data
 
-More details about the training data and download links:  [training data](docs/training_data.md).
+Clair3 provided pre-trained models training in four GIAB samples (HG001, HG002, HG004 and HG005). We have excluded HG003 sample in training as a holdout set. For HG001 and HG005 samples, only true variants were selected into training. We train in chr1-chr19, chr21, chr22 in all training samples and leave chr20 as a holdout set. 
 
 |  Platform   |   Reference   |      Aligner      | Training Samples |
 | :---------: | :-----------: | :---------------: | :--------------: |
@@ -341,16 +342,18 @@ More details about the training data and download links:  [training data](docs/t
 | PacBio HiFi | GRCh38_no_alt |       pbmm2       |   HG001,2,4,5    |
 |  Illumina   |    GRCh38     | BWA-MEM/NovoAlign |   HG001,2,4,5    |
 
-#### Pretained Model
+More details about the training data and source links:  [Training Data](docs/training_data.md).
+
+#### Pre-trained Model
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
-|      File       |  Platform   | Training Sample | Default in Docker |                             Link                             |
-| :-------------: | :---------: | :-------------: | :---------------: | :----------------------------------------------------------: |
-|   ont.tar.gz    |     ONT     |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
-| ont_1235.tar.gz |     ONT     |   HG001,2,3,5   |                   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
-|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5   |        Yes        | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+|      File       |  Platform   | Training Samples | In Docker by Default |                             Link                             |
+| :-------------: | :---------: | :--------------: | :------------------: | :----------------------------------------------------------: |
+|   ont.tar.gz    |     ONT     |   HG001,2,4,5    |         Yes          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
+| ont_1235.tar.gz |     ONT     |   HG001,2,3,5    |                      | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
+|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5    |         Yes          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5    |         Yes          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
 ## VCF Output Format
 
