@@ -9,7 +9,7 @@ Email: rbluo@cs.hku.hk
 
 ## Introduction
 
-Long-read sequencing techniques produce sequences that can across repetitive regions to resolve various biological challenges such as contiguous de novo genome assembly, distant haplotyping and structural variants detection. Variant calling using long-read sequencing data also provides great potential in complex genomic regions against short-read sequencing.  In this study, we present Clair3, a novel approach integrating pileup and full-alignment representation for fast and high-performance germline variant calling using long-read sequencing data. For ONT data, Clair3 achieves state-of-the-art and outperforms other variant callers, including Clair, PEPPER and Medaka. 
+Long-read sequencing techniques produce sequences across repetitive regions to resolve various biological challenges such as contiguous de novo genome assembly, distant haplotyping and structural variants detection. Variant calling using long-read sequencing data also provides great potential in complex genomic regions against short-read sequencing.  In this study, we present Clair3, a novel approach integrating pileup and full-alignment representation for fast and high-performance germline variant calling using long-read sequencing data. For ONT data, Clair3 achieves state-of-the-art and outperforms other variant callers, including Clair, PEPPER and Medaka. 
 
 This is the formal release of Clair3, the successor of [Clair](https://github.com/HKU-BAL/Clair) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante).
 
@@ -38,12 +38,12 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 
 ## What's New in Clair3
 
-* **Accuracy Improvements.** Clair3 outperforms Clair, reducing SNP errors by **~78%**,  and Indel errors by **~48%** in HG003 ONT case study. SNP F1-score reaches 99.69% and Indel F1-score reaches 80.58% in ONT HG003 ~85-fold coverage dataset.  
-* **New Architecture.** Clair3 is an integration of pileup model and full-alignment model. Pileup model detects all candidate variants using summarized pileup input. Full-alignment model uses more complete read-level representations with haplotype phasing information to further decide the variant type of low-quality pileup candidates. Integration of two submodules enable Clair3 filter candidates rapidly while maintain high sensitivity.  
+* **Accuracy Improvements.** Clair3 outperforms Clair, reducing SNP errors by **~78%**,  and Indel errors by **~48%** in HG003 ONT case study. SNP F1-score reaches 99.69%, and Indel F1-score reaches 80.58% in ONT HG003 ~85-fold coverage dataset.  
+* **New Architecture.** Clair3 is an integration of pileup model and full-alignment model. Pileup model detects all candidate variants using summarized pileup input. Full-alignment model uses more complete read-level representations with haplotype phasing information to further decide the variant type of low-quality pileup candidates. Integration of two submodules enables Clair3 to filter candidates rapidly while maintaining high sensitivity.  
 * **High Efficiency.** 
   * Clair3 takes about ~8 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5x faster than PEPPER and ~14x faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
   * Clair3 takes about ~2 hours For PacBio HiFi ~35-fold coverage whole-genome-sequencing data using 36 CPUs, which is 13x faster than DeepVariant workflow.
-* **New BaseCaller Support.**  Clair3 supports datasets base called by Guppy version 3.6.0~4.2.2  for ONT platform, check the [Training Data](docs/training_data.md) for datasets' details. We did not suggest using datasets base called using **Guppy version < 3.6.0** for calling as we have discarded those datasets in model training.  
+* **New BaseCaller Support.**  Clair3 supports datasets base called by Guppy version 3.6.0~4.2.2  for ONT platform, check the [Training Data](docs/training_data.md) for datasets' details. We did not suggest using older **Guppy (version < 3.6.0)** base cased datasets for calling as we have discarded those datasets in model training.  
 * **GVCF Output Support.**  Clair3 supports Genomic VCF output format when enabling ```--gvcf``` option.  GVCF contains extra infos that are required for variants analyses in a cohort of individuals, such as joint genotyping  and cohort merging. 
 
 ## Quick Demo
