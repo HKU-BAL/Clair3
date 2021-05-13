@@ -38,7 +38,7 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 
 ## What's New in Clair3
 
-* **Accuracy Improvements.** Clair3 outperforms Clair, reducing SNP errors by **~78%**,  and Indel errors by **~48%** in HG003 ONT case study. SNP F1-score reaches 99.69%, and Indel F1-score reaches 80.58% in ONT HG003 ~85-fold coverage dataset.  
+* **Accuracy Improvements.** Clair3 outperforms Clair, reducing SNP errors by **~78%**,  and Indel errors by **~48%** in HG003 ONT case study. SNP F1-score reaches 99.69%, and Indel F1-score reaches 80.58% (Clair 49.34%) in ONT HG003 ~85-fold coverage dataset.  
 * **New Architecture.** Clair3 is an integration of pileup model and full-alignment model. Pileup model detects all candidate variants using summarized pileup input. Full-alignment model uses more complete read-level representations with haplotype phasing information to further decide the variant type of low-quality pileup candidates. Integration of two submodules enables Clair3 to filter candidates rapidly while maintaining high sensitivity.  
 * **High Efficiency.** 
   * Clair3 takes about ~8 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5x faster than PEPPER and ~14x faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
@@ -304,6 +304,32 @@ docker run -it \
   --bed_fn=${BED_FILE_PATH}
 ```
 
+#### Call variants in non-diploid organisms (Haploid calling)
+
+```bash
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+THREADS="[MAXIMUM_THREADS]"            # e.g. 36
+BIN_VERSION="v0.1"
+
+docker run -it \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  hkubal/clair3:"${BIN_VERSION}" \
+  /opt/bin/run_clair3.sh \
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
+  --output=${OUTPUT_DIR} \
+  --no_phasing_for_fa \                ## disable phasing for full-alignment
+  --include_all_ctgs \                 ## call variants on all contigs in the reference fasta
+  --haploid_precise                    ## optional(enable --haploid_precise or --haploid_sensitive) for haploid calling
+```
+
+#### 
+
 ## Folder Structure and Submodule Descriptions
 
 Submodules in __`clair3/`__ are for variant calling and model training. Submodules in __`preprocess`__ are for data preparation.
@@ -334,7 +360,7 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 
 ## Training Data
 
-Clair3 provided pre-trained models training in four GIAB samples (HG001, HG002, HG004 and HG005). We have excluded HG003 sample in training as a holdout set. For HG001 and HG005 samples, only true variants were selected into training. We train in chr1-chr19, chr21, chr22 in all training samples and leave chr20 as a holdout set. 
+Clair3 provided pre-trained models training in four GIAB samples (HG001, HG002, HG004 and HG005). We have excluded HG003 sample in training as a holdout set. For HG001 and HG005 samples, only true variants were selected into training. We trained Clair3 in chr1-chr19, chr21, chr22 in all training samples and leave chr20 as a holdout set. 
 
 |  Platform   |   Reference   |      Aligner      | Training Samples |
 | :---------: | :-----------: | :---------------: | :--------------: |
@@ -358,4 +384,4 @@ Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or 
 ## VCF Output Format
 
 `clair3/CallVariants.py` outputs variants in VCF format with version 4.2 specifications.
-Clair3 includes pileup calling and full-alignment calling submodule. Pileup calling results are denoted with a `P` INFO tag, full-alignment calling results are denoted with a `F` INFO tag.
+Clair3 VCF output includes pileup calling and full-alignment calling results. Pileup calling results are denoted with a `P` INFO tag, full-alignment calling results are denoted with a `F` INFO tag.
