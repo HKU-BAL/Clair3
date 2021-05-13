@@ -32,8 +32,9 @@ START_POS=100000
 END_POS=300000
 echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > ${INPUT_DIR}/quick_demo.bed
 
+cd ${OUTPUT_DIR}
 # Run Clair3 using one command
-docker run \
+docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:"${BIN_VERSION}" \

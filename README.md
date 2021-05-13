@@ -77,16 +77,16 @@ OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
 THREADS="[MAXIMUM_THREADS]"            # e.g. 36
 BIN_VERSION="v0.1"
 
-docker run \
+docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
-  --threads=${THREADS} \               ## Maximum threads to be used
-  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR}
 ```
 
@@ -101,12 +101,12 @@ Check [Usage](#Usage)  for more options.
 git clone --depth 1 https://github.com/hkubal/Clair3.git
 cd Clair3
 
-# build a docker image named clair3_docker
-# might require docker authentication to build by docker
-docker build -f ./Dockerfile -t clair3_docker .
+# build a docker image named hkubal/clair3:v0.1
+# might require docker authentication to build docker image 
+docker build -f ./Dockerfile -t hkubal/clair3:v0.1 .
 
-# run clair docker image like this afterward
-docker run -it clair3_docker /opt/bin/run_clair3.sh --help
+# run clair3 docker image like this afterward
+docker run -it hkubal/clair3:v0.1 /opt/bin/run_clair3.sh --help
 ```
 
 ### Option 3. Build an anaconda virtual environment
@@ -153,11 +153,11 @@ tar -zxvf clair3_models.tar.gz -C ./models
 
 # run clair3 like this afterward
 ./run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
-  --threads=${THREADS} \               ## Maximum threads to be used
-  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path=`pwd`"/models/ont" \    ## Absolute model path prefix, change platform accordingly
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path=`pwd`"/models/ont" \    ## absolute model path prefix, change platform accordingly
   --output=${OUTPUT_DIR}
 ```
 
@@ -173,12 +173,12 @@ For Illumina model, follows the [guidance](docs/quick_demo/illumina_quick_demo.m
   --bam_fn=${BAM} \
   --ref_fn=${REF} \
   --threads=${THREADS} \  		     
-  --platform='ont' \               ## Options: {ont,hifi,ilmn}
-  --model_path=${MODEL_PREFIX} \   ## Options: {ont,hifi,ilmn}
+  --platform='ont' \               ## options: {ont,hifi,ilmn}
+  --model_path=${MODEL_PREFIX} \   ## options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR}
-  
-## Pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
-## Full-alignment output file: ${OUTPUT_DIR}/full_alignment.vcf
+
+## pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
+## full-alignment output file: ${OUTPUT_DIR}/full_alignment.vcf.gz
 ## Clair3 final output file: ${OUTPUT_DIR}/merge_output.vcf.gz
 ```
 
@@ -232,16 +232,16 @@ OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
 THREADS="[MAXIMUM_THREADS]"            # e.g. 36
 BIN_VERSION="v0.1"
 
-docker run \
+docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
-  --threads=${THREADS} \               ## Maximum threads to be used
-  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
   --output=${OUTPUT_DIR} \
   --ctg_name=${CONTIGS_LIST}
 ```
@@ -249,22 +249,22 @@ docker run \
 #### Call variants at known variant sites
 
 ```bash
-KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. known_variants.vcf
+KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. known_variants.vcf.gz
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
 THREADS="[MAXIMUM_THREADS]"            # e.g. 36
 BIN_VERSION="v0.1"
 
-docker run \
+docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
-  --threads=${THREADS} \               ## Maximum threads to be used
-  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
   --output=${OUTPUT_DIR} \
   --vcf_fn=${KNOWN_VARIANTS_VCF}
 ```
@@ -284,22 +284,22 @@ echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > tmp.bed
 Then run Clair3 like this:
 
 ```bash
-BED_FILE_PATH="[YOUR_BED_FILE]"		   # e.g. tmp.bed
+BED_FILE_PATH=tmp.bed		           
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
 THREADS="[MAXIMUM_THREADS]"            # e.g. 36
 BIN_VERSION="v0.1"
 
-docker run \
+docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
-  --threads=${THREADS} \               ## Maximum threads to be used
-  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
   --output=${OUTPUT_DIR} \
   --bed_fn=${BED_FILE_PATH}
 ```

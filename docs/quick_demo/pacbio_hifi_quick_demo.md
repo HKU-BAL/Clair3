@@ -40,9 +40,9 @@ BASELINE_VCF_FILE_PATH="HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz"
 BASELINE_BED_FILE_PATH="HG003_GRCh38_chr20_v4.2.1_benchmark_noinconsistent.bed"
 OUTPUT_VCF_FILE_PATH="merge_output.vcf.gz"
 
-CONTIGS='chr20'
-START_POS='100000'
-END_POS="300000"
+CONTIGS="chr20"
+START_POS=100000
+END_POS=300000
 echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > ${INPUT_DIR}/quick_demo.bed
 ```
 
@@ -52,8 +52,9 @@ echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > ${INPUT_DIR}/quick_demo.bed
 THREADS=4
 BIN_VERSION="v0.1"
 
+cd ${OUTPUT_DIR}
 # Run Clair3 using one command
-docker run \
+docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:"${BIN_VERSION}" \
