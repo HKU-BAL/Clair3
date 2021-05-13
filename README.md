@@ -69,7 +69,7 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 
 ### Option 1.  Docker pre-built image (recommended)
 
-A pre-built docker image can be found [here](https://hub.docker.com/hku-bal/clair3). Then you can run Clair3 using one command:
+A pre-built docker image can be found [here](https://hub.docker.com/hkubal/clair3). Then you can run Clair3 using one command:
 
 ```bash
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
@@ -80,7 +80,7 @@ BIN_VERSION="v0.1"
 docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hku-bal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
@@ -98,7 +98,7 @@ Check [Usage](#Usage)  for more options.
 
 ```bash
 # clone Clair3
-git clone --depth 1 https://github.com/HKU-BAL/Clair3.git
+git clone --depth 1 https://github.com/hkubal/Clair3.git
 cd Clair3
 
 # build a docker image named clair3_docker
@@ -235,7 +235,7 @@ BIN_VERSION="v0.1"
 docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hku-bal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
@@ -258,7 +258,7 @@ BIN_VERSION="v0.1"
 docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hku-bal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
@@ -293,7 +293,7 @@ BIN_VERSION="v0.1"
 docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hku-bal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## Change your reference name here
