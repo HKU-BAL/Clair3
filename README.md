@@ -1,3 +1,8 @@
+<div align="center">
+  <a href="https://en.wiktionary.org/wiki/%E7%9C%BC" target="_blank">
+    <img src="docs/images/clair3-logo.png" alt="Clair">
+  </a>
+</div>
 
 # Clair3 - Integrating pileup and full-alignment for high-performance long-read variant calling
 
