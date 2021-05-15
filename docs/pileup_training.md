@@ -1,21 +1,21 @@
 # Train a model for Clair3 pileup calling
 
-This document shows how to train or fine-tune a deep learning model for Clair3 pileup calling.  Check [here](full_alignment_training.md) for full-alignment training process. We simplified the training workflow in [Clair](https://github.com/HKU-BAL/Clair/blob/master/docs/TRAIN.md), while still maintaining multiple samples and multiple coverages training workflow. We divided all training materials into `SAMPLES`, `DEPTHS` and `CHR` tags representing different training samples, different training coverages, and contig name, respectively.  All candidate variants are selected to create a binary and then were fed into training or fine-tune workflow.
+This document shows how to train and fine-tune a deep-learning model for Clair3 pileup calling.  For training a model for full-alignment calling, please check [here](full_alignment_training.md). Clair3 needs both a pileup model and a full-alignment model to work. Compared to [Clair](https://github.com/HKU-BAL/Clair/blob/master/docs/TRAIN.md), the training workflow of Clair3 is simplifed. The training materials are grouped according to sample, coverage, and chromosome. The groups are converted into tensor binaries. The binaries are much space-efficient and easier to process. As required, multiples tensor binaries can be used together for model training and fine-tuning. 
 
 ![image](images/clair3_data_generation.png)
+
+---
 
 ## Prerequisites
 
 - Clair3 installed
 - GNU Parallel installed
 - Sufficient hard-disk space
-- Unified VCF file(recommended), check [here]() on how to generate unified VCF
-- A powerful GPU
-  
-    - RTX Titan (tested)
-    - GTX 2080 Ti (tested)
-    - GTX 1080 Ti (tested)
-    
+- Truth VCF file after representation unification (check [here]() on how to generate unified VCF)
+- A high-end GPU (tested RTX Titan, RTX 2080Ti, and GTX 1080Ti)
+
+
+---
 
 ## Contents
 
@@ -33,12 +33,12 @@ This document shows how to train or fine-tune a deep learning model for Clair3 p
 
 ---
 
-## I. Training data subsamping (recommended)
+## I. Training data subsamping
 
 To build a training dataset with multiple coverages, we need to create multiple subsampled BAM files from the original full-depth BAM file.
 
 ```bash
-# Please make sure the provided bam file is sorted and indexed
+# Please make sure the provided bam files are sorted and indexed
 ALL_BAM_FILE_PATH=(
 'hg002.bam'
 'hg002.bam'
@@ -66,11 +66,11 @@ SUBSAMPLED_BAMS_FOLDER_PATH="[SUBSAMPLED_BAMS_FOLDER_PATH]"
 mkdir -p ${SUBSAMPLED_BAMS_FOLDER_PATH}
 
 # Other parameters
-THREADS=12
+THREADS=8
 PARALLEL='parallel'
 SAMTOOLS='samtools'
 
-# Subsample BAM to specific depth in parallel
+# Subsample BAM to specific depths in parallel
 ${PARALLEL} -j${THREADS} "${SAMTOOLS} view -@12 -s {2}.{2} -b -o ${SUBSAMPLED_BAMS_FOLDER_PATH}/{2}_{1}.bam {3}" ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${ALL_BAM_FILE_PATH[@]}
 ${PARALLEL} -j${THREADS} "${SAMTOOLS} index ${SUBSAMPLED_BAMS_FOLDER_PATH}/{2}_{1}.bam" ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]}
 
@@ -80,37 +80,37 @@ ${PARALLEL} "ln -s {2}.bai ${SUBSAMPLED_BAMS_FOLDER_PATH}/{1}_1000.bam.bai" ::: 
 
 ```
 
+----
+
 ## II. Build compressed binary files for pileup model training
 
-**Hints**
+> - The whole procedure are breaking into blocks for better readability and error-tracing.
+> - For each `parallel` command that run with the `--joblog` option, we can check the `Exitval` column from the job log output. If the column contains a non-zero value, it means error occurred; please rerun the failed block again.
+> - We suggest using absolute path EVERYWHERE.
+> - You can use a Truth VCF file without representation unification. You might want to do it only for testing because Clair3's performance would be significantly affected without representation unification.
 
-> - The whole procedure was broken into blocks for better readability and error-tracing.
-> - For each `parallel` command ran with the `--joblog` option, we can check the `Exitval` column from the job log output. If the column contains a non-zero value, it means error occurred; please try to rerun the block again.
-> - We suggest using absolute path everywhere.
-> - We suggest using a unified VCF for true variant and non-variant labeling; check [representation unification](representation_unification.md) for more details on how to generate a unified VCF for each training sample. 
-
-This section shows how to build multiple compressed binary files for multiple samples with or without multiple coverages.
+This section shows how to build multiple compressed tensor binary files for multiple samples either with or without multiple coverages.
 
 #### 1. Setup variables
 ```bash
-# Setup bin variables
+# Setup executable variables
 CLAIR3="clair3.py"                               			   # clair3.py
-PYPY="[PYPY_BIN_PATH]"                                         # e.g. pypy3
-PYTHON3="[PYTHON3_BIN_PATH]"                                   # e.g. python3
-PARALLEL="[PARALLEL_BIN_PATH]"                                 # e.g. parallel
-SAMTOOLS="[SAMTOOLS_BIN_PATH]"                                 # e.g. samtools
+PYPY="[PYPY_BIN_PATH]"                                   # e.g. pypy3
+PYTHON3="[PYTHON3_BIN_PATH]"                             # e.g. python3
+PARALLEL="[PARALLEL_BIN_PATH]"                           # e.g. parallel
+SAMTOOLS="[SAMTOOLS_BIN_PATH]"                           # e.g. samtools
 
 # Input parameters
-PLATFORM="[SEQUENCING_PLATFORM]"                               # e.g. {ont, hifi, ilmn}
-UNIFIED_VCF_FILE_PATH="[YOUR_VCF_FILE_PATH_ARRAY]"             # e.g. hg002.unified.vcf.gz
-ALL_BAM_FILE_PATH="[YOUR_BAM_FILE_PATH_ARRAY]"                 # e.g. hg002.bam
-DEPTHS="[YOUR_DEPTHS_OF_SAMPLES_ARRAY]"                        # e.g. 1000 (means no subsample)
-ALL_REFERENCE_FILE_PATH="[YOUR_FASTA_FILE_PATH_ARRAY]"         # e.g. hg002.fasta
-ALL_BED_FILE_PATH="[YOUR_BED_FILE_PATH_ARRAY]"                 # e.g. hg002.bed
-ALL_SAMPLE="[YOUR_SAMPLE_NAME_ARRAY]"                          # e.g. hg002
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER_PATH]"					       # e.g. output_folder
+PLATFORM="[SEQUENCING_PLATFORM]"                         # e.g. {ont, hifi, ilmn}
+UNIFIED_VCF_FILE_PATH="[YOUR_VCF_FILE_PATH_ARRAY]"       # e.g. hg002.unified.vcf.gz
+ALL_BAM_FILE_PATH="[YOUR_BAM_FILE_PATH_ARRAY]"           # e.g. hg002.bam
+DEPTHS="[YOUR_DEPTHS_OF_SAMPLES_ARRAY]"                  # e.g. 1000 (means no subsample)
+ALL_REFERENCE_FILE_PATH="[YOUR_FASTA_FILE_PATH_ARRAY]"   # e.g. hg002.fasta
+ALL_BED_FILE_PATH="[YOUR_BED_FILE_PATH_ARRAY]"           # e.g. hg002.bed
+ALL_SAMPLE="[YOUR_SAMPLE_NAME_ARRAY]"                    # e.g. hg002
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER_PATH]"					         # e.g. output_folder
 
-# Each line represent one input bam with matched coverage with "DEPTH" array
+# Each line represent one input BAM with a matched coverage in the "DEPTH" array
 ## check the "Training data subsamping" section on how to apply BAM subsampling
 ALL_BAM_FILE_PATH=(
 'hg002_1000.bam'
@@ -118,7 +118,7 @@ ALL_BAM_FILE_PATH=(
 'hg004_1000.bam'
 )
 
-# Each line represents subsample ration to each sample, 1000 if no subsample applied
+# Each line represents subsample ration to each sample, 1000 if no subsampling applies
 DEPTHS=(
 1000
 800
@@ -146,22 +146,22 @@ ALL_BED_FILE_PATH=(
 'hg004.bed'
 )
 
-# Each line represents one unified VCF file for each sample
+# Each line represents one representation-unified VCF file for each sample
 UNIFIED_VCF_FILE_PATH=(
 'hg002_1000.unified.vcf.gz'
 'hg002_800.unified.vcf.gz'
 'hg004_1000.unified.vcf.gz'
 )
 
-# Chromosome prefix ("chr" if chromosome names have the "chr"-prefix)
+# Chromosome prefix ("chr" if chromosome names have the "chr" prefix)
 CHR_PREFIX="chr"
 
-# array of chromosomes (do not include "chr"-prefix) to training in all sample
-## pls note that we have excluded chr20 as a hold-out set, so do not use chr20 for training.
+# array of chromosomes (do not include tge "chr" prefix) to train in all sample
+## pls note that in the pretrained Clair3 models, we have excluded chr20 as a hold-out set.
 CHR=(21 22)
 
 # Number of threads to be used
-THREADS=24
+THREADS=8
 
 # Number of chucks to be divided into for parallel processing
 chunk_num=15
@@ -182,7 +182,7 @@ MAXIMUM_NON_VARIANT_RATIO=5
 
 #### 2. Create temporary working folders for each submodule
 ```bash
-# Temporary working directory
+# Temporary working directories
 DATASET_FOLDER_PATH="${OUTPUT_DIR}/build"
 TENSOR_CANDIDATE_PATH="${DATASET_FOLDER_PATH}/tensor_can"
 BINS_FOLDER_PATH="${DATASET_FOLDER_PATH}/bins"
@@ -196,22 +196,26 @@ mkdir -p ${BINS_FOLDER_PATH}
 mkdir -p ${CANDIDATE_DETAILS_PATH}
 mkdir -p ${SPLIT_BED_PATH}
 mkdir -p ${VAR_OUTPUT_PATH}
+
 ```
 
 #### 3. Split and extend bed regions using the `SplitExtendBed` submodule
 ```bash
-# Split bed file regions according to the contig name and extend bed region
+cd ${OUTPUT_DIR}
+
+# Split BED file regions according to the contig names and extend the bed regions
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/split_extend_bed.log -j${THREADS} \
 "${PYPY} ${CLAIR3} SplitExtendBed \
     --bed_fn {4} \
     --output_fn ${SPLIT_BED_PATH}/{2}_{3}_{1} \
     --ctgName ${CHR_PREFIX}{1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${ALL_BED_FILE_PATH[@]}
+    
 ```
 
 #### 4. Create pileup tensor using the `CreateTensorPileup` submodule
 
 ```bash
-# Create pileup tensor for model training
+# Create pileup tensors for model training
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS} \
 "${PYPY} ${CLAIR3} CreateTensorPileup \
     --bam_fn {4} \
@@ -232,8 +236,8 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS
 
 **Options**
 
- - `--zstd` : we recommended using [zstd](https://github.com/facebook/zstd) , an extremely fast and lossless compression tool to compress temporary tensor output, which provided much higher compression ratios compared with other compression tools.
- - `--max_depth` :  pileup input summarizes position-level read alignments where depth information varies for various training materials. If need to re-train or fine-tune Clair3 pileup model, we recommend setting a maximum depth based on the maximum-coverage training materials accordingly.
+ - `--zstd` : we recommend using [zstd](https://github.com/facebook/zstd) , an extremely fast and lossless compression tool to compress temporary tensor output. zstd provids much higher compression ratios compared to other compression tools.
+ - `--max_depth` :  set the depth cap of every genome position. Pileup input summarizes position-level read alignments where depth information varies in the training materials. If not contrained by computational resources, we recommend setting the depth cap to the maximum depth coverage of the training materials.
 
 #### 5. Get truth variants from unified VCF using the `GetTruth` submodule
 
@@ -248,7 +252,7 @@ ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
 
 #### 6. Convert pileup tensor to compressed binary file using the `Tensor2Bin` submodule
 ```bash
-# Convert pileup tensor to compressed bin
+# Convert pileup tensor to compressed binaries
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/tensor2Bin.log -j${THREADS} \
 "${PYTHON3} ${CLAIR3} Tensor2Bin \
     --tensor_fn ${TENSOR_CANDIDATE_PATH}/tensor_can_{2}_{3}_{1} \
@@ -267,9 +271,11 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/tensor2Bin.log -j${THREADS} \
 
 **Options**
 
- - `--allow_duplicate_chr_pos` : for multiple coverages training, this options are required to avoid replacing same variant sites from different coverages.
- - `--shuffle` :  as the input tensor are scanned in order of starting position, we shuffle the training data binary files with chunked iterator in advance to provide more variety. In the training process, we also apply index shuffling to reduce memory occupation.
- - `--maximum_non_variant_ratio` :  we set a maximum non-variant ratio (variant: non-variant = 1:5) for pileup model training, non-variants are randomly select from candidate set if exceeds the ratio,  otherwise, all non-variant will be selected for training. 
+ - `--allow_duplicate_chr_pos` : for multiple coverages training, this option is required to to allow different coverage training samples at the same variant site.
+ - `--shuffle` :  as the input tensors are created in the order of starting positions, this option shuffles the training data in each chunk and the chucks themselvse. During the training process, index-based chuck reshuffling before each epoch is also applied.
+ - `--maximum_non_variant_ratio` :  we set a maximum non-variant ratio (variant:non-variant = 1:5) for pileup model training, non-variants are randomly selected from the candidate set if the ratio is exceeded, or all non-variants will be used for training otherwise. 
+
+----
 
 ## III. Model training
 
@@ -281,9 +287,8 @@ mkdir -p ${MODEL_FOLDER_PATH}
 
 cd ${MODEL_FOLDER_PATH}
 
-# We trained model in single GPU, so we did not include multi-GPU and multi-worker workflow here
+# A single GPU is used for model training
 export CUDA_VISIBLE_DEVICES="0"
-
 ${PYTHON3} ${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
     --ochk_prefix ${MODEL_FOLDER_PATH} \
@@ -296,16 +301,14 @@ ${PYTHON3} ${CLAIR3} Train \
 
 **Options**
 
- - `--pileup` : `pileup`  flag is the only flag to distinguish pileup model and full-alignment model.
- - `--add_indel_length` :  for pileup model, we currently disabled two indel-length tasks.
- - `--validation_dataset`: we random select 10% from all candidate site as hold-out validation data, best-performance epoch from validation dataset are select for our default model.
+ - `--pileup` : enable pileup model training mode. (enable full-alignment mode if the option is not set).
+ - `--add_indel_length` :  enable or disable the two indel-length tasks. In the pre-trained models, the two tasks are disabled in pileup calling.
+ - `--validation_dataset`: randomly holdout 10% from all candidate sites as validation data, the best-performing epoch on the validation data are selected as our pretrained models.
 
 #### 2. Pileup model fine-tune using pre-trained model (optional)
 
 ```bash
-# Pileup model fine-tune in a new sample
-
-# Full-alignment model fine-tune in a new sample
+# Pileup model fine-tuning using a new sample
 MODEL_FOLDER_PATH="${OUTPUT_DIR}/train"
 mkdir -p ${MODEL_FOLDER_PATH}
 
@@ -313,13 +316,15 @@ cd ${MODEL_FOLDER_PATH}
 
 export CUDA_VISIBLE_DEVICES="0"
 ${PYTHON3} ${CLAIR3} Train \
+    --pileup \
     --bin_fn ${BINS_FOLDER_PATH} \
     --ochk_prefix ${MODEL_FOLDER_PATH} \
     --add_indel_length True \
     --validation_dataset \
     --platform ${PLATFORM} \
     --learning_rate 0.0001 \
-    --chkpnt_fn "[YOUR_PRETRAINED_MODEL]"  ## use pre-trained full-alignment model weight here
+    --chkpnt_fn "[YOUR_PRETRAINED_MODEL]"  ## use pre-trained pileup model here
+    
 ```
 
-We experimentally offer pileup model fine-tune using pre-trained Clair3 model, by using a smaller `learning_rate` and pre-trained checkpoint file `ochk_prefix`, We recommend to use a smaller learning rate `1e-4` to fine-tune pre-trained model.
+We experimentally offer pileup model fine tuning using a pre-trained Clair3 pileup model, by using a smaller `learning_rate` and a pre-trained model `chkpnt_fn`. We recommend starting with a smaller learning rate such as `1e-4` to fine-tune a pre-trained pileup model.

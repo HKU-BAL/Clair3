@@ -1,9 +1,13 @@
-# Clair3 Representation Unification Visualization
+# Visualization of Clair3's Representation Unification
 
-This document shows Clair3's representation unification visualization cases in three platforms.  All visualization cases are carried on GIAB HG002 sample chromosome 1. 
+This document showcase of Clair3's representation unification in three platforms.  All visualization cases are from the chr1 of the GIAB HG002 sample. 
+
+For your interest, please also check the following links:
 
 1. How this algorithm works: [represatation unification](representation_unification.md).
-2. If wish to get more visualization cases of three platforms, download from here: [ONT](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/ont.tar.gz), [PacBio HiFi](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/pacbio_hifi.tar.gz), [Illumina](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/illumina.tar.gz). 
+2. For more visualization cases, please click [ONT](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/ont.tar.gz), [PacBio HiFi](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/pacbio_hifi.tar.gz), [Illumina](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/illumina.tar.gz). 
+
+----
 
 ## Contents
 
@@ -11,9 +15,15 @@ This document shows Clair3's representation unification visualization cases in t
 - [PacBio HiFi](#pacbio-hifi)
 - [Illumina](#Illumina)
 
-Each figure includes truths variants information from GIAB truths set VCF, phased alignment information from alignment file and unified details on how candidates haplotypes match truths haplotypes.  Check the demo here:
+----
+
+## Legends
+
+Each figure contains three tracks includng 1) truths variants information from a GIAB truth set VCF, 2) phased alignments, and 3) details of the unification result (how candidate haplotypes match with the truth haplotypes). Below is an example.
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/represatation_unification_demo.png)
+
+----
 
 ##  ONT
 
@@ -41,6 +51,8 @@ Each figure includes truths variants information from GIAB truths set VCF, phase
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/ont_HG002-chr1:177645243-177645283.png)
 
+----
+
 ## PacBio HiFi
 
 **HG002 chr1:17126445_171264950**
@@ -58,6 +70,8 @@ Each figure includes truths variants information from GIAB truths set VCF, phase
 **HG002  chr1:116120386-116120580**
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/representation_unification/pb_HG002-chr1.116120386-116120580.png)
+
+----
 
 ## Illumina
 

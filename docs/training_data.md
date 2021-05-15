@@ -1,9 +1,11 @@
 
 # Training Data
 
+
+
 #### ONT
 
-| Sample |   Reference   | Aligner  | Coverage | Base-Caller  |                             link                             |
+| Sample |   Reference   | Aligner  | Coverage |  Basecaller  |                             link                             |
 | :----: | :-----------: | :------: | :------: | :----------: | :----------------------------------------------------------: |
 | HG001  | GRCh38_no_alt | minimap2 |   58.1   | Guppy v4.2.2 | [link](https://s3-us-west-2.amazonaws.com/human-pangenomics/index.html?prefix=NHGRI_UCSC_panel/HG001/nanopore/Guppy_4.2.2/HG001_Circulomics_Guppy_4.2.2.fastq.gz) |
 | HG001  | GRCh38_no_alt | minimap2 |   35.3   | Guppy v4.2.2 | [link](https://s3-us-west-2.amazonaws.com/human-pangenomics/index.html?prefix=NHGRI_UCSC_panel/HG001/nanopore/Guppy_4.2.2/HG001_NBT2018_Guppy_4.2.2.fastq.gz) |
@@ -31,28 +33,30 @@
 
 #### Illumina
 
-| Sample |   Reference   |  Aligner  | Coverage | Instruments | Link                                                         |
-| :----: | :-----------: | :-------: | :------: | :---------: | ------------------------------------------------------------ |
-| HG001  |    GRCh38     |  BWA-MEM  |   41.5   |   HiSeqX    | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/hiseqx/wgs_pcr_free/40x/HG001.hiseqx.pcr-free.40x.dedup.grch38.bam) |
-| HG001  |    GRCh38     |  BWA-MEM  |   46.3   |   NovaSeq   | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/novaseq/wgs_pcr_free/50x/HG001.novaseq.pcr-free.50x.dedup.grch38.bam) |
-| HG002  | GRCh38_no_alt | NovoAlign |  276.3   |   HiSeqX    | [link](ftp://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG002.GRCh38.300x.bam) |
-| HG002  |    GRCh38     |  BWA-MEM  |   38.8   |   HiSeqX    | [link](https://precision.fda.gov/files/file-FpZBpZQ0xbJbqX5fGjgz9B1G-1) |
-| HG002  |    GRCh38     |  BWA-MEM  |   42.1   |   HiSeqX    | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/hiseqx/wgs_pcr_free/40x/HG002.hiseqx.pcr-free.40x.dedup.grch38.bam) |
-| HG002  |    GRCh38     |  BWA-MEM  |   49.8   |   NovaSeq   | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/novaseq/wgs_pcr_free/50x/HG002.novaseq.pcr-free.50x.dedup.grch38.bam) |
-| HG003  |    GRCh38     |  BWA-MEM  |   39.1   |   NovaSeq   | [link](https://precision.fda.gov/files/file-FpZG9Jj0xbJQ40QFGjPf019X-1) |
-| HG004  |    GRCh38     |  BWA-MEM  |   39.3   |   NovaSeq   | [link](https://precision.fda.gov/files/file-FpZG9Jj0xbJQ40QFGjPf019X-1) |
-| HG004  |    GRCh38     |  BWA-MEM  |   42.1   |   HiSeqX    | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/hiseqx/wgs_pcr_free/40x/HG004.hiseqx.pcr-free.40x.dedup.grch38.bam) |
-| HG004  |    GRCh38     |  BWA-MEM  |   46.4   |   NovaSeq   | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/novaseq/wgs_pcr_free/50x/HG004.novaseq.pcr-free.50x.dedup.grch38.bam) |
-| HG005  |    GRCh38     |  BWA-MEM  |   43.8   |   HiSeqX    | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/novaseq/wgs_pcr_free/50x/HG005.novaseq.pcr-free.50x.dedup.grch38.bam) |
-| HG005  |    GRCh38     |  BWA-MEM  |   42.4   |   NovaSeq   | [link](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/ChineseTrio/HG005_NA24631_son/PacBio_SequelII_CCS_11kb/HG005_GRCh38/HG005_GRCh38.haplotag.10x.bam) |
+| Sample |   Reference   |  Aligner  | Coverage | Sequencer |                             Link                             |
+| :----: | :-----------: | :-------: | :------: | :-------: | :----------------------------------------------------------: |
+| HG001  |    GRCh38     |  BWA-MEM  |   41.5   |  HiSeqX   | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/hiseqx/wgs_pcr_free/40x/HG001.hiseqx.pcr-free.40x.dedup.grch38.bam) |
+| HG001  |    GRCh38     |  BWA-MEM  |   46.3   |  NovaSeq  | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/novaseq/wgs_pcr_free/50x/HG001.novaseq.pcr-free.50x.dedup.grch38.bam) |
+| HG002  | GRCh38_no_alt | NovoAlign |  276.3   |  HiSeqX   | [link](ftp://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG002.GRCh38.300x.bam) |
+| HG002  |    GRCh38     |  BWA-MEM  |   38.8   |  HiSeqX   | [link](https://precision.fda.gov/files/file-FpZBpZQ0xbJbqX5fGjgz9B1G-1) |
+| HG002  |    GRCh38     |  BWA-MEM  |   42.1   |  HiSeqX   | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/hiseqx/wgs_pcr_free/40x/HG002.hiseqx.pcr-free.40x.dedup.grch38.bam) |
+| HG002  |    GRCh38     |  BWA-MEM  |   49.8   |  NovaSeq  | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/novaseq/wgs_pcr_free/50x/HG002.novaseq.pcr-free.50x.dedup.grch38.bam) |
+| HG003  |    GRCh38     |  BWA-MEM  |   39.1   |  NovaSeq  | [link](https://precision.fda.gov/files/file-FpZG9Jj0xbJQ40QFGjPf019X-1) |
+| HG004  |    GRCh38     |  BWA-MEM  |   39.3   |  NovaSeq  | [link](https://precision.fda.gov/files/file-FpZG9Jj0xbJQ40QFGjPf019X-1) |
+| HG004  |    GRCh38     |  BWA-MEM  |   42.1   |  HiSeqX   | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/hiseqx/wgs_pcr_free/40x/HG004.hiseqx.pcr-free.40x.dedup.grch38.bam) |
+| HG004  |    GRCh38     |  BWA-MEM  |   46.4   |  NovaSeq  | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/novaseq/wgs_pcr_free/50x/HG004.novaseq.pcr-free.50x.dedup.grch38.bam) |
+| HG005  |    GRCh38     |  BWA-MEM  |   43.8   |  HiSeqX   | [link](https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/bam/novaseq/wgs_pcr_free/50x/HG005.novaseq.pcr-free.50x.dedup.grch38.bam) |
+| HG005  |    GRCh38     |  BWA-MEM  |   42.4   |  NovaSeq  | [link](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/ChineseTrio/HG005_NA24631_son/PacBio_SequelII_CCS_11kb/HG005_GRCh38/HG005_GRCh38.haplotag.10x.bam) |
+
+----
 
 #### Pre-trained Model
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
-|      File       |  Platform   | Training Samples | In Docker by Default |                             Link                             |
-| :-------------: | :---------: | :--------------: | :------------------: | :----------------------------------------------------------: |
-|   ont.tar.gz    |     ONT     |   HG001,2,4,5    |         Yes          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
-| ont_1235.tar.gz |     ONT     |   HG001,2,3,5    |                      | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
-|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5    |         Yes          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5    |         Yes          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+|      File       |  Platform   | Training Samples | In the docker image by default |                             Link                             |
+| :-------------: | :---------: | :--------------: | :----------------------------: | :----------------------------------------------------------: |
+|   ont.tar.gz    |     ONT     |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
+| ont_1235.tar.gz |     ONT     |   HG001,2,3,5    |                                | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
+|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
