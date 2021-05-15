@@ -1,27 +1,35 @@
 # Clair3 Representation Unification
 
+
+
 ## Introduction
 
-This document shows how Clair3 unifies representation between training materials and true variant set.
+This document shows how Clair3 unifies the representation between the training materials and true variant set.
+
+----
 
 ## Prerequisites
 
 - Clair3 installed 
 - GNU Parallel installed
-- Pypy3 installed (although this submodule could run in Python 3, using pypy interpreter is recommended for better efficiency)
+- Pypy3 installed
+
+----
 
 ## Input/Output
 
 **Input:**
 
-- BAM: Indexed BAM  input
+- BAM: Indexed BAM input
 - REF: Indexed Reference input
 - VCF: True variant VCF input
-- BED: Confident bed input(optional)
+- BED: Confident BED regions input (optional)
 
 **Ouput:**
 
-- Unified VCF file
+- An VCF file of truth variants unified to the training materials
+
+----
 
 ## Contents
 
@@ -37,22 +45,22 @@ This document shows how Clair3 unifies representation between training materials
 
 ```bash
 # Setup variables
-CLAIR3="clair3.py"                               			   # clair3.py
-PYPY="[PYPY_BIN_PATH]"                                         # e.g. pypy3
-WHATSHAP="[WHATSHAP_BIN_PATH]"                                 # e.g. whatshap
-PARALLEL="[PARALLEL_BIN_PATH]"                                 # e.g. parallel
-TABIX="[TABIX_BIN_PATH]"                                       # e.g. tabix
-SAMTOOLS="[SAMTOOLS_BIN_PATH]"                                 # e.g. samtools
+CLAIR3="clair3.py"                                     # clair3.py
+PYPY="[PYPY_BIN_PATH]"                                 # e.g. pypy3
+WHATSHAP="[WHATSHAP_BIN_PATH]"                         # e.g. whatshap
+PARALLEL="[PARALLEL_BIN_PATH]"                         # e.g. parallel
+TABIX="[TABIX_BIN_PATH]"                               # e.g. tabix
+SAMTOOLS="[SAMTOOLS_BIN_PATH]"                         # e.g. samtools
 
 # Input parameters
-PLATFORM="[SEQUENCING_PLATFORM]"                               # e.g. {ont, hifi, ilmn}
-VCF_FILE_PATH="[YOUR_VCF_FILE_PATH]"                           # e.g. hg003.vcf.gz
-BAM_FILE_PATH="[YOUR_BAM_FILE_PATH]"                           # e.g. hg003.bam
-REFERENCE_FILE_PATH="[YOUR_FASTA_FILE_PATH]"                   # e.g. hg003.fasta
-BED_FILE_PATH="[YOUR_BED_FILE_PATH]"                           # e.g. hg003.bed
+PLATFORM="[SEQUENCING_PLATFORM]"                       # e.g. {ont, hifi, ilmn}
+VCF_FILE_PATH="[YOUR_VCF_FILE_PATH]"                   # e.g. hg003.vcf.gz
+BAM_FILE_PATH="[YOUR_BAM_FILE_PATH]"                   # e.g. hg003.bam
+REFERENCE_FILE_PATH="[YOUR_FASTA_FILE_PATH]"           # e.g. hg003.fasta
+BED_FILE_PATH="[YOUR_BED_FILE_PATH]"                   # e.g. hg003.bed
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER_PATH]"					       # e.g. output
 
-# Chromosome prefix ("chr" if chromosome names have the "chr"-prefix)
+# Chromosome prefix ("chr" if chromosome names have the "chr" prefix)
 CHR_PREFIX="chr"
 
 # array of chromosomes (do not include "chr"-prefix)
@@ -104,6 +112,7 @@ ${PARALLEL} --joblog ${PHASE_VCF_PATH}/phase.log -j${THREADS} \
     --distrust-genotypes \
     ${OUTPUT_DIR}/INPUT.vcf.gz \
     ${BAM_FILE_PATH}" ::: ${CHR[@]}
+    
 ```
 
 #### 3.  Haplotag read alignment using WhatsHap
@@ -121,6 +130,7 @@ ${PARALLEL} --joblog ${PHASE_BAM_PATH}/haplotag.log -j${THREADS} \
 
 # Index the phased bam file using samtools
 ${PARALLEL} --joblog ${PHASE_BAM_PATH}/index.log -j ${THREADS} ${SAMTOOLS} index -@12 ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
+
 ```
 
 #### 4.  Prepare true variant set and candidate input

@@ -1,17 +1,19 @@
 
 # Clair3 - Integrating pileup and full-alignment for high-performance long-read variant calling
 
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) \
-Contact: Ruibang Luo \
-Email: rbluo@cs.hku.hk
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)  
+
+Contact: Ruibang Luo  
+
+Email: rbluo@cs.hku.hk  
 
 ---
 
 ## Introduction
 
-Long-read sequencing techniques produce sequences across repetitive regions to resolve various biological challenges such as contiguous de novo genome assembly, distant haplotyping and structural variants detection. Variant calling using long-read sequencing data also provides great potential in complex genomic regions against short-read sequencing.  In this study, we present Clair3, a novel approach integrating pileup and full-alignment representation for fast and high-performance germline variant calling using long-read sequencing data. For ONT data, Clair3 achieves state-of-the-art and outperforms other variant callers, including Clair, PEPPER and Medaka. 
+Clair3 is a small variant caller for long-reads. Compare to PEPPER (r0.4), Clair3 (v0.1) shows a better SNP F1-score with ≤30-fold of ONT data (precisionFDA Truth Challenge V2), and a better Indel F1-score, while runs generally four times faster. Clair3 makes the best of both worlds of using pileup or full-alignment as input for deep-learning based long-read small variant calling. Clair3 is simple and modular for easy deployment and integration.
 
-This is the formal release of Clair3, the successor of [Clair](https://github.com/HKU-BAL/Clair) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante).
+Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Clair) (the 2<sup>nd</sup>) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante) (the 1<sup>st</sup>).
 
 ---
 
@@ -26,7 +28,8 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
-* [VCF Output Format](#vcf-output-format)
+* [Training Data](#training-data)
+* [VCF/GVCF Output Formats](#vcf-output-format)
 * [Pileup Model Training](docs/pileup_training.md)
 * [Full-Alignment Model Training](docs/full_alignment_training.md)
 * [Representation Unification](docs/representation_unification.md)
@@ -38,19 +41,19 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 
 ## What's New in Clair3
 
-* **Accuracy Improvements.** Clair3 outperforms Clair, reducing SNP errors by **~78%**,  and Indel errors by **~48%** in HG003 ONT case study. SNP F1-score reaches 99.69%, and Indel F1-score reaches 80.58% (Clair 49.34%) in ONT HG003 ~85-fold coverage dataset.  
-* **New Architecture.** Clair3 is an integration of pileup model and full-alignment model. Pileup model detects all candidate variants using summarized pileup input. Full-alignment model uses more complete read-level representations with haplotype phasing information to further decide the variant type of low-quality pileup candidates. Integration of two submodules enables Clair3 to filter candidates rapidly while maintaining high sensitivity.  
-* **High Efficiency.** 
-  * Clair3 takes about ~8 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5x faster than PEPPER and ~14x faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
-  * Clair3 takes about ~2 hours For PacBio HiFi ~35-fold coverage whole-genome-sequencing data using 36 CPUs, which is 13x faster than DeepVariant workflow.
-* **New BaseCaller Support.**  Clair3 supports datasets base called by Guppy version 3.6.0~4.2.2  for ONT platform, check the [Training Data](docs/training_data.md) for datasets' details. We did not suggest using older **Guppy (version < 3.6.0)** base cased datasets for calling as we have discarded those datasets in model training.  
-* **GVCF Output Support.**  Clair3 supports Genomic VCF output format when enabling ```--gvcf``` option.  GVCF contains extra infos that are required for variants analyses in a cohort of individuals, such as joint genotyping  and cohort merging. 
+* **New Architecture.** Clair3 integrates both pileup  (summarized alignment statistics) model and full-alignment model for variant calling. While a pileup model determines the result of a majority of variant candidates, candidates with uncertain results are further processed with a more computational-intensive haplotype-resolved full-alignment model.  
+* **Improved Performance.** Using HG003 85-fold coverage ONT data from PrecisionFDA for benchmarking, Clair3 achieved 99.69% SNP F1-score and 80.58% Indel F1-score. Compare to Clair, Clair3 reduced SNP errors by **~78%**,  and Indel errors by **~48%**.  
+* **High Efficiency.** Using 36 CPU cores,
+  * Clair3 takes ~8 hours to process 50-fold WGS ONT data (~4.5x faster than PEPPER (r0.4) and ~14x faster than Medaka (v1.3.2)). Memory consumption of Clair3 is capped at 1 GB per CPU thread,  which is roughly five times lower than Clair. 
+  * Clair3 takes ~2 hours to process 35-fold WGS PacBio HiFi data (13x faster than DeepVariant (v1.1.0)).
+* **Using data from newer basecallers.**  Clair3 models were trained using data from Guppy version 3.6.0 and 4.2.2, please check [Training Data](docs/training_data.md) for details and links.  
+* **GVCF Support.**  Clair3 can output GVCF using the ```--gvcf``` option, enabling downstream joint-sample genotyping and cohort merging. 
+
+----
 
 ## Quick Demo
 
-Clair3 supports germline variant calling in three sequencing platforms:
-
-*   Oxford Nanopore (ONT) long-read data, see [ONT Quick Demo](docs/quick_demo/ont_quick_demo.md).
+*   Oxford Nanopore (ONT) data, see [ONT Quick Demo](docs/quick_demo/ont_quick_demo.md).
 *   PacBio HiFi data, see [PaBio HiFi Quick Demo](docs/quick_demo/pacbio_hifi_quick_demo.md).
 *   Illumina NGS data, see [Illumina Quick Demo](docs/quick_demo/illumina_quick_demo.md).
 
@@ -65,16 +68,18 @@ chmod +x clair3_ont_quick_demo.sh
 
 Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.vcf.gz`
 
+----
+
 ## Installation
 
 ### Option 1.  Docker pre-built image (recommended)
 
-A pre-built docker image can be found [here](https://hub.docker.com/hkubal/clair3). Then you can run Clair3 using one command:
+A pre-built docker image is available [here](https://hub.docker.com/hkubal/clair3). With it you can run Clair3 using a single command:
 
 ```bash
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
-THREADS="[MAXIMUM_THREADS]"            # e.g. 36
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
 docker run -it \
@@ -90,15 +95,13 @@ docker run -it \
   --output=${OUTPUT_DIR}
 ```
 
-Check [Usage](#Usage)  for more options.
+Check [Usage](#Usage) for more options.
 
 ### Option 2. Docker Dockerfile
 
-** **
-
 ```bash
 # clone Clair3
-git clone --depth 1 https://github.com/hkubal/Clair3.git
+git clone https://github.com/hku-bal/Clair3.git
 cd Clair3
 
 # build a docker image named hkubal/clair3:v0.1
@@ -113,7 +116,7 @@ docker run -it hkubal/clair3:v0.1 /opt/bin/run_clair3.sh --help
 
 **Anaconda install**:
 
-Please install anaconda using the installation guide at [Install](https://docs.anaconda.com/anaconda/install) or using the command below:
+Please install anaconda using the official [guide](https://docs.anaconda.com/anaconda/install) or using the commands below:
 
 ```bash
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -123,7 +126,13 @@ chmod +x ./Miniconda3-latest-Linux-x86_64.sh
 
 **Install Clair3 using anaconda step by step:**
 
+*For using Clair3 on Illumina data, after the following steps, please also install the* [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html) *using this* [guidance](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process).
+
 ```bash
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+
 # create and activate the environment named clair3
 conda create -n clair3 python=3.6.10 -y
 source activate clair3
@@ -143,7 +152,7 @@ conda install -c conda-forge -c bioconda samtools=1.10 -y
 conda install -c conda-forge -c bioconda whatshap=1.0 -y
 
 # clone Clair3
-git clone --depth 1 https://github.com/HKU-BAL/Clair3.git
+git clone https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 
 # download pre-trained model
@@ -161,7 +170,7 @@ tar -zxvf clair3_models.tar.gz -C ./models
   --output=${OUTPUT_DIR}
 ```
 
-For Illumina model, follows the [guidance](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process) to install [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html).
+----
 
 ## Usage
 
@@ -195,7 +204,7 @@ For Illumina model, follows the [guidance](docs/quick_demo/illumina_quick_demo.m
   -o, --output PATH        VCF/GVCF output directory.
 ```
 
-**Optional parameters:**
+**Other parameters:**
 
 ```bash
       --bed_fn FILE        Call variants only in the provided bed regions.
@@ -229,7 +238,7 @@ For Illumina model, follows the [guidance](docs/quick_demo/illumina_quick_demo.m
 CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
-THREADS="[MAXIMUM_THREADS]"            # e.g. 36
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
 docker run -it \
@@ -252,7 +261,7 @@ docker run -it \
 KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. known_variants.vcf.gz
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
-THREADS="[MAXIMUM_THREADS]"            # e.g. 36
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
 docker run -it \
@@ -271,7 +280,7 @@ docker run -it \
 
 #### Call variants at specific sites or bed regions
 
-We highly recommended using bed format file to define single or multiple start like:
+We highly recommended using BED file to define the regions of interest like:
 
 ```shell
 # define 0-based "ctg start end" if at specific sites
@@ -287,7 +296,7 @@ Then run Clair3 like this:
 BED_FILE_PATH=tmp.bed		           
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
-THREADS="[MAXIMUM_THREADS]"            # e.g. 36
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
 docker run -it \
@@ -309,7 +318,7 @@ docker run -it \
 ```bash
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
-THREADS="[MAXIMUM_THREADS]"            # e.g. 36
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
 docker run -it \
@@ -328,60 +337,68 @@ docker run -it \
   --haploid_precise                    ## optional(enable --haploid_precise or --haploid_sensitive) for haploid calling
 ```
 
-#### 
+----
 
 ## Folder Structure and Submodule Descriptions
 
 Submodules in __`clair3/`__ are for variant calling and model training. Submodules in __`preprocess`__ are for data preparation.
 
-*For all the submodules listed below, you can use the `-h` or `--help` option for available options.*
+*For all the submodules listed below, you can use `-h` or `--help` for available options.*
 
 `clair3/` | Note: submodules under this folder are pypy incompatible, please run using python
 ---: | ---
 `CallVariants` | Call variants using a trained model and tensors of candidate variants.
 `CallVarBam` | Call variants using a trained model and a BAM file.
-`Train` |  Training a model using warm-up learning rate startup with `RectifiedAdam` optimizer. We also use `Lookahead` optimizer to adjust `RectifiedAdam` parameters adaptively. The initial learning rate is `1e-3` with 0.1 learning rate warm-up. Input a binary tensors are created by `Tensor2Bin`. 
+`Train` | Training a model using the `RectifiedAdam` optimizer. We also use the`Lookahead` optimizer to adjust the `RectifiedAdam` parameters dynamically. The initial learning rate is `1e-3` with `0.1` learning rate warm-up. Input a binary containing tensors created by `Tensor2Bin`. 
+
+
 
 `preprocess/` | Note: submodules under this folder is Pypy compatible unless specified.
 ---: | ---
-`CheckEnvs`| Check the environment and the validity of the input variables, preprocess the BED input if necessary, `--chunk_size` set the genome chuck size per job.
-`CreateTensorPileup`| Generate variant candidate tensors using pileup for training or calling.
-`CreateTensorFullAlignment`| Generate variant candidate tensors using phased full-alignment for training or calling.
+`CheckEnvs`| Check the environment and  validity of the input variables, preprocess the BED input if necessary, `--chunk_size` sets the chuck size to be processed per parallel job. 
+`CreateTensorPileup`| Generate variant candidate tensors in pileup format for training or calling. 
+`CreateTensorFullAlignment`| Generate variant candidate tensors in phased full-alignment format for training or calling. 
 `GetTruth`| Extract the variants from a truth VCF. Input: VCF; Reference FASTA if the VCF contains asterisks in ALT field.
 `MergeVcf` | Merge pileup and full-alignment VCF/GVCF.
 `RealignReads` | Reads local realignment for Illumina platform.
 `SelectCandidates`| Select pileup candidates for full-alignment calling.
 `SelectHetSnp` | Select heterozygous SNP candidates for whatshap phasing.
-`SelectQual` | Select quality cut-off for phasing and full-alignment calling globally from all candidates.
-`SortVcf` | Sort VCF file according to variants start position and contig name.
-`SplitExtendBed` | Split bed file regions according to the contig name and extend bed region.
-`UnifyRepresentation` | Representation unification for candidate site and true variant.
-`Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary, using `blosc:lz4hc` meta-compressor, the overall training memory is 10~15G. (pypy incompatible)
+`SelectQual` | Select a quality cutoff using the pileup calling results. Variants below the cutoff are included in phasing and full-alignment calling. 
+`SortVcf` | Sort VCF file. 
+`SplitExtendBed` | Split BED file regions according to the contig names and extend bed region by 33bp by default for variant calling. 
+`UnifyRepresentation` | Representation unification between candidate sites and true variants. 
+`Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary, using `blosc:lz4hc` meta-compressor, the overall training memory is 10~15G (pypy incompatible). 
+
+----
 
 ## Training Data
 
-Clair3 provided pre-trained models training in four GIAB samples (HG001, HG002, HG004 and HG005). We have excluded HG003 sample in training as a holdout set. For HG001 and HG005 samples, only true variants were selected into training. We trained Clair3 in chr1-chr19, chr21, chr22 in all training samples and leave chr20 as a holdout set. 
+Clair3 trained both its pileup and full-alignment models using four GIAB samples (HG001, HG002, HG004 and HG005), excluded HG003. On ONT, we also trained a model using HG001, 2, 3, and 5, exluded HG004. All models were trained with chr20 excluded (including only chr1-19, 21, 22). 
 
-|  Platform   |   Reference   |      Aligner      | Training Samples |
+|  Platform   |   Reference   |      Aligner      | Training samples |
 | :---------: | :-----------: | :---------------: | :--------------: |
 |     ONT     | GRCh38_no_alt |     minimap2      | HG001,2,(3\|4),5 |
 | PacBio HiFi | GRCh38_no_alt |       pbmm2       |   HG001,2,4,5    |
 |  Illumina   |    GRCh38     | BWA-MEM/NovoAlign |   HG001,2,4,5    |
 
-More details about the training data and source links:  [Training Data](docs/training_data.md).
+Please find more details about the training data and links at [Training Data](docs/training_data.md).
 
 #### Pre-trained Model
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
-|      File       |  Platform   | Training Samples | In Docker by Default |                             Link                             |
-| :-------------: | :---------: | :--------------: | :------------------: | :----------------------------------------------------------: |
-|   ont.tar.gz    |     ONT     |   HG001,2,4,5    |         Yes          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
-| ont_1235.tar.gz |     ONT     |   HG001,2,3,5    |                      | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
-|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5    |         Yes          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5    |         Yes          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+|      File       |  Platform   | Training samples | In the docker image by default |                             Link                             |
+| :-------------: | :---------: | :--------------: | :----------------------------: | :----------------------------------------------------------: |
+|   ont.tar.gz    |     ONT     |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
+| ont_1235.tar.gz |     ONT     |   HG001,2,3,5    |                                | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
+|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
-## VCF Output Format
+----
 
-`clair3/CallVariants.py` outputs variants in VCF format with version 4.2 specifications.
-Clair3 VCF output includes pileup calling and full-alignment calling results. Pileup calling results are denoted with a `P` INFO tag, full-alignment calling results are denoted with a `F` INFO tag.
+## VCF/GVCF Output Formats
+
+Clair3 supports both VCF and GVCF output formats. Clair3 uses VCF version 4.2 specifications. Specifically, Clair3 adds a `P` INFO tag to the results called using a pileup model, and a `F` INFO tag to the results called using a full-alignment model.
+
+Clair3 outputs a GATK-compatible GVCF format that passes GATK's `ValidateVariants` module. Different from DeepVariant that uses `<*>` to represent any possible alternative allele, Clair3 uses `<NON_REF>`, the same as GATK.
+

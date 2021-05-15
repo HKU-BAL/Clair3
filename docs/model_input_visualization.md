@@ -1,8 +1,8 @@
 # Clair3 Pileup and Full-Alignment Input Visualization
 
-This document shows visualization of Clair3's pileup and full-alignment input tensor at a random selected **SNP**, **Insertion**, **Deletion** and **Non-variant** in ONT GIAB HG003 dataset.
+This document shows visualization of Clair3's pileup and full-alignment input tensor at a randomly selected **SNP**, **Insertion**, **Deletion** and **Non-variant** from the ONT GIAB HG003 samples.
 
-Visualization includes unphased read alignment, phased read alignment, pileup model input and full-alignment model input. The colors in the reads alignment, bases A, C, G and T are green, blue, yellow, and red, respectively. Insertions and deletions are purple dots and dark grey, respectively. Two phased haplotope in phased alignment were marked in two colors. The color intensity represents the strength of a certain signal in both pileup and full-alignment model input. Check the demo below:
+Visualization includes 1) unphased read alignments, 2) phased read alignments, 3) pileup model input, and 4) full-alignment model input. In terms of the colors in the reads alignment, bases A, C, G and T are in green, blue, yellow, and red, respectively. Insertions and deletions are in purple dots and dark grey. The phased alignments of two haplotopes are marked in two colors (lavender and pink). The color intensity represents the strength of a signal in both the pileup and full-alignment model input. Check the demo below:
 
 ![alt text](http://www.bio8.cs.hku.hk/clair3/visualization/model_input/vis.png)
 
