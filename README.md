@@ -1,8 +1,9 @@
 <div align="center">
   <a href="https://en.wiktionary.org/wiki/%E7%9C%BC" target="_blank">
-    <img src="docs/images/clair3_logo.png" width = "120" height = "100" alt="Clair">
+    <img src="docs/images/clair3_logo.png" width = "110" height = "90" alt="Clair">
   </a>
 </div>
+
 # Clair3 - Integrating pileup and full-alignment for high-performance long-read variant calling
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)  
