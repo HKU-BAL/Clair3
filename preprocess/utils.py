@@ -501,7 +501,7 @@ class variantInfoCalculator(object):
             log10_p_hom_alt = n_ref * self.logp + n_alts * self.log1p
             
             # normalization
-             
+            # the stable normalization algorithm is reimplemented here and it is invented by Nucleus:https://github.com/google/nucleus              
             log10_probs = self.variantMath.normalize_log10_prob([log10_p_ref, log10_p_het, log10_p_hom_alt])
             
         
