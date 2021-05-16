@@ -3,7 +3,6 @@
     <img src="docs/images/clair3_logo.png" width = "120" height = "100" alt="Clair">
   </a>
 </div>
-
 # Clair3 - Integrating pileup and full-alignment for high-performance long-read variant calling
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)  
@@ -134,10 +133,6 @@ chmod +x ./Miniconda3-latest-Linux-x86_64.sh
 *For using Clair3 on Illumina data, after the following steps, please also install the* [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html) *using this* [guidance](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process).
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
-THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-
 # create and activate the environment named clair3
 conda create -n clair3 python=3.6.10 -y
 source activate clair3
