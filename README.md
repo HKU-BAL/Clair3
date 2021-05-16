@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://en.wiktionary.org/wiki/%E7%9C%BC" target="_blank">
-    <img src="docs/images/clair3_logo.png" width = "130" height = "120" alt="Clair">
+    <img src="docs/images/clair3_logo.png" width = "120" height = "100" alt="Clair">
   </a>
 </div>
 
