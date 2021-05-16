@@ -108,8 +108,9 @@ class gvcfGenerator(object):
                 continue
             else:
                 ref_base = line.strip('\n').upper()
+                reader.close()
                 return ref_base
-
+        
     def _writeRightBlock(self, block_new_start, curNonVarEnd, curNonVarCall, save_writer):
 
         pos_cmd = str(curNonVarCall.split('\t')[0]) + ':' + str(block_new_start) + '-' + str(block_new_start)
@@ -337,7 +338,7 @@ class variantInfoCalculator(object):
     def write_empty_pileup(self,ctgName,ctgStart,ctgEnd):
         
         non_variant_info = {"validPL": False, "gq": 1, "binned_gq": 1, "pl": [0,0,0],
-                            "chr": ctgName, 'pos': ctgStart, 'ref': 'N',
+                            "chr": ctgName, 'pos': max(1,ctgStart), 'ref': 'N',
                             "gt": './.', 'min_dp': 0, 'END': ctgEnd}
         self.write_to_gvcf(non_variant_info)
     def make_gvcf_online(self, variant_summary, push_current=False):
@@ -454,8 +455,15 @@ class variantInfoCalculator(object):
 
         phred_probs = [int(x - min_phred_probs) for x in _tmp_phred_probs]
 
+        if(variant_summary['ref'] not in ['A','T','C','G']):
+            tmp_ref = 'N'
+            gq = 1
+            binned_gq = 1
+            phred_probs = [0,0,0]
+        else:
+            tmp_ref = variant_summary['ref']
         non_variant_info = {"validPL": validPL, "gq": gq, "binned_gq": binned_gq, "pl": phred_probs,
-                            "chr": variant_summary['chr'], 'pos': variant_summary['pos'], 'ref': variant_summary['ref'],
+                            "chr": variant_summary['chr'], 'pos': variant_summary['pos'], 'ref': tmp_ref,
                             "gt": gt, 'min_dp': variant_summary['n_total'], 'END': variant_summary['pos']}
 
         return non_variant_info
