@@ -1290,16 +1290,23 @@ def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, refe
 
     # genotype likelihood normalization
     # p/sum(p)
+
     sum_p = sum(likelihoods)
     LOG_10 = math.log(10.0)
     likelihoods = [x / sum_p for x in likelihoods]
     # phred transformation
+
+    # avoid domain error
+    add_val = 1e-8
+    likelihoods = [x+add_val for x in likelihoods]
     # -10*log10(x/sum_p) = -10*(log10(x) - log10(sum_p))
+
     PLs = [-10 * (log(x) / LOG_10) for x in likelihoods]
     min_PL = min(PLs)
+
     PLs = [int(math.ceil(x - min_PL)) for x in PLs]
     return PLs
-    pass
+    
 
 
 def call_variants(args, output_config, output_utilities):

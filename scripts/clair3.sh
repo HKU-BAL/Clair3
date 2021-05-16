@@ -204,6 +204,7 @@ bgzip -f ${OUTPUT_FOLDER}/full_alignment.vcf
 tabix -f -p vcf ${OUTPUT_FOLDER}/full_alignment.vcf.gz
 if [ ${GVCF} == True ]; then cat ${GVCF_TMP_PATH}/*.tmp.g.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${GVCF_TMP_PATH}/non_var.gvcf; fi
 
+
 echo "[INFO] 7/7 Merge pileup vcf and full alignment vcf"
 time ${PARALLEL} --joblog ${LOG_PATH}/parallel_7_merge_vcf.log -j${THREADS} \
 "${PYPY} ${CLAIR3} MergeVcf \

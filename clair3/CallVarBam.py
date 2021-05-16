@@ -9,6 +9,9 @@ from time import sleep
 from argparse import ArgumentParser, SUPPRESS
 import logging
 
+logging.getLogger().setLevel(logging.INFO)
+
+
 from shared.command_options import (
     CommandOption,
     CommandOptionWithNoValue,
@@ -218,6 +221,7 @@ def Run(args):
                 shlex.split(command_string_from(create_tensor_command_options)),
                 stdin=c.realign_reads.stdout)
         else:
+            
             c.create_tensor = subprocess_popen(
                 shlex.split(command_string_from(create_tensor_command_options)),
             )

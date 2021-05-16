@@ -242,6 +242,7 @@ def mergeNonVariant(args):
     gvcf_generator = gvcfGenerator(ref_path=args.ref_fn, samtools=args.samtools)
     raw_gvcf_path = args.non_var_gvcf_fn
     raw_vcf_path = args.output_fn
+    
     if (args.gvcf_fn == None):
         save_path = args.call_fn.split('.')[0] + '.g.vcf'
     else:
@@ -316,13 +317,13 @@ def main():
     if len(sys.argv[1:]) == 0:
         parser.print_help()
         sys.exit(1)
-
+    
     # realignment region merge
     if args.platform == 'ilmn':
         MergeVcf_illumina(args=args)
     else:
         MergeVcf(args=args)
-
+    
     if (args.gvcf):
         mergeNonVariant(args)
 
