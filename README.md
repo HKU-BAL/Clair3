@@ -1,17 +1,24 @@
+<div align="center">
+  <a href="https://en.wiktionary.org/wiki/%E7%9C%BC" target="_blank">
+    <img src="docs/images/clair3_logo.png" width = "110" height = "90" alt="Clair">
+  </a>
+</div>
 
 # Clair3 - Integrating pileup and full-alignment for high-performance long-read variant calling
 
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause) \
-Contact: Ruibang Luo \
-Email: rbluo@cs.hku.hk
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)  
+
+Contact: Ruibang Luo  
+
+Email: rbluo@cs.hku.hk  
 
 ---
 
 ## Introduction
 
+Clair3 is a small variant caller for long-reads. Compare to PEPPER (r0.4), Clair3 (v0.1) shows a better SNP F1-score with ≤30-fold of ONT data (precisionFDA Truth Challenge V2), and a better Indel F1-score, while runs generally four times faster. Clair3 makes the best of both worlds of using pileup or full-alignment as input for deep-learning based long-read small variant calling. Clair3 is simple and modular for easy deployment and integration.
 
-
-This is the formal release of Clair3, the successor of [Clair](https://github.com/HKU-BAL/Clair) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante).
+Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Clair) (the 2<sup>nd</sup>) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante) (the 1<sup>st</sup>).
 
 ---
 
@@ -26,7 +33,8 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
-* [VCF Output Format](#vcf-output-format)
+* [Training Data](#training-data)
+* [VCF/GVCF Output Formats](#vcf-output-format)
 * [Pileup Model Training](docs/pileup_training.md)
 * [Full-Alignment Model Training](docs/full_alignment_training.md)
 * [Representation Unification](docs/representation_unification.md)
@@ -38,20 +46,23 @@ This is the formal release of Clair3, the successor of [Clair](https://github.co
 
 ## What's New in Clair3
 
-* **Accuracy Improvements.** Clair3 outperforms Clair, reducing SNP errors by **~78%**,  and Indel errors by **~48%** in HG003 ONT case study. SNP F1-score reaches 99.69% and Indel F1-score reaches 80.58% in ONT HG003 ~85-fold coverage dataset.  
-* **New Architecture.** Clair3 is an integration of pileup model and full-alignment model. Pileup model detects all candidate variants using summarized pileup input. Full-alignment model adopts more complete read-level representations with phased haplotype information to further decide the variant type of low-quality pileup candidates. 
-* **High Efficiency.** Clair3 takes about 8~9 hours for ONT ~50-fold coverage whole-genome-sequencing data using 36 CPUs, which is ~4.5 times faster than PEPPER and ~18 times faster than Medaka. Computational resource consumption using Clair3 is capped at 1 GB per CPU thread,  which is ~6 times lower than Clair and PEPPER. 
-* **New Base Caller Support.**  We support datasets base called using Guppy version 3.6.0~4.2.2  for ONT platform, check the [training data](docs/training_data.md) for specific datasets' link. We did not suggest using datasets base called using **Guppy version <= 3.6.0** for calling as we have discarded those datasets in model training.  
+* **New Architecture.** Clair3 integrates both pileup  (summarized alignment statistics) model and full-alignment model for variant calling. While a pileup model determines the result of a majority of variant candidates, candidates with uncertain results are further processed with a more computational-intensive haplotype-resolved full-alignment model.  
+* **Improved Performance.** Using HG003 85-fold coverage ONT data from PrecisionFDA for benchmarking, Clair3 achieved 99.69% SNP F1-score and 80.58% Indel F1-score. Compare to Clair, Clair3 reduced SNP errors by **~78%**,  and Indel errors by **~48%**.  
+* **High Efficiency.** Using 36 CPU cores,
+  * Clair3 takes ~8 hours to process 50-fold WGS ONT data (~4x faster than PEPPER (r0.4) and ~14x faster than Medaka (v1.3.2)). Memory consumption of Clair3 is capped at 1 GB per CPU thread,  which is roughly five times lower than Clair. 
+  * Clair3 takes ~2 hours to process 35-fold WGS PacBio HiFi data (13x faster than DeepVariant (v1.1.0)).
+* **Using data from newer basecallers.**  Clair3 models were trained using data from Guppy version 3.6.0 and 4.2.2, please check [Training Data](docs/training_data.md) for details and links.  
+* **GVCF Support.**  Clair3 can output GVCF using the ```--gvcf``` option, enabling downstream joint-sample genotyping and cohort merging. 
+
+----
 
 ## Quick Demo
 
-Clair3 supports germline variant calling in three sequencing platforms:
-
-*   Oxford Nanopore (ONT) long-read data, see [ONT Quick Demo](docs/quick_demo/ont_quick_demo.md).
+*   Oxford Nanopore (ONT) data, see [ONT Quick Demo](docs/quick_demo/ont_quick_demo.md).
 *   PacBio HiFi data, see [PaBio HiFi Quick Demo](docs/quick_demo/pacbio_hifi_quick_demo.md).
 *   Illumina NGS data, see [Illumina Quick Demo](docs/quick_demo/illumina_quick_demo.md).
 
-**Run Clair3 using pre-built docker image:**
+**Run Clair3 ONT quick demo using pre-built docker image:**
 
 ```bash
 cd ${HOME}
@@ -62,58 +73,55 @@ chmod +x clair3_ont_quick_demo.sh
 
 Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.vcf.gz`
 
-
+----
 
 ## Installation
 
 ### Option 1.  Docker pre-built image (recommended)
 
-A pre-built docker image can be found [here](https://hub.docker.com/hku-bal/clair3). Then you can run Clair3 using one command:
+A pre-built docker image is available [here](https://hub.docker.com/hkubal/clair3). With it you can run Clair3 using a single command:
 
 ```bash
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
-THREADS="[MAXIMUM_THREADS]"            # e.g. 36
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
-docker run \
+docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hku-bal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \          ## Change your reference name here
-  --threads=${THREADS} \               ## Maximum threads to be used
-  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR}
-
 ```
 
-Check [Usage](#Usage)  for more options.
+Check [Usage](#Usage) for more options.
 
 ### Option 2. Docker Dockerfile
 
-** **
-
 ```bash
 # clone Clair3
-git clone --depth 1 https://github.com/HKU-BAL/Clair3.git
+git clone https://github.com/hku-bal/Clair3.git
 cd Clair3
 
-# build a docker image named clair3_docker
-# You might require docker authentication to build by docker
-docker build --no-cache -f ./Dockerfile -t clair3_docker .
+# build a docker image named hkubal/clair3:v0.1
+# might require docker authentication to build docker image 
+docker build -f ./Dockerfile -t hkubal/clair3:v0.1 .
 
-# run clair docker image like this afterward
-docker -it run clair3_docker --help
+# run clair3 docker image like this afterward
+docker run -it hkubal/clair3:v0.1 /opt/bin/run_clair3.sh --help
 ```
 
 ### Option 3. Build an anaconda virtual environment
 
 **Anaconda install**:
 
-Please install anaconda using the installation guide at [Install](https://docs.anaconda.com/anaconda/install) or using the command below:
+Please install anaconda using the official [guide](https://docs.anaconda.com/anaconda/install) or using the commands below:
 
 ```bash
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -123,52 +131,65 @@ chmod +x ./Miniconda3-latest-Linux-x86_64.sh
 
 **Install Clair3 using anaconda step by step:**
 
+*For using Clair3 on Illumina data, after the following steps, please also install the* [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html) *using this* [guidance](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process).
+
 ```bash
 # create and activate the environment named clair3
-conda create -n clair3 python=3.6 -y
+conda create -n clair3 python=3.6.10 -y
 source activate clair3
 
 # install pypy and packages on clair3 environemnt
 conda install -c conda-forge pypy3.6 -y
 pypy3 -m ensurepip
 pypy3 -m pip install intervaltree==3.0.2
-pypy3 -m pip install mpmath==1.2.1 python-Levenshtein==0.12.0 
+pypy3 -m pip install mpmath==1.2.1
 
 # install python packages on clair3 environment
 pip3 install tensorflow==2.2.0
-pip3 install intervaltree==3.0.2  tensorflow-addons==0.11.2 tables==3.6.1 python-Levenshtein==0.12.0
+pip3 install intervaltree==3.0.2  tensorflow-addons==0.11.2 tables==3.6.1
 conda install -c anaconda pigz==2.4 -y
 conda install -c conda-forge parallel=20191122 zstd=1.4.4 -y
 conda install -c conda-forge -c bioconda samtools=1.10 -y
 conda install -c conda-forge -c bioconda whatshap=1.0 -y
 
 # clone Clair3
-git clone --depth 1 https://github.com/HKU-BAL/Clair3.git
+git clone https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 
-# run clair3 like this afterwards
-./run_clair3.sh --help
+# download pre-trained model
+mkdir models
+wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz 
+tar -zxvf clair3_models.tar.gz -C ./models
+
+# run clair3 like this afterward
+./run_clair3.sh \
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path=`pwd`"/models/ont" \    ## absolute model path prefix, change platform accordingly
+  --output=${OUTPUT_DIR}
 ```
+
+----
 
 ## Usage
 
 ### General Usage
 
-You can download in [pre-trained model](#pretained-model) (no need to download if using docker pre-built image)
-
 ```bash
-#optional parameters should use "="
+# optional parameters should use "="
 ./run_clair3.sh \
   --bam_fn=${BAM} \
   --ref_fn=${REF} \
   --threads=${THREADS} \  		     
-  --platform='ont' \               ## Options: {ont,hifi,ilmn}
-  --model_path=${MODEL_PREFIX} \   ## Options: {ont,hifi,ilmn}
+  --platform='ont' \               ## options: {ont,hifi,ilmn}
+  --model_path=${MODEL_PREFIX} \   ## options: {ont,hifi,ilmn}
   --output=${OUTPUT_DIR}
-  
-## Pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
-## Full alignment output file: ${OUTPUT_DIR}/full_alignment.vcf
-## Final Clair3 output file: ${OUTPUT_DIR}/merge_output.vcf.gz
+
+## pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
+## full-alignment output file: ${OUTPUT_DIR}/full_alignment.vcf.gz
+## Clair3 final output file: ${OUTPUT_DIR}/merge_output.vcf.gz
 ```
 
 ### Options
@@ -184,7 +205,7 @@ You can download in [pre-trained model](#pretained-model) (no need to download i
   -o, --output PATH        VCF/GVCF output directory.
 ```
 
-**Optional parameters:**
+**Other parameters:**
 
 ```bash
       --bed_fn FILE        Call variants only in the provided bed regions.
@@ -198,7 +219,7 @@ You can download in [pre-trained model](#pretained-model) (no need to download i
       --parallel STR       Path of parallel, parallel >= 20191122 is required.
       --whatshap STR       Path of whatshap, whatshap >= 1.0 is required.
       --chunk_size INT     The size of each chuck for parallel processing, default: 5Mbp.
-      --pileup_only        Use the pileup model only when calling, default: disable.'
+      --pileup_only        Use the pileup model only when calling, default: disable.
       --print_ref_calls    Show reference calls (0/0) in vcf file, default: disable.
       --include_all_ctgs   Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
       --gvcf               Enable GVCF output, default: disable.
@@ -218,19 +239,19 @@ You can download in [pre-trained model](#pretained-model) (no need to download i
 CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
-THREADS="[MAXIMUM_THREADS]"            # e.g. 36
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
-docker run \
+docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hku-bal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \          ## Change your reference name here
-  --threads=${THREADS} \               ## Maximum threads to be used
-  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
   --output=${OUTPUT_DIR} \
   --ctg_name=${CONTIGS_LIST}
 ```
@@ -238,29 +259,29 @@ docker run \
 #### Call variants at known variant sites
 
 ```bash
-KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. known_variants.vcf
+KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. known_variants.vcf.gz
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
-THREADS="[MAXIMUM_THREADS]"            # e.g. 36
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
-docker run \
+docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hku-bal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \          ## Change your reference name here
-  --threads=${THREADS} \               ## Maximum threads to be used
-  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
   --output=${OUTPUT_DIR} \
   --vcf_fn=${KNOWN_VARIANTS_VCF}
 ```
 
 #### Call variants at specific sites or bed regions
 
-We highly recommended using bed format file to define single or multiple start like:
+We highly recommended using BED file to define the regions of interest like:
 
 ```shell
 # define 0-based "ctg start end" if at specific sites
@@ -273,76 +294,173 @@ echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > tmp.bed
 Then run Clair3 like this:
 
 ```bash
-BED_FILE_PATH="[YOUR_BED_FILE]"		   # e.g. tmp.bed
+BED_FILE_PATH=tmp.bed		           
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
-THREADS="[MAXIMUM_THREADS]"            # e.g. 36
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
-docker run \
+docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hku-bal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \    ## Change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \          ## Change your reference name here
-  --threads=${THREADS} \               ## Maximum threads to be used
-  --platform="ont" \                   ## Options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## Options: {ont,hifi,ilmn}
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
   --output=${OUTPUT_DIR} \
   --bed_fn=${BED_FILE_PATH}
 ```
+
+#### Call variants in non-diploid organisms (Haploid calling)
+
+```bash
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+BIN_VERSION="v0.1"
+
+docker run -it \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  hkubal/clair3:"${BIN_VERSION}" \
+  /opt/bin/run_clair3.sh \
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
+  --output=${OUTPUT_DIR} \
+  --no_phasing_for_fa \                ## disable phasing for full-alignment
+  --include_all_ctgs \                 ## call variants on all contigs in the reference fasta
+  --haploid_precise                    ## optional(enable --haploid_precise or --haploid_sensitive) for haploid calling
+```
+
+----
 
 ## Folder Structure and Submodule Descriptions
 
 Submodules in __`clair3/`__ are for variant calling and model training. Submodules in __`preprocess`__ are for data preparation.
 
-*For all the submodules listed below, you can use the `-h` or `--help` option for available options.*
+*For all the submodules listed below, you can use `-h` or `--help` for available options.*
 
 `clair3/` | Note: submodules under this folder are pypy incompatible, please run using python
 ---: | ---
 `CallVariants` | Call variants using a trained model and tensors of candidate variants.
 `CallVarBam` | Call variants using a trained model and a BAM file.
-`Train` |  Training a model using warm-up learning rate startup with `RectifiedAdam` optimizer. We also use `Lookahead` optimizer to adjust `RectifiedAdam` parameters adaptively. The initial learning rate is `1e-3` with 0.1 learning rate warm-up. Input a binary tensors are created by `Tensor2Bin`. 
+`Train` | Training a model using the `RectifiedAdam` optimizer. We also use the `Lookahead` optimizer to adjust the `RectifiedAdam` parameters dynamically. The initial learning rate is `1e-3` with `0.1` learning rate warm-up. Input a binary containing tensors created by `Tensor2Bin`. 
+
+
 
 `preprocess/` | Note: submodules under this folder is Pypy compatible unless specified.
 ---: | ---
-`CheckEnvs`| Check the environment and the validity of the input variables, preprocess the BED input if necessary, `--chunk_size` set the genome chuck size per job.
-`CreateTensorPileup`| Generate variant candidate tensors using pileup for training or calling.
-`CreateTensorFullAlignment`| Generate variant candidate tensors using phased full-alignment for training or calling.
+`CheckEnvs`| Check the environment and  validity of the input variables, preprocess the BED input if necessary, `--chunk_size` sets the chuck size to be processed per parallel job. 
+`CreateTensorPileup`| Generate variant candidate tensors in pileup format for training or calling. 
+`CreateTensorFullAlignment`| Generate variant candidate tensors in phased full-alignment format for training or calling. 
 `GetTruth`| Extract the variants from a truth VCF. Input: VCF; Reference FASTA if the VCF contains asterisks in ALT field.
-`MergeVcf` | Merge pileup and full alignment VCF/GVCF.
+`MergeVcf` | Merge pileup and full-alignment VCF/GVCF.
 `RealignReads` | Reads local realignment for Illumina platform.
-`SelectCandidates`| Select pileup candidates for full alignment calling.
+`SelectCandidates`| Select pileup candidates for full-alignment calling.
 `SelectHetSnp` | Select heterozygous SNP candidates for whatshap phasing.
-`SelectQual` | Select quality cut-off for phasing and full alignment calling globally from all candidates.
-`SortVcf` | Sort VCF file according to variants start position and contig name.
-`SplitExtendBed` | Split bed file regions according to the contig name and extend bed region.
-`UnifyRepresentation` | Representation unification for candidate site and true variant.
-`Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary, using `blosc:lz4hc` meta-compressor, the overall training memory is 10~15G. (pypy incompatible)
+`SelectQual` | Select a quality cutoff using the pileup calling results. Variants below the cutoff are included in phasing and full-alignment calling. 
+`SortVcf` | Sort VCF file. 
+`SplitExtendBed` | Split BED file regions according to the contig names and extend bed region by 33bp by default for variant calling. 
+`UnifyRepresentation` | Representation unification between candidate sites and true variants. 
+`Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary, using `blosc:lz4hc` meta-compressor, the overall training memory is 10~15G (pypy incompatible). 
+
+----
 
 ## Training Data
 
-More details about the training data and download links in [here](docs/training_data.md).
+Clair3 trained both its pileup and full-alignment models using four GIAB samples (HG001, HG002, HG004 and HG005), excluded HG003. On ONT, we also trained a model using HG001, 2, 3, and 5, excluded HG004. All models were trained with chr20 excluded (including only chr1-19, 21, 22). 
 
-|  Platform   |   Reference   |      Aligner      | Training Samples |
+|  Platform   |   Reference   |      Aligner      | Training samples |
 | :---------: | :-----------: | :---------------: | :--------------: |
-|     ONT     | GRCh38_no_alt |     minimap2      | HG001,2,(3/4),5  |
+|     ONT     | GRCh38_no_alt |     minimap2      | HG001,2,(3\|4),5 |
 | PacBio HiFi | GRCh38_no_alt |       pbmm2       |   HG001,2,4,5    |
 |  Illumina   |    GRCh38     | BWA-MEM/NovoAlign |   HG001,2,4,5    |
 
-#### Pretained Model
+Please find more details about the training data and links at [Training Data](docs/training_data.md).
+
+#### Pre-trained Model
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
-|   Folder    |  Platform   | Training Sample | Default in Docker |     Link     |
-| :---------: | :---------: | :-------------: | :---------------: | :----------: |
-|     ont     |     ONT     |   HG001,2,4,5   |        Yes        | [Download]() |
-|  ont_hg004  |     ONT     |   HG001,2,3,5   |                   | [Download]() |
-|  illumina   |  Illumina   |   HG001,2,4,5   |        Yes        | [Download]() |
-| pacbio_hifi | PacBio HiFi |   HG001,2,4,5   |        Yes        | [Download]() |
+|      File       |  Platform   | Training samples | In the docker image by default |                             Link                             |
+| :-------------: | :---------: | :--------------: | :----------------------------: | :----------------------------------------------------------: |
+|   ont.tar.gz    |     ONT     |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
+| ont_1235.tar.gz |     ONT     |   HG001,2,3,5    |                                | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
+|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
-## VCF Output Format
+----
 
-`clair3/CallVariants.py` outputs variants in VCF format with version 4.2 specifications.
-Clair3 includes pileup calling and full-alignment calling submodule. Pileup calling results are denoted with a `P` INFO tag, while the full-alignment calling results are denoted with a `F` INFO tag.
+## VCF/GVCF Output Formats
+
+Clair3 supports both VCF and GVCF output formats. Clair3 uses VCF version 4.2 specifications. Specifically, Clair3 adds a `P` INFO tag to the results called using a pileup model, and a `F` INFO tag to the results called using a full-alignment model.
+
+### GVCF support
+
+Generally, GVCF format is complying with the VCF format, but GVCF covers the whole of the genomic positions. GVCF is usually used in the cohor calling because it includes confidence of the homozygous-reference sites. Clair3 outputs a GATK-compatible GVCF format that passes GATK's `ValidateVariants` module. Different from DeepVariant that uses `<*>` to represent any possible alternative allele, Clair3 uses `<NON_REF>`, the same as GATK.
+
+
+### Example
+
+When GVCF is enabled, Clair3 will output the whole genomic positions. For non-variant sites, <NON_REF> under  `ALT` represents any possible alternate alleles.
+
+To reduce the file size, adjacent non-variant sites are merged into a non-variant interval if they share similar genotype qualities and sequencing depth ( merging details are discussed below). The continuous non-variant interval is represented by `POS` and "END" `INFO` key. Also, users are allowed to output non-variants in the base pair resolution way by using the argument of `--bp_resolution` in the `CallVarBam` module.
+
+Clair3's example GVCF output:
+
+```bash
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  SAMPLE
+chr22   10512734        .       G       <NON_REF>       0       .       END=10512734    GT:GQ:MIN_DP:PL 0/0:4:1:0,3,29
+chr22   10512735        .       G       <NON_REF>       0       .       END=10512743    GT:GQ:MIN_DP:PL 0/0:6:2:0,6,59
+chr22   10512744        .       A       C,<NON_REF>     3.20    PASS    F       GT:GQ:DP:AF:PL  1/1:3:1:1.0000:5,8,0,990,990,990
+chr22   10512745        .       G       <NON_REF>       0       .       END=10512767    GT:GQ:MIN_DP:PL 0/0:6:2:0,6,59
+chr22   10512768        .       A       <NON_REF>       0       .       END=10512768    GT:GQ:MIN_DP:PL ./.:0:3:20,0,50
+chr22   10512769        .       G       <NON_REF>       0       .       END=10512783    GT:GQ:MIN_DP:PL 0/0:6:2:0,6,59
+
+```
+
+
+### Non-variant merging strategy
+
+For a purpose of compressing the output file and keeping the maximum information, we have adopted a non-variant  merging strategy by considering GQ and DP: 
+
+* For genotypes of "0/0", adjacent non-variants will be merged if: 1. the GQs fall into the same bin ( the default bin size is 5).  2. the maximum depth of this interval will not exceed 30% of the minimum depth. 
+
+* While some wildcard characters (such as "N") existed in the reference, Clair3  will include them in the GVCF output for a purpose of covering all of the genomic positions. But those sites will not be merged with any non-wildcard intervals. 
+
+* For sites with genotypes of "./." and without any wildcard characters in the reference, it will output in a bp resolution manner. 
+
+
+### Enable GVCF output with clair3
+
+
+clair3's GVCF ouput is enable by `--gvcf`.
+
+Example:
+
+```bash
+
+./run_clair3.sh \
+    -b ${INPUT_DIR}/input.bam \    ## change your bam file name here
+    -f ${INPUT_DIR}/ref.fa \       ## change your reference name here
+    -m `pwd`"/models/ont" \        ## absolute model path prefix, change platform accordingly
+    -t ${THREADS} \               ## maximum threads to be used
+    -p "ont" \                   ## options: {ont,hifi,ilmn}
+    -o ${OUTPUT_DIR} \ 
+    --gvcf \
+
+
+```
+
+
+
+
+
+
+
