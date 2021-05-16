@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://en.wiktionary.org/wiki/%E7%9C%BC" target="_blank">
-    <img src="docs/images/clair3_logo.png" alt="Clair">
+    <img src="docs/images/clair3_logo.png" width = "130" height = "120" alt="Clair">
   </a>
 </div>
 
@@ -49,7 +49,7 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 * **New Architecture.** Clair3 integrates both pileup  (summarized alignment statistics) model and full-alignment model for variant calling. While a pileup model determines the result of a majority of variant candidates, candidates with uncertain results are further processed with a more computational-intensive haplotype-resolved full-alignment model.  
 * **Improved Performance.** Using HG003 85-fold coverage ONT data from PrecisionFDA for benchmarking, Clair3 achieved 99.69% SNP F1-score and 80.58% Indel F1-score. Compare to Clair, Clair3 reduced SNP errors by **~78%**,  and Indel errors by **~48%**.  
 * **High Efficiency.** Using 36 CPU cores,
-  * Clair3 takes ~8 hours to process 50-fold WGS ONT data (~4.5x faster than PEPPER (r0.4) and ~14x faster than Medaka (v1.3.2)). Memory consumption of Clair3 is capped at 1 GB per CPU thread,  which is roughly five times lower than Clair. 
+  * Clair3 takes ~8 hours to process 50-fold WGS ONT data (~4x faster than PEPPER (r0.4) and ~14x faster than Medaka (v1.3.2)). Memory consumption of Clair3 is capped at 1 GB per CPU thread,  which is roughly five times lower than Clair. 
   * Clair3 takes ~2 hours to process 35-fold WGS PacBio HiFi data (13x faster than DeepVariant (v1.1.0)).
 * **Using data from newer basecallers.**  Clair3 models were trained using data from Guppy version 3.6.0 and 4.2.2, please check [Training Data](docs/training_data.md) for details and links.  
 * **GVCF Support.**  Clair3 can output GVCF using the ```--gvcf``` option, enabling downstream joint-sample genotyping and cohort merging. 
@@ -354,7 +354,7 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 ---: | ---
 `CallVariants` | Call variants using a trained model and tensors of candidate variants.
 `CallVarBam` | Call variants using a trained model and a BAM file.
-`Train` | Training a model using the `RectifiedAdam` optimizer. We also use the`Lookahead` optimizer to adjust the `RectifiedAdam` parameters dynamically. The initial learning rate is `1e-3` with `0.1` learning rate warm-up. Input a binary containing tensors created by `Tensor2Bin`. 
+`Train` | Training a model using the `RectifiedAdam` optimizer. We also use the `Lookahead` optimizer to adjust the `RectifiedAdam` parameters dynamically. The initial learning rate is `1e-3` with `0.1` learning rate warm-up. Input a binary containing tensors created by `Tensor2Bin`. 
 
 
 
@@ -378,7 +378,7 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 
 ## Training Data
 
-Clair3 trained both its pileup and full-alignment models using four GIAB samples (HG001, HG002, HG004 and HG005), excluded HG003. On ONT, we also trained a model using HG001, 2, 3, and 5, exluded HG004. All models were trained with chr20 excluded (including only chr1-19, 21, 22). 
+Clair3 trained both its pileup and full-alignment models using four GIAB samples (HG001, HG002, HG004 and HG005), excluded HG003. On ONT, we also trained a model using HG001, 2, 3, and 5, excluded HG004. All models were trained with chr20 excluded (including only chr1-19, 21, 22). 
 
 |  Platform   |   Reference   |      Aligner      | Training samples |
 | :---------: | :-----------: | :---------------: | :--------------: |
