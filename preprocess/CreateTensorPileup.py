@@ -295,11 +295,6 @@ def CreateTensorPileup(args):
                                                         " ".join(reads_regions), )
             + mq_option + bq_option + bed_option + flags_option + max_depth_option + gvcf_option))
 
-    ''' 
-    logging.info("{} mpileup  {} -r {} --reverse-del".format(samtools_execute_command,
-                                                        bam_file_path,
-                                                        " ".join(reads_regions), ) + mq_option + bq_option + bed_option + flags_option + max_depth_option + gvcf_option)
-    '''
     if tensor_can_output_path != "PIPE":
         tensor_can_fpo = open(tensor_can_output_path, "wb")
         tensor_can_fp = subprocess_popen(shlex.split("{} -c".format(param.zstd)), stdin=PIPE, stdout=tensor_can_fpo)
@@ -429,9 +424,9 @@ def CreateTensorPileup(args):
         nonVariantCaller.write_to_gvcf_batch(nonVariantCaller.current_block, nonVariantCaller.cur_min_DP,
                                              nonVariantCaller.cur_raw_gq)
     
-    if(empty_pileup_flag):
+    if args.gvcf and empty_pileup_flag:
         nonVariantCaller.write_empty_pileup(ctg_name,ctg_start,ctg_end)
-    if(args.gvcf):
+    if args.gvcf:
         nonVariantCaller.vcf_writer.close()
 
     samtools_mpileup_process.stdout.close()
