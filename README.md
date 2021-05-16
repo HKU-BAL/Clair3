@@ -408,9 +408,9 @@ Generally, GVCF format is complying with the VCF format, but GVCF covers the who
 
 ### Example
 
-When GVCF is enabled, Clair3 will output the whole genomic positions. For non-variant sites, <NON_REF> under  `ALT` represents any possible alternate alleles.
+When GVCF is enabled, Clair3 will output the whole genomic positions. <NON_REF> under  `ALT` represents any possible alternate alleles.
 
-To reduce the file size, adjacent non-variant sites are merged into a non-variant interval if they share similar genotype qualities and sequencing depth ( merging details are discussed below). The continuous non-variant interval is represented by `POS` and "END" `INFO` key. Also, users are allowed to output non-variants in the base pair resolution way by using the argument of `--bp_resolution` in the `CallVarBam` module.
+To reduce the file size, adjacent non-variant sites are merged into a non-variant interval if they share similar genotype qualities and sequencing depth ( merging details are discussed below). The continuous non-variant interval is represented by `POS` and "END" `INFO` key. Also, users are allowed to output non-variants in the base pair resolution by using the argument of `--bp_resolution` in the `CallVarBam` module.
 
 Clair3's example GVCF output:
 
@@ -430,17 +430,17 @@ chr22   10512769        .       G       <NON_REF>       0       .       END=1051
 
 For a purpose of compressing the output file and keeping the maximum information, we have adopted a non-variant  merging strategy by considering GQ and DP: 
 
-* For genotypes of "0/0", adjacent non-variants will be merged if: 1. the GQs fall into the same bin ( the default bin size is 5).  2. the maximum depth of this interval will not exceed 30% of the minimum depth. 
+* For genotypes of "0/0", adjacent non-variants will be merged if: 1. the GQs fall into the same bin ( the default bin size is 5).  2. the maximum depth of the interval will not exceed 30% of the minimum depth. 
 
 * While some wildcard characters (such as "N") existed in the reference, Clair3  will include them in the GVCF output for a purpose of covering all of the genomic positions. But those sites will not be merged with any non-wildcard intervals. 
 
-* For sites with genotypes of "./." and without any wildcard characters in the reference, it will output in a bp resolution manner. 
+* For sites with genotypes of "./." and do not contain any wildcard character, it will output in a bp resolution manner. 
 
 
 ### Enable GVCF output with clair3
 
 
-clair3's GVCF ouput is enable by `--gvcf`.
+Clair3's GVCF ouput is enable by `--gvcf`.
 
 Example:
 
