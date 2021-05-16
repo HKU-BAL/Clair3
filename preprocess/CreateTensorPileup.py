@@ -429,7 +429,7 @@ def CreateTensorPileup(args):
         nonVariantCaller.write_to_gvcf_batch(nonVariantCaller.current_block, nonVariantCaller.cur_min_DP,
                                              nonVariantCaller.cur_raw_gq)
     
-    if(empty_pileup_flag):
+    if(args.gvcf and empty_pileup_flag):
         nonVariantCaller.write_empty_pileup(ctg_name,ctg_start,ctg_end)
     if(args.gvcf):
         nonVariantCaller.vcf_writer.close()
