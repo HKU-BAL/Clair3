@@ -4,48 +4,10 @@ import logging
 import os
 import sys
 import re
+logging.getLogger().setLevel(logging.INFO)
 
-def groupVariant(variantInfo):
-    '''
-    group the items by binned_GQ, validPL, depth(min30p3a strategy)
-    return iterable object
-    '''
 
-    cur_list, cur_gq_bin_index, cur_valid_PL, cur_min_DP, cur_max_DP, cur_chr = ([], None, None, None, None, None)
-
-    for cur_item in variantInfo:
-        _gq_bin = cur_item['binned_gq']
-        _gt = cur_item["gt"]
-        _DP = cur_item["min_dp"]
-        _chr = cur_item['chr']
-        if (cur_gq_bin_index == None):
-
-            # the first item of the variantInfo
-            cur_list, cur_gq_bin_index, cur_gt, cur_min_DP, cur_max_DP, cur_chr = (
-                [cur_item], _gq_bin, _gt, _DP, _DP, _chr)
-
-        elif (_gq_bin != cur_gq_bin_index):
-
-            yield cur_list, cur_min_DP
-            cur_list, cur_gq_bin_index, cur_gt, cur_min_DP, cur_max_DP, cur_chr = (
-                [cur_item], _gq_bin, _gt, _DP, _DP, _chr)
-
-        elif (_gt != cur_gt):
-            # _valid_PL need to be same, which means "./." and "0/0" should not be merged in one block
-            yield cur_list, cur_min_DP
-            cur_list, cur_gq_bin_index, cur_gt, cur_min_DP, cur_max_DP, cur_chr = (
-                [cur_item], _gq_bin, _gt, _DP, _DP, _chr)
-
-        else:
-
-            # ignor DP version
-            cur_list.append(cur_item)
-            if (_DP < cur_min_DP):
-                cur_min_DP = _DP
-
-    if (len(cur_list) > 0):
-        yield cur_list, cur_min_DP
-
+           
 
 class gvcfGenerator(object):
 
@@ -54,20 +16,7 @@ class gvcfGenerator(object):
         self.reference_file_path = ref_path
         self.samtools = samtools
 
-        '''
-        self.ctgName = ctgName
-        self.ctgStart = ctgStart
-        self.ctgEnd = ctgEnd
-        self.bamPath = bamPath
-        self.tmpDir = tmpDir
-
-        # got RG ID
-        # might be 
-        extract_RG_cmd = 'samtools view -H '+self.bamPath+'| grep @RG' 
-        RG_info = os.popen(extract_RG_cmd).readline()
-        self.RG_ID = RG_info.split("\t")[1].split(':')[1] 
-        '''
-
+        
         pass
 
     def readCalls(self, callPath, callType='variant', ctgName=None, ctgStart=None, ctgEnd=None):
@@ -95,8 +44,8 @@ class gvcfGenerator(object):
                         cur_variant_start = int(line.strip('\n').split('\t')[1])
                         cur_variant_end = cur_variant_start - 1 + len(ref)
 
-                        # add <*> to variant calls
-                        tmp[4] = tmp[4] + ',<*>'
+                        # add <NON_REF> to variant calls
+                        tmp[4] = tmp[4] + ',<NON_REF>'
                         if (n_alt == 1):
 
                             tmp[-1] = tmp[-1] + ',990,990,990'
@@ -113,38 +62,41 @@ class gvcfGenerator(object):
                                 if ((ctgEnd and cur_variant_end <= ctgEnd) or (not ctgEnd)):
                                     yield new_line, cur_variant_start, cur_variant_end
 
-    def _print_vcf_header(self, save_writer, sampleName):
 
-        from textwrap import dedent
-        print(dedent("""\
-            ##fileformat=VCFv4.2
-            ##FILTER=<ID=PASS,Description="All filters passed">
-            ##FILTER=<ID=LowQual,Description="Confidence in this variant being real is below calling threshold.">
-            ##FILTER=<ID=RefCall,Description="Genotyping model thinks this site is reference.">
-            ##ALT=<ID=DEL,Description="Deletion">
-            ##ALT=<ID=INS,Description="Insertion of novel sequence">
-            ##INFO=<ID=P,Number=0,Type=Flag,Description="Whether calling result from pileup calling">
-            ##INFO=<ID=F,Number=0,Type=Flag,Description="Whether calling result from full alignment calling">
-            ##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
-            ##INFO=<ID=END,Number=1,Type=Integer,Description="End position (for use with symbolic alleles)">
-            ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-            ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
-            ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
-            ##FORMAT=<ID=MIN_DP,Number=1,Type=Integer,Description="Minimum DP observed within the GVCF block.">
-            ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
-            ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range (0,1)">"""),
-              file=save_writer)
-        if self.reference_file_path is not None:
-            reference_index_file_path = self.reference_file_path + ".fai"
-            with open(reference_index_file_path, "r") as fai_fp:
-                for row in fai_fp:
-                    columns = row.strip().split("\t")
-                    contig_name, contig_size = columns[0], columns[1]
-                    print("##contig=<ID=%s,length=%s>" % (contig_name, contig_size), file=save_writer)
 
-        print('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s' % (sampleName), file=save_writer)
+    def _print_vcf_header(self,save_writer,tmp_gvcf_path,tmp_vcf_path):
+        '''
+        merge the two headers of tmp_gvcf and tmp_vcf
+ 
+        '''
+        headers=[]
+        contigs = []
+        sample_line = ""
+        with open(tmp_gvcf_path,'r') as reader:
+            for line in reader:
+                if(not line.startswith('#')):
+                    break
+                if(not line.startswith('##')):
+                    sample_line = line 
+                elif(line.startswith('##contig')):
+                    contigs.append(line)
+                else:
+                    headers.append(line)
 
+        with open(tmp_vcf_path,'r') as reader:
+            for line in reader:
+                if(not line.startswith('##')):
+                    break
+                if(line.startswith('##contig')):
+                    continue
+                elif(line not in headers):
+                    headers.append(line)
+         
+        print(''.join(headers).strip(),file=save_writer)
+        print(''.join(contigs).strip(),file=save_writer)
+        print(sample_line.strip(),file=save_writer)       
         pass
+    
 
     def readReferenceBaseAtPos(self, pos):
 
@@ -181,7 +133,6 @@ class gvcfGenerator(object):
             self._writeRightBlock(start, end, curNonVarCall, save_writer)
         else:
             print(curNonVarCall, file=save_writer)
-
     def mergeCalls(self, variantCallPath, nonVarCallPath, savePath, sampleName, ctgName=None, ctgStart=None,
                    ctgEnd=None):
 
@@ -209,7 +160,7 @@ class gvcfGenerator(object):
             nonVarCallStop = True
         save_writer = open(savePath, 'w')
         # print gvcf header
-        self._print_vcf_header(save_writer, sampleName)
+        self._print_vcf_header(save_writer,nonVarCallPath,variantCallPath)
         while True and (not varCallStop) and (not nonVarCallStop):
             if (curNonVarEnd < curVarStart):
 
@@ -341,26 +292,10 @@ class gvcfGenerator(object):
         save_writer.close()
 
 
-def _test_merge_gvcf(ref_path, vcf_path, gvcf_path, save_path, sample_name):
-    myGvcfGenerator = gvcfGenerator(ref_path=ref_path)
-    myGvcfGenerator.mergeCalls(vcf_path, gvcf_path, save_path, sample_name)
-
-
-def _test_gvcf_generator():
-    myGen = gvcfGenerator("./")
-    x, y, z = next(myGen.readNonVariantCalls("tmp.g.vcf"))
-    print(y, z)
-
-
-class queueDict(object):
-
-    def __init__(self):
-        pass
-
 
 class variantInfoCalculator(object):
 
-    def __init__(self, gvcfWritePath, ref_path, p_err, gq_bin_size, bp_resolution=False, sample_name='None', mode='L'):
+    def __init__(self, gvcfWritePath, ref_path, p_err, gq_bin_size, ctgName, bp_resolution=False, sample_name='None', mode='L'):
 
         # default p_error is 0.001, while it could be set by the users' option
         self.p_error = p_err
@@ -369,7 +304,8 @@ class variantInfoCalculator(object):
         self.log1p = math.log1p(-self.p_error) / self.LOG_10
         self.LOG_2 = math.log(2) / self.LOG_10
         # need to check with the clair3 settings
-        self.max_gq = 255
+        #self.max_gq = 255
+        self.max_gq = 50
         self.variantMath = mathcalculator()
         self.constant_log10_probs = self.variantMath.normalize_log10_prob([-1.0, -1.0, -1.0])
         self.gq_bin_size = gq_bin_size
@@ -390,7 +326,7 @@ class variantInfoCalculator(object):
             self.normalized_prob_pool = {}
 
             self.current_block = []
-            self._print_vcf_header()
+            self._print_vcf_header(ctgName=ctgName)
             self.cur_gq_bin_index = None
             self.cur_gt = None
             self.cur_min_DP = None
@@ -398,12 +334,19 @@ class variantInfoCalculator(object):
             self.cur_chr = None
             self.cur_raw_gq = None
         pass
-
+    def write_empty_pileup(self,ctgName,ctgStart,ctgEnd):
+        
+        non_variant_info = {"validPL": False, "gq": 1, "binned_gq": 1, "pl": [0,0,0],
+                            "chr": ctgName, 'pos': ctgStart, 'ref': 'N',
+                            "gt": './.', 'min_dp': 0, 'END': ctgEnd}
+        self.write_to_gvcf(non_variant_info)
     def make_gvcf_online(self, variant_summary, push_current=False):
 
         '''
+        
         make gvcf while reading from pileup
-        the difference is the other make_gvcf function receive a variant_summary generator
+                
+
         '''
 
         if (push_current):
@@ -424,24 +367,37 @@ class variantInfoCalculator(object):
         _DP = cur_item["min_dp"]
         _chr = cur_item['chr']
         _raw_gq = cur_item['gq']
+        _cur_ref = variant_summary['ref']
 
         if (self.cur_gq_bin_index == None):
             self.current_block, self.cur_gq_bin_index, self.cur_gt, self.cur_min_DP, self.cur_max_DP, self.cur_chr, self.cur_raw_gq = (
                 [cur_item], _gq_bin, _gt, _DP, _DP, _chr, _raw_gq)
+            self.cur_ref = _cur_ref
+ 
         elif (_gq_bin != self.cur_gq_bin_index):
             self.write_to_gvcf_batch(self.current_block, self.cur_min_DP, self.cur_raw_gq)
             self.current_block, self.cur_gq_bin_index, self.cur_gt, self.cur_min_DP, self.cur_max_DP, self.cur_chr, self.cur_raw_gq = (
                 [cur_item], _gq_bin, _gt, _DP, _DP, _chr, _raw_gq)
+            self.cur_ref = _cur_ref
+
         elif (_gt != self.cur_gt):
             self.write_to_gvcf_batch(self.current_block, self.cur_min_DP, self.cur_raw_gq)
             self.current_block, self.cur_gq_bin_index, self.cur_gt, self.cur_min_DP, self.cur_max_DP, self.cur_chr, self.cur_raw_gq = (
                 [cur_item], _gq_bin, _gt, _DP, _DP, _chr, _raw_gq)
+            self.cur_ref = _cur_ref
+
         elif (_chr != self.cur_chr):
             self.write_to_gvcf_batch(self.current_block, self.cur_min_DP, self.cur_raw_gq)
             self.current_block, self.cur_gq_bin_index, self.cur_gt, self.cur_min_DP, self.cur_max_DP, self.cur_chr, self.cur_raw_gq = (
                 [cur_item], _gq_bin, _gt, _DP, _DP, _chr, _raw_gq)
+            self.cur_ref = _cur_ref
+        elif( (_cur_ref != self.cur_ref) and ((_cur_ref=='N') or (self.cur_ref=='N'))):
+            self.write_to_gvcf_batch(self.current_block, self.cur_min_DP, self.cur_raw_gq)
+            self.current_block, self.cur_gq_bin_index, self.cur_gt, self.cur_min_DP, self.cur_max_DP, self.cur_chr, self.cur_raw_gq = (
+                [cur_item], _gq_bin, _gt, _DP, _DP, _chr, _raw_gq)
+            self.cur_ref = _cur_ref
         else:
-            '''        
+            '''         
             # do not consider DP 
             if(_DP < self.cur_min_DP):
                 self.cur_min_DP = _DP
@@ -449,10 +405,11 @@ class variantInfoCalculator(object):
                 self.cur_raw_gq = _raw_gq
             self.current_block.append(cur_item)
             '''
-
+            
             if (_DP < self.cur_min_DP):
                 tmp_cur_min_DP = _DP
-                if (self.cur_max_DP > math.ceil((tmp_cur_min_DP + min(3, tmp_cur_min_DP * 0.3)))):
+                #if (self.cur_max_DP > math.ceil((tmp_cur_min_DP + min(3, tmp_cur_min_DP * 0.3)))):
+                if (self.cur_max_DP > math.ceil(tmp_cur_min_DP + tmp_cur_min_DP * 0.3)):
                     self.write_to_gvcf_batch(self.current_block, self.cur_min_DP, self.cur_raw_gq)
                     self.current_block, self.cur_gq_bin_index, self.cur_gt, self.cur_min_DP, self.cur_max_DP, self.cur_chr, self.cur_raw_gq = (
                         [cur_item], _gq_bin, _gt, _DP, _DP, _chr, _raw_gq)
@@ -462,7 +419,8 @@ class variantInfoCalculator(object):
                         self.cur_raw_gq = _raw_gq
                     self.current_block.append(cur_item)
             elif (_DP > self.cur_max_DP):
-                if (_DP <= math.ceil(self.cur_min_DP + min(3, self.cur_min_DP * 0.3))):
+                #if (_DP <= math.ceil(self.cur_min_DP + min(3, self.cur_min_DP * 0.3))):
+                if (_DP <= math.ceil(self.cur_min_DP + self.cur_min_DP * 0.3)):
                     self.cur_max_DP = _DP
                     if (_raw_gq < self.cur_raw_gq):
                         self.cur_raw_gq = _raw_gq
@@ -475,7 +433,7 @@ class variantInfoCalculator(object):
                 if (_raw_gq < self.cur_raw_gq):
                     self.cur_raw_gq = _raw_gq
                 self.current_block.append(cur_item)
-
+            
     def reference_likelihood(self, variant_summary):
 
         '''
@@ -484,7 +442,8 @@ class variantInfoCalculator(object):
 
         n_ref = variant_summary["n_ref"]
         n_total = variant_summary['n_total']
-
+      
+        
         validPL, gq, binned_gq, log10_probs = self._cal_reference_likelihood(n_ref, n_total)
         if (validPL):
             gt = '0/0'
@@ -522,20 +481,25 @@ class variantInfoCalculator(object):
         if (n_total == 0):
             # when the coverage is 0
             log10_probs = self.constant_log10_probs
-            # log10_probs = self.variantMath.normalize_log10_prob([-1.0, -1.0, -1.0])
+            
             pass
         else:
 
             n_alts = n_total - n_ref
-            # logp = math.log(self.p_error) / self.LOG_10
-            # log1p = math.log1p(-self.p_error) /self.LOG_10
+            
             log10_p_ref = n_ref * self.log1p + n_alts * self.logp
-            # 2 for diploid
+            
             log10_p_het = -n_total * self.LOG_2
             log10_p_hom_alt = n_ref * self.logp + n_alts * self.log1p
+            
             # normalization
+             
             log10_probs = self.variantMath.normalize_log10_prob([log10_p_ref, log10_p_het, log10_p_hom_alt])
+            
+        
+        
         gq = self.variantMath.log10p_to_phred(log10_probs[0])
+        
         gq = int(min(int(gq), self.max_gq))
         if (gq >= 1):
             binned_index = (gq - 1) // self.gq_bin_size
@@ -543,14 +507,11 @@ class variantInfoCalculator(object):
         else:
             binned_gq = 0
 
-        ''' 
-        if(n_total==1):
-            logging.info(str(binned_gq)+"\t"+str(gq))
-        '''
+        
         validPL = log10_probs[0] == max(log10_probs)
         return validPL, gq, binned_gq, log10_probs
 
-    def _print_vcf_header(self):
+    def _print_vcf_header(self,ctgName):
 
         from textwrap import dedent
         print(dedent("""\
@@ -560,6 +521,7 @@ class variantInfoCalculator(object):
             ##FILTER=<ID=RefCall,Description="Genotyping model thinks this site is reference.">
             ##ALT=<ID=DEL,Description="Deletion">
             ##ALT=<ID=INS,Description="Insertion of novel sequence">
+            ##ALT=<ID=NON_REF,Description="Represents any possible alternative allele at this location">
             ##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
             ##INFO=<ID=END,Number=1,Type=Integer,Description="End position (for use with symbolic alleles)">
             ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
@@ -575,21 +537,21 @@ class variantInfoCalculator(object):
                 for row in fai_fp:
                     columns = row.strip().split("\t")
                     contig_name, contig_size = columns[0], columns[1]
-                    print("##contig=<ID=%s,length=%s>" % (contig_name, contig_size), file=self.vcf_writer)
+                    if(contig_name==ctgName):
+                        print("##contig=<ID=%s,length=%s>" % (contig_name, contig_size), file=self.vcf_writer)
 
         print('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s' % (self.sampleName), file=self.vcf_writer)
 
         pass
 
-    def _print_ref_info(self):
-        pass
-
+   
     def write_to_gvcf_batch(self, block, block_min_dp, block_min_raw_gq):
-        if (self.bp_resolution or block[0]['gt'] == "./."):
+         
+        if ((self.bp_resolution or block[0]['gt'] == "./.") and block[0]['ref']!='N'):
             # write it to VCF
             for item in block:
                 self.write_to_gvcf(item)
-
+        
         else:
             start_pos = block[0]['pos']
             end_pos = block[-1]['pos']
@@ -599,10 +561,17 @@ class variantInfoCalculator(object):
             first_gt = block[0]['gt']
             first_ref = block[0]['ref']
             first_chr = block[0]['chr']
+            if(first_ref=='N'):
+                # special case for reference N
+                non_variant_info = {"gq": 1, "binned_gq": 1, "pl": [0,0,0], "chr": first_chr,
+                                'pos': start_pos, 'ref': first_ref, "gt": "./.", 'min_dp': block_min_dp,
+                                'END': end_pos}
+ 
             # write binned_gq
             # non_variant_info = { "gq":first_gq, "binned_gq":first_binned_gq, "pl":first_PL,"chr":first_chr,'pos':start_pos,'ref':first_ref,"gt":first_gt,'min_dp':block_min_dp,'END':end_pos}
             # write min raw gq
-            non_variant_info = {"gq": first_gq, "binned_gq": block_min_raw_gq, "pl": first_PL, "chr": first_chr,
+            else:
+                non_variant_info = {"gq": first_gq, "binned_gq": block_min_raw_gq, "pl": first_PL, "chr": first_chr,
                                 'pos': start_pos, 'ref': first_ref, "gt": first_gt, 'min_dp': block_min_dp,
                                 'END': end_pos}
             self.write_to_gvcf(non_variant_info)
@@ -614,53 +583,10 @@ class variantInfoCalculator(object):
         '''
 
         _tmpLine = str(variant_info["chr"]) + '\t' + str(variant_info["pos"]) + "\t.\t" + variant_info[
-            'ref'] + '\t<*>\t0\t.\tEND=' + str(variant_info['END']) + '\tGT:GQ:MIN_DP:PL\t' + variant_info[
+            'ref'] + '\t<NON_REF>\t0\t.\tEND=' + str(variant_info['END']) + '\tGT:GQ:MIN_DP:PL\t' + variant_info[
                        'gt'] + ':' + str(variant_info['binned_gq']) + ':' + str(variant_info['min_dp']) + ':' + str(
             variant_info['pl'][0]) + ',' + str(variant_info['pl'][1]) + ',' + str(variant_info['pl'][2])
         print(_tmpLine, file=self.vcf_writer)
-
-    def make_gvcf(self, variant_counts):
-
-        '''
-        the main algorithm is the calculate the non-variant information for the whole genome,
-        and output a iterable object.
-        when combine it with variantCalls with the calledVariant, we might break the block if the called variant is within a non-variant block.
-        variant_counts: iterable object. item:a dictionary {chr,pos,ref_base,n_total,n_ref},note that when the reference genome is N, ref_base should
-        be the bases with maximum allele frequency.
-        when refering to total_count, ref_count, only ['A','T','C',"G",'a','t','c','g'] are included.
-        make_gvcfs
-        return all information for make a gvcf,merged block, bp_resolution
-        '''
-        # bp resolution  or blocks options here
-
-        variant_info = (self.reference_likelihood(sc) for sc in variant_counts)
-
-        if (self.bp_resolution):
-            # write it to VCF
-            for item in variant_info:
-                yield item
-            pass
-        else:
-            for block, block_min_dp in groupVariant(variant_info):
-                if (block[0]['gt'] == '0/0'):
-                    start_pos = block[0]['pos']
-                    end_pos = block[-1]['pos']
-                    first_PL = block[0]['pl']
-                    first_gq = block[0]['gq']
-                    first_binned_gq = block[0]['binned_gq']
-                    first_gt = block[0]['gt']
-                    first_ref = block[0]['ref']
-                    first_chr = block[0]['chr']
-                    non_variant_info = {"gq": first_gq, "binned_gq": first_binned_gq, "pl": first_PL, "chr": first_chr,
-                                        'pos': start_pos, 'ref': first_ref, "gt": first_gt, 'min_dp': block_min_dp,
-                                        'END': end_pos}
-                    yield non_variant_info
-
-                else:
-
-                    # we will output every single site for uncertain genotype './.'
-                    for single_site_info in block:
-                        yield single_site_info
 
 
 
@@ -675,12 +601,7 @@ class mathcalculator(object):
         if(speedUp):
             self._creatCFFIFunc()
             
-            '''
-            print("speed up!")
-            self.ffi = FFI()
-            self.ffi.cdef("""double log10p_to_phred(double log10p);""")
-            self.lib = self.ffi.verify(sources=['preprocess/mathCalculator/clairMath.c'])
-            '''
+            
 
     
     def _creatCFFIFunc(self):
@@ -698,7 +619,8 @@ class mathcalculator(object):
                             double ptrue;
                             ptrue = pow(10,log10p);
                             if(ptrue==1){
-                                return 255;
+                                
+                                return 50;
                             }
 
                             return -10*(log(1.0-ptrue)/LOG_10);
@@ -738,7 +660,7 @@ class mathcalculator(object):
                                mySum += tmp;
                            }
 
-                           return log(mySum)/LOG_10;
+                           return m+log(mySum)/LOG_10;
 
                        }
 
@@ -754,35 +676,18 @@ class mathcalculator(object):
         log10(p) to -10log10(1-p)
 
         '''
-        #print('log10p',log10p)
+        
         if(self.speedUp):
-            ''' 
-            res1 = self.lib.log10p_to_phred(log10p)
-            ptrue = math.power(10,log10p)
-            if(ptrue==1):
-                res2 = 255
-            else:
-
-                res2 = -10*(math.log1p(-ptrue)/self.LOG_10)
-            logging.info('log10p_to_phred c version '+str(res1))
-            logging.info('log10p_to_phred pypy version '+str(res2))
-            '''
+            
             return round(self.lib.log10p_to_phred(log10p),6)
         
-        ptrue = math.power(10,log10p)
-        
-        if(ptrue==1):
-            return 255
-        #print('ptrue',ptrue,'math.log1p(ptrue)/self.LOG_10',math.log1p(-ptrue)/self.LOG_10,'return value',-10*(math.log1p(-ptrue)/self.LOG_10))
-        return round(-10*(math.log1p(-ptrue)/self.LOG_10),6)
         
         
-    
-    def normalizeLog10Likelihood(self,log10prob):
+        #if(ptrue==1):
+        #    return 255
         
+        #return round(-10*(math.log1p(-ptrue)/self.LOG_10),6)
         
-
-        pass
     def log10sumexp(self,log10_array):
 
         '''
@@ -794,13 +699,7 @@ class mathcalculator(object):
             
             n_array = self.ffi.cast("int", len(log10_array))
             log10_array_c = self.ffi.new("double []",log10_array)
-            '''
-            res1 = self.lib.log10sumexp(log10_array_c,n_array)
-            m = max(log10_array)
-            res2 = m + math.log10(sum(pow(10.0, x - m) for x in log10_array))
-            logging.info("log10sumexp c version "+str(res1))
-            logging.info("log10sumexp pypy version "+str(res2))
-            '''
+            
             return self.lib.log10sumexp(log10_array_c,n_array) 
             
         m = max(log10_array)
@@ -815,8 +714,10 @@ class mathcalculator(object):
         '''
         # keep 6 digits
         lse = round(self.log10sumexp(log10_prob),6)
-        #print('lse',lse)
-        normalized_log10_probs = [] 
+         
+        normalized_log10_probs = []
+         
+        
         for x in log10_prob:
             normalized_log10_probs.append(min(x-lse,0))
    

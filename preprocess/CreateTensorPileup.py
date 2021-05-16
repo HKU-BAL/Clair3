@@ -295,6 +295,11 @@ def CreateTensorPileup(args):
                                                         " ".join(reads_regions), )
             + mq_option + bq_option + bed_option + flags_option + max_depth_option + gvcf_option))
 
+    ''' 
+    logging.info("{} mpileup  {} -r {} --reverse-del".format(samtools_execute_command,
+                                                        bam_file_path,
+                                                        " ".join(reads_regions), ) + mq_option + bq_option + bed_option + flags_option + max_depth_option + gvcf_option)
+    '''
     if tensor_can_output_path != "PIPE":
         tensor_can_fpo = open(tensor_can_output_path, "wb")
         tensor_can_fp = subprocess_popen(shlex.split("{} -c".format(param.zstd)), stdin=PIPE, stdout=tensor_can_fpo)
@@ -316,19 +321,23 @@ def CreateTensorPileup(args):
     # to generate gvcf, it is needed to record whole genome statistical information
     if args.gvcf:
         nonVariantCaller = variantInfoCalculator(gvcfWritePath=args.temp_file_dir, ref_path=args.ref_fn,
-                                                 bp_resolution=args.bp_resolution, sample_name='.'.join(
+                                                 bp_resolution=args.bp_resolution, ctgName=ctg_name,sample_name='.'.join(
                 [args.sampleName, ctg_name, str(ctg_start), str(ctg_end)]), p_err=args.base_err,
                                                  gq_bin_size=args.gq_bin_size)
 
     confident_bed_tree = bed_tree_from(bed_file_path=confident_bed_fn, contig_name=ctg_name, bed_ctg_start=extend_start,
                                        bed_ctg_end=extend_end)
 
+
+    empty_pileup_flag = True 
     for row in samtools_mpileup_process.stdout:
+        empty_pileup_flag = False 
         columns = row.strip().split('\t')
         pos = int(columns[1])
         pileup_bases = columns[4]
         reference_base = reference_sequence[pos - reference_start].upper()
-        valid_reference_flag = reference_base.upper() in ['A', 'T', 'C', 'G']
+        #valid_reference_flag = reference_base.upper() in ['A', 'T', 'C', 'G']
+        valid_reference_flag = True
         if not valid_reference_flag and args.gvcf:
             nonVariantCaller.make_gvcf_online({}, push_current=True)
         if (ctg_start != None and ctg_end != None):
@@ -419,6 +428,11 @@ def CreateTensorPileup(args):
     if (args.gvcf and len(nonVariantCaller.current_block) != 0):
         nonVariantCaller.write_to_gvcf_batch(nonVariantCaller.current_block, nonVariantCaller.cur_min_DP,
                                              nonVariantCaller.cur_raw_gq)
+    
+    if(empty_pileup_flag):
+        nonVariantCaller.write_empty_pileup(ctg_name,ctg_start,ctg_end)
+    if(args.gvcf):
+        nonVariantCaller.vcf_writer.close()
 
     samtools_mpileup_process.stdout.close()
     samtools_mpileup_process.wait()
