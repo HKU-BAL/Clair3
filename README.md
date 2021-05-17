@@ -79,7 +79,7 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 
 ### Option 1.  Docker pre-built image (recommended)
 
-A pre-built docker image is available [here](https://hub.docker.com/hkubal/clair3). With it you can run Clair3 using a single command:
+A pre-built docker image is available [here](https://hub.docker.com/layers/hkubal/clair3/latest/images/sha256-769a241a9e1aab422d7309022ab14e8982d1e2af32c24ee7c16230c24b52cd74?context=explore). With it you can run Clair3 using a single command:
 
 ```bash
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
