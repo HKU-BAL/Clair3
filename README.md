@@ -26,7 +26,7 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 We are actively fixing bugs and issues in Clair3 reported by users.
 
-*v0.1-r1 (May 18)* : 1. Support relative path ([#5](https://github.com/HKU-BAL/Clair3/issues/5)). 2. Fix `taskset` CPU-core visibility and provide a Singularity image [#6](https://github.com/HKU-BAL/Clair3/issues/6).
+*v0.1-r1 (May 18)* : 1. Support relative path ([#5](https://github.com/HKU-BAL/Clair3/issues/5)). 2. Fix `taskset` CPU-core visibility and provide a Singularity image ([#6](https://github.com/HKU-BAL/Clair3/issues/6)).
 
 *v0.1 (May 17)*: Initial release.
 
@@ -38,11 +38,10 @@ We are actively fixing bugs and issues in Clair3 reported by users.
 * [Latest Updates](#latest-updates)
 * [What's New in Clair3](#whats-new-in-clair3)
 * [Installation](#installation)
-  + [Option 1. Docker pre-built image](#option-1--docker-pre-built-image)
-  + [Option 2. Singularity](#option-2--singularity)
+  + [Option 1. Docker pre-built image](#option-1-docker-pre-built-image)
+  + [Option 2. Singularity](#option-2-singularity)
   + [Option 3. Docker Dockerfile](#option-3-docker-dockerfile)
   + [Option 4. Build an anaconda virtual environment](#option-4-build-an-anaconda-virtual-environment)
-  + 
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
