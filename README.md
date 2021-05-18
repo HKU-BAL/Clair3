@@ -38,7 +38,7 @@ We are actively fixing bugs and issues in Clair3 reported by users.
 * [Latest Updates](#latest-updates)
 * [What's New in Clair3](#whats-new-in-clair3)
 * [Installation](#installation)
-  + [Option 1. Docker pre-built image](#option-1-docker-pre-built-image)
+  + [Option 1. Docker pre-built image](#option-1--docker-pre-built-image)
   + [Option 2. Singularity](#option-2-singularity)
   + [Option 3. Docker Dockerfile](#option-3-docker-dockerfile)
   + [Option 4. Build an anaconda virtual environment](#option-4-build-an-anaconda-virtual-environment)
