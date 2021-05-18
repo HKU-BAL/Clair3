@@ -125,15 +125,23 @@ if [ -z ${BAM_FILE_PATH} ] || [ -z ${REFERENCE_FILE_PATH} ] || [ -z ${THREADS} ]
       echo "[ERROR] Required parameters missing";
 fi
 
-if [ ! -f ${BAM_FILE_PATH} ] || [ ! -f ${BAM_FILE_PATH}.bai ]; then echo "[ERROR] Bam file or Bam index bai file not found"; exit 1; fi
-if [ ! -f ${REFERENCE_FILE_PATH} ] || [ ! -f ${REFERENCE_FILE_PATH}.fai ]; then echo "[ERROR] Reference file or Reference index fai file not found"; exit 1; fi
-if [ ! ${BED_FILE_PATH} = "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [ ! -f ${BED_FILE_PATH} ] ; then echo "[ERROR] Bed file provides and not found"; exit 1; fi
-if [ ! ${VCF_FILE_PATH} = "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [ ! -f ${VCF_FILE_PATH} ] ; then echo "[ERROR] Vcf file provides and not found"; exit 1; fi
+# relative path support
+if [[ ! "${BAM_FILE_PATH}" = /* ]] && [ -f ${BAM_FILE_PATH} ] ; then BAM_FILE_PATH=`pwd`/${BAM_FILE_PATH}; fi
+if [[ ! "${REFERENCE_FILE_PATH}" = /* ]] && [ -f ${REFERENCE_FILE_PATH} ] ; then REFERENCE_FILE_PATH=`pwd`/${REFERENCE_FILE_PATH}; fi
+if [[ ! "${OUTPUT_FOLDER}" = /* ]] ; then echo "[WARNING] No absolute output path provided, using current directory as prefix"; OUTPUT_FOLDER=`pwd`/${OUTPUT_FOLDER}; fi
+if [[ ! "${MODEL_PATH}" = /* ]] && [ -d ${MODEL_PATH} ] ; then MODEL_PATH=`pwd`/${MODEL_PATH}; fi
+if [ ! ${BED_FILE_PATH} = "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [[ ! "${BED_FILE_PATH}" = /* ]] && [ -f ${BED_FILE_PATH} ] ; then BED_FILE_PATH=`pwd`/${BED_FILE_PATH}; fi
+if [ ! ${VCF_FILE_PATH} = "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [[ ! "${VCF_FILE_PATH}" = /* ]] && [ -f ${VCF_FILE_PATH} ] ; then VCF_FILE_PATH=`pwd`/${VCF_FILE_PATH}; fi
 
+if [ ! -f ${BAM_FILE_PATH} ] || [ ! -f ${BAM_FILE_PATH}.bai ] ; then echo "[ERROR] BAM file or BAM index bai file not found"; exit 1; fi
+if [ ! -f ${REFERENCE_FILE_PATH} ] || [ ! -f ${REFERENCE_FILE_PATH}.fai ] ; then echo "[ERROR] Reference file or Reference index fai file not found"; exit 1; fi
+if [ ! ${BED_FILE_PATH} = "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [ ! -f ${BED_FILE_PATH} ] ; then echo "[ERROR] BED file provides and not found"; exit 1; fi
+if [ ! ${VCF_FILE_PATH} = "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [ ! -f ${VCF_FILE_PATH} ] ; then echo "[ERROR] VCF file provides and not found"; exit 1; fi
+if [ ! -d ${MODEL_PATH} ] || [ ! -f ${MODEL_PATH}/pileup.index ] || [ ! -f ${MODEL_PATH}/full_alignment.index ] ; then echo "[ERROR] Model path not found or no model file inside"; exit 1; fi
 
 mkdir -p ${OUTPUT_FOLDER}
 
-#optional parameters should use "="
+# optional parameters should use "="
 (time (
 echo "[INFO] BAM FILE PATH: ${BAM_FILE_PATH}"
 echo "[INFO] REFERENCE FILE PATH: ${REFERENCE_FILE_PATH}"

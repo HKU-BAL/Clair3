@@ -30,6 +30,7 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
   + [Option 1. Docker pre-built image (recommended)](#option-1--docker-pre-built-image-recommended)
   + [Option 2. Docker Dockerfile](#option-2-docker-dockerfile)
   + [Option 3. Build an anaconda virtual environment](#option-3-build-an-anaconda-virtual-environment)
+  + [Option 4. Singularity](#option-3-build-an-anaconda-virtual-environment)
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
@@ -171,7 +172,26 @@ tar -zxvf clair3_models.tar.gz -C ./models
   --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
 
+### Option 4. Singularity
+
+```bash
+conda config --add channels defaults
+conda create -n singularity-env -c conda-forge singularity
+conda activate singularity-env
+
+# build a docker image named hkubal/clair3:v0.1
+# might require docker authentication to build docker image 
+docker build -f ./Dockerfile -t hkubal/clair3:v0.1 .
+
+# run clair3 docker image like this afterward
+docker run -it hkubal/clair3:v0.1 /opt/bin/run_clair3.sh --help
+```
+
+### Option 3. Build an anaconda virtual environment
+
 ----
+
+
 
 ## Usage
 
