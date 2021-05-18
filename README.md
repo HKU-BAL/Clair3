@@ -26,7 +26,7 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 We are actively fixing bugs and issues in Clair3 reported by users.
 
-*v0.1-r1 (May 18)* : 1. Support relative path ([#5](https://github.com/HKU-BAL/Clair3/issues/5)). 2. Fix `taskset` CPU-core visibility and provide a Singularity image ([#6](https://github.com/HKU-BAL/Clair3/issues/6)).
+*v0.1-r1 (May 18)* : 1. Support relative path in Singularity and Conda, Docker still requires absolute path ([#5](https://github.com/HKU-BAL/Clair3/issues/5)). 2. Fix `taskset` CPU-core visibility and provide a Singularity image ([#6](https://github.com/HKU-BAL/Clair3/issues/6)).
 
 *v0.1 (May 17)*: Initial release.
 
@@ -40,8 +40,8 @@ We are actively fixing bugs and issues in Clair3 reported by users.
 * [Installation](#installation)
   + [Option 1. Docker pre-built image](#option-1--docker-pre-built-image)
   + [Option 2. Singularity](#option-2-singularity)
-  + [Option 3. Docker Dockerfile](#option-3-docker-dockerfile)
-  + [Option 4. Build an anaconda virtual environment](#option-4-build-an-anaconda-virtual-environment)
+  + [Option 3. Build an anaconda virtual environment](#option-3-build-an-anaconda-virtual-environment)
+  + [Option 4. Docker Dockerfile](#option-4-docker-dockerfile)
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
@@ -91,11 +91,13 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 
 ### Option 1.  Docker pre-built image
 
-A pre-built docker image is available [here](https://hub.docker.com/layers/hkubal/clair3/latest/images/sha256-769a241a9e1aab422d7309022ab14e8982d1e2af32c24ee7c16230c24b52cd74?context=explore). With it you can run Clair3 using a single command:
+A pre-built docker image is available [here](https://hub.docker.com/layers/hkubal/clair3/latest/images/sha256-769a241a9e1aab422d7309022ab14e8982d1e2af32c24ee7c16230c24b52cd74?context=explore). With it you can run Clair3 using a single command.
+
+**Caution**: Absolute path is needed for both INPUT_DIR and OUTPUT_DIR. 
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input (absolute path needed)
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1-r1"
 
@@ -117,6 +119,11 @@ Check [Usage](#Usage) for more options.
 ### Option 2. Singularity
 
 ```bash
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+BIN_VERSION="v0.1-r1"
+
 conda config --add channels defaults
 conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
@@ -125,7 +132,7 @@ conda activate singularity-env
 singularity pull docker://hkubal/clair3:v0.1-r1
 
 # run clair3 like this afterward
-singularity exec clair3_v0.1-r1.sif \
+singularity exec clair3_"${BIN_VERSION}".sif \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
@@ -135,22 +142,7 @@ singularity exec clair3_v0.1-r1.sif \
   --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
 
-### Option 3. Docker Dockerfile
-
-```bash
-# clone Clair3
-git clone https://github.com/hku-bal/Clair3.git
-cd Clair3
-
-# build a docker image named hkubal/clair3:v0.1
-# might require docker authentication to build docker image 
-docker build -f ./Dockerfile -t hkubal/clair3:v0.1 .
-
-# run clair3 docker image like this afterward
-docker run -it hkubal/clair3:v0.1 /opt/bin/run_clair3.sh --help
-```
-
-### Option 4. Build an anaconda virtual environment
+### Option 3. Build an anaconda virtual environment
 
 **Anaconda install**:
 
@@ -167,17 +159,21 @@ chmod +x ./Miniconda3-latest-Linux-x86_64.sh
 *For using Clair3 on Illumina data, after the following steps, please also install the* [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html) *using this* [guidance](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process).
 
 ```bash
-# create and activate the environment named clair3
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+
+# create and activate an environment named clair3
 conda create -n clair3 python=3.6.10 -y
 source activate clair3
 
-# install pypy and packages on clair3 environemnt
+# install pypy and packages in the environemnt
 conda install -c conda-forge pypy3.6 -y
 pypy3 -m ensurepip
 pypy3 -m pip install intervaltree==3.0.2
 pypy3 -m pip install mpmath==1.2.1
 
-# install python packages on clair3 environment
+# install python packages in environment
 pip3 install tensorflow==2.2.0
 pip3 install intervaltree==3.0.2  tensorflow-addons==0.11.2 tables==3.6.1
 conda install -c anaconda pigz==2.4 -y
@@ -189,19 +185,36 @@ conda install -c conda-forge -c bioconda whatshap=1.0 -y
 git clone https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 
-# download pre-trained model
+# download pre-trained models
 mkdir models
 wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz 
 tar -zxvf clair3_models.tar.gz -C ./models
 
-# run clair3 like this afterward
+# run clair3
 ./run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path=`pwd`"/models/ont" \    ## absolute model path prefix, change platform accordingly
-  --output=${OUTPUT_DIR}               ## absolute output path prefix
+  --model_path=`pwd`"/models/ont" \    ## model path prefix, change platform accordingly
+  --output=${OUTPUT_DIR}               ## output path prefix
+```
+
+### Option 4. Docker Dockerfile
+
+```bash
+BIN_VERSION="v0.1-r1"
+
+# clone Clair3
+git clone https://github.com/hku-bal/Clair3.git
+cd Clair3
+
+# build a docker image named hkubal/clair3:v0.1
+# might require docker authentication to build docker image 
+docker build -f ./Dockerfile -t hkubal/clair3:"${BIN_VERSION}" .
+
+# run clair3 docker image like option 1
+docker run -it hkubal/clair3:"${BIN_VERSION}" /opt/bin/run_clair3.sh --help
 ```
 
 ---
