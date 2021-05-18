@@ -82,8 +82,8 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 A pre-built docker image is available [here](https://hub.docker.com/layers/hkubal/clair3/latest/images/sha256-769a241a9e1aab422d7309022ab14e8982d1e2af32c24ee7c16230c24b52cd74?context=explore). With it you can run Clair3 using a single command:
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
@@ -96,8 +96,8 @@ docker run -it \
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## options: {ont,hifi,ilmn}
-  --output=${OUTPUT_DIR}
+  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
+  --output=${OUTPUT_DIR}               ## absolute output path prefix 
 ```
 
 Check [Usage](#Usage) for more options.
@@ -168,7 +168,7 @@ tar -zxvf clair3_models.tar.gz -C ./models
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path=`pwd`"/models/ont" \    ## absolute model path prefix, change platform accordingly
-  --output=${OUTPUT_DIR}
+  --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
 
 ----
@@ -184,8 +184,8 @@ tar -zxvf clair3_models.tar.gz -C ./models
   --ref_fn=${REF} \
   --threads=${THREADS} \  		     
   --platform='ont' \               ## options: {ont,hifi,ilmn}
-  --model_path=${MODEL_PREFIX} \   ## options: {ont,hifi,ilmn}
-  --output=${OUTPUT_DIR}
+  --model_path=${MODEL_PREFIX} \   ## absolute model path prefix
+  --output=${OUTPUT_DIR}           ## absolute output path prefix
 
 ## pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
 ## full-alignment output file: ${OUTPUT_DIR}/full_alignment.vcf.gz
@@ -237,8 +237,8 @@ tar -zxvf clair3_models.tar.gz -C ./models
 
 ```bash
 CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
@@ -252,16 +252,16 @@ docker run -it \
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
-  --output=${OUTPUT_DIR} \
+  --output=${OUTPUT_DIR} \             ## absolute output path prefix
   --ctg_name=${CONTIGS_LIST}
 ```
 
 #### Call variants at known variant sites
 
 ```bash
-KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. known_variants.vcf.gz
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. ~/known_variants.vcf.gz
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
@@ -275,7 +275,7 @@ docker run -it \
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
-  --output=${OUTPUT_DIR} \
+  --output=${OUTPUT_DIR} \             ## absolute output path prefix
   --vcf_fn=${KNOWN_VARIANTS_VCF}
 ```
 
@@ -295,8 +295,8 @@ Then run Clair3 like this:
 
 ```bash
 BED_FILE_PATH=tmp.bed		           
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
@@ -310,15 +310,15 @@ docker run -it \
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
-  --output=${OUTPUT_DIR} \
+  --output=${OUTPUT_DIR} \             ## absolute output path prefix
   --bed_fn=${BED_FILE_PATH}
 ```
 
 #### Call variants in non-diploid organisms (Haploid calling)
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. input/
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. output/
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1"
 
