@@ -168,7 +168,7 @@ fi
 #-----------------------------------------------------------------------------------------------------------------------
 echo "[INFO] 5/7 Select candidates for full alignment"
 gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --output_fn ${CANDIDATE_BED_PATH} \
---var_pct_full ${PRO} --ref_pct_full ${REF_PRO} --platform ${PLATFORM}
+--var_pct_full ${PRO} --ref_pct_full ${REF_PRO} --platform ${PLATFORM} --vcf_fn ${VCF_FILE_PATH}
 time ${PARALLEL} --joblog ${LOG_PATH}/parallel_5_select_candidate.log -j${THREADS} \
 "${PYPY} ${CLAIR3} SelectCandidates \
     --pileup_vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \

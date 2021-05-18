@@ -3,7 +3,7 @@ PLATFORM='ont'
 INPUT_DIR="${HOME}/clair3_ont_quickDemo"
 OUTPUT_DIR="${INPUT_DIR}/output"
 THREADS=4
-BIN_VERSION="v0.1"
+BIN_VERSION="v0.1-r1"
 
 ## Create local directory structure
 mkdir -p ${INPUT_DIR}

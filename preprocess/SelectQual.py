@@ -2,6 +2,8 @@ from sys import stdin
 from argparse import ArgumentParser
 import os
 
+from shared.utils import file_path_from
+
 major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] + [str(a) for a in
                                                                                    list(range(1, 23)) + ["X", "Y"]]
 
@@ -45,8 +47,10 @@ def select_qual_from_stdin(args):
     output, as full alignment calling is substantially slower than pileup calling.
     """
     var_pct_full = args.var_pct_full
+    vcf_fn = file_path_from(args.vcf_fn)
     ref_pct_full = args.ref_pct_full if args.ref_pct_full else var_pct_full
     ref_pct_full = 0.1 if args.platform == 'ont' and ref_pct_full == 0.3 else ref_pct_full
+
     variant_qual_list = []
     ref_qual_list = []
     for row in stdin:
@@ -66,6 +70,10 @@ def select_qual_from_stdin(args):
     var_qual_cut_off = variant_qual_list[:int(var_pct_full * len(variant_qual_list))][-1]
     #for efficency, we use maximum 30% reference qual, which is almost cover all false negative candidates
     ref_qual_cut_off = ref_qual_list[:int(min(ref_pct_full, 0.3) * len(ref_qual_list))][-1]
+    if vcf_fn is not None:
+        # If known vcf file is provided, use user defined proportion.
+        var_qual_cut_off = variant_qual_list[:int(var_pct_full * len(variant_qual_list))][-1]
+        ref_qual_cut_off = ref_qual_list[:int(args.ref_pct_full * len(ref_qual_list))][-1]
     print ('[INFO] Select variant quality cut off {}'.format(round(var_qual_cut_off, 0)))
     print ('[INFO] Select reference quality cut off {}'.format(round(ref_qual_cut_off, 0)))
 
@@ -91,6 +99,9 @@ def main():
 
     parser.add_argument('--phase', action='store_true',
                         help="Select only heterozygous candidates for phasing or not, default: False")
+
+    parser.add_argument('--vcf_fn', type=str, default=None,
+                        help="Candidate sites VCF file input, if provided, variants will only be called at the sites in the VCF file,  default: %(default)s")
 
     args = parser.parse_args()
     if args.phase:
