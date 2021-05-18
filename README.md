@@ -180,12 +180,11 @@ conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
 
 # singularity pull docker pre-built image
-
 singularity pull docker://hkubal/clair3:v0.1-r1
 
-# then will have a sif file in local directory(Singularity Image File)
 # run clair3 like this afterward
 singularity exec clair3_v0.1-r1.sif \
+  /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
   --threads=${THREADS} \               ## maximum threads to be used
