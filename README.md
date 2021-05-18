@@ -22,15 +22,27 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 ---
 
+## Lastest Updates
+
+We are actively fixing bugs and issues in Clair3 reported by users.
+
+*v0.1-r1 (May 18)* : 1. Support relative path ([#5](https://github.com/HKU-BAL/Clair3/issues/5)). 2. Fix `taskset` CPU-core visibility and provide a Singularity image [#6](https://github.com/HKU-BAL/Clair3/issues/6).
+
+*v0.1 (May 17)*: Initial release.
+
+---
+
 ## Contents
 
 * [Introduction](#introduction)
+* [Latest Updates](#latest-updates)
 * [What's New in Clair3](#whats-new-in-clair3)
 * [Installation](#installation)
-  + [Option 1. Docker pre-built image (recommended)](#option-1--docker-pre-built-image-recommended)
-  + [Option 2. Docker Dockerfile](#option-2-docker-dockerfile)
-  + [Option 3. Build an anaconda virtual environment](#option-3-build-an-anaconda-virtual-environment)
-  + [Option 4. Singularity](#option-4-singularity)
+  + [Option 1. Docker pre-built image](#option-1--docker-pre-built-image)
+  + [Option 2. Singularity](#option-2--singularity)
+  + [Option 3. Docker Dockerfile](#option-3-docker-dockerfile)
+  + [Option 4. Build an anaconda virtual environment](#option-4-build-an-anaconda-virtual-environment)
+  + 
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
@@ -78,7 +90,7 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 
 ## Installation
 
-### Option 1.  Docker pre-built image (recommended)
+### Option 1.  Docker pre-built image
 
 A pre-built docker image is available [here](https://hub.docker.com/layers/hkubal/clair3/latest/images/sha256-769a241a9e1aab422d7309022ab14e8982d1e2af32c24ee7c16230c24b52cd74?context=explore). With it you can run Clair3 using a single command:
 
@@ -103,7 +115,28 @@ docker run -it \
 
 Check [Usage](#Usage) for more options.
 
-### Option 2. Docker Dockerfile
+### Option 2. Singularity
+
+```bash
+conda config --add channels defaults
+conda create -n singularity-env -c conda-forge singularity -y
+conda activate singularity-env
+
+# singularity pull docker pre-built image
+singularity pull docker://hkubal/clair3:v0.1-r1
+
+# run clair3 like this afterward
+singularity exec clair3_v0.1-r1.sif \
+  /opt/bin/run_clair3.sh \
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
+  --output=${OUTPUT_DIR}               ## absolute output path prefix
+```
+
+### Option 3. Docker Dockerfile
 
 ```bash
 # clone Clair3
@@ -118,7 +151,7 @@ docker build -f ./Dockerfile -t hkubal/clair3:v0.1 .
 docker run -it hkubal/clair3:v0.1 /opt/bin/run_clair3.sh --help
 ```
 
-### Option 3. Build an anaconda virtual environment
+### Option 4. Build an anaconda virtual environment
 
 **Anaconda install**:
 
@@ -172,30 +205,7 @@ tar -zxvf clair3_models.tar.gz -C ./models
   --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
 
-### Option 4. Singularity
-
-```bash
-conda config --add channels defaults
-conda create -n singularity-env -c conda-forge singularity -y
-conda activate singularity-env
-
-# singularity pull docker pre-built image
-singularity pull docker://hkubal/clair3:v0.1-r1
-
-# run clair3 like this afterward
-singularity exec clair3_v0.1-r1.sif \
-  /opt/bin/run_clair3.sh \
-  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
-  --threads=${THREADS} \               ## maximum threads to be used
-  --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
-  --output=${OUTPUT_DIR}               ## absolute output path prefix
-```
-
-----
-
-
+---
 
 ## Usage
 
