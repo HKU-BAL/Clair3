@@ -30,12 +30,12 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
   + [Option 1. Docker pre-built image (recommended)](#option-1--docker-pre-built-image-recommended)
   + [Option 2. Docker Dockerfile](#option-2-docker-dockerfile)
   + [Option 3. Build an anaconda virtual environment](#option-3-build-an-anaconda-virtual-environment)
-  + [Option 4. Singularity](#option-3-build-an-anaconda-virtual-environment)
+  + [Option 4. Singularity](#option-4-singularity)
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
 * [Training Data](#training-data)
-* [VCF/GVCF Output Formats](#vcf-output-format)
+* [VCF/GVCF Output Formats](#vcfgvcf-output-formats)
 * [Pileup Model Training](docs/pileup_training.md)
 * [Full-Alignment Model Training](docs/full_alignment_training.md)
 * [Representation Unification](docs/representation_unification.md)
@@ -86,7 +86,7 @@ A pre-built docker image is available [here](https://hub.docker.com/layers/hkuba
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1"
+BIN_VERSION="v0.1-r1"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -181,11 +181,11 @@ conda activate singularity-env
 
 # singularity pull docker pre-built image
 
-singularity pull docker://hkubal/clair3:v0.1
+singularity pull docker://hkubal/clair3:v0.1-r1
 
 # then will have a sif file in local directory(Singularity Image File)
 # run clair3 like this afterward
-singularity exec clair3_v0.1.sif \
+singularity exec clair3_v0.1-r1.sif \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -193,8 +193,6 @@ singularity exec clair3_v0.1.sif \
   --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
   --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
-
-### Option 3. Build an anaconda virtual environment
 
 ----
 
@@ -267,7 +265,7 @@ CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1"
+BIN_VERSION="v0.1-r1"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -290,7 +288,7 @@ KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. ~/known_variants.vcf.gz
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1"
+BIN_VERSION="v0.1-r1"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -325,7 +323,7 @@ BED_FILE_PATH=tmp.bed
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1"
+BIN_VERSION="v0.1-r1"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -347,7 +345,7 @@ docker run -it \
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1"
+BIN_VERSION="v0.1-r1"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \

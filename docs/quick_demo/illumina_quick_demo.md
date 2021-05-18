@@ -49,7 +49,7 @@ echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > ${INPUT_DIR}/quick_demo.bed
 ### Option 1. Docker pre-built image
 
 ```bash
-BIN_VERSION='v0.1'
+BIN_VERSION='v0.1-r1'
 THREADS=4
 cd ${OUTPUT_DIR}
 
