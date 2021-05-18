@@ -176,15 +176,22 @@ tar -zxvf clair3_models.tar.gz -C ./models
 
 ```bash
 conda config --add channels defaults
-conda create -n singularity-env -c conda-forge singularity
+conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
 
-# build a docker image named hkubal/clair3:v0.1
-# might require docker authentication to build docker image 
-docker build -f ./Dockerfile -t hkubal/clair3:v0.1 .
+# singularity pull docker pre-built image
 
-# run clair3 docker image like this afterward
-docker run -it hkubal/clair3:v0.1 /opt/bin/run_clair3.sh --help
+singularity pull docker://hkubal/clair3:v0.1
+
+# then will have a sif file in local directory(Singularity Image File)
+# run clair3 like this afterward
+singularity exec clair3_v0.1.sif \
+  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
+  --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
 
 ### Option 3. Build an anaconda virtual environment
