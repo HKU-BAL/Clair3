@@ -26,7 +26,7 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 We are actively fixing bugs and issues in Clair3 reported by users.
 
-*v0.1-r1 (May 18)* : 1. Support relative path in Singularity and Conda, Docker still requires absolute path ([#5](https://github.com/HKU-BAL/Clair3/issues/5)). 2. Fix `taskset` CPU-core visibility and provide a Singularity image ([#6](https://github.com/HKU-BAL/Clair3/issues/6)).
+*v0.1-r1 (May 18)* : 1. Support relative path in Conda, but Docker and Singularity still requires absolute path ([#5](https://github.com/HKU-BAL/Clair3/issues/5)). 2. Fix `taskset` CPU-core visibility and provide a Singularity image ([#6](https://github.com/HKU-BAL/Clair3/issues/6)).
 
 *v0.1 (May 17)*: Initial release.
 
@@ -93,11 +93,11 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 
 A pre-built docker image is available [here](https://hub.docker.com/layers/hkubal/clair3/latest/images/sha256-769a241a9e1aab422d7309022ab14e8982d1e2af32c24ee7c16230c24b52cd74?context=explore). With it you can run Clair3 using a single command.
 
-**Caution**: Absolute path is needed for both INPUT_DIR and OUTPUT_DIR. 
+**Caution**: Absolute path is needed for both `INPUT_DIR` and `OUTPUT_DIR`. 
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input (absolute path needed)
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output (absolute path needed)
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1-r1"
 
@@ -118,9 +118,11 @@ Check [Usage](#Usage) for more options.
 
 ### Option 2. Singularity
 
+**Caution**: Absolute path is needed for both `INPUT_DIR` and `OUTPUT_DIR`. 
+
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1-r1"
 
@@ -159,8 +161,8 @@ chmod +x ./Miniconda3-latest-Linux-x86_64.sh
 *For using Clair3 on Illumina data, after the following steps, please also install the* [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html) *using this* [guidance](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process).
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ./input
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ./output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 
 # create and activate an environment named clair3
@@ -202,6 +204,8 @@ tar -zxvf clair3_models.tar.gz -C ./models
 
 ### Option 4. Docker Dockerfile
 
+This is the same as option 1 except that you are building a docker image yourself. Please refer to option 1 for usage. 
+
 ```bash
 BIN_VERSION="v0.1-r1"
 
@@ -223,16 +227,16 @@ docker run -it hkubal/clair3:"${BIN_VERSION}" /opt/bin/run_clair3.sh --help
 
 ### General Usage
 
+**Caution**:  Use `=value` for optional parameters, e.g. `--bed_fn=fn.bed` instead of `--bed_fn fn.bed`.
+
 ```bash
-# optional parameters should use "="
 ./run_clair3.sh \
   --bam_fn=${BAM} \
   --ref_fn=${REF} \
   --threads=${THREADS} \  		     
-  --platform='ont' \               ## options: {ont,hifi,ilmn}
+  --platform="ont" \               ## options: {ont,hifi,ilmn}
   --model_path=${MODEL_PREFIX} \   ## absolute model path prefix
   --output=${OUTPUT_DIR}           ## absolute output path prefix
-
 ## pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
 ## full-alignment output file: ${OUTPUT_DIR}/full_alignment.vcf.gz
 ## Clair3 final output file: ${OUTPUT_DIR}/merge_output.vcf.gz
@@ -243,36 +247,38 @@ docker run -it hkubal/clair3:"${BIN_VERSION}" /opt/bin/run_clair3.sh --help
 **Required parameters:**
 
 ```bash
-  -b, --bam_fn FILE        BAM file input. The input file must be samtools indexed.
-  -f, --ref_fn FILE        FASTA reference file input. The input file must be samtools indexed.
-  -m, --model_path STR     The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00001, pileup.index, pileup.meta, full_alignment.data-00000-of-00001, full_alignment.index, and full_alignment.meta).
-  -t, --threads INT        Max threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The chunks being processed simultaneously is ceil($threads/4)*3. 3 is the overloading factor.
-  -p, --platform STR       Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.
-  -o, --output PATH        VCF/GVCF output directory.
+  -b, --bam_fn=FILE        BAM file input. The input file must be samtools indexed.
+  -f, --ref_fn=FILE        FASTA reference file input. The input file must be samtools indexed.
+  -m, --model_path=STR     The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00001, pileup.index, pileup.meta, full_alignment.data-00000-of-00001, full_alignment.index, and full_alignment.meta).
+  -t, --threads=INT        Max threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The chunks being processed simultaneously is ceil($threads/4)*3. 3 is the overloading factor.
+  -p, --platform=STR       Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.
+  -o, --output=PATH        VCF/GVCF output directory.
 ```
 
 **Other parameters:**
 
+ **Caution**:  Use `=value` for optional parameters, e.g., `--bed_fn=fn.bed` instead of `--bed_fn fn.bed`
+
 ```bash
-      --bed_fn FILE        Call variants only in the provided bed regions.
-      --vcf_fn FILE        Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.
-      --ctg_name STR       The name of the sequence to be processed.
-      --sample_name STR    Define the sample name to be shown in the VCF file.
-      --qual INT           If set, variants with >=$qual will be marked PASS, or LowQual otherwise.
-      --samtools STR       Path of samtools, samtools version >= 1.10 is required.
-      --python STR         Path of python, python3 >= 3.6 is required.
-      --pypy STR           Path of pypy3, pypy3 >= 3.6 is required.
-      --parallel STR       Path of parallel, parallel >= 20191122 is required.
-      --whatshap STR       Path of whatshap, whatshap >= 1.0 is required.
-      --chunk_size INT     The size of each chuck for parallel processing, default: 5Mbp.
+      --bed_fn=FILE        Call variants only in the provided bed regions.
+      --vcf_fn=FILE        Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.
+      --ctg_name=STR       The name of the sequence to be processed.
+      --sample_name=STR    Define the sample name to be shown in the VCF file.
+      --qual=INT           If set, variants with >=$qual will be marked PASS, or LowQual otherwise.
+      --samtools=STR       Path of samtools, samtools version >= 1.10 is required.
+      --python=STR         Path of python, python3 >= 3.6 is required.
+      --pypy=STR           Path of pypy3, pypy3 >= 3.6 is required.
+      --parallel=STR       Path of parallel, parallel >= 20191122 is required.
+      --whatshap=STR       Path of whatshap, whatshap >= 1.0 is required.
+      --chunk_size=INT     The size of each chuck for parallel processing, default: 5Mbp.
       --pileup_only        Use the pileup model only when calling, default: disable.
       --print_ref_calls    Show reference calls (0/0) in vcf file, default: disable.
       --include_all_ctgs   Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
       --gvcf               Enable GVCF output, default: disable.
-      --snp_min_af FLOAT   Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.
-      --indel_min_af FLOAT Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
-      --var_pct_full FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.
-      --ref_pct_full FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.
+      --snp_min_af=FLOAT   Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.
+      --indel_min_af=FLOAT Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
+      --var_pct_full=FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.
+      --ref_pct_full=FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.
       --fast_mode          EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.
       --haploid_precise    EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.
       --haploid_sensitive  EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.
@@ -283,8 +289,8 @@ docker run -it hkubal/clair3:"${BIN_VERSION}" /opt/bin/run_clair3.sh --help
 
 ```bash
 CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path needed)
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1-r1"
 
@@ -305,9 +311,9 @@ docker run -it \
 #### Call variants at known variant sites
 
 ```bash
-KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. ~/known_variants.vcf.gz
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
+KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. /home/user1/known_variants.vcf.gz (absolute path needed)
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1-r1"
 
@@ -334,15 +340,15 @@ We highly recommended using BED file to define the regions of interest like:
 CONTIGS="[YOUR_CONTIGS_NAME]"          # e.g. chr22
 START_POS="[YOUR_START_POS]"           # e.g. 0
 END_POS="[YOUR_END_POS]"               # e.g 10000
-echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > tmp.bed
+echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > /home/user1/tmp.bed ## change directory accordingly
 ```
 
 Then run Clair3 like this:
 
 ```bash
-BED_FILE_PATH=tmp.bed		           
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
+BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed (absolute path needed)
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1-r1"
 
@@ -363,8 +369,8 @@ docker run -it \
 #### Call variants in non-diploid organisms (Haploid calling)
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ~/input
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ~/output
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 BIN_VERSION="v0.1-r1"
 

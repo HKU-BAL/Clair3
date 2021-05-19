@@ -94,7 +94,7 @@ This section shows how to build multiple compressed tensor binary files for mult
 #### 1. Setup variables
 ```bash
 # Setup executable variables
-CLAIR3="clair3.py"                               			   # clair3.py
+CLAIR3="clair3.py"                                       # clair3.py
 PYPY="[PYPY_BIN_PATH]"                                   # e.g. pypy3
 PYTHON3="[PYTHON3_BIN_PATH]"                             # e.g. python3
 PARALLEL="[PARALLEL_BIN_PATH]"                           # e.g. parallel
@@ -108,7 +108,7 @@ DEPTHS="[YOUR_DEPTHS_OF_SAMPLES_ARRAY]"                  # e.g. 1000 (means no s
 ALL_REFERENCE_FILE_PATH="[YOUR_FASTA_FILE_PATH_ARRAY]"   # e.g. hg002.fasta
 ALL_BED_FILE_PATH="[YOUR_BED_FILE_PATH_ARRAY]"           # e.g. hg002.bed
 ALL_SAMPLE="[YOUR_SAMPLE_NAME_ARRAY]"                    # e.g. hg002
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER_PATH]"					         # e.g. output_folder
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER_PATH]"                   # e.g. output_folder
 
 # Each line represent one input BAM with a matched coverage in the "DEPTH" array
 ## check the "Training data subsamping" section on how to apply BAM subsampling
