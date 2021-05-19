@@ -26,7 +26,7 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 We are actively fixing bugs and issues in Clair3 reported by users.
 
-*v0.1-r1 (May 18)* : 1. Support relative path in Conda, but Docker and Singularity still requires absolute path ([#5](https://github.com/HKU-BAL/Clair3/issues/5)). 2. Fix `taskset` CPU-core visibility and provide a Singularity image ([#6](https://github.com/HKU-BAL/Clair3/issues/6)).
+*v0.1-r1 (May 18)* : 1. Support relative path in Conda, but Docker and Singularity still require absolute path ([#5](https://github.com/HKU-BAL/Clair3/issues/5)). 2. Fix `taskset` CPU-core visibility and provide a Singularity image ([#6](https://github.com/HKU-BAL/Clair3/issues/6)).
 
 *v0.1 (May 17)*: Initial release.
 
