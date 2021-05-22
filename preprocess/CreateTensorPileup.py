@@ -10,7 +10,7 @@ import shared.param_p as param
 from shared.interval_tree import bed_tree_from, is_region_in
 from preprocess.utils import variantInfoCalculator
 from shared.utils import subprocess_popen, file_path_from, IUPAC_base_to_num_dict as BASE2NUM, region_from, \
-    reference_sequence_from, str2bool, vcf_candidates_from
+    reference_sequence_from, str2bool, vcf_candidates_from, log_error
 
 
 logging.getLogger().setLevel(logging.INFO)
@@ -211,9 +211,6 @@ def CreateTensorPileup(args):
     global test_pos
     test_pos = None
 
-    if not isfile("{}.fai".format(fasta_file_path)):
-        sys.exit("Fasta index {}.fai doesn't exist.".format(fasta_file_path))
-
     # 1-based regions [start, end] (start and end inclusive)
     ref_regions = []
     reads_regions = []
@@ -222,7 +219,7 @@ def CreateTensorPileup(args):
                                              contig_name=ctg_name,
                                              return_bed_region=True)
 
-    fai_fn = file_path_from(fasta_file_path + ".fai", exit_on_not_found=True)
+    fai_fn = file_path_from(fasta_file_path, suffix=".fai", exit_on_not_found=True, sep='.')
     if not is_confident_bed_file_given and chunk_id is not None:
         contig_length = 0
         with open(fai_fn, 'r') as fai_fp:
@@ -238,8 +235,7 @@ def CreateTensorPileup(args):
         ctg_end = ctg_start + chunk_size
 
     if is_confident_bed_file_given and chunk_id is not None:
-        chunk_size = (bed_end - bed_start) // chunk_num + 1 if (bed_end - bed_start) % chunk_num else (
-                                                                                                                  bed_end - bed_start) // chunk_num
+        chunk_size = (bed_end - bed_start) // chunk_num + 1 if (bed_end - bed_start) % chunk_num else (bed_end - bed_start) // chunk_num
         ctg_start = bed_start + 1 + chunk_size * chunk_id  # 0-base to 1-base
         ctg_end = ctg_start + chunk_size
 
@@ -272,10 +268,10 @@ def CreateTensorPileup(args):
     )
 
     if reference_sequence is None or len(reference_sequence) == 0:
-        sys.exit("[ERROR] Failed to load reference seqeunce from file ({}).".format(fasta_file_path))
+        sys.exit(log_error("[ERROR] Failed to load reference sequence from file ({}).".format(fasta_file_path)))
 
     if is_confident_bed_file_given and ctg_name not in tree:
-        sys.exit("[ERROR] ctg_name({}) not exists in bed file({}).".format(ctg_name, confident_bed_fn))
+        sys.exit(log_error("[ERROR] ctg_name {} not exists in bed file({}).".format(ctg_name, confident_bed_fn)))
 
     # samtools mpileup options
     # reverse-del: deletion in forward/reverse strand were marked as '*'/'#'
@@ -331,22 +327,23 @@ def CreateTensorPileup(args):
         pos = int(columns[1])
         pileup_bases = columns[4]
         reference_base = reference_sequence[pos - reference_start].upper()
-        #valid_reference_flag = reference_base.upper() in ['A', 'T', 'C', 'G']
         valid_reference_flag = True
-        if not valid_reference_flag and args.gvcf:
-            nonVariantCaller.make_gvcf_online({}, push_current=True)
-        if (ctg_start != None and ctg_end != None):
-            within_flag = pos >= ctg_start and pos <= ctg_end
-        elif (ctg_start != None and ctg_end == None):
-            within_flag = pos >= ctg_start
-        elif (ctg_start == None and ctg_end != None):
-            within_flag = pos <= ctg_end
-        else:
-            within_flag = True
-        if (args.gvcf and columns[3] == '0' and within_flag and valid_reference_flag):
-            cur_site_info = {'chr': columns[0], 'pos': pos, 'ref': reference_base, 'n_total': 0, 'n_ref': 0}
-            nonVariantCaller.make_gvcf_online(cur_site_info)
-            continue
+        within_flag = True
+        if args.gvcf:
+            if not valid_reference_flag:
+                nonVariantCaller.make_gvcf_online({}, push_current=True)
+            if ctg_start != None and ctg_end != None:
+                within_flag = pos >= ctg_start and pos <= ctg_end
+            elif ctg_start != None and ctg_end == None:
+                within_flag = pos >= ctg_start
+            elif ctg_start == None and ctg_end != None:
+                within_flag = pos <= ctg_end
+            else:
+                within_flag = True
+            if columns[3] == '0' and within_flag and valid_reference_flag:
+                cur_site_info = {'chr': columns[0], 'pos': pos, 'ref': reference_base, 'n_total': 0, 'n_ref': 0}
+                nonVariantCaller.make_gvcf_online(cur_site_info)
+                continue
 
         # start with a new region, clear all sliding windows cache, avoid memory occupation
         if pre_pos + 1 != pos:
@@ -420,7 +417,7 @@ def CreateTensorPileup(args):
                         '\t'.join([ctg_name + ' ' + str(center), str(depth), alt_info, str(af_dict[center])]) + '\n')
                 del all_alt_dict[center], depth_dict[center], af_dict[center]
 
-    if (args.gvcf and len(nonVariantCaller.current_block) != 0):
+    if args.gvcf and len(nonVariantCaller.current_block) != 0:
         nonVariantCaller.write_to_gvcf_batch(nonVariantCaller.current_block, nonVariantCaller.cur_min_DP,
                                              nonVariantCaller.cur_raw_gq)
     

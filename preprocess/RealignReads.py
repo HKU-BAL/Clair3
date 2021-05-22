@@ -355,7 +355,7 @@ def reads_realignment(args):
         candidate_file_path_process.wait()
 
     if chunk_id is not None:
-        fai_fn = file_path_from(fasta_file_path + ".fai", exit_on_not_found=True)
+        fai_fn = file_path_from(fasta_file_path, suffix=".fai", exit_on_not_found=True, sep='.')
         contig_length = 0
         with open(fai_fn, 'r') as fai_fp:
             for row in fai_fp:
@@ -370,9 +370,6 @@ def reads_realignment(args):
         ctg_end = ctg_start + chunk_size
 
     is_ctg_range_given = is_ctg_name_given and ctg_start is not None and ctg_end is not None
-
-    if not isfile("{}.fai".format(fasta_file_path)):
-        sys.exit("[ERROR] Fasta index {}.fai doesn't exist.".format(fasta_file_path))
 
     # 1-based regions [start, end] (start and end inclusive)
     ref_regions = []

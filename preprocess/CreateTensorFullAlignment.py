@@ -498,7 +498,7 @@ def CreateTensorFullAlignment(args):
     if platform == 'ilmn' and bam_file_path == "PIPE":
         add_read_regions = False
 
-    fai_fn = file_path_from(fasta_file_path + ".fai", exit_on_not_found=True)
+    fai_fn = file_path_from(fasta_file_path, suffix=".fai", exit_on_not_found=True, sep='.')
 
     if is_known_vcf_file_provided:
         known_variants_list = vcf_candidates_from(vcf_fn=vcf_fn, contig_name=ctg_name)
@@ -557,9 +557,6 @@ def CreateTensorFullAlignment(args):
             hete_snp_tree.addi(begin=pos - extend_bp, end=pos + extend_bp + 1)
 
     # preparation for candidates near variants
-    if not isfile("{}.fai".format(fasta_file_path)):
-        sys.exit("Fasta index {}.fai doesn't exist.".format(fasta_file_path))
-
     need_phasing_pos_set = set([item for item in need_phasing_pos_set if item >= ctg_start and item <= ctg_end])
     # 1-based regions [start, end] (start and end inclusive)
     ref_regions = []
@@ -586,7 +583,7 @@ def CreateTensorFullAlignment(args):
         regions=ref_regions
     )
     if reference_sequence is None or len(reference_sequence) == 0:
-        sys.exit("[ERROR] Failed to load reference seqeunce from file ({}).".format(fasta_file_path))
+        sys.exit("[ERROR] Failed to load reference sequence from file ({}).".format(fasta_file_path))
 
     phasing_option = " --output-extra HP" if phasing_info_in_bam else " "
     mq_option = ' --min-MQ {}'.format(min_mapping_quality)
