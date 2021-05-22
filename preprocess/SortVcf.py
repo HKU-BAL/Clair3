@@ -1,7 +1,8 @@
-from sys import stdin
+from sys import stdin, exit
 from argparse import ArgumentParser
 from collections import defaultdict
 
+from shared.utils import log_error
 major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] + [str(a) for a in
                                                                                    list(range(1, 23)) + ["X", "Y"]]
 
@@ -14,7 +15,7 @@ def sort_vcf_from_stdin(args):
     row_count = 0
     header = []
     contig_dict = defaultdict(defaultdict)
-
+    no_vcf_output = True
     for row in stdin:
         row_count += 1
         if row[0] == '#':
@@ -25,10 +26,12 @@ def sort_vcf_from_stdin(args):
         columns = row.strip().split(maxsplit=3)
         ctg_name, pos = columns[0], columns[1]
         contig_dict[ctg_name][int(pos)] = row
-    
+        no_vcf_output = False
     if row_count == 0:
-        return
-    
+        exit(log_error("[ERROR] No vcf file found, please check the setting"))
+    if no_vcf_output:
+        exit(log_error("[ERROR] No variant found, please check the setting"))
+
     contigs_order = major_contigs_order + list(contig_dict.keys())
     contigs_order_list = sorted(contig_dict.keys(), key=lambda x: contigs_order.index(x))
     with open(args.output_fn, 'w') as output:

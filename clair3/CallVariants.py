@@ -18,7 +18,7 @@ from clair3.task.gt21 import (
 )
 import clair3.utils as utils
 from clair3.task.genotype import Genotype, genotype_string_from, genotype_enum_from, genotype_enum_for_task
-from shared.utils import IUPAC_base_to_ACGT_base_dict as BASE2ACGT, BASIC_BASES, str2bool
+from shared.utils import IUPAC_base_to_ACGT_base_dict as BASE2ACGT, BASIC_BASES, str2bool, file_path_from
 from clair3.task.variant_length import VariantLength
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -265,7 +265,7 @@ def output_utilties_from(
                       ))
 
         if reference_file_path is not None:
-            reference_index_file_path = reference_file_path + ".fai"
+            reference_index_file_path = file_path_from(reference_file_path, suffix=".fai", exit_on_not_found=True, sep='.')
             with open(reference_index_file_path, "r") as fai_fp:
                 for row in fai_fp:
                     columns = row.strip().split("\t")
