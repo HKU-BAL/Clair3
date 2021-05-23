@@ -99,7 +99,7 @@ A pre-built docker image is available [here](https://hub.docker.com/layers/hkuba
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r1"
+BIN_VERSION="v0.1-r2"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -124,14 +124,14 @@ Check [Usage](#Usage) for more options.
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r1"
+BIN_VERSION="v0.1-r2"
 
 conda config --add channels defaults
 conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
 
 # singularity pull docker pre-built image
-singularity pull docker://hkubal/clair3:v0.1-r1
+singularity pull docker://hkubal/clair3:v0.1-r2
 
 # run clair3 like this afterward
 singularity exec clair3_"${BIN_VERSION}".sif \
@@ -292,7 +292,7 @@ CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r1"
+BIN_VERSION="v0.1-r2"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -315,7 +315,7 @@ KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. /home/user1/known_variants.vcf.gz 
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r1"
+BIN_VERSION="v0.1-r2"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -350,7 +350,7 @@ BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed (absolute path
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r1"
+BIN_VERSION="v0.1-r2"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -372,7 +372,7 @@ docker run -it \
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r1"
+BIN_VERSION="v0.1-r2"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \

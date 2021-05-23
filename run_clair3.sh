@@ -45,13 +45,25 @@ print_help_messages()
     echo $'      --no_phasing_for_fa  EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.'
     echo $''
 
+#    exit 1
+}
+
+print_version()
+{
+    VERSION='v0.1-r2'
+    echo "Clair3 ${VERSION}"
+
     exit 1
 }
 
-ARGS=`getopt -o b:f:t:m:p:o: \
+ERROR="\\033[31m[ERROR]"
+WARNING="\\033[33m[WARNING]"
+NC="\\033[0m"
+
+ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
-bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
-snp_min_af::,indel_min_af::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,no_phasing_for_fa -n 'run_clair3.sh' -- "$@"`
+bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
+snp_min_af::,indel_min_af::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,no_phasing_for_fa,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -68,7 +80,7 @@ PARALLEL='parallel'
 WHATSHAP='whatshap'
 CHUNK_NUM=0
 CHUNK_SIZE=5000000
-QUAL=0
+QUAL=2
 PRO=0.3
 REF_PRO=0.3
 GVCF=False
@@ -116,31 +128,43 @@ while true; do
     --no_phasing_for_fa ) NO_PHASING=True; shift 1 ;;
 
     -- ) shift; break; ;;
-    -h|--help ) print_help_messages; break ;;
-    * ) print_help_messages; exit 1 ;;
+    -h|--help ) print_help_messages; exit 1 ;;
+    -v|--version ) print_version; exit 1 ;;
+    * ) print_help_messages; break ;;
    esac
 done
 
 if [ -z ${BAM_FILE_PATH} ] || [ -z ${REFERENCE_FILE_PATH} ] || [ -z ${THREADS} ] || [ -z ${OUTPUT_FOLDER} ] || [ -z ${PLATFORM} ] || [ -z ${MODEL_PATH} ]; then
-      print_help_messages
-      echo "[ERROR] Required parameters missing";
+      if [ -z ${BAM_FILE_PATH} ] && [ -z ${REFERENCE_FILE_PATH} ] && [ -z ${THREADS} ] && [ -z ${OUTPUT_FOLDER} ] && [ -z ${PLATFORM} ] && [ -z ${MODEL_PATH} ]; then print_help_messages; exit 1; fi
+      if [ -z ${BAM_FILE_PATH} ]; then echo -e "${ERROR} Require to define index BAM input by --bam_fn=BAM${NC}"; fi
+      if [ -z ${REFERENCE_FILE_PATH} ]; then echo -e "${ERROR} Require to define FASTA reference file input by --ref_fn=REF${NC}"; fi
+      if [ -z ${THREADS} ]; then echo -e "${ERROR} Require to define max threads to be used by --threads=THREADS${NC}"; fi
+      if [ -z ${OUTPUT_FOLDER} ]; then echo -e "${ERROR} Require to define output folder by --output=OUTPUT_DIR${NC}"; fi
+      if [ -z ${PLATFORM} ]; then echo -e "${ERROR} Require to define platform by --platform={ont,hifi,ilmn}${NC}"; fi
+      if [ -z ${MODEL_PATH} ]; then echo -e "${ERROR} Require to define model path by --model_path=MODEL_PREFIX${NC}"; fi
+      exit 1;
+fi
+
+# force to use absolute path when in docker or singularity environment
+if [ `pwd` = "/opt/bin" ]; then
+    if [[ ! "${BAM_FILE_PATH}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --bam_fn=FILE${NC}"; exit 1; fi
+    if [[ ! "${REFERENCE_FILE_PATH}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --ref_fn=FILE${NC}"; exit 1; fi
+    if [[ ! "${MODEL_PATH}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --model_path=PATH${NC}"; exit 1; fi
+    if [[ ! "${OUTPUT_FOLDER}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --output=PATH${NC}"; exit 1; fi
+    if [ "${BED_FILE_PATH}" != "EMPTY" ] &&  [ ! -z ${BED_FILE_PATH} ] && [[ ! "${BED_FILE_PATH}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --bef_fn=FILE${NC}"; exit 1; fi
+    if [ "${VCF_FILE_PATH}" != "EMPTY" ] &&  [ ! -z ${VCF_FILE_PATH} ] && [[ ! "${VCF_FILE_PATH}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --vcf_fn=FILE${NC}"; exit 1; fi
 fi
 
 # relative path support
-if [[ ! "${BAM_FILE_PATH}" = /* ]] && [ -f ${BAM_FILE_PATH} ] ; then BAM_FILE_PATH=`pwd`/${BAM_FILE_PATH}; fi
-if [[ ! "${REFERENCE_FILE_PATH}" = /* ]] && [ -f ${REFERENCE_FILE_PATH} ] ; then REFERENCE_FILE_PATH=`pwd`/${REFERENCE_FILE_PATH}; fi
-if [[ ! "${OUTPUT_FOLDER}" = /* ]] ; then echo "[WARNING] No absolute output path provided, using current directory as prefix"; OUTPUT_FOLDER=`pwd`/${OUTPUT_FOLDER}; fi
-if [[ ! "${MODEL_PATH}" = /* ]] && [ -d ${MODEL_PATH} ] ; then MODEL_PATH=`pwd`/${MODEL_PATH}; fi
-if [ ! ${BED_FILE_PATH} = "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [[ ! "${BED_FILE_PATH}" = /* ]] && [ -f ${BED_FILE_PATH} ] ; then BED_FILE_PATH=`pwd`/${BED_FILE_PATH}; fi
-if [ ! ${VCF_FILE_PATH} = "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [[ ! "${VCF_FILE_PATH}" = /* ]] && [ -f ${VCF_FILE_PATH} ] ; then VCF_FILE_PATH=`pwd`/${VCF_FILE_PATH}; fi
-
-if [ ! -f ${BAM_FILE_PATH} ] || [ ! -f ${BAM_FILE_PATH}.bai ] ; then echo "[ERROR] BAM file or BAM index bai file not found"; exit 1; fi
-if [ ! -f ${REFERENCE_FILE_PATH} ] || [ ! -f ${REFERENCE_FILE_PATH}.fai ] ; then echo "[ERROR] Reference file or Reference index fai file not found"; exit 1; fi
-if [ ! ${BED_FILE_PATH} = "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [ ! -f ${BED_FILE_PATH} ] ; then echo "[ERROR] BED file provides and not found"; exit 1; fi
-if [ ! ${VCF_FILE_PATH} = "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [ ! -f ${VCF_FILE_PATH} ] ; then echo "[ERROR] VCF file provides and not found"; exit 1; fi
-if [ ! -d ${MODEL_PATH} ] || [ ! -f ${MODEL_PATH}/pileup.index ] || [ ! -f ${MODEL_PATH}/full_alignment.index ] ; then echo "[ERROR] Model path not found or no model file inside"; exit 1; fi
+if [[ ! "${BAM_FILE_PATH}" = /* ]] && [ -f ${BAM_FILE_PATH} ]; then BAM_FILE_PATH=`pwd`/${BAM_FILE_PATH}; fi
+if [[ ! "${REFERENCE_FILE_PATH}" = /* ]] && [ -f ${REFERENCE_FILE_PATH} ]; then REFERENCE_FILE_PATH=`pwd`/${REFERENCE_FILE_PATH}; fi
+if [[ ! "${MODEL_PATH}" = /* ]] && [ -d ${MODEL_PATH} ]; then MODEL_PATH=`pwd`/${MODEL_PATH}; fi
+if [ "${BED_FILE_PATH}" != "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [[ ! "${BED_FILE_PATH}" = /* ]] && [ -f ${BED_FILE_PATH} ]; then BED_FILE_PATH=`pwd`/${BED_FILE_PATH}; fi
+if [ "${VCF_FILE_PATH}" != "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [[ ! "${VCF_FILE_PATH}" = /* ]] && [ -f ${VCF_FILE_PATH} ]; then VCF_FILE_PATH=`pwd`/${VCF_FILE_PATH}; fi
+if [[ ! "${OUTPUT_FOLDER}" = /* ]]; then echo -e "${WARNING} No absolute output path provided, using current directory as prefix${NC}"; OUTPUT_FOLDER=`pwd`/${OUTPUT_FOLDER}; fi
 
 mkdir -p ${OUTPUT_FOLDER}
+if [ ! -d ${OUTPUT_FOLDER} ]; then echo -e "${ERROR} Cannot create output folder${NC}"; fi
 
 # optional parameters should use "="
 (time (
@@ -173,6 +197,42 @@ echo "[INFO] ENABLE HAPLOID SENSITIVE MODE: ${GVCF}"
 echo "[INFO] ENABLE INCLUDE ALL CTGS CALLING: ${INCLUDE_ALL_CTGS}"
 echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
 echo $''
+
+# file check
+if [ ! -f ${BAM_FILE_PATH} ]; then echo -e "${ERROR} BAM file ${BAM_FILE_PATH} not found${NC}"; exit 1; fi
+if [ ! -f ${BAM_FILE_PATH}.bai ] && [ ! -f ${BAM_FILE_PATH%.*}.bai ]; then echo -e "${ERROR} BAM index bai file not found, please use 'samtools index \$BAM' first${NC}"; exit 1; fi
+if [ ! -f ${REFERENCE_FILE_PATH} ]; then echo -e "${ERROR} Reference file ${REFERENCE_FILE_PATH} not found${NC}"; exit 1; fi
+if [ ! -f ${REFERENCE_FILE_PATH}.fai ] && [ ! -f ${REFERENCE_FILE_PATH%.*}.fai ]; then echo -e "${ERROR} Reference index fai file not found, please use 'samtools faidx \$REF' first${NC}"; exit 1; fi
+
+if [ "${BED_FILE_PATH}" != "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [ ! -f ${BED_FILE_PATH} ]; then echo -e "${ERROR} BED file ${BED_FILE_PATH} provides but not found${NC}"; exit 1; fi
+if [ "${VCF_FILE_PATH}" != "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [ ! -f ${VCF_FILE_PATH} ]; then echo -e "${ERROR} VCF file ${VCF_FILE_PATH} provides but not found${NC}"; exit 1; fi
+if [ ! -d ${MODEL_PATH} ]; then echo -e "${ERROR} Model path not found${NC}"; exit 1; fi
+if [ ! -f ${MODEL_PATH}/pileup.index ] || [ ! -f ${MODEL_PATH}/full_alignment.index ]; then echo -e "${ERROR} No model found in provided model path${NC}"; exit 1; fi
+
+# max threads detection
+MAX_THREADS=$(nproc)
+if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( THREADS <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
+if [[ ${THREADS} > ${MAX_THREADS} ]]; then echo -e "${WARNING} Threads setting exceeds maximum available cores ${MAX_THREADS}, set threads=${MAX_THREADS}${NC}"; THREADS=${MAX_THREADS}; fi
+
+# platform check
+if [ ! ${PLATFORM} = "ont" ] && [ ! ${PLATFORM} = "hifi" ] && [ ! ${PLATFORM} = "ilmn" ]; then echo -e "${ERROR} Invalid platform input, optional: {ont, hifi, ilmn}${NC}"; exit 1; fi
+
+# optional parameter detection
+if [ -z ${BED_FILE_PATH} ]; then echo -e "${ERROR} Use '--bed_fn=FILE' instead of '--bed_fn FILE' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${VCF_FILE_PATH} ]; then echo -e "${ERROR} Use '--vcf_fn=FILE' instead of '--vcf_fn =FILE' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${CONTIGS} ]; then echo -e "${ERROR} Use '--ctg_name=STR' instead of '--ctg_name STR' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${SAMPLE} ]; then echo -e "${ERROR} Use '--sample_name=STR' instead of '--sample_name STR' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${QUAL} ]; then echo -e "${ERROR} Use '--qual=INT' instead of '--qual INT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${SAMTOOLS} ]; then echo -e "${ERROR} Use '--samtools=STR' instead of '--samtools STR' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${PYTHON} ]; then echo -e "${ERROR} Use '--python=STR' instead of '--python STR' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${PYPY} ]; then echo -e "${ERROR} Use '--pypy=STR' instead of '--pypy STR' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${PARALLEL} ]; then echo -e "${ERROR} Use '--parallel=STR' instead of '--parallel STR' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${WHATSHAP} ]; then echo -e "${ERROR} Use '--whatshap=STR' instead of '--whatshap STR' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${CHUNK_SIZE} ]; then echo -e "${ERROR} Use '--chunk_size=INT' instead of '--chunk_size INT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${SNP_AF} ]; then echo -e "${ERROR} Use '--snp_min_af=FLOAT' instead of '--snp_min_af FLOAT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${INDEL_AF} ]; then echo -e "${ERROR} Use '--indel_min_af=FLOAT' instead of '--indel_min_af FLOAT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${PRO} ]; then echo -e "${ERROR} Use '--var_pct_full=FLOAT' instead of '--var_pct_full FLOAT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${REF_PRO} ]; then echo -e "${ERROR} Use '--ref_pct_full=FLOAT' instead of '--ref_pct_full FLOAT' for optional parameters${NC}"; exit 1 ; fi
 
 set -x
 ${SCRIPT_PATH}/scripts/clair3.sh \

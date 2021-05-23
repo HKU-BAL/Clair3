@@ -50,7 +50,7 @@ echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > ${INPUT_DIR}/quick_demo.bed
 
 ```bash
 THREADS=4
-BIN_VERSION="v0.1-r1"
+BIN_VERSION="v0.1-r2"
 
 cd ${OUTPUT_DIR}
 # Run Clair3 using one command

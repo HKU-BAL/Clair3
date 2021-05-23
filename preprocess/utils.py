@@ -5,7 +5,7 @@ import os
 import sys
 import re
 logging.getLogger().setLevel(logging.INFO)
-
+from shared.utils import file_path_from
 
            
 
@@ -540,7 +540,7 @@ class variantInfoCalculator(object):
             ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range (0,1)">"""), file
         =self.vcf_writer)
         if self.reference_file_path is not None:
-            reference_index_file_path = self.reference_file_path + ".fai"
+            reference_index_file_path = file_path_from(self.reference_file_path, suffix=".fai", exit_on_not_found=True, sep='.')
             with open(reference_index_file_path, "r") as fai_fp:
                 for row in fai_fp:
                     columns = row.strip().split("\t")

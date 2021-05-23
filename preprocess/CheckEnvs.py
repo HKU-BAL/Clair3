@@ -2,13 +2,16 @@ import os
 import sys
 import argparse
 import shlex
-import multiprocessing
+import subprocess
 
 from collections import defaultdict
 from argparse import SUPPRESS
+from distutils.version import LooseVersion
+
 import shared.param_p as param
-from shared.interval_tree import bed_tree_from, is_region_in
-from shared.utils import file_path_from, executable_command_string_from, folder_path_from, subprocess_popen, str2bool
+from shared.interval_tree import bed_tree_from
+from shared.utils import file_path_from, folder_path_from, subprocess_popen, str2bool, \
+    legal_range_from, log_error, log_warning
 
 MIN_CHUNK_LENGTH = 200000
 MAX_CHUNK_LENGTH = 20000000
@@ -17,12 +20,55 @@ major_contigs = {"chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]}.union(
 major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] + [str(a) for a in
                                                                                    list(range(1, 23)) + ["X", "Y"]]
 
+required_tool_version = {
+    'python': LooseVersion('3.6.10'),
+    'pypy': LooseVersion('3.6'),
+    'samtools': LooseVersion('1.10'),
+    'whatshap': LooseVersion('1.0'),
+    'parallel': LooseVersion('20191122'),
+}
+
+def check_version(tool, pos=None, is_pypy=False):
+
+    try:
+        if is_pypy:
+            proc = subprocess.run("{} -c 'import sys; print (sys.version)'".format(tool), stdout=subprocess.PIPE,shell=True)
+        else:
+            proc = subprocess.run([tool, "--version"], stdout=subprocess.PIPE)
+        if proc.returncode != 0:
+            return None
+        first_line = proc.stdout.decode().split("\n", 1)[0]
+        version = first_line.split()[pos]
+        version = LooseVersion(version)
+    except Exception:
+        return None
+
+    return version
+
+def check_python_path():
+    python_path = subprocess.run("which python", stdout=subprocess.PIPE, shell=True).stdout.decode().rstrip()
+    sys.exit("[ERROR] Current python execution path: {}".format(python_path))
+
+def check_tools_version(tool_version, required_tool_version):
+    for tool, version in tool_version.items():
+        required_version = required_tool_version[tool]
+        if version is None:
+            print(log_error("[ERROR] {} not found, please check you are in clair3 virtual environment".format(tool)))
+            check_python_path()
+        elif version < required_version:
+            print (log_error("[ERROR] Tool version not match, please check you are in clair3 virtual environment"))
+            print (' '.join([str(item).ljust(10) for item in ["Tool", "Version", "Required"]]))
+            error_info = ' '.join([str(item).ljust(10) for item in [tool, version, '>=' + str(required_version)]])
+            print (error_info)
+            check_python_path()
+    return
+
 def split_extend_vcf(vcf_fn, output_fn):
     expand_region_size = param.no_of_positions
     output_ctg_dict = defaultdict(list)
     unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (vcf_fn)))
 
-    for row in unzip_process.stdout:
+    for row_id, row in enumerate(unzip_process.stdout):
         if row[0] == '#':
             continue
         columns = row.strip().split(maxsplit=3)
@@ -30,8 +76,15 @@ def split_extend_vcf(vcf_fn, output_fn):
 
         center_pos = int(columns[1])
         ctg_start, ctg_end = center_pos - 1, center_pos
+        if ctg_start < 0:
+            sys.exit(log_error("[ERROR] Invalid VCF input in {}-th row {} {} {}".format(row_id+1, ctg_name, center_pos)))
+        if ctg_start - expand_region_size < 0:
+            continue
+        expand_ctg_start = ctg_start - expand_region_size
+        expand_ctg_end = ctg_end + expand_region_size
+
         output_ctg_dict[ctg_name].append(
-            ' '.join([ctg_name, str(ctg_start - expand_region_size), str(ctg_end + expand_region_size)]))
+            ' '.join([ctg_name, str(expand_ctg_start), str(expand_ctg_end)]))
 
     for key, value in output_ctg_dict.items():
         ctg_output_fn = os.path.join(output_fn, key)
@@ -49,7 +102,7 @@ def split_extend_bed(bed_fn, output_fn, contig_set=None):
     expand_region_size = param.no_of_positions
     output_ctg_dict = defaultdict(list)
     unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (bed_fn)))
-    for row in unzip_process.stdout:
+    for row_id, row in enumerate(unzip_process.stdout):
         if row[0] == '#':
             continue
         columns = row.strip().split()
@@ -58,8 +111,13 @@ def split_extend_bed(bed_fn, output_fn, contig_set=None):
             continue
 
         ctg_start, ctg_end = int(columns[1]), int(columns[2])
+
+        if ctg_end < ctg_start or ctg_start < 0 or ctg_end < 0:
+            sys.exit(log_error("[ERROR] Invalid BED input in {}-th row {} {} {}".format(row_id+1, ctg_name, ctg_start, ctg_end)))
+        expand_ctg_start = max(0, ctg_start - expand_region_size)
+        expand_ctg_end = max(0, ctg_end + expand_region_size)
         output_ctg_dict[ctg_name].append(
-            ' '.join([ctg_name, str(ctg_start - expand_region_size), str(ctg_end + expand_region_size)]))
+            ' '.join([ctg_name, str(expand_ctg_start), str(expand_ctg_end)]))
 
     for key, value in output_ctg_dict.items():
         ctg_output_fn = os.path.join(output_fn, key)
@@ -74,8 +132,8 @@ def CheckEnvs(args):
     basedir = os.path.dirname(__file__)
     bam_fn = file_path_from(args.bam_fn, exit_on_not_found=True)
     ref_fn = file_path_from(args.ref_fn, exit_on_not_found=True)
-    fai_fn = file_path_from(args.ref_fn + ".fai", exit_on_not_found=True)
-    bai_fn = file_path_from(args.bam_fn + ".bai", exit_on_not_found=True)
+    fai_fn = file_path_from(args.ref_fn, suffix=".fai", exit_on_not_found=True, sep='.')
+    bai_fn = file_path_from(args.bam_fn, suffix=".bai", exit_on_not_found=True, sep='.')
     bed_fn = file_path_from(args.bed_fn)
     vcf_fn = file_path_from(args.vcf_fn)
     tree = bed_tree_from(bed_file_path=bed_fn)
@@ -98,12 +156,39 @@ def CheckEnvs(args):
     candidate_bed_path = folder_path_from(os.path.join(full_alignment_output_path, 'candidate_bed'),
                                           create_not_found=True)
 
+    # environment parameters
+    pypy = args.pypy
+    samtools = args.samtools
+    whatshap = args.whatshap
+    parallel = args.parallel
+    qual = args.qual
+    var_pct_full = args.var_pct_full
+    ref_pct_full = args.ref_pct_full
+    snp_min_af = args.snp_min_af
+    indel_min_af=args.indel_min_af
+
+    legal_range_from(param_name="qual", x=qual, min_num=0, exit_out_of_range=True)
+    legal_range_from(param_name="var_pct_full", x=var_pct_full, min_num=0, max_num=1, exit_out_of_range=True)
+    legal_range_from(param_name="ref_pct_full", x=ref_pct_full, min_num=0, max_num=1, exit_out_of_range=True)
+    legal_range_from(param_name="snp_min_af", x=snp_min_af, min_num=0, max_num=1, exit_out_of_range=True)
+    legal_range_from(param_name="indel_min_af", x=indel_min_af, min_num=0, max_num=1, exit_out_of_range=True)
+    if ref_pct_full > 0.3:
+        print (log_warning("[WARNING] For efficiency, we use a maximum 30% reference candidates for full-alignment calling"))
+    tool_version = {
+        'python': LooseVersion(sys.version.split()[0]),
+        'pypy': check_version(tool=pypy, pos=0, is_pypy=True),
+        'samtools': check_version(tool=samtools, pos=1),
+        'whatshap': check_version(tool=whatshap, pos=1),
+        'parallel': check_version(tool=parallel, pos=2),
+    }
+    check_tools_version(tool_version, required_tool_version)
+
     is_include_all_contigs = args.include_all_ctgs
     is_bed_file_provided = bed_fn is not None
     is_known_vcf_file_provided = vcf_fn is not None
 
     if is_known_vcf_file_provided and is_bed_file_provided:
-        exit("[ERROR] Please provide either --vcf_fn or --bed_fn only.")
+        sys.exit(log_error("[ERROR] Please provide either --vcf_fn or --bed_fn only"))
 
     if is_known_vcf_file_provided:
         know_vcf_contig_set = split_extend_vcf(vcf_fn=vcf_fn, output_fn=split_bed_path)
@@ -111,6 +196,12 @@ def CheckEnvs(args):
     ctg_name_list = args.ctg_name
     is_ctg_name_list_provided = ctg_name_list is not None and ctg_name_list != "EMPTY"
     contig_set = set(ctg_name_list.split(',')) if is_ctg_name_list_provided else set()
+
+    if is_ctg_name_list_provided and is_bed_file_provided:
+        print (log_warning("[WARNING] both --ctg_name and --bed_fn provided, will only proceed contigs in intersection"))
+
+    if is_ctg_name_list_provided and is_known_vcf_file_provided:
+        print (log_warning("[WARNING] both --ctg_name and --vcf_fn provided, will only proceed contigs in intersection"))
 
     if is_ctg_name_list_provided:
 
@@ -134,10 +225,12 @@ def CheckEnvs(args):
     contig_chunk_num = {}
 
     threads = args.threads
-    numCpus = multiprocessing.cpu_count()
+    sched_getaffinity_list = list(os.sched_getaffinity(0))
+    numCpus = len(sched_getaffinity_list)
+
     if threads > numCpus:
-        print ('[WARNING] Current maximum threads {} is larger than support cpu count {}, You may set a smaller parallel threads by setting --threads=$ for better parallelism.'.format(
-            threads, numCpus))
+        print (log_warning('[WARNING] Current maximum threads {} is larger than support cpu count {}, You may set a smaller parallel threads by setting --threads=$ for better parallelism.'.format(
+            threads, numCpus)))
 
     ## for better parallelism for create tensor and call variants, we over commit the overall threads/4 for 3 times, which is 0.75 * overall threads.
     threads_over_commit = max(4, int(threads * 0.75))
@@ -173,26 +266,42 @@ def CheckEnvs(args):
     sorted_contig_list = sorted(list(contig_set), key=lambda x: contigs_order.index(x))
 
     if not len(contig_set):
-        exit("[ERROR] No contig name provide by --ctg_name or --bed_fn or provide contig name not found")
+        if is_bed_file_provided:
+            all_contig_in_bed = ' '.join(list(tree.keys()))
+            print ("[ERROR] All contig in BED: {}".format(all_contig_in_bed))
+            sys.exit(log_error("[ERROR] No contig found by --bed_fn"))
+        elif is_known_vcf_file_provided:
+            all_contig_in_vcf = ' '.join(list(know_vcf_contig_set))
+            print ("[ERROR] All contig in BED: {}".format(all_contig_in_vcf))
+            sys.exit(log_error("[ERROR] No contig found by --vcf_fn"))
+        elif is_ctg_name_list_provided:
+            all_contig_in_ctg_name = ' '.join(ctg_name_list.split(','))
+            print ("[ERROR] All contig in --ctg_name: {}".format(all_contig_in_ctg_name))
+            sys.exit(log_error("[ERROR] No contig found by --ctg_name"))
+
+        sys.exit(log_error("[ERROR] No contig found!"))
     else:
+        for c in sorted_contig_list:
+            if c not in contig_chunk_num:
+                sys.exit(log_error("[ERROR] contig {} not found in reference fai file".format(c)))
         print('[INFO] Call variant in contigs: {}'.format(' '.join(sorted_contig_list)))
         print('[INFO] Chunk number for each contig: {}'.format(
             ' '.join([str(contig_chunk_num[c]) for c in sorted_contig_list])))
 
     if default_chunk_num > 0 and max_chunk_length > MAX_CHUNK_LENGTH:
-        print(
+        print (log_warning(
         '[WARNING] Current maximum chunk size {} is larger than default maximum chunk size {}, You may set a larger chunk_num by setting --chunk_num=$ for better parallelism.'.format(
-            min_chunk_length, MAX_CHUNK_LENGTH))
+            min_chunk_length, MAX_CHUNK_LENGTH)))
 
     elif default_chunk_num > 0 and min_chunk_length < MIN_CHUNK_LENGTH:
-        print(
-        '[WARNING] Current minimum chunk size {} is smaller than default minimum chunk size {}, You may set a smaller chunk_num by setting --chunk_num=$ .'.format(
-            min_chunk_length, MIN_CHUNK_LENGTH))
+        print (log_warning(
+        '[WARNING] Current minimum chunk size {} is smaller than default minimum chunk size {}, You may set a smaller chunk_num by setting --chunk_num=$.'.format(
+            min_chunk_length, MIN_CHUNK_LENGTH)))
 
     if default_chunk_num == 0 and max(contig_length_list) < DEFAULT_CHUNK_SIZE / 5:
-        print(
+        print (log_warning(
         '[WARNING] Current maximum contig length {} is much smaller than default chunk size {}, You may set a smaller chunk size by setting --chunk_size=$ for better parallelism.'.format(
-            max(contig_length_list), DEFAULT_CHUNK_SIZE))
+            max(contig_length_list), DEFAULT_CHUNK_SIZE)))
         
     if is_bed_file_provided:
         split_extend_bed(bed_fn=bed_fn, output_fn=split_bed_path, contig_set=contig_set)
@@ -240,6 +349,36 @@ def main():
     parser.add_argument('--threads', type=int, default=16,
                         help="Max #threads to be used. The full genome will be divided into small chucks for parallel processing")
 
+    parser.add_argument('--samtools', type=str, default="samtools",
+                        help="Path to the 'samtools', samtools version >= 1.10 is required, default: %(default)s")
+
+    parser.add_argument('--pypy', type=str, default="pypy3",
+                        help="Path to the 'pypy', pypy3 version >= 3.6 is required, default: %(default)s")
+
+    parser.add_argument('--python', type=str, default="python3",
+                        help="Path to the 'python3', default: %(default)s")
+
+    parser.add_argument('--parallel', type=str, default="parallel",
+                        help="Path to the 'parallel', default: %(default)s")
+
+    parser.add_argument('--whatshap', type=str, default="whatshap",
+                        help="Path to the 'whatshap', default: %(default)s")
+
+    parser.add_argument('--qual', type=int, default=None,
+                        help="If set, variants with >=$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
+
+    parser.add_argument('--var_pct_full', type=float, default=0.3,
+                        help="Default variant call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
+
+    parser.add_argument('--ref_pct_full', type=float, default=None,
+                        help="Default reference call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
+
+    parser.add_argument('--snp_min_af', type=float, default=0.08,
+                        help="Minimum SNP allele frequency for a site to be considered as a candidate site, default: %(default)f")
+
+    parser.add_argument('--indel_min_af', type=float, default=0.08,
+                        help="Minimum Indel allele frequency for a site to be considered as a candidate site, default: %(default)f")
+
     # options for internal process control
     ## The number of chucks to be divided into for parallel processing
     parser.add_argument('--chunk_num', type=int, default=0,
@@ -255,6 +394,7 @@ def main():
         print("[INFO] --include_all_ctgs not enabled, use chr{1..22,X,Y} and {1..22,X,Y} by default")
     elif args.include_all_ctgs:
         print("[INFO] --include_all_ctgs enabled")
+        print (log_warning("[WARNING] Please enable --no_phasing_for_fa if calling variant in non-diploid organisms"))
 
     CheckEnvs(args)
 

@@ -148,6 +148,7 @@ def SelectCandidates(args):
         var_qual, ref_qual = float(line[0]), float(line[1])
         found_qual_cut_off = True
 
+    all_full_aln_regions = []
     if phased_vcf_fn and os.path.exists(phased_vcf_fn):
         unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (phased_vcf_fn)))
         for row in unzip_process.stdout:
@@ -251,10 +252,15 @@ def SelectCandidates(args):
                 # currently deprecate using ctgName.start_end as file name, which will run similar regions for several times when start and end has slight difference
                 # output_path = os.path.join(split_folder, '{}.{}_{}'.format(contig_name, split_output[0][0], split_output[-1][1]))
                 output_path = os.path.join(split_folder, '{}.{}_{}'.format(contig_name, idx, region_num))
+                all_full_aln_regions.append(output_path)
                 with open(output_path, 'w') as output_file:
                     output_file.write('\n'.join(
                         ['\t'.join([contig_name, str(x[0] - 1), str(x[1] - 1), ]) for x in
                          split_output]) + '\n')  # bed format
+
+            all_full_aln_regions_path = os.path.join(split_folder, 'FULL_ALN_FILE_{}'.format(contig_name))
+            with open(all_full_aln_regions_path, 'w') as output_file:
+                output_file.write('\n'.join(all_full_aln_regions) + '\n')
             return
 
         for pos, qual in low_qual_ref_list:

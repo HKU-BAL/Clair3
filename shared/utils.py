@@ -6,7 +6,7 @@ from subprocess import check_output, PIPE, Popen
 import argparse
 import shlex
 from subprocess import PIPE
-
+from termcolor import colored
 from os.path import isfile, isdir
 # A->A
 # C->C
@@ -33,6 +33,16 @@ IUPAC_base_to_num_dict = dict(zip(
 ))
 BASIC_BASES = set("ACGTU")
 
+WARNING = '\033[93m'
+ERROR = '\033[91m'
+ENDC = '\033[0m'
+
+def log_error(log):
+    return ERROR + log + ENDC
+
+def log_warning(log):
+    return WARNING + log + ENDC
+
 def is_file_exists(file_name, suffix=""):
     if not isinstance(file_name, str) or not isinstance(suffix, str):
         return False
@@ -44,22 +54,35 @@ def is_folder_exists(folder_name, suffix=""):
     return isdir(folder_name + suffix)
 
 
-def file_path_from(file_name, suffix="", exit_on_not_found=False):
+def legal_range_from(param_name, x, min_num=None, max_num=None, exit_out_of_range=False):
+
+    if min_num is not None and x < min_num and exit_out_of_range:
+        exit(log_error("[ERROR] parameter --{}={} (minimum {}) out of range".format(param_name, x, min_num)))
+    if max_num is not None and x > max_num and exit_out_of_range:
+        exit(log_error("[ERROR] parameter --{}={} (maximum:{}) out of range".format(param_name, x, max_num)))
+    return
+
+def file_path_from(file_name, suffix="", exit_on_not_found=False, sep=""):
     if is_file_exists(file_name, suffix):
-        return abspath(file_name)
+        return abspath(file_name + suffix)
+    #allow fn.bam.bai->fn.bai fn.fa.fai->fn.fai
+    elif sep != "" and len(sep) == 1:
+        file_name_remove_suffix = sep.join(file_name.split(sep)[:-1])
+        if is_file_exists(file_name_remove_suffix, suffix):
+            return abspath(file_name_remove_suffix + suffix)
     if exit_on_not_found:
-        exit("[ERROR] file %s not found" % (file_name + suffix))
+        exit(log_error("[ERROR] file %s not found" % (file_name + suffix)))
     return None
 
 def folder_path_from(folder_name, create_not_found=True, exit_on_not_found=False):
     if is_folder_exists(folder_name):
         return abspath(folder_name)
     if exit_on_not_found:
-        exit("[ERROR] folder %s not found" % (folder_name))
+        exit(log_error("[ERROR] folder %s not found" % (folder_name)))
     if create_not_found:
         if not os.path.exists(folder_name):
             os.makedirs(abspath(folder_name))
-            print("[INFO] Create folder %s" % (folder_name) , file=stderr)
+            print("[INFO] Create folder %s" % (folder_name), file=stderr)
             return abspath(folder_name)
     return None
 
@@ -79,7 +102,7 @@ def executable_command_string_from(command_to_execute, exit_on_not_found=False):
     if is_command_exists(command_to_execute):
         return command_to_execute
     if exit_on_not_found:
-        exit("[ERROR] %s executable not found" % (command_to_execute))
+        exit(log_error("[ERROR] %s executable not found" % (command_to_execute)))
     return None
 
 
