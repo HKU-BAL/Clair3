@@ -131,7 +131,7 @@ conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
 
 # singularity pull docker pre-built image
-singularity pull docker://hkubal/clair3:v0.1-r1
+singularity pull docker://hkubal/clair3:v0.1-r2
 
 # run clair3 like this afterward
 singularity exec clair3_"${BIN_VERSION}".sif \
