@@ -145,11 +145,14 @@ if [ -z ${BAM_FILE_PATH} ] || [ -z ${REFERENCE_FILE_PATH} ] || [ -z ${THREADS} ]
       exit 1;
 fi
 
-
 # force to use absolute path when in docker or singularity environment
-if [ `pwd` = "/opt/bin" ] && ([[ ! "${BAM_FILE_PATH}" = /* ]] || [[ ! "${REFERENCE_FILE_PATH}" = /* ]] || [[ ! "${MODEL_PATH}" = /* ]] || [[ ! "${OUTPUT_FOLDER}" = /* ]]); then
-    echo -e "${ERROR} Require to use absolute path when in docker or singularity environment${NC}";
-    exit 1;
+if [ `pwd` = "/opt/bin" ]; then
+    if [[ ! "${BAM_FILE_PATH}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --bam_fn=FILE${NC}"; exit 1; fi
+    if [[ ! "${REFERENCE_FILE_PATH}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --ref_fn=FILE${NC}"; exit 1; fi
+    if [[ ! "${MODEL_PATH}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --model_path=PATH${NC}"; exit 1; fi
+    if [[ ! "${OUTPUT_FOLDER}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --output=PATH${NC}"; exit 1; fi
+    if [ "${BED_FILE_PATH}" != "EMPTY" ] &&  [ ! -z ${BED_FILE_PATH} ] && [[ ! "${BED_FILE_PATH}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --bef_fn=FILE${NC}"; exit 1; fi
+    if [ "${VCF_FILE_PATH}" != "EMPTY" ] &&  [ ! -z ${VCF_FILE_PATH} ] && [[ ! "${VCF_FILE_PATH}" = /* ]]; then echo -e "${ERROR} Require to use absolute file path --vcf_fn=FILE${NC}"; exit 1; fi
 fi
 
 # relative path support
@@ -161,6 +164,7 @@ if [ "${VCF_FILE_PATH}" != "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [[ ! "${VCF
 if [[ ! "${OUTPUT_FOLDER}" = /* ]]; then echo -e "${WARNING} No absolute output path provided, using current directory as prefix${NC}"; OUTPUT_FOLDER=`pwd`/${OUTPUT_FOLDER}; fi
 
 mkdir -p ${OUTPUT_FOLDER}
+if [ ! -d ${OUTPUT_FOLDER} ]; then echo -e "${ERROR} Cannot create output folder${NC}"; fi
 
 # optional parameters should use "="
 (time (
@@ -194,7 +198,7 @@ echo "[INFO] ENABLE INCLUDE ALL CTGS CALLING: ${INCLUDE_ALL_CTGS}"
 echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
 echo $''
 
-# index file check
+# file check
 if [ ! -f ${BAM_FILE_PATH} ]; then echo -e "${ERROR} BAM file ${BAM_FILE_PATH} not found${NC}"; exit 1; fi
 if [ ! -f ${BAM_FILE_PATH}.bai ] && [ ! -f ${BAM_FILE_PATH%.*}.bai ]; then echo -e "${ERROR} BAM index bai file not found, please use 'samtools index \$BAM' first${NC}"; exit 1; fi
 if [ ! -f ${REFERENCE_FILE_PATH} ]; then echo -e "${ERROR} Reference file ${REFERENCE_FILE_PATH} not found${NC}"; exit 1; fi
@@ -202,12 +206,16 @@ if [ ! -f ${REFERENCE_FILE_PATH}.fai ] && [ ! -f ${REFERENCE_FILE_PATH%.*}.fai ]
 
 if [ "${BED_FILE_PATH}" != "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [ ! -f ${BED_FILE_PATH} ]; then echo -e "${ERROR} BED file ${BED_FILE_PATH} provides but not found${NC}"; exit 1; fi
 if [ "${VCF_FILE_PATH}" != "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [ ! -f ${VCF_FILE_PATH} ]; then echo -e "${ERROR} VCF file ${VCF_FILE_PATH} provides but not found${NC}"; exit 1; fi
-if [ ! -d ${MODEL_PATH} ] || [ ! -f ${MODEL_PATH}/pileup.index ] || [ ! -f ${MODEL_PATH}/full_alignment.index ]; then echo -e "${ERROR} Model path not found or no model file inside${NC}"; exit 1; fi
+if [ ! -d ${MODEL_PATH} ]; then echo -e "${ERROR} Model path not found${NC}"; exit 1; fi
+if [ ! -f ${MODEL_PATH}/pileup.index ] || [ ! -f ${MODEL_PATH}/full_alignment.index ]; then echo -e "${ERROR} No model found in provided model path${NC}"; exit 1; fi
 
 # max threads detection
 MAX_THREADS=$(nproc)
 if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( THREADS <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
 if [[ ${THREADS} > ${MAX_THREADS} ]]; then echo -e "${WARNING} Threads setting exceeds maximum available cores ${MAX_THREADS}, set threads=${MAX_THREADS}${NC}"; THREADS=${MAX_THREADS}; fi
+
+# platform check
+if [ ! ${PLATFORM} = "ont" ] && [ ! ${PLATFORM} = "hifi" ] && [ ! ${PLATFORM} = "ilmn" ]; then echo -e "${ERROR} Invalid platform input, optional: {ont, hifi, ilmn}${NC}"; exit 1; fi
 
 # optional parameter detection
 if [ -z ${BED_FILE_PATH} ]; then echo -e "${ERROR} Use '--bed_fn=FILE' instead of '--bed_fn FILE' for optional parameters${NC}"; exit 1 ; fi
