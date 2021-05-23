@@ -2,7 +2,7 @@ PLATFORM='hifi'
 INPUT_DIR="${HOME}/clair3_pacbio_hifi_quickDemo"
 OUTPUT_DIR="${INPUT_DIR}/output"
 THREADS=4
-BIN_VERSION="v0.1-r1"
+BIN_VERSION="v0.1-r2"
 
 ## Create local directory structure
 mkdir -p ${INPUT_DIR}
