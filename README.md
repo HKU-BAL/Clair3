@@ -209,13 +209,13 @@ tar -zxvf clair3_models.tar.gz -C ./models
 This is the same as option 1 except that you are building a docker image yourself. Please refer to option 1 for usage. 
 
 ```bash
-BIN_VERSION="v0.1-r1"
+BIN_VERSION="v0.1-r2"
 
 # clone Clair3
 git clone https://github.com/hku-bal/Clair3.git
 cd Clair3
 
-# build a docker image named hkubal/clair3:v0.1
+# build a docker image named hkubal/clair3:v0.1-r2
 # might require docker authentication to build docker image 
 docker build -f ./Dockerfile -t hkubal/clair3:"${BIN_VERSION}" .
 
