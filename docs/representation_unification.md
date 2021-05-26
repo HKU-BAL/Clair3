@@ -49,7 +49,6 @@ CLAIR3="clair3.py"                                     # clair3.py
 PYPY="[PYPY_BIN_PATH]"                                 # e.g. pypy3
 WHATSHAP="[WHATSHAP_BIN_PATH]"                         # e.g. whatshap
 PARALLEL="[PARALLEL_BIN_PATH]"                         # e.g. parallel
-TABIX="[TABIX_BIN_PATH]"                               # e.g. tabix
 SAMTOOLS="[SAMTOOLS_BIN_PATH]"                         # e.g. samtools
 
 # Input parameters
@@ -112,7 +111,9 @@ ${PARALLEL} --joblog ${PHASE_VCF_PATH}/phase.log -j${THREADS} \
     --distrust-genotypes \
     ${OUTPUT_DIR}/INPUT.vcf.gz \
     ${BAM_FILE_PATH}" ::: ${CHR[@]}
-    
+
+# Index phased vcf file
+${PARALLEL} -j ${THREADS} tabix -p vcf ${PHASE_VCF_PATH}/phased_{1}.vcf.gz ::: ${CHR[@]}
 ```
 
 #### 3.  Haplotag read alignment using WhatsHap
@@ -158,7 +159,7 @@ ${PARALLEL} --joblog ${CANDIDATE_DETAILS_PATH}/create_tensor.log -j${THREADS} \
     --indel_fn ${CANDIDATE_DETAILS_PATH}/{1}_{2} \
     --ctgName ${CHR_PREFIX}{1} \
     --samtools ${SAMTOOLS} \
-    --min_af ${THRESHOLD} \
+    --min_af ${MIN_AF} \
     --extend_bed ${SPLIT_BED_PATH}/{1} \
     --unify_repre_fn ${CANDIDATE_DETAILS_PATH}/{1}_{2} \
     --unify_repre \
@@ -189,7 +190,7 @@ ${PARALLEL} --joblog ${OUTPUT_DIR}/unify_repre.log -j${THREADS} \
 #### 6.  Merge and sort unified VCF output
 
 ```bash
-cat ${FULL_ALIGNMENT_OUTPUT_PATH}${VCF_OUTPUT_PATH}/vcf_* | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_DIR}/unified.vcf
+cat ${VCF_OUTPUT_PATH}/vcf_* | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_DIR}/unified.vcf
 bgzip -f ${OUTPUT_DIR}/unified.vcf
 tabix -f -p vcf ${OUTPUT_DIR}/unified.vcf.gz
 
