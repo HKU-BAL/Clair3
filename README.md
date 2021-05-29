@@ -34,6 +34,14 @@ We are actively fixing bugs and issues in Clair3 reported by users.
 
 ---
 
+## We are working on ...
+
+* A paper on detailed methods and benchmarks.
+* A model trained with Guppy2 data. The available ONT models are tested and work well with Guppy3 and Guppy4 data, but perform even worse than Clair on Guppy2 data.
+* A model trained with Guppy5 data. 
+
+---
+
 ## Contents
 
 * [Introduction](#introduction)
