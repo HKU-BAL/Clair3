@@ -350,7 +350,7 @@ def main():
 
     # options for debug purpose
     parser.add_argument('--phasing_info_in_bam', action='store_false',
-                        help="DEBUG: Skip phasing and use the phasing info provided in the input BAM (HP tag), default: False")
+                        help="DEBUG: Skip phasing and use the phasing info provided in the input BAM (HP tag), default: True")
 
     # options for internal process control
     ## Default chr prefix for contig name

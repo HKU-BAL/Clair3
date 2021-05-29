@@ -331,16 +331,15 @@ def main():
                         help="The name of sequence to be processed, default: %(default)s")
 
     parser.add_argument('--phase', action='store_false',
-                        help="Only select hete candidates for phasing, default: False")
+                        help="Only select hete candidates for phasing, default: True")
 
     parser.add_argument('--sampleName', type=str, default="",
                         help="Define the sample name to be shown in the VCF file, optional")
 
-    # options for advanced users
-    parser.add_argument('--phasing_info_in_bam', action='store_true',
-                        help="EXPERIMENTAL: Input bam or sam have phasing info in HP tag, default: False")
-
     # options for debug purpose
+    parser.add_argument('--phasing_info_in_bam', action='store_true',
+                        help="DEBUG: Input bam or sam have phasing info in HP tag, default: False")
+
     parser.add_argument('--split_bed_size', type=int, default=1000,
                         help="DEBUG: Default split bed size for parallel excution, default: %(default)s")
 
