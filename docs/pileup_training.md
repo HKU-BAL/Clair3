@@ -319,7 +319,7 @@ ${PYTHON3} ${CLAIR3} Train \
     --pileup \
     --bin_fn ${BINS_FOLDER_PATH} \
     --ochk_prefix ${MODEL_FOLDER_PATH} \
-    --add_indel_length True \
+    --add_indel_length False \
     --validation_dataset \
     --platform ${PLATFORM} \
     --learning_rate 0.0001 \
