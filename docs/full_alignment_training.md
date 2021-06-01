@@ -336,9 +336,10 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/tensor2Bin.log -j${THREADS} \
 We provide two optional training mode:
 
 ​	**Option1**: Train  pileup model using new dataset, in this mode, we will use randomly initialized model weights and train the model until reaches max epochs(30) or converge.
+
 ​    **Option2**: Fine-tune pileup model using pre-trained parameters and choose a smaller learning rate for better converge in new dataset.
 
-***We recommend to use the fine-tune mode if the dataset is relatively small, that is less than 10 million candidate sites(an estimated number) for better robustness***
+***We recommend using the fine-tune mode (option 2) for better robustness.***
 
 #### 1. full-alignment model training 
 
@@ -377,7 +378,7 @@ cd ${MODEL_FOLDER_PATH}
 export CUDA_VISIBLE_DEVICES="0"
 ${PYTHON3} ${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
-    --ochk_prefix ${MODEL_FOLDER_PATH} \
+    --ochk_prefix ${MODEL_FOLDER_PATH}/full_alignment \
     --add_indel_length True \
     --validation_dataset \
     --platform ${PLATFORM} \

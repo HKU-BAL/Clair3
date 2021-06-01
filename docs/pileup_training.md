@@ -281,9 +281,10 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/tensor2Bin.log -j${THREADS} \
 We provide two optional training mode:
 
 ​	**Option1**: Train  pileup model using new dataset, in this mode, we will use randomly initialized model weights and train the model until reaches max epochs(30) or converge.
+
 ​    **Option2**: Fine-tune pileup model using pre-trained parameters and choose a smaller learning rate for better converge in new dataset.
 
-***We recommend to use the fine-tune mode if the dataset is relatively small, that is less than 10 million candidate sites(an estimated number) for better robustness***
+***We recommend using the fine-tune mode (option 2) for better robustness.***
 
 #### 1. Pileup model training (option 1)
 
@@ -330,7 +331,7 @@ ${PYTHON3} ${CLAIR3} Train \
     --platform ${PLATFORM} \
     --learning_rate 0.0001 \
     --chkpnt_fn "[YOUR_PRETRAINED_MODEL]"  ## use pre-trained pileup model here
-    
+ 
 ```
 
 We experimentally offer pileup model fine tuning using a pre-trained Clair3 pileup model, by using a smaller `learning_rate` and a pre-trained model `chkpnt_fn`. We recommend starting with a smaller learning rate such as `1e-4` to fine-tune a pre-trained pileup model.
