@@ -99,6 +99,7 @@ def train_model(args):
     exclude_training_samples = args.exclude_training_samples
     exclude_training_samples = set(exclude_training_samples.split(',')) if exclude_training_samples else set()
     add_validation_dataset = args.validation_dataset
+    ochk_prefix = args.ochk_prefix if args.ochk_prefix is not None else ""
     if pileup:
         import shared.param_p as param
         model = model_path.Clair3_P()
@@ -210,7 +211,7 @@ def train_model(args):
         optimizer=optimizer
     )
     early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, mode="min")
-    model_save_callbakck = tf.keras.callbacks.ModelCheckpoint("{epoch}", period=1, save_weights_only=False)
+    model_save_callbakck = tf.keras.callbacks.ModelCheckpoint(ochk_prefix + ".{epoch:02d}", period=1, save_weights_only=False)
 
     # Use first 20 element to initialize tensorflow model using graph mode
     output = model(np.array(table_dataset_list[0].root.position_matrix[:20]))
@@ -268,7 +269,7 @@ def main():
     parser.add_argument('--chkpnt_fn', type=str, default=None,
                         help="Input a model to resume training or for fine-tuning")
 
-    parser.add_argument('--ochk_prefix', type=str, default=None, required=True,
+    parser.add_argument('--ochk_prefix', type=str, default=None,
                         help="Prefix for model output after each epoch")
 
     # options for advanced users
