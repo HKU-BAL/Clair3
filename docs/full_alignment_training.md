@@ -9,9 +9,8 @@ This document shows how to train and fine-tune a deep learning model for Clair3 
 - Clair3 installed
 - GNU Parallel installed
 - Sufficient hard-disk space
-- Truth VCF file after representation unification (check [here]() on how to generate unified VCF)
-- A high-end GPU (tested RTX Titan, and RTX 2080Ti)
-
+- Truth VCF file after representation unification (check [here](https://github.com/HKU-BAL/Clair3/blob/main/docs/representation_unification.md) on how to generate unified VCF)
+- A high-end GPU (have tested in RTX Titan, and RTX 2080Ti)
 
 ---
 
@@ -289,7 +288,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_full_alignment.log -j$
 
 **Options**
 
- - `--zstd` : we recommend using [zstd](https://github.com/facebook/zstd) , an extremely fast and lossless compression tool to compress temporary tensor output. zstd provids much higher compression ratios compared to other compression tools.
+ - `--zstd` : we recommend using [zstd](https://github.com/facebook/zstd) , an extremely fast and lossless compression tool to compress temporary tensor output. zstd provides much higher compression ratios compared to other compression tools.
  - `--phasing_info_in_bam` : enabled by default, indicating the input BAM is phased using WhatsHap's `haplotag` module, and phased alignments are having a `HP` tag with haplotype details. 
  - `--add_no_phasing_data_training` : also include unphased alignments in additional to the phased alignments for training. We found including unphased alignments increased model robustness.  
 
@@ -327,12 +326,19 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/tensor2Bin.log -j${THREADS} \
 **Options**
 
  - `--allow_duplicate_chr_pos` : for multiple coverages training, this option is required to to allow different coverage training samples at the same variant site.
- - `--shuffle` :  as the input tensors are created in the order of starting positions, this option shuffles the training data in each chunk and the chucks themselvse. During the training process, index-based chuck reshuffling before each epoch is also applied.
+ - `--shuffle` :  as the input tensors are created in the order of starting positions, this option shuffles the training data in each chunk. During the training process, we also apply index reshuffling in each epoch.
  - `--maximum_non_variant_ratio` :  we set a maximum non-variant ratio (variant:non-variant = 1:1) for full-alignment model training, non-variants are randomly selected from the candidate set if the ratio is exceeded, or all non-variants will be used for training otherwise. 
 
 ----
 
 ## III. Model training
+
+We provide two optional training mode:
+
+​	**Option1**: Train  pileup model using new dataset, in this mode, we will use randomly initialized model weights and train the model until reaches max epochs(30) or converge.
+​    **Option2**: Fine-tune pileup model using pre-trained parameters and choose a smaller learning rate for better converge in new dataset.
+
+***We recommend to use the fine-tune mode if the dataset is relatively small, that is less than 10 million candidate sites(an estimated number) for better robustness***
 
 #### 1. full-alignment model training 
 
@@ -357,7 +363,7 @@ ${PYTHON3} ${CLAIR3} Train \
 **Options**
 
  - `--add_indel_length` :  enable or disable the two indel-length tasks. In the pre-trained models, the two tasks are enabled in full-alignment calling.
- - `--validation_dataset`: randomly holdout 10% from all candidate sites as validation data, the best-performing epoch on the validation data are selected as our pretrained models.
+ - `--validation_dataset`: randomly holdout 10% from all candidate sites as validation data, the best-performing epoch on the validation data are selected as our pre-trained models.
 
 #### 2. full-alignment model fine-tune using pre-trained model (optional)
 
