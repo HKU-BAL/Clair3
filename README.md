@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://en.wiktionary.org/wiki/%E7%9C%BC" target="_blank">
-    <img src="docs/images/clair3_logo.png" width = "110" height = "90" alt="Clair">
+    <img src="docs/images/clair3_logo.png" width = "110" height = "90" alt="Clair3">
   </a>
 </div>
 
@@ -446,16 +446,16 @@ Clair3 trained both its pileup and full-alignment models using four GIAB samples
 
 Please find more details about the training data and links at [Training Data](docs/training_data.md).
 
-#### Pre-trained Model
+#### Pre-trained Models
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
-|      File       |  Platform   | Training samples | In the docker image by default |                             Link                             |
-| :-------------: | :---------: | :--------------: | :----------------------------: | :----------------------------------------------------------: |
-|   ont.tar.gz    |     ONT     |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
-| ont_1235.tar.gz |     ONT     |   HG001,2,3,5    |                                | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
-|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+|      File       |  Platform   | Training samples | Included in the docker image | Release |   Date   |    Basecaller   |                             Link                             |
+| :-------------: | :---------: | :--------------: | :----------------------------: | :-----: | :------: | :------: | :----------------------------------------------------------: |
+|   ont.tar.gz    |     ONT     |   HG001,2,4,5    |              Yes               |    1    | 20210517 | Guppy3,4 | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
+| ont_1235.tar.gz |     ONT     |   HG001,2,3,5    |                                |    1    | 20210517 | Guppy3,4 | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
+|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5    |              Yes               |    1    | 20210517 | NA | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5    |              Yes               |    1    | 20210517 | NA | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
 ----
 
