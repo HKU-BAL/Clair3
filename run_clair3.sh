@@ -212,7 +212,7 @@ if [ ! -f ${MODEL_PATH}/pileup.index ] || [ ! -f ${MODEL_PATH}/full_alignment.in
 # max threads detection
 MAX_THREADS=$(nproc)
 if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( THREADS <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
-if [[ ${THREADS} > ${MAX_THREADS} ]]; then echo -e "${WARNING} Threads setting exceeds maximum available cores ${MAX_THREADS}, set threads=${MAX_THREADS}${NC}"; THREADS=${MAX_THREADS}; fi
+if [[ ${THREADS} -gt ${MAX_THREADS} ]]; then echo -e "${WARNING} Threads setting exceeds maximum available cores ${MAX_THREADS}, set threads=${MAX_THREADS}${NC}"; THREADS=${MAX_THREADS}; fi
 
 # platform check
 if [ ! ${PLATFORM} = "ont" ] && [ ! ${PLATFORM} = "hifi" ] && [ ! ${PLATFORM} = "ilmn" ]; then echo -e "${ERROR} Invalid platform input, optional: {ont, hifi, ilmn}${NC}"; exit 1; fi
