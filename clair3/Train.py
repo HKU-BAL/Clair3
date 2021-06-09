@@ -269,7 +269,7 @@ def main():
     parser.add_argument('--chkpnt_fn', type=str, default=None,
                         help="Input a model to resume training or for fine-tuning")
 
-    parser.add_argument('--ochk_prefix', type=str, default=None,
+    parser.add_argument('--ochk_prefix', type=str, default=None, required=True,
                         help="Prefix for model output after each epoch")
 
     # options for advanced users
