@@ -354,7 +354,7 @@ cd ${MODEL_FOLDER_PATH}
 export CUDA_VISIBLE_DEVICES="0"
 ${PYTHON3} ${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
-    --ochk_prefix ${MODEL_FOLDER_PATH} \
+    --ochk_prefix ${MODEL_FOLDER_PATH}/full_alignment \
     --add_indel_length True \
     --validation_dataset \
     --platform ${PLATFORM}

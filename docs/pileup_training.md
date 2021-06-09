@@ -298,7 +298,7 @@ cd ${MODEL_FOLDER_PATH}
 export CUDA_VISIBLE_DEVICES="0"
 ${PYTHON3} ${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
-    --ochk_prefix ${MODEL_FOLDER_PATH} \
+    --ochk_prefix ${MODEL_FOLDER_PATH}/pileup \
     --pileup \
     --add_indel_length False \
     --validation_dataset \

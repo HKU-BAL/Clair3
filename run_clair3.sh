@@ -52,7 +52,7 @@ print_help_messages()
 
 print_version()
 {
-    VERSION='v0.1-r2'
+    VERSION='v0.1-r3'
     echo "Clair3 ${VERSION}"
 
     exit 1

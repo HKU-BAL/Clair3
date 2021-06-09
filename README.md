@@ -109,7 +109,7 @@ A pre-built docker image is available [here](https://hub.docker.com/r/hkubal/cla
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r2"
+BIN_VERSION="v0.1-r3"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -134,14 +134,14 @@ Check [Usage](#Usage) for more options.
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r2"
+BIN_VERSION="v0.1-r3"
 
 conda config --add channels defaults
 conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
 
 # singularity pull docker pre-built image
-singularity pull docker://hkubal/clair3:v0.1-r2
+singularity pull docker://hkubal/clair3:v0.1-r3
 
 # run clair3 like this afterward
 singularity exec clair3_"${BIN_VERSION}".sif \
@@ -217,13 +217,13 @@ tar -zxvf clair3_models.tar.gz -C ./models
 This is the same as option 1 except that you are building a docker image yourself. Please refer to option 1 for usage. 
 
 ```bash
-BIN_VERSION="v0.1-r2"
+BIN_VERSION="v0.1-r3"
 
 # clone Clair3
 git clone https://github.com/hku-bal/Clair3.git
 cd Clair3
 
-# build a docker image named hkubal/clair3:v0.1-r2
+# build a docker image named hkubal/clair3:v0.1-r3
 # might require docker authentication to build docker image 
 docker build -f ./Dockerfile -t hkubal/clair3:"${BIN_VERSION}" .
 
@@ -257,12 +257,12 @@ docker run -it hkubal/clair3:"${BIN_VERSION}" /opt/bin/run_clair3.sh --help
 **Required parameters:**
 
 ```bash
-  -b, --bam_fn=FILE        BAM file input. The input file must be samtools indexed.
-  -f, --ref_fn=FILE        FASTA reference file input. The input file must be samtools indexed.
-  -m, --model_path=STR     The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00002, pileup.data-00001-of-00002 pileup.index, full_alignment.data-00000-of-00002, full_alignment.data-00001-of-00002  and full_alignment.index).
-  -t, --threads=INT        Max threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The chunks being processed simultaneously is ceil($threads/4)*3. 3 is the overloading factor.
-  -p, --platform=STR       Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.
-  -o, --output=PATH        VCF/GVCF output directory.
+  -b, --bam_fn=FILE          BAM file input. The input file must be samtools indexed.
+  -f, --ref_fn=FILE          FASTA reference file input. The input file must be samtools indexed.
+  -m, --model_path=STR       The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00002, pileup.data-00001-of-00002 pileup.index, full_alignment.data-00000-of-00002, full_alignment.data-00001-of-00002  and full_alignment.index).
+  -t, --threads=INT          Max threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The chunks being processed simultaneously is ceil($threads/4)*3. 3 is the overloading factor.
+  -p, --platform=STR         Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.
+  -o, --output=PATH          VCF/GVCF output directory.
 ```
 
 **Other parameters:**
@@ -270,29 +270,31 @@ docker run -it hkubal/clair3:"${BIN_VERSION}" /opt/bin/run_clair3.sh --help
  **Caution**:  Use `=value` for optional parameters, e.g., `--bed_fn=fn.bed` instead of `--bed_fn fn.bed`
 
 ```bash
-      --bed_fn=FILE        Call variants only in the provided bed regions.
-      --vcf_fn=FILE        Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.
-      --ctg_name=STR       The name of the sequence to be processed.
-      --sample_name=STR    Define the sample name to be shown in the VCF file.
-      --qual=INT           If set, variants with >=$qual will be marked PASS, or LowQual otherwise.
-      --samtools=STR       Path of samtools, samtools version >= 1.10 is required.
-      --python=STR         Path of python, python3 >= 3.6 is required.
-      --pypy=STR           Path of pypy3, pypy3 >= 3.6 is required.
-      --parallel=STR       Path of parallel, parallel >= 20191122 is required.
-      --whatshap=STR       Path of whatshap, whatshap >= 1.0 is required.
-      --chunk_size=INT     The size of each chuck for parallel processing, default: 5Mbp.
-      --pileup_only        Use the pileup model only when calling, default: disable.
-      --print_ref_calls    Show reference calls (0/0) in vcf file, default: disable.
-      --include_all_ctgs   Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
-      --gvcf               Enable GVCF output, default: disable.
-      --snp_min_af=FLOAT   Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.
-      --indel_min_af=FLOAT Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
-      --var_pct_full=FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.
-      --ref_pct_full=FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.
-      --fast_mode          EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.
-      --haploid_precise    EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.
-      --haploid_sensitive  EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.
-      --no_phasing_for_fa  EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.
+      --bed_fn=FILE          Call variants only in the provided bed regions.
+      --vcf_fn=FILE          Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.
+      --ctg_name=STR         The name of the sequence to be processed.
+      --sample_name=STR      Define the sample name to be shown in the VCF file.
+      --qual=INT             If set, variants with >=$qual will be marked PASS, or LowQual otherwise.
+      --samtools=STR         Path of samtools, samtools version >= 1.10 is required.
+      --python=STR           Path of python, python3 >= 3.6 is required.
+      --pypy=STR             Path of pypy3, pypy3 >= 3.6 is required.
+      --parallel=STR         Path of parallel, parallel >= 20191122 is required.
+      --whatshap=STR         Path of whatshap, whatshap >= 1.0 is required.
+      --chunk_size=INT       The size of each chuck for parallel processing, default: 5Mbp.
+      --pileup_only          Use the pileup model only when calling, default: disable.
+      --print_ref_calls      Show reference calls (0/0) in vcf file, default: disable.
+      --include_all_ctgs     Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
+      --gvcf                 Enable GVCF output, default: disable.
+      --snp_min_af=FLOAT     Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.
+      --indel_min_af=FLOAT   Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
+      --var_pct_full=FLOAT   EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.
+      --ref_pct_full=FLOAT   EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.
+      --pileup_model_pre=STR EXPERIMENTAL: Model prefix in pileup calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index. default: pileup.
+      --fa_model_pre=STR     EXPERIMENTAL: Model prefix in full-alignment calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index, default: full_alignment.
+      --fast_mode            EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.
+      --haploid_precise      EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.
+      --haploid_sensitive    EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.
+      --no_phasing_for_fa    EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.
 ```
 
 #### Call variants in a chromosome
@@ -360,7 +362,7 @@ BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed (absolute path
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r2"
+BIN_VERSION="v0.1-r"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
