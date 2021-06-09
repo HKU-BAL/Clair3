@@ -171,6 +171,9 @@ def Run(args):
     os.environ["MKL_NUM_THREADS"] = "1"
     os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+
     global test_pos
     test_pos = None
     output_config = OutputConfig(
@@ -1306,8 +1309,6 @@ def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, refe
 
     PLs = [int(math.ceil(x - min_PL)) for x in PLs]
     return PLs
-    
-
 
 def call_variants(args, output_config, output_utilities):
     use_gpu = args.use_gpu
@@ -1351,37 +1352,60 @@ def call_variants(args, output_config, output_utilities):
 
     total = 0 #start, end
     if not args.is_from_tables:
-        while True:
-            thread_pool = []
+        apply_threading = True
+        if apply_threading:
+            while True:
+                thread_pool = []
 
-            if len(mini_batches_to_output) > 0:
-                mini_batch = mini_batches_to_output.pop(0)
-                X, position, alt_info_list = mini_batch
-                prediction = m.predict_on_batch(X)
-                total += len(X)
-                thread_pool.append(Thread(
-                    target=batch_output_method,
-                    args=(position, alt_info_list, prediction, output_config, output_utilities)
-                ))
+                if len(mini_batches_to_output) > 0:
+                    mini_batch = mini_batches_to_output.pop(0)
+                    X, position, alt_info_list = mini_batch
+                    prediction = m.predict_on_batch(X)
+                    total += len(X)
+                    thread_pool.append(Thread(
+                        target=batch_output_method,
+                        args=(position, alt_info_list, prediction, output_config, output_utilities)
+                    ))
 
-            if not is_finish_loaded_all_mini_batches:
-                thread_pool.append(Thread(target=load_mini_batch))
+                if not is_finish_loaded_all_mini_batches:
+                    thread_pool.append(Thread(target=load_mini_batch))
 
-            for t in thread_pool:
-                t.start()
-            for t in thread_pool:
-                t.join()
+                for t in thread_pool:
+                    t.start()
+                for t in thread_pool:
+                    t.join()
 
-            is_finish_loaded_all_mini_batches = len(mini_batches_loaded) == 0
-            while len(mini_batches_loaded) > 0:
-                mini_batch = mini_batches_loaded.pop(0)
-                mini_batches_to_output.append(mini_batch)
+                is_finish_loaded_all_mini_batches = len(mini_batches_loaded) == 0
+                while len(mini_batches_loaded) > 0:
+                    mini_batch = mini_batches_loaded.pop(0)
+                    mini_batches_to_output.append(mini_batch)
 
-            is_nothing_to_predict_and_output = (
-                    len(thread_pool) <= 0 and len(mini_batches_to_output) <= 0
-            )
-            if is_finish_loaded_all_mini_batches and is_nothing_to_predict_and_output:
-                break
+                is_nothing_to_predict_and_output = (
+                        len(thread_pool) <= 0 and len(mini_batches_to_output) <= 0
+                )
+                if is_finish_loaded_all_mini_batches and is_nothing_to_predict_and_output:
+                    break
+        else:
+            while True:
+                if len(mini_batches_to_output) > 0:
+                    mini_batch = mini_batches_to_output.pop(0)
+                    X, position, alt_info_list = mini_batch
+                    prediction = m.predict_on_batch(X)
+                    total += len(X)
+                    batch_output_method(position, alt_info_list, prediction, output_config, output_utilities)
+
+                if not is_finish_loaded_all_mini_batches:
+                    load_mini_batch()
+
+                is_finish_loaded_all_mini_batches = len(mini_batches_loaded) == 0
+                while len(mini_batches_loaded) > 0:
+                    mini_batch = mini_batches_loaded.pop(0)
+                    mini_batches_to_output.append(mini_batch)
+
+                is_nothing_to_predict_and_output = len(mini_batches_to_output) <= 0
+                if is_finish_loaded_all_mini_batches and is_nothing_to_predict_and_output:
+                    break
+
         if chunk_id:
             logging.info("Total process positions in {} with chunk {}/{} : {}".format(args.ctgName, chunk_id, chunk_num, total))
         else:
