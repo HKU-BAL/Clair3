@@ -7,7 +7,7 @@ set -e
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
-snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,no_phasing_for_fa:: -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,no_phasing_for_fa::,pileup_model_pre::,fa_model_pre:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -40,6 +40,8 @@ while true; do
     --gvcf ) GVCF="$2"; shift 2 ;;
     --snp_min_af ) SNP_AF="$2"; shift 2 ;;
     --indel_min_af ) INDEL_AF="$2"; shift 2 ;;
+    --pileup_model_pre ) PILEUP_PREFIX="$2"; shift 2 ;;
+    --fa_model_pre ) FA_PREFIX="$2"; shift 2 ;;
     --haploid_precise ) HAP_PRE="$2"; shift 2 ;;
     --haploid_sensitive ) HAP_SEN="$2"; shift 2 ;;
     --include_all_ctgs ) INCLUDE_ALL_CTGS="$2"; shift 2 ;;
@@ -56,9 +58,10 @@ SHELL_FOLDER=$(cd "$(dirname "$0")";pwd)
 CLAIR3="${SHELL_FOLDER}/../clair3.py"
 
 if [ ${BED_FILE_PATH} = "EMPTY" ] ; then BED_FILE_PATH= ; fi
+RETRIES=4
 
-PILEUP_CHECKPOINT_PATH="${MODEL_PATH}/pileup"
-FULL_ALIGNMENT_CHECKPOINT_PATH="${MODEL_PATH}/full_alignment"
+PILEUP_CHECKPOINT_PATH="${MODEL_PATH}/${PILEUP_PREFIX}"
+FULL_ALIGNMENT_CHECKPOINT_PATH="${MODEL_PATH}/${FA_PREFIX}"
 LOG_PATH="${OUTPUT_FOLDER}/log"
 TMP_FILE_PATH="${OUTPUT_FOLDER}/tmp"
 SPLIT_BED_PATH="${TMP_FILE_PATH}/split_beds"
@@ -69,6 +72,9 @@ FULL_ALIGNMENT_OUTPUT_PATH="${TMP_FILE_PATH}/full_alignment_output"
 PHASE_VCF_PATH="${PHASE_OUTPUT_PATH}/phase_vcf"
 PHASE_BAM_PATH="${PHASE_OUTPUT_PATH}/phase_bam"
 CANDIDATE_BED_PATH="${FULL_ALIGNMENT_OUTPUT_PATH}/candidate_bed"
+export OPENBLAS_NUM_THREADS=1
+export GOTO_NUM_THREADS=1
+export OMP_NUM_THREADS=1
 
 echo "[INFO] Check envrionment variables"
 ${PYTHON} ${CLAIR3} CheckEnvs \
@@ -101,7 +107,7 @@ cd ${OUTPUT_FOLDER}
 #-----------------------------------------------------------------------------------------------------------------------
 export CUDA_VISIBLE_DEVICES=""
 echo "[INFO] 1/7 Calling variants using pileup model"
-time ${PARALLEL} --halt 2 -C ' ' --joblog ${LOG_PATH}/parallel_1_call_var_bam_pileup.log -j ${THREADS_LOW} \
+time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_call_var_bam_pileup.log -j ${THREADS_LOW} \
 "${PYTHON} ${CLAIR3} CallVarBam \
     --chkpnt_fn ${PILEUP_CHECKPOINT_PATH} \
     --bam_fn ${BAM_FILE_PATH} \
@@ -143,19 +149,19 @@ if [ ${NO_PHASING} == True ]
 then
     echo "[INFO] 2/7 No phasing for full alignment calling"
     ${PARALLEL} -j${THREADS} ln -sf ${BAM_FILE_PATH} ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
-    if [ -f ${BAM_FILE_PATH}.bai ]; then ${PARALLEL} -j${THREADS} ln -sf ${BAM_FILE_PATH}.bai ${PHASE_BAM_PATH}/{1}.bam.bai ::: ${CHR[@]}; fi
-    if [ -f ${BAM_FILE_PATH%.*}.bai ]; then ${PARALLEL} -j${THREADS} ln -sf ${BAM_FILE_PATH%.*}.bai ${PHASE_BAM_PATH}/{1}.bam.bai ::: ${CHR[@]}; fi
+    if [ -f ${BAM_FILE_PATH}.bai ]; then ${PARALLEL} --retries ${RETRIES} -j${THREADS} ln -sf ${BAM_FILE_PATH}.bai ${PHASE_BAM_PATH}/{1}.bam.bai ::: ${CHR[@]}; fi
+    if [ -f ${BAM_FILE_PATH%.*}.bai ]; then ${PARALLEL} --retries ${RETRIES} -j${THREADS} ln -sf ${BAM_FILE_PATH%.*}.bai ${PHASE_BAM_PATH}/{1}.bam.bai ::: ${CHR[@]}; fi
 else
     echo "[INFO] 2/7 Filter Hete SNP varaints for Whatshap phasing and haplotag"
     gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --phase --output_fn ${PHASE_VCF_PATH}
-    time ${PARALLEL} --halt 2 --joblog ${LOG_PATH}/parallel_2_select_hetero_snp.log -j${THREADS} \
+    time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_2_select_hetero_snp.log -j${THREADS} \
     "${PYPY} ${CLAIR3} SelectHetSnp \
         --vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
         --split_folder ${PHASE_VCF_PATH} \
         --ctgName {1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} |& tee ${LOG_PATH}/2_select_hetero_snp.log
 
     echo "[INFO] 3/7 Whatshap phase vcf file"
-    time ${PARALLEL} --halt 2 --joblog ${LOG_PATH}/parallel_3_phase.log -j${THREADS} \
+    time ${PARALLEL}  --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_3_phase.log -j${THREADS} \
     "${WHATSHAP} phase \
         --output ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
         --reference ${REFERENCE_FILE_PATH} \
@@ -167,7 +173,7 @@ else
     ${PARALLEL} -j${THREADS} tabix -f -p vcf ${PHASE_VCF_PATH}/phased_{}.vcf.gz ::: ${CHR[@]}
 
     echo "[INFO] 4/7 Whatshap haplotag input bam file"
-    time ${PARALLEL} --halt 2 --joblog ${LOG_PATH}/parallel_4_haplotag.log -j${THREADS} \
+    time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_4_haplotag.log -j${THREADS} \
     "${WHATSHAP} haplotag \
         --output ${PHASE_BAM_PATH}/{1}.bam \
         --reference ${REFERENCE_FILE_PATH} \
@@ -183,7 +189,7 @@ fi
 echo "[INFO] 5/7 Select candidates for full alignment"
 gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --output_fn ${CANDIDATE_BED_PATH} \
 --var_pct_full ${PRO} --ref_pct_full ${REF_PRO} --platform ${PLATFORM} --vcf_fn ${VCF_FILE_PATH}
-time ${PARALLEL} --halt 2 --joblog ${LOG_PATH}/parallel_5_select_candidate.log -j${THREADS} \
+time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_5_select_candidate.log -j${THREADS} \
 "${PYPY} ${CLAIR3} SelectCandidates \
     --pileup_vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
     --split_folder ${CANDIDATE_BED_PATH} \
@@ -195,7 +201,7 @@ time ${PARALLEL} --halt 2 --joblog ${LOG_PATH}/parallel_5_select_candidate.log -
 
 echo "[INFO] 6/7 Calling variants using Full Alignment"
 cat ${CANDIDATE_BED_PATH}/FULL_ALN_FILE_* > ${CANDIDATE_BED_PATH}/FULL_ALN_FILES
-time ${PARALLEL} --halt 2 --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log -j ${THREADS_LOW} \
+time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log -j ${THREADS_LOW} \
 "${PYTHON} ${CLAIR3} CallVarBam \
     --chkpnt_fn ${FULL_ALIGNMENT_CHECKPOINT_PATH} \
     --bam_fn ${PHASE_BAM_PATH}/{1/.}.bam \
@@ -223,7 +229,7 @@ if [ ${GVCF} == True ]; then cat ${GVCF_TMP_PATH}/*.tmp.g.vcf | ${PYPY} ${CLAIR3
 
 
 echo "[INFO] 7/7 Merge pileup vcf and full alignment vcf"
-time ${PARALLEL} --halt 2 --joblog ${LOG_PATH}/parallel_7_merge_vcf.log -j${THREADS} \
+time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_7_merge_vcf.log -j${THREADS} \
 "${PYPY} ${CLAIR3} MergeVcf \
     --pileup_vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
     --bed_fn ${CANDIDATE_BED_PATH}/full_aln_regions \
