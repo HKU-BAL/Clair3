@@ -13,7 +13,7 @@ The benchmarks of the model and the data are as follows. With all precision incr
 | Guppy3,4 model | Guppy4 HG002 chr20 70x    | 98.481%               | 94.709%            | 96.558%        | 99.780%           | 99.758%        | 99.769%    | 87.278%             | 62.713%          | 72.984%      |
 | Guppy5 model   | Guppy4 HG002 chr20 70x    |94.184%               | 93.809%            | 93.996%        | 99.535%           | 99.634%        | 99.585%    | 59.359%             | 56.894%          | 58.100%      |
 
-## Try to run Guppy5 model using one command
+## Run Guppy5 model using one command
 
 ```
 INPUT_DIR="[YOUR_INPUT_FOLDER]"           # e.g. /home/user1/input (absolute path needed)
