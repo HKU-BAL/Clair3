@@ -26,6 +26,8 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 We are actively fixing bugs and issues in Clair3 reported by users.
 
+*v0.1-r3 (Jun 9)* : 1. added `ulimit -u` (max user processes) check (lowers the `THREADS` if the resource is insufficient) and automatic retries on failed jobs ([#20](https://github.com/HKU-BAL/Clair3/issues/20), [#23](https://github.com/HKU-BAL/Clair3/issues/23), [#24](https://github.com/HKU-BAL/Clair3/issues/24)). 2. Added an ONT Guppy5 model to the images (`ont_guppy5`). Click [here](docs/guppy5.md) for more benchmarks on the Guppy5 model and data.
+
 *v0.1-r2 (May 23)* : 1. Fixed BED file out of range error ([#12](https://github.com/HKU-BAL/Clair3/issues/12)). 2. Added support for both `.bam.bai` and `.bai` BAM index filename ([#10](https://github.com/HKU-BAL/Clair3/issues/10)). 3. Added some boundary checks on inputs. 4. Added version checks on required packages and utilities. 5. Increased pipeline robusity.
 
 *v0.1-r1 (May 18)* : 1. Support relative path in Conda, but Docker and Singularity still require absolute path ([#5](https://github.com/HKU-BAL/Clair3/issues/5)). 2. Fix `taskset` CPU-core visibility and provide a Singularity image ([#6](https://github.com/HKU-BAL/Clair3/issues/6)).
@@ -37,8 +39,7 @@ We are actively fixing bugs and issues in Clair3 reported by users.
 ## We are working on ...
 
 * A paper on detailed methods and benchmarks.
-* A model trained with Guppy2 data. The available ONT models are tested and work well with Guppy3 and Guppy4 data, but perform even worse than Clair on Guppy2 data.
-* A model trained with Guppy5 data. 
+* A model trained with Guppy2 data. The available ONT models are tested and work well with Guppy3 and Guppy4 data, but perform even worse than Clair on Guppy2 data. 
 
 ---
 
@@ -257,12 +258,12 @@ docker run -it hkubal/clair3:"${BIN_VERSION}" /opt/bin/run_clair3.sh --help
 **Required parameters:**
 
 ```bash
-  -b, --bam_fn=FILE          BAM file input. The input file must be samtools indexed.
-  -f, --ref_fn=FILE          FASTA reference file input. The input file must be samtools indexed.
-  -m, --model_path=STR       The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00002, pileup.data-00001-of-00002 pileup.index, full_alignment.data-00000-of-00002, full_alignment.data-00001-of-00002  and full_alignment.index).
-  -t, --threads=INT          Max threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The chunks being processed simultaneously is ceil($threads/4)*3. 3 is the overloading factor.
-  -p, --platform=STR         Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.
-  -o, --output=PATH          VCF/GVCF output directory.
+  -b, --bam_fn=FILE             BAM file input. The input file must be samtools indexed.
+  -f, --ref_fn=FILE             FASTA reference file input. The input file must be samtools indexed.
+  -m, --model_path=STR          The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00002, pileup.data-00001-of-00002 pileup.index, full_alignment.data-00000-of-00002, full_alignment.data-00001-of-00002  and full_alignment.index).
+  -t, --threads=INT             Max threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The chunks being processed simultaneously is ceil($threads/4)*3. 3 is the overloading factor.
+  -p, --platform=STR            Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.
+  -o, --output=PATH             VCF/GVCF output directory.
 ```
 
 **Other parameters:**
@@ -270,31 +271,31 @@ docker run -it hkubal/clair3:"${BIN_VERSION}" /opt/bin/run_clair3.sh --help
  **Caution**:  Use `=value` for optional parameters, e.g., `--bed_fn=fn.bed` instead of `--bed_fn fn.bed`
 
 ```bash
-      --bed_fn=FILE          Call variants only in the provided bed regions.
-      --vcf_fn=FILE          Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.
-      --ctg_name=STR         The name of the sequence to be processed.
-      --sample_name=STR      Define the sample name to be shown in the VCF file.
-      --qual=INT             If set, variants with >=$qual will be marked PASS, or LowQual otherwise.
-      --samtools=STR         Path of samtools, samtools version >= 1.10 is required.
-      --python=STR           Path of python, python3 >= 3.6 is required.
-      --pypy=STR             Path of pypy3, pypy3 >= 3.6 is required.
-      --parallel=STR         Path of parallel, parallel >= 20191122 is required.
-      --whatshap=STR         Path of whatshap, whatshap >= 1.0 is required.
-      --chunk_size=INT       The size of each chuck for parallel processing, default: 5Mbp.
-      --pileup_only          Use the pileup model only when calling, default: disable.
-      --print_ref_calls      Show reference calls (0/0) in vcf file, default: disable.
-      --include_all_ctgs     Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
-      --gvcf                 Enable GVCF output, default: disable.
-      --snp_min_af=FLOAT     Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.
-      --indel_min_af=FLOAT   Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
-      --var_pct_full=FLOAT   EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.
-      --ref_pct_full=FLOAT   EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.
-      --pileup_model_pre=STR EXPERIMENTAL: Model prefix in pileup calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index. default: pileup.
-      --fa_model_pre=STR     EXPERIMENTAL: Model prefix in full-alignment calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index, default: full_alignment.
-      --fast_mode            EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.
-      --haploid_precise      EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.
-      --haploid_sensitive    EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.
-      --no_phasing_for_fa    EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.
+      --bed_fn=FILE             Call variants only in the provided bed regions.
+      --vcf_fn=FILE             Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.
+      --ctg_name=STR            The name of the sequence to be processed.
+      --sample_name=STR         Define the sample name to be shown in the VCF file.
+      --qual=INT                If set, variants with >=$qual will be marked PASS, or LowQual otherwise.
+      --samtools=STR            Path of samtools, samtools version >= 1.10 is required.
+      --python=STR              Path of python, python3 >= 3.6 is required.
+      --pypy=STR                Path of pypy3, pypy3 >= 3.6 is required.
+      --parallel=STR            Path of parallel, parallel >= 20191122 is required.
+      --whatshap=STR            Path of whatshap, whatshap >= 1.0 is required.
+      --chunk_size=INT          The size of each chuck for parallel processing, default: 5Mbp.
+      --pileup_only             Use the pileup model only when calling, default: disable.
+      --print_ref_calls         Show reference calls (0/0) in vcf file, default: disable.
+      --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
+      --gvcf                    Enable GVCF output, default: disable.
+      --snp_min_af=FLOAT        Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.
+      --indel_min_af=FLOAT      Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
+      --var_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.
+      --ref_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.
+      --pileup_model_prefix=STR EXPERIMENTAL: Model prefix in pileup calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index. default: pileup.
+      --fa_model_prefix=STR     EXPERIMENTAL: Model prefix in full-alignment calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index, default: full_alignment.
+      --fast_mode               EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.
+      --haploid_precise         EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.
+      --haploid_sensitive       EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.
+      --no_phasing_for_fa       EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.
 ```
 
 #### Call variants in a chromosome
@@ -304,7 +305,7 @@ CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r2"
+BIN_VERSION="v0.1-r3"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -327,7 +328,7 @@ KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. /home/user1/known_variants.vcf.gz 
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r2"
+BIN_VERSION="v0.1-r3"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -362,7 +363,7 @@ BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed (absolute path
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r"
+BIN_VERSION="v0.1-r3"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -384,7 +385,7 @@ docker run -it \
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r2"
+BIN_VERSION="v0.1-r3"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -452,12 +453,13 @@ Please find more details about the training data and links at [Training Data](do
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
-|      File       |  Platform   | Training samples | Included in the docker image | Release |   Date   |    Basecaller   |                             Link                             |
-| :-------------: | :---------: | :--------------: | :----------------------------: | :-----: | :------: | :------: | :----------------------------------------------------------: |
-|   ont.tar.gz    |     ONT     |   HG001,2,4,5    |              Yes               |    1    | 20210517 | Guppy3,4 | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
-| ont_1235.tar.gz |     ONT     |   HG001,2,3,5    |                                |    1    | 20210517 | Guppy3,4 | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
-|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5    |              Yes               |    1    | 20210517 | NA | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5    |              Yes               |    1    | 20210517 | NA | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+|       File        |  Platform   |                       Training samples                       | Included in the docker image | Release |   Date   | Basecaller |                             Link                             |
+| :---------------: | :---------: | :----------------------------------------------------------: | :--------------------------: | :-----: | :------: | :--------: | :----------------------------------------------------------: |
+|    ont.tar.gz     |     ONT     |                         HG001,2,4,5                          |             Yes              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
+|  ont_1235.tar.gz  |     ONT     |                         HG001,2,3,5                          |                              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
+| ont_guppy5.tar.gz |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) |             Yes              |    1    | 20210609 |   Guppy5   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy5.tar.gz) |
+|    hifi.tar.gz    | PacBio HiFi |                         HG001,2,4,5                          |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|    ilmn.tar.gz    |  Illumina   |                         HG001,2,4,5                          |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
 ----
 
@@ -466,4 +468,3 @@ Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or 
 Clair3 supports both VCF and GVCF output formats. Clair3 uses VCF version 4.2 specifications. Specifically, Clair3 adds a `P` INFO tag to the results called using a pileup model, and a `F` INFO tag to the results called using a full-alignment model.
 
 Clair3 outputs a GATK-compatible GVCF format that passes GATK's `ValidateVariants` module. Different from DeepVariant that uses `<*>` to represent any possible alternative allele, Clair3 uses `<NON_REF>`, the same as GATK.
-
