@@ -62,6 +62,11 @@ def Run(args):
     RR_Bin = basedir + "/../clair3.py RealignReads"
     CVBin = basedir + "/../clair3.py CallVariants"
 
+    if args.delay > 0:
+        delay = random.randrange(0, args.delay)
+        print("[INFO] Delay %d seconds before starting variant calling ..." % (delay))
+        sleep(delay)
+
     pypyBin = executable_command_string_from(args.pypy, exit_on_not_found=True)
     pythonBin = executable_command_string_from(args.python, exit_on_not_found=True)
     samtoolsBin = executable_command_string_from(args.samtools, exit_on_not_found=True)
@@ -130,11 +135,6 @@ def Run(args):
         subprocess.check_output("which %s" % ("taskset"), shell=True)
     except:
         taskSet = ""
-
-    if args.delay > 0:
-        delay = random.randrange(0, args.delay)
-        print("[INFO] Delay %d seconds before starting variant calling ..." % (delay))
-        sleep(delay)
 
     if need_realignment:
         realign_reads_command_options = [
@@ -396,7 +396,7 @@ def main():
     parser.add_argument('--need_phasing', action='store_true',
                         help=SUPPRESS)
 
-    ## Apply read realignment for illumina platform. Greatly boost indel performance in trade of running time
+    ## Apply read realignment for illumina platform. Greatly boost indel performance in trade of running time, default true for illumina platform
     parser.add_argument('--need_realignment', action='store_false',
                         help=SUPPRESS)
 
