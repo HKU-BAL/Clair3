@@ -63,6 +63,30 @@ def check_tools_version(tool_version, required_tool_version):
             check_python_path()
     return
 
+
+def check_contig_in_bam(bam_fn, sorted_contig_list, samtools):
+    bai_process = subprocess_popen(shlex.split("{} idxstats {}".format(samtools, bam_fn)))
+    contig_with_read_support_set = set()
+    for row_id, row in enumerate(bai_process.stdout):
+        row = row.split('\t')
+        if len(row) != 4:
+            continue
+        contig_name, contig_length, mapped_reads, unmapped_reads = row
+        if contig_name not in sorted_contig_list:
+            continue
+        if int(mapped_reads) > 0:
+            contig_with_read_support_set.add(contig_name)
+    for contig_name in sorted_contig_list:
+        if contig_name not in contig_with_read_support_set:
+            print (log_warning(
+                "[WARNING] Contig name {} provided but no mapped reads in BAM, skip!".format(contig_name)))
+    filtered_sorted_contig_list = [item for item in sorted_contig_list if item in contig_with_read_support_set]
+
+    if len(filtered_sorted_contig_list) == 0:
+        sys.exit(log_error("[ERROR] No mapped reads support in BAM and provided contigs set {}".format(' '.join(sorted_contig_list))))
+    return filtered_sorted_contig_list
+
+
 def split_extend_vcf(vcf_fn, output_fn):
     expand_region_size = param.no_of_positions
     output_ctg_dict = defaultdict(list)
@@ -284,6 +308,10 @@ def CheckEnvs(args):
         for c in sorted_contig_list:
             if c not in contig_chunk_num:
                 sys.exit(log_error("[ERROR] contig {} not found in reference fai file".format(c)))
+
+        #check contig in bam have support reads
+        sorted_contig_list = check_contig_in_bam(bam_fn=bam_fn, sorted_contig_list=sorted_contig_list, samtools=samtools)
+
         print('[INFO] Call variant in contigs: {}'.format(' '.join(sorted_contig_list)))
         print('[INFO] Chunk number for each contig: {}'.format(
             ' '.join([str(contig_chunk_num[c]) for c in sorted_contig_list])))
