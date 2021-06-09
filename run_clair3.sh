@@ -11,38 +11,40 @@ print_help_messages()
     echo ${Usage}
     echo $''
     echo $'Required parameters:'
-    echo $'  -b, --bam_fn=FILE        BAM file input. The input file must be samtools indexed.'
-    echo $'  -f, --ref_fn=FILE        FASTA reference file input. The input file must be samtools indexed.'
-    echo $'  -m, --model_path=STR     The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00002, pileup.data-00001-of-00002 pileup.index, full_alignment.data-00000-of-00002, full_alignment.data-00001-of-00002  and full_alignment.index).'
-    echo $'  -t, --threads=INT        Max #threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The #chunks being processed simultaneously is ceil(#threads/4)*3. 3 is the overloading factor.'
-    echo $'  -p, --platform=STR       Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.'
-    echo $'  -o, --output=PATH        VCF/GVCF output directory.'
+    echo $'  -b, --bam_fn=FILE          BAM file input. The input file must be samtools indexed.'
+    echo $'  -f, --ref_fn=FILE          FASTA reference file input. The input file must be samtools indexed.'
+    echo $'  -m, --model_path=STR       The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00002, pileup.data-00001-of-00002 pileup.index, full_alignment.data-00000-of-00002, full_alignment.data-00001-of-00002  and full_alignment.index).'
+    echo $'  -t, --threads=INT          Max #threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The #chunks being processed simultaneously is ceil(#threads/4)*3. 3 is the overloading factor.'
+    echo $'  -p, --platform=STR         Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.'
+    echo $'  -o, --output=PATH          VCF/GVCF output directory.'
     echo $''
     echo $''
     echo $"Optional parameters (Use \"=value\" instead of \" value\". E.g., \"--bed_fn=fn.bed\" instead of \"--bed_fn fn.bed\".):"
-    echo $'      --bed_fn=FILE        Call variants only in the provided bed regions.'
-    echo $'      --vcf_fn=FILE        Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.'
-    echo $'      --ctg_name=STR       The name of the sequence to be processed.'
-    echo $'      --sample_name=STR    Define the sample name to be shown in the VCF file.'
-    echo $'      --qual=INT           If set, variants with >=$qual will be marked PASS, or LowQual otherwise.'
-    echo $'      --samtools=STR       Path of samtools, samtools version >= 1.10 is required.'
-    echo $'      --python=STR         Path of python, python3 >= 3.6 is required.'
-    echo $'      --pypy=STR           Path of pypy3, pypy3 >= 3.6 is required.'
-    echo $'      --parallel=STR       Path of parallel, parallel >= 20191122 is required.'
-    echo $'      --whatshap=STR       Path of whatshap, whatshap >= 1.0 is required.'
-    echo $'      --chunk_size=INT     The size of each chuck for parallel processing, default: 5Mbp.'
-    echo $'      --pileup_only        Use the pileup model only when calling, default: disable.'
-    echo $'      --print_ref_calls    Show reference calls (0/0) in VCF file, default: disable.'
-    echo $'      --include_all_ctgs   Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.'
-    echo $'      --gvcf               Enable GVCF output, default: disable.'
-    echo $'      --snp_min_af=FLOAT   Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
-    echo $'      --indel_min_af=FLOAT Minimum Indel AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
-    echo $'      --var_pct_full=FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.'
-    echo $'      --ref_pct_full=FLOAT EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.'
-    echo $'      --fast_mode          EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.'
-    echo $'      --haploid_precise    EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.'
-    echo $'      --haploid_sensitive  EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.'
-    echo $'      --no_phasing_for_fa  EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.'
+    echo $'      --bed_fn=FILE          Call variants only in the provided bed regions.'
+    echo $'      --vcf_fn=FILE          Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.'
+    echo $'      --ctg_name=STR         The name of the sequence to be processed.'
+    echo $'      --sample_name=STR      Define the sample name to be shown in the VCF file.'
+    echo $'      --qual=INT             If set, variants with >=$qual will be marked PASS, or LowQual otherwise.'
+    echo $'      --samtools=STR         Path of samtools, samtools version >= 1.10 is required.'
+    echo $'      --python=STR           Path of python, python3 >= 3.6 is required.'
+    echo $'      --pypy=STR             Path of pypy3, pypy3 >= 3.6 is required.'
+    echo $'      --parallel=STR         Path of parallel, parallel >= 20191122 is required.'
+    echo $'      --whatshap=STR         Path of whatshap, whatshap >= 1.0 is required.'
+    echo $'      --chunk_size=INT       The size of each chuck for parallel processing, default: 5Mbp.'
+    echo $'      --pileup_only          Use the pileup model only when calling, default: disable.'
+    echo $'      --print_ref_calls      Show reference calls (0/0) in VCF file, default: disable.'
+    echo $'      --include_all_ctgs     Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.'
+    echo $'      --gvcf                 Enable GVCF output, default: disable.'
+    echo $'      --snp_min_af=FLOAT     Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
+    echo $'      --indel_min_af=FLOAT   Minimum Indel AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
+    echo $'      --var_pct_full=FLOAT   EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.'
+    echo $'      --ref_pct_full=FLOAT   EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.'
+    echo $'      --pileup_model_pre=STR EXPERIMENTAL: Model prefix in pileup calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index. default: pileup.'
+    echo $'      --fa_model_pre=STR     EXPERIMENTAL: Model prefix in full-alignment calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index, default: full_alignment.'
+    echo $'      --fast_mode            EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.'
+    echo $'      --haploid_precise      EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.'
+    echo $'      --haploid_sensitive    EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.'
+    echo $'      --no_phasing_for_fa    EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.'
     echo $''
 
 #    exit 1
@@ -63,7 +65,7 @@ NC="\\033[0m"
 ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
-snp_min_af::,indel_min_af::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,no_phasing_for_fa,help,version -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,pileup_model_pre::,fa_model_pre::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,no_phasing_for_fa,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -93,6 +95,8 @@ HAP_PRE=False
 HAP_SEN=False
 INCLUDE_ALL_CTGS=False
 NO_PHASING=False
+PILEUP_PREFIX="pileup"
+FA_PREFIX="full_alignment"
 
 while true; do
    case "$1" in
@@ -118,6 +122,8 @@ while true; do
     --ref_pct_full ) REF_PRO="$2"; shift 2 ;;
     --snp_min_af ) SNP_AF="$2"; shift 2 ;;
     --indel_min_af ) INDEL_AF="$2"; shift 2 ;;
+    --pileup_model_pre ) PILEUP_PREFIX="$2"; shift 2 ;;
+    --fa_model_pre ) FA_PREFIX="$2"; shift 2 ;;
     --gvcf ) GVCF=True; shift 1 ;;
     --pileup_only ) PILEUP_ONLY=True; shift 1 ;;
     --fast_mode ) FAST_MODE=True; shift 1 ;;
@@ -207,12 +213,15 @@ if [ ! -f ${REFERENCE_FILE_PATH}.fai ] && [ ! -f ${REFERENCE_FILE_PATH%.*}.fai ]
 if [ "${BED_FILE_PATH}" != "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [ ! -f ${BED_FILE_PATH} ]; then echo -e "${ERROR} BED file ${BED_FILE_PATH} provides but not found${NC}"; exit 1; fi
 if [ "${VCF_FILE_PATH}" != "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [ ! -f ${VCF_FILE_PATH} ]; then echo -e "${ERROR} VCF file ${VCF_FILE_PATH} provides but not found${NC}"; exit 1; fi
 if [ ! -d ${MODEL_PATH} ]; then echo -e "${ERROR} Model path not found${NC}"; exit 1; fi
-if [ ! -f ${MODEL_PATH}/pileup.index ] || [ ! -f ${MODEL_PATH}/full_alignment.index ]; then echo -e "${ERROR} No model found in provided model path${NC}"; exit 1; fi
 
 # max threads detection
 MAX_THREADS=$(nproc)
-if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( THREADS <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
-if [[ ${THREADS} > ${MAX_THREADS} ]]; then echo -e "${WARNING} Threads setting exceeds maximum available cores ${MAX_THREADS}, set threads=${MAX_THREADS}${NC}"; THREADS=${MAX_THREADS}; fi
+MAX_ULIMIT_THREADS=`ulimit -u`
+if [ ! -z ${MAX_ULIMIT_THREADS} ]; then PER_ULIMIT_THREADS=$((${MAX_ULIMIT_THREADS}/30)); else PER_ULIMIT_THREADS=${THREADS}; fi
+if [[ ${PER_ULIMIT_THREADS} < 1 ]]; then PER_ULIMIT_THREADS=1; fi
+if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( ${THREADS} <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
+if [[ ${THREADS} -gt ${MAX_THREADS} ]]; then echo -e "${WARNING} Threads setting exceeds maximum available threads ${MAX_THREADS}, set threads=${MAX_THREADS}${NC}"; THREADS=${MAX_THREADS}; fi
+if [[ ${THREADS} -gt ${PER_ULIMIT_THREADS} ]]; then echo -e "${WARNING} Threads setting exceeds maximum ulimit threads ${THREADS} * 30 > ${MAX_ULIMIT_THREADS} (ulimit -u), set threads=${PER_ULIMIT_THREADS}${NC}"; THREADS=${PER_ULIMIT_THREADS}; fi
 
 # platform check
 if [ ! ${PLATFORM} = "ont" ] && [ ! ${PLATFORM} = "hifi" ] && [ ! ${PLATFORM} = "ilmn" ]; then echo -e "${ERROR} Invalid platform input, optional: {ont, hifi, ilmn}${NC}"; exit 1; fi
@@ -233,6 +242,13 @@ if [ -z ${SNP_AF} ]; then echo -e "${ERROR} Use '--snp_min_af=FLOAT' instead of 
 if [ -z ${INDEL_AF} ]; then echo -e "${ERROR} Use '--indel_min_af=FLOAT' instead of '--indel_min_af FLOAT' for optional parameters${NC}"; exit 1 ; fi
 if [ -z ${PRO} ]; then echo -e "${ERROR} Use '--var_pct_full=FLOAT' instead of '--var_pct_full FLOAT' for optional parameters${NC}"; exit 1 ; fi
 if [ -z ${REF_PRO} ]; then echo -e "${ERROR} Use '--ref_pct_full=FLOAT' instead of '--ref_pct_full FLOAT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${PILEUP_PREFIX} ]; then echo -e "${ERROR} Use '--pileup_model_pre=STR' instead of '--pileup_model_pre STR' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${FA_PREFIX} ]; then echo -e "${ERROR} Use '--fa_model_pre=STR' instead of '--fa_model_pre STR' for optional parameters${NC}"; exit 1 ; fi
+
+# model prefix detection
+if [ ! -f ${MODEL_PATH}/${PILEUP_PREFIX}.index ]; then echo -e "${ERROR} No pileup model found in provided model path and model prefix ${MODEL_PATH}/${PILEUP_PREFIX} ${NC}"; exit 1; fi
+if [ ! -f ${MODEL_PATH}/${FA_PREFIX}.index ]; then echo -e "${ERROR} No full-alignment model found in provided model path and model prefix ${MODEL_PATH}/${FA_PREFIX} ${NC}"; exit 1; fi
+
 
 set -x
 ${SCRIPT_PATH}/scripts/clair3.sh \
@@ -265,7 +281,9 @@ ${SCRIPT_PATH}/scripts/clair3.sh \
     --haploid_precise=${HAP_PRE} \
     --haploid_sensitive=${HAP_SEN} \
     --include_all_ctgs=${INCLUDE_ALL_CTGS} \
-    --no_phasing_for_fa=${NO_PHASING}
+    --no_phasing_for_fa=${NO_PHASING} \
+    --pileup_model_pre=${PILEUP_PREFIX} \
+    --fa_model_pre=${FA_PREFIX}
 
 
 )) |& tee ${OUTPUT_FOLDER}/run_clair3.log
