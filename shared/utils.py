@@ -6,7 +6,6 @@ from subprocess import check_output, PIPE, Popen
 import argparse
 import shlex
 from subprocess import PIPE
-from termcolor import colored
 from os.path import isfile, isdir
 # A->A
 # C->C
