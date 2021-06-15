@@ -1,4 +1,4 @@
-# Guppy5 model
+# Guppy5 models
 
 *Jun 9, 2021.* Guppy5 basecaller has been released recently. According to our observations, Guppy5 gives better base accuracy but has a substantially different error profile from the HAC mode in Guppy3 and Guppy4. While we are releasing Guppy5 models for Clair3 users to take advantage of the new Guppy5 basecaller, please aware that these models are not yet being heavily tested, and the Guppy5 data available for model training is still limited.
 
@@ -13,7 +13,9 @@ The benchmarks of the model and the data are as follows. With all precision incr
 | Guppy3,4 model | Guppy4 HG002 chr20 70x    | 98.481%               | 94.709%            | 96.558%        | 99.780%           | 99.758%        | 99.769%    | 87.278%             | 62.713%          | 72.984%      |
 | Guppy5 model   | Guppy4 HG002 chr20 70x    |94.184%               | 93.809%            | 93.996%        | 99.535%           | 99.634%        | 99.585%    | 59.359%             | 56.894%          | 58.100%      |
 
-## Run Guppy5 model using one command
+----
+
+## Use the Guppy5 model
 
 ```
 INPUT_DIR="[YOUR_INPUT_FOLDER]"           # e.g. /home/user1/input (absolute path needed)

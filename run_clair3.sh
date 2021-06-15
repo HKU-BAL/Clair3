@@ -30,7 +30,7 @@ print_help_messages()
     echo $'      --pypy=STR                Path of pypy3, pypy3 >= 3.6 is required.'
     echo $'      --parallel=STR            Path of parallel, parallel >= 20191122 is required.'
     echo $'      --whatshap=STR            Path of whatshap, whatshap >= 1.0 is required.'
-    echo $'      --chunk_size=INT          The size of each chuck for parallel processing, default: 5Mbp.'
+    echo $'      --chunk_size=INT          The size of each chuck for parallel processing, default: 5000000.'
     echo $'      --pileup_only             Use the pileup model only when calling, default: disable.'
     echo $'      --print_ref_calls         Show reference calls (0/0) in VCF file, default: disable.'
     echo $'      --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.'
