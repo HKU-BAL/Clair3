@@ -71,7 +71,7 @@ if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
 
 # default options
-SAMPLE="EMPTY"
+SAMPLE="SAMPLE"
 BED_FILE_PATH="EMPTY"
 VCF_FILE_PATH='EMPTY'
 CONTIGS="EMPTY"
