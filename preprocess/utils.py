@@ -525,19 +525,18 @@ class variantInfoCalculator(object):
         print(dedent("""\
             ##fileformat=VCFv4.2
             ##FILTER=<ID=PASS,Description="All filters passed">
-            ##FILTER=<ID=LowQual,Description="Confidence in this variant being real is below calling threshold.">
-            ##FILTER=<ID=RefCall,Description="Genotyping model thinks this site is reference.">
-            ##ALT=<ID=DEL,Description="Deletion">
-            ##ALT=<ID=INS,Description="Insertion of novel sequence">
+            ##FILTER=<ID=LowQual,Description="Low quality variant">
+            ##FILTER=<ID=RefCall,Description="Reference call">
+            ##INFO=<ID=P,Number=0,Type=Flag,Description="Result from pileup calling">
+            ##INFO=<ID=F,Number=0,Type=Flag,Description="Result from full-alignment calling">
             ##ALT=<ID=NON_REF,Description="Represents any possible alternative allele at this location">
-            ##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
             ##INFO=<ID=END,Number=1,Type=Integer,Description="End position (for use with symbolic alleles)">
             ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
             ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
             ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
-            ##FORMAT=<ID=MIN_DP,Number=1,Type=Integer,Description="Minimum DP observed within the GVCF block.">
+            ##FORMAT=<ID=MIN_DP,Number=1,Type=Integer,Description="Minimum DP observed within the GVCF block">
             ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
-            ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range (0,1)">"""), file
+            ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">"""), file
         =self.vcf_writer)
         if self.reference_file_path is not None:
             reference_index_file_path = file_path_from(self.reference_file_path, suffix=".fai", exit_on_not_found=True, sep='.')
