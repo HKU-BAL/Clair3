@@ -8,7 +8,7 @@ from argparse import ArgumentParser, SUPPRESS
 from collections import defaultdict
 from intervaltree import IntervalTree
 import shared.param_f as param
-from shared.utils import subprocess_popen, IUPAC_base_to_num_dict as BASE2NUM, region_from, reference_sequence_from, str2bool
+from shared.utils import subprocess_popen, IUPAC_base_to_num_dict as BASE2NUM, region_from, reference_sequence_from, str2bool, log_warning
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 
@@ -230,6 +230,10 @@ def SelectCandidates(args):
                                                                                                          item in
                                                                                                          low_sequence_entropy_list])
             need_phasing_row_list = sorted(list(need_phasing_row_list))
+
+            if len(need_phasing_row_list) == 0:
+                print(log_warning(
+                    "[WARNING] Cannot find any low-quality 0/0, 0/1 or 1/1 variant in pileup output in contig {}".format(contig_name)))
 
             region_num = len(need_phasing_row_list) // split_bed_size + 1 if len(
                 need_phasing_row_list) % split_bed_size else len(need_phasing_row_list) // split_bed_size
