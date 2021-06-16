@@ -116,9 +116,11 @@ Check the results using `less ${HOME}/clair3_illumina_quickDemo/output/merge_out
 conda activate clair3
 
 # Install boost library
-conda install -c conda-forge boost=1.67.0
+conda install -c conda-forge boost=1.67.0 -y
 echo "Environment:" ${CONDA_PREFIX}
-cd Clair3/preprocess/realign
+# Make sure in Clair3 directory
+cd Clair3
+cd preprocess/realign
 g++ -std=c++14 -O1 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c realigner.cpp
 g++ -std=c++11 -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp -I ${CONDA_PREFIX}/include -L ${CONDA_PREFIX}/lib
 
