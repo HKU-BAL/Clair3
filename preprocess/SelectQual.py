@@ -2,11 +2,10 @@ from sys import stdin
 from argparse import ArgumentParser
 import os
 
-from shared.utils import file_path_from
+from shared.utils import file_path_from, log_warning
 
 major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] + [str(a) for a in
                                                                                    list(range(1, 23)) + ["X", "Y"]]
-
 
 def select_phase_qual_from_stdin(args):
 
@@ -20,7 +19,7 @@ def select_phase_qual_from_stdin(args):
             continue
         row = row.rstrip().split()
         ref_base, alt_base = row[3], row[4]
-        # select hete snp only
+        # select heterozygous snp only
         if len(ref_base) != 1 or len(alt_base) != 1:
             continue
         qual, gt_info = row[5], row[9]
@@ -28,6 +27,7 @@ def select_phase_qual_from_stdin(args):
         if genotype == '0/1':
             phase_qual_list.append(float(qual))
 
+    # in phase mode, var_pct_full is the proportion of low-quality heterozygous variants to be discarded for whatshap phasing
     phase_qual_list = sorted(phase_qual_list)
     qual_cut_off = phase_qual_list[:int(args.var_pct_full * len(phase_qual_list))][-1]
     print ('[INFO] Select phasing quality cut off {}'.format(round(qual_cut_off), 0))
@@ -41,7 +41,7 @@ def select_phase_qual_from_stdin(args):
 def select_qual_from_stdin(args):
 
     """
-    Select a global quality cut-off for full alignment directly from pileup vcf file. False positive pileup variants
+    Select a global quality cut-off for full alignment calling from pileup vcf file. False positive pileup variants
     and true variants missed by pileup calling would mostly have low quality score (reference quality score for missing
     variants), so only use a proportion of low quality variants for full alignment while maintain high quality pileup
     output, as full alignment calling is substantially slower than pileup calling.
@@ -49,7 +49,10 @@ def select_qual_from_stdin(args):
     var_pct_full = args.var_pct_full
     vcf_fn = file_path_from(args.vcf_fn)
     ref_pct_full = args.ref_pct_full if args.ref_pct_full else var_pct_full
-    ref_pct_full = 0.1 if args.platform == 'ont' and ref_pct_full == 0.3 else ref_pct_full
+    # for efficiency, we use a maximum 30% reference candidates proportion for full-alignment calling, which is almost cover all false negative candidates
+    # for ont platform, we set a default 10% reference candidates proportion for full-alignment calling unless a known vcf file is provided (genotyping mode)
+    ref_pct_full = 0.1 if args.platform == 'ont' else ref_pct_full
+    ref_pct_full = min(ref_pct_full, 0.3)
 
     variant_qual_list = []
     ref_qual_list = []
@@ -67,13 +70,26 @@ def select_qual_from_stdin(args):
 
     ref_qual_list = sorted(ref_qual_list)
     variant_qual_list = sorted(variant_qual_list)
-    var_qual_cut_off = variant_qual_list[:int(var_pct_full * len(variant_qual_list))][-1]
-    #for efficiency, we use a maximum 30% reference candidate for full-alignment, which is almost cover all false negative candidates
-    ref_qual_cut_off = ref_qual_list[:int(min(ref_pct_full, 0.3) * len(ref_qual_list))][-1]
-    if vcf_fn is not None:
-        # If known vcf file is provided, use user defined proportion.
-        var_qual_cut_off = variant_qual_list[:int(var_pct_full * len(variant_qual_list))][-1]
-        ref_qual_cut_off = ref_qual_list[:int(args.ref_pct_full * len(ref_qual_list))][-1]
+    low_variant_qual_list = variant_qual_list[:int(var_pct_full * len(variant_qual_list))]
+    if len(low_variant_qual_list) == 0:
+        print(log_warning(
+            "[WARNING] Cannot find any low-quality 0/1 or 1/1 variant in pileup output using variant quality cut-off proportion: {}, total variants: {}".format(
+                var_pct_full, len(variant_qual_list))))
+        print(log_warning("[WARNING] Set low variant quality score cut-off to 0.0"))
+        var_qual_cut_off = 0.0
+    else:
+        var_qual_cut_off = low_variant_qual_list[-1]
+
+    # If a known vcf file is provided, use user-defined proportion
+    low_ref_qual_list = ref_qual_list[:int(ref_pct_full * len(ref_qual_list))] if vcf_fn is None else ref_qual_list[:int(args.ref_pct_full * len(ref_qual_list))]
+    if len(low_ref_qual_list) == 0:
+        print(log_warning(
+            "[WARNING] Cannot find any low-quality 0/0 reference calls in pileup output using reference quality cut-off proportion: {}, total reference calls: {}".format(
+                ref_pct_full, len(ref_qual_list))))
+        print(log_warning("[WARNING] Set low reference quality score cut-off to 0.0"))
+        ref_qual_cut_off = 0.0
+    else:
+        ref_qual_cut_off = low_ref_qual_list[-1]
     print ('[INFO] Select variant quality cut off {}'.format(round(var_qual_cut_off, 0)))
     print ('[INFO] Select reference quality cut off {}'.format(round(ref_qual_cut_off, 0)))
 
@@ -92,10 +108,10 @@ def main():
                         help="Define the output folder, required")
 
     parser.add_argument('--var_pct_full', type=float, default=0.3,
-                        help="Default variant call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
+                        help="Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3")
 
-    parser.add_argument('--ref_pct_full', type=float, default=None,
-                        help="Default reference call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
+    parser.add_argument('--ref_pct_full', type=float, default=0.3,
+                        help="Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont")
 
     parser.add_argument('--phase', action='store_true',
                         help="Select only heterozygous candidates for phasing or not, default: False")
