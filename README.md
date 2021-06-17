@@ -85,7 +85,13 @@ We are actively fixing bugs and issues in Clair3 reported by users.
 *   PacBio HiFi data, see [PaBio HiFi Quick Demo](docs/quick_demo/pacbio_hifi_quick_demo.md).
 *   Illumina NGS data, see [Illumina Quick Demo](docs/quick_demo/illumina_quick_demo.md).
 
-**Run Clair3 ONT quick demo using pre-built docker image:**
+**Run Clair3 ONT quick demo**: 
+
+- **(Option 1) using Google Colab notebook:**
+
+   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HKU-BAL/Clair3/blob/main/colab/clair3_ont_quick_demo.ipynb)
+
+- **(Option 2) using pre-built docker image:**
 
 ```bash
 cd ${HOME}
