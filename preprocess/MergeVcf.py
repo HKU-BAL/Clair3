@@ -99,7 +99,6 @@ def MergeVcf_illumina(args):
                  output.append(row)
                  pileup_count += 1
 
-
     unzip_process.stdout.close()
     unzip_process.wait()
 
@@ -127,13 +126,10 @@ def MergeVcf_illumina(args):
             if not is_reference:
                 row = MarkLowQual(row, QUAL, qual)
                 output.append(row)
-                pileup_count += 1
+                realiged_read_num += 1
             elif print_ref:
                 output.append(row)
-                pileup_count += 1
-
-            output.append(row)
-            realiged_read_num += 1
+                realiged_read_num += 1
 
     logging.info('[INFO] Pileup positions variants proceeded in {}: {}'.format(contig_name, pileup_count))
     logging.info('[INFO] Realigned positions variants proceeded in {}: {}'.format(contig_name, realiged_read_num))
@@ -146,8 +142,8 @@ def MergeVcf_illumina(args):
 
 def MergeVcf(args):
     """
-    Merge pileup and full alignment vcf output. As current workflow only use part of low quality score candidate
-    variants of pileup output for full alignment.
+    Merge pileup and full alignment vcf output. We merge the low quality score pileup candidates
+    recalled by full-alignment model with high quality score pileup output.
     """
 
     output_fn = args.output_fn
