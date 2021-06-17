@@ -106,6 +106,10 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 
 ### Option 2. Anaconda virtual environment
 
+**You can run the quick demo below using Google Colab notebook:**
+
+ [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HKU-BAL/Clair3/blob/main/colab/clair3_ont_quick_demo.ipynb)
+
 ##### Step 1. Install Clair3 and download pre-trained model, using [Installation - Option 3](https://github.com/HKU-BAL/Clair3#option-3-build-an-anaconda-virtual-environment)
 
 **Step 2. Run Clair3 without root privileges**

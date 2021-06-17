@@ -107,6 +107,10 @@ Check the results using `less ${HOME}/clair3_illumina_quickDemo/output/merge_out
 
 ### Option 2. Anaconda virtual environment
 
+**You can run the quick demo below using Google Colab notebook:**
+
+ [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HKU-BAL/Clair3/blob/main/colab/clair3_illumina_quick_demo.ipynb)
+
 ##### Step 1. Install Clair3 and download pre-trained model, using [Installation - Option 3](https://github.com/HKU-BAL/Clair3#option-3-build-an-anaconda-virtual-environment)
 
 ##### Step 2. Install [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html) for Illumina realignment process
