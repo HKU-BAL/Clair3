@@ -175,7 +175,7 @@ chmod +x ./Miniconda3-latest-Linux-x86_64.sh
 
 **Install Clair3 using anaconda step by step:**
 
-*For using Clair3 on Illumina data, additional installation steps after the following steps are mandatory. Please follow this * [guide](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process) * for the additional steps.*.
+*For using Clair3 on Illumina data, additional installation steps after the following steps are mandatory. Please follow this [guide](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process) for the additional steps.*
 
 ```bash
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ./input
