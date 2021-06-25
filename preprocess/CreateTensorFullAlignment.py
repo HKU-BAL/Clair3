@@ -12,7 +12,7 @@ from intervaltree import IntervalTree
 
 import shared.param_f as param
 from shared.utils import subprocess_popen, file_path_from, IUPAC_base_to_num_dict as BASE2NUM, region_from, \
-    reference_sequence_from, str2bool, vcf_candidates_from
+    reference_sequence_from, str2bool, vcf_candidates_from, log_warning
 from shared.interval_tree import bed_tree_from, is_region_in
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
@@ -657,9 +657,12 @@ def CreateTensorFullAlignment(args):
 
             if phasing_info_in_bam:
                 phasing_info = columns[8].split(',')
-                for hap_idx, hap in enumerate(phasing_info):
-                    if hap in '12' and read_name_list[hap_idx] not in hap_dict:
-                        hap_dict[read_name_list[hap_idx]] = int(hap)
+                if len(read_name_list) != len(phasing_info):
+                    print (log_warning("[WARNING] Phasing Info mismatch: {}".format(row.strip())))
+                else:
+                    for hap_idx, hap in enumerate(phasing_info):
+                        if hap in '12' and read_name_list[hap_idx] not in hap_dict:
+                            hap_dict[read_name_list[hap_idx]] = int(hap)
 
             if len(read_name_list) != len(base_list):
                 continue
