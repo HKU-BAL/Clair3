@@ -203,7 +203,8 @@ tabix -f -p vcf ${OUTPUT_DIR}/unified.vcf.gz
 conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
-conda create -n happy-env -c bioconda hap.py
+conda create -n happy-env -c bioconda hap.py -y
+conda install -c bioconda rtg-tools -y
 conda activate happy-env
 
 # Benchmark using hap.py
