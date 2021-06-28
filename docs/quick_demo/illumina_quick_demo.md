@@ -49,7 +49,7 @@ echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > ${INPUT_DIR}/quick_demo.bed
 ### Option 1. Docker pre-built image
 
 ```bash
-BIN_VERSION='v0.1-r3'
+BIN_VERSION='v0.1-r4'
 THREADS=4
 cd ${OUTPUT_DIR}
 
@@ -124,6 +124,8 @@ conda install -c conda-forge boost=1.67.0 -y
 echo "Environment:" ${CONDA_PREFIX}
 # Make sure in Clair3 directory
 cd Clair3
+# cd ${CONDA_PREFIX}/bin if installing Clair3 using bioconda
+
 cd preprocess/realign
 g++ -std=c++14 -O1 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c realigner.cpp
 g++ -std=c++11 -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp -I ${CONDA_PREFIX}/include -L ${CONDA_PREFIX}/lib

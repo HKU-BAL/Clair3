@@ -54,9 +54,11 @@
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
-|      File       |  Platform   | Training Samples | In the docker image by default |                             Link                             |
-| :-------------: | :---------: | :--------------: | :----------------------------: | :----------------------------------------------------------: |
-|   ont.tar.gz    |     ONT     |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
-| ont_1235.tar.gz |     ONT     |   HG001,2,3,5    |                                | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
-|   hifi.tar.gz   | PacBio HiFi |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|   ilmn.tar.gz   |  Illumina   |   HG001,2,4,5    |              Yes               | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+|       File        |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image | Release |   Date   | Basecaller |                             Link                             |
+| :---------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :-----: | :------: | :--------: | :----------------------------------------------------------: |
+|    ont.tar.gz     |     ONT     |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
+|  ont_1235.tar.gz  |     ONT     |                         HG001,2,3,5                          |                                  |                              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
+| ont_guppy5.tar.gz |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) | Yes                              |             Yes              |    1    | 20210609 |   Guppy5   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy5.tar.gz) |
+| ont_guppy2.tar.gz |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              |    1    | 20210627 |   Guppy2   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy2.tar.gz) |
+|    hifi.tar.gz    | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|    ilmn.tar.gz    |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |

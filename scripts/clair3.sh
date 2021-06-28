@@ -49,7 +49,7 @@ while true; do
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
-    * ) print_help_messages; exit 1 ;;
+    * ) print_help_messages; exit 0 ;;
    esac
 done
 
@@ -133,14 +133,20 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
 
 
 echo "[INFO] Merge chunked contigs vcf files"
-cat ${PILEUP_VCF_PATH}/pileup_*.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_FOLDER}/pileup.vcf
+${PYPY} ${CLAIR3} SortVcf \
+    --input_dir ${PILEUP_VCF_PATH} \
+    --vcf_fn_prefix "pileup" \
+    --output_fn ${OUTPUT_FOLDER}/pileup.vcf \
+    --sampleName ${SAMPLE} \
+    --ref_fn ${REFERENCE_FILE_PATH}
+
 bgzip -f ${OUTPUT_FOLDER}/pileup.vcf
 tabix -f -p vcf ${OUTPUT_FOLDER}/pileup.vcf.gz
 
 if [ ${PILEUP_ONLY} == True ]; then
     echo "[INFO] Only call pileup output with --pileup_only, output file: ${OUTPUT_FOLDER}/pileup.vcf.gz"
     echo "[INFO] Finish calling!"
-    exit 1;
+    exit 0;
 fi
 
 # Whatshap phasing and haplotaging
@@ -221,7 +227,13 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_b
 
 ##Merge pileup and full alignment vcf
 ##-----------------------------------------------------------------------------------------------------------------------
-cat ${FULL_ALIGNMENT_OUTPUT_PATH}/full_alignment_*.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_FOLDER}/full_alignment.vcf
+${PYPY} ${CLAIR3} SortVcf \
+    --input_dir ${FULL_ALIGNMENT_OUTPUT_PATH} \
+    --vcf_fn_prefix "full_alignment" \
+    --output_fn ${OUTPUT_FOLDER}/full_alignment.vcf \
+    --sampleName ${SAMPLE} \
+    --ref_fn ${REFERENCE_FILE_PATH}
+
 cat ${CANDIDATE_BED_PATH}/*.* > ${CANDIDATE_BED_PATH}/full_aln_regions
 bgzip -f ${OUTPUT_FOLDER}/full_alignment.vcf
 tabix -f -p vcf ${OUTPUT_FOLDER}/full_alignment.vcf.gz
@@ -245,7 +257,13 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_7_merge_vcf.
     --ref_fn ${REFERENCE_FILE_PATH} \
     --ctgName {1}" ::: ${CHR[@]} |& tee ${LOG_PATH}/7_merge_vcf.log
 
-cat ${TMP_FILE_PATH}/merge_output/merge_*.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_FOLDER}/merge_output.vcf
+${PYPY} ${CLAIR3} SortVcf \
+    --input_dir ${TMP_FILE_PATH}/merge_output \
+    --vcf_fn_prefix "merge" \
+    --output_fn ${OUTPUT_FOLDER}/merge_output.vcf \
+    --sampleName ${SAMPLE} \
+    --ref_fn ${REFERENCE_FILE_PATH}
+
 if [ ${GVCF} == True ]; then cat ${TMP_FILE_PATH}/merge_output/merge_*.gvcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_FOLDER}/merge_output.gvcf; fi
 bgzip -f ${OUTPUT_FOLDER}/merge_output.vcf
 tabix -f -p vcf ${OUTPUT_FOLDER}/merge_output.vcf.gz

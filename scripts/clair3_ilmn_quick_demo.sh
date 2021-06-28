@@ -3,7 +3,7 @@ PLATFORM='ilmn'
 INPUT_DIR="${HOME}/clair3_illumina_quickDemo"
 OUTPUT_DIR="${INPUT_DIR}/output"
 THREADS=4
-BIN_VERSION="v0.1-r3"
+BIN_VERSION="v0.1-r4"
 
 ## Create local directory structure
 mkdir -p ${INPUT_DIR}

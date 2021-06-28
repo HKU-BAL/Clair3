@@ -6,7 +6,7 @@
 
 # Clair3 - Integrating pileup and full-alignment for high-performance long-read variant calling
 
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)  
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/clair3/README.html)
 
 Contact: Ruibang Luo  
 
@@ -26,7 +26,9 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 We are actively fixing bugs and issues in Clair3 reported by users.
 
-*v0.1-r3 (Jun 9)* : 1. added `ulimit -u` (max user processes) check (lowers the `THREADS` if the resource is insufficient) and automatic retries on failed jobs ([#20](https://github.com/HKU-BAL/Clair3/issues/20), [#23](https://github.com/HKU-BAL/Clair3/issues/23), [#24](https://github.com/HKU-BAL/Clair3/issues/24)). 2. Added an ONT Guppy5 model to the images (`ont_guppy5`). Click [here](docs/guppy5.md) for more benchmarks on the Guppy5 model and data.
+*v0.1-r4 (Jun 28)* : 1. Install via [bioconda](#option-3--bioconda). 2. Added an ONT Guppy2 model to the images (`ont_guppy2`). Click [here](docs/guppy2.md) for more benchmarking results. The results show you have to use the Guppy2 model for Guppy2 or earlier data. 3. Added [google colab notebooks](colab) for quick demo. 4. Fixed a bug then there are too few variant candidates ([#28](https://github.com/HKU-BAL/Clair3/issues/28)). 
+
+*v0.1-r3 (Jun 9)* : 1. Added `ulimit -u` (max user processes) check (lowers the `THREADS` if the resource is insufficient) and automatic retries on failed jobs ([#20](https://github.com/HKU-BAL/Clair3/issues/20), [#23](https://github.com/HKU-BAL/Clair3/issues/23), [#24](https://github.com/HKU-BAL/Clair3/issues/24)). 2. Added an ONT Guppy5 model to the images (`ont_guppy5`). Click [here](docs/guppy5.md) for more benchmarks on the Guppy5 model and data.
 
 *v0.1-r2 (May 23)* : 1. Fixed BED file out of range error ([#12](https://github.com/HKU-BAL/Clair3/issues/12)). 2. Added support for both `.bam.bai` and `.bai` BAM index filename ([#10](https://github.com/HKU-BAL/Clair3/issues/10)). 3. Added some boundary checks on inputs. 4. Added version checks on required packages and utilities. 5. Increased pipeline robusity.
 
@@ -39,7 +41,6 @@ We are actively fixing bugs and issues in Clair3 reported by users.
 ## We are working on ...
 
 * A paper on detailed methods and benchmarks.
-* A model trained with Guppy2 data. The available ONT models are tested and work well with Guppy3 and Guppy4 data, but perform even worse than Clair on Guppy2 data. 
 
 ---
 
@@ -51,11 +52,16 @@ We are actively fixing bugs and issues in Clair3 reported by users.
 * [Installation](#installation)
   + [Option 1. Docker pre-built image](#option-1--docker-pre-built-image)
   + [Option 2. Singularity](#option-2-singularity)
-  + [Option 3. Build an anaconda virtual environment](#option-3-build-an-anaconda-virtual-environment)
-  + [Option 4. Docker Dockerfile](#option-4-docker-dockerfile)
+  + [Option 3. Bioconda](#option-3--bioconda)
+  + [Option 4. Build an anaconda virtual environment](#option-4-build-an-anaconda-virtual-environment)
+  + [Option 5. Docker Dockerfile](#option-5-docker-dockerfile)
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
+* [Pre-trained Models](#pre-trained-models)
+  * [Guppy5 Model](docs/guppy5.md)
+  * [Guppy3-4 Model](#pre-trained-models)
+  * [Guppy2 Model](docs/guppy2.md)
 * [Training Data](#training-data)
 * [VCF/GVCF Output Formats](#vcfgvcf-output-formats)
 * [Pileup Model Training](docs/pileup_training.md)
@@ -116,7 +122,7 @@ A pre-built docker image is available [here](https://hub.docker.com/r/hkubal/cla
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r3"
+BIN_VERSION="v0.1-r4"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -124,7 +130,7 @@ docker run -it \
   hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
@@ -141,27 +147,53 @@ Check [Usage](#Usage) for more options.
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r3"
+BIN_VERSION="v0.1-r4"
 
 conda config --add channels defaults
 conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
 
 # singularity pull docker pre-built image
-singularity pull docker://hkubal/clair3:v0.1-r3
+singularity pull docker://hkubal/clair3:v0.1-r4
 
 # run clair3 like this afterward
 singularity exec clair3_"${BIN_VERSION}".sif \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
   --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
 
-### Option 3. Build an anaconda virtual environment
+### Option 3.  Bioconda
+
+*For using Clair3 with Illumina data, additional installation steps are needed. Please follow this [guide](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process) for the additional steps.*
+
+```bash
+# make sure channels are added in conda
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+
+# create conda environment named "clair3"
+conda create -n clair3 -c bioconda clair3 python=3.6.10 -y
+conda activate clair3
+
+# run clair3 like this afterward
+run_clair3.sh \
+  --bam_fn=input.bam \                 ## change your bam file name here
+  --ref_fn=ref.fa \                    ## change your reference file name here
+  --threads=${THREADS} \               ## maximum threads to be used
+  --platform="ont" \                   ## options: {ont,hifi,ilmn}
+  --model_path="${CONDA_PREFIX}/bin/models/ont" \ 
+  --output=${OUTPUT_DIR}               ## output path prefix 
+```
+
+Check [Usage](#Usage) for more options. [Pre-trained models](#pre-trained-models) are already included in the bioconda package.
+
+### Option 4. Build an anaconda virtual environment
 
 **Anaconda install**:
 
@@ -175,7 +207,7 @@ chmod +x ./Miniconda3-latest-Linux-x86_64.sh
 
 **Install Clair3 using anaconda step by step:**
 
-*For using Clair3 on Illumina data, additional installation steps after the following steps are mandatory. Please follow this [guide](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process) for the additional steps.*
+*For using Clair3 on Illumina data, additional installation steps after the following steps are mandatory. Please follow this [guide](https://github.com/HKU-BAL/Clair3/blob/main/docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process) for the additional steps.*
 
 ```bash
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ./input
@@ -189,12 +221,11 @@ source activate clair3
 # install pypy and packages in the environemnt
 conda install -c conda-forge pypy3.6 -y
 pypy3 -m ensurepip
-pypy3 -m pip install intervaltree==3.0.2
 pypy3 -m pip install mpmath==1.2.1
 
 # install python packages in environment
 pip3 install tensorflow==2.2.0
-pip3 install intervaltree==3.0.2  tensorflow-addons==0.11.2 tables==3.6.1
+pip3 tensorflow-addons==0.11.2 tables==3.6.1
 conda install -c anaconda pigz==2.4 -y
 conda install -c conda-forge parallel=20191122 zstd=1.4.4 -y
 conda install -c conda-forge -c bioconda samtools=1.10 -y
@@ -212,25 +243,25 @@ tar -zxvf clair3_models.tar.gz -C ./models
 # run clair3
 ./run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path=`pwd`"/models/ont" \    ## model path prefix, change platform accordingly
   --output=${OUTPUT_DIR}               ## output path prefix
 ```
 
-### Option 4. Docker Dockerfile
+### Option 5. Docker Dockerfile
 
 This is the same as option 1 except that you are building a docker image yourself. Please refer to option 1 for usage. 
 
 ```bash
-BIN_VERSION="v0.1-r3"
+BIN_VERSION="v0.1-r4"
 
 # clone Clair3
 git clone https://github.com/hku-bal/Clair3.git
 cd Clair3
 
-# build a docker image named hkubal/clair3:v0.1-r3
+# build a docker image named hkubal/clair3:v0.1-r4
 # might require docker authentication to build docker image 
 docker build -f ./Dockerfile -t hkubal/clair3:"${BIN_VERSION}" .
 
@@ -311,7 +342,7 @@ CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r3"
+BIN_VERSION="v0.1-r4"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -319,7 +350,7 @@ docker run -it \
   hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
@@ -334,7 +365,7 @@ KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. /home/user1/known_variants.vcf.gz 
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r3"
+BIN_VERSION="v0.1-r4"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -342,7 +373,7 @@ docker run -it \
   hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
@@ -369,7 +400,7 @@ BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed (absolute path
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r3"
+BIN_VERSION="v0.1-r4"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -377,7 +408,7 @@ docker run -it \
   hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
@@ -391,7 +422,7 @@ docker run -it \
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r3"
+BIN_VERSION="v0.1-r4"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -399,7 +430,7 @@ docker run -it \
   hkubal/clair3:"${BIN_VERSION}" \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference name here
+  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
@@ -459,13 +490,14 @@ Please find more details about the training data and links at [Training Data](do
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
-|       File        |  Platform   |                       Training samples                       | Included in the docker image | Release |   Date   | Basecaller |                             Link                             |
-| :---------------: | :---------: | :----------------------------------------------------------: | :--------------------------: | :-----: | :------: | :--------: | :----------------------------------------------------------: |
-|    ont.tar.gz     |     ONT     |                         HG001,2,4,5                          |             Yes              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
-|  ont_1235.tar.gz  |     ONT     |                         HG001,2,3,5                          |                              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
-| ont_guppy5.tar.gz |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) |             Yes              |    1    | 20210609 |   Guppy5   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy5.tar.gz) |
-|    hifi.tar.gz    | PacBio HiFi |                         HG001,2,4,5                          |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|    ilmn.tar.gz    |  Illumina   |                         HG001,2,4,5                          |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+|       File        |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image | Release |   Date   | Basecaller |                             Link                             |
+| :---------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :-----: | :------: | :--------: | :----------------------------------------------------------: |
+|    ont.tar.gz     |     ONT     |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
+|  ont_1235.tar.gz  |     ONT     |                         HG001,2,3,5                          |                                  |                              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
+| ont_guppy5.tar.gz |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) | Yes                              |             Yes              |    1    | 20210609 |   Guppy5   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy5.tar.gz) |
+| ont_guppy2.tar.gz |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              |    1    | 20210627 |   Guppy2   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy2.tar.gz) |
+|    hifi.tar.gz    | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|    ilmn.tar.gz    |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
 ----
 
