@@ -6,7 +6,7 @@
 
 # Clair3 - Integrating pileup and full-alignment for high-performance long-read variant calling
 
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/clair3/README.html)
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)  [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/clair3/README.html)
 
 Contact: Ruibang Luo  
 
@@ -26,7 +26,7 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 We are actively fixing bugs and issues in Clair3 reported by users.
 
-*v0.1-r4 (Jun 28)* : 1. Install via [bioconda](#option-3--bioconda). 2. Added an ONT Guppy2 model to the images (`ont_guppy2`). Click [here](docs/guppy2.md) for more benchmarking results. The results show you have to use the Guppy2 model for Guppy2 or earlier data. 3. Added [google colab notebooks](colab) for quick demo. 4. Fixed a bug then there are too few variant candidates ([#28](https://github.com/HKU-BAL/Clair3/issues/28)). 
+*v0.1-r4 (Jun 28)* : 1. Install via [bioconda](#option-3--bioconda). 2. Added an ONT Guppy2 model to the images (`ont_guppy2`). Click [here](docs/guppy2.md) for more benchmarking results. **The results show you have to use the Guppy2 model for Guppy2 or earlier data**. 3. Added [google colab notebooks](colab) for quick demo. 4. Fixed a bug when there are too few variant candidates ([#28](https://github.com/HKU-BAL/Clair3/issues/28)). 
 
 *v0.1-r3 (Jun 9)* : 1. Added `ulimit -u` (max user processes) check (lowers the `THREADS` if the resource is insufficient) and automatic retries on failed jobs ([#20](https://github.com/HKU-BAL/Clair3/issues/20), [#23](https://github.com/HKU-BAL/Clair3/issues/23), [#24](https://github.com/HKU-BAL/Clair3/issues/24)). 2. Added an ONT Guppy5 model to the images (`ont_guppy5`). Click [here](docs/guppy5.md) for more benchmarks on the Guppy5 model and data.
 
@@ -59,8 +59,8 @@ We are actively fixing bugs and issues in Clair3 reported by users.
 * [Usage](#usage)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
 * [Pre-trained Models](#pre-trained-models)
-  * [Guppy5 Model](docs/guppy5.md)
   * [Guppy3-4 Model](#pre-trained-models)
+  * [Guppy5 Model](docs/guppy5.md)
   * [Guppy2 Model](docs/guppy2.md)
 * [Training Data](docs/training_data.md)
 * [VCF/GVCF Output Formats](#vcfgvcf-output-formats)
