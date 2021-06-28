@@ -52,10 +52,10 @@ print_help_messages()
 
 print_version()
 {
-    VERSION='v0.1-r3'
+    VERSION='v0.1-r4'
     echo "Clair3 ${VERSION}"
 
-    exit 1
+    exit 0
 }
 
 ERROR="\\033[31m[ERROR]"
@@ -134,14 +134,14 @@ while true; do
     --no_phasing_for_fa ) NO_PHASING=True; shift 1 ;;
 
     -- ) shift; break; ;;
-    -h|--help ) print_help_messages; exit 1 ;;
-    -v|--version ) print_version; exit 1 ;;
+    -h|--help ) print_help_messages; exit 0 ;;
+    -v|--version ) print_version; exit 0 ;;
     * ) print_help_messages; break ;;
    esac
 done
 
 if [ -z ${BAM_FILE_PATH} ] || [ -z ${REFERENCE_FILE_PATH} ] || [ -z ${THREADS} ] || [ -z ${OUTPUT_FOLDER} ] || [ -z ${PLATFORM} ] || [ -z ${MODEL_PATH} ]; then
-      if [ -z ${BAM_FILE_PATH} ] && [ -z ${REFERENCE_FILE_PATH} ] && [ -z ${THREADS} ] && [ -z ${OUTPUT_FOLDER} ] && [ -z ${PLATFORM} ] && [ -z ${MODEL_PATH} ]; then print_help_messages; exit 1; fi
+      if [ -z ${BAM_FILE_PATH} ] && [ -z ${REFERENCE_FILE_PATH} ] && [ -z ${THREADS} ] && [ -z ${OUTPUT_FOLDER} ] && [ -z ${PLATFORM} ] && [ -z ${MODEL_PATH} ]; then print_help_messages; exit 0; fi
       if [ -z ${BAM_FILE_PATH} ]; then echo -e "${ERROR} Require to define index BAM input by --bam_fn=BAM${NC}"; fi
       if [ -z ${REFERENCE_FILE_PATH} ]; then echo -e "${ERROR} Require to define FASTA reference file input by --ref_fn=REF${NC}"; fi
       if [ -z ${THREADS} ]; then echo -e "${ERROR} Require to define max threads to be used by --threads=THREADS${NC}"; fi
@@ -184,6 +184,7 @@ echo "[INFO] THREADS: ${THREADS}"
 echo "[INFO] BED FILE PATH: ${BED_FILE_PATH}"
 echo "[INFO] VCF FILE PATH: ${VCF_FILE_PATH}"
 echo "[INFO] CONTIGS: ${CONTIGS}"
+echo "[INFO] CONDA PREFIX: ${CONDA_PREFIX}"
 echo "[INFO] SAMTOOLS PATH: ${SAMTOOLS}"
 echo "[INFO] PYTHON PATH: ${PYTHON}"
 echo "[INFO] PYPY PATH: ${PYPY}"
@@ -213,6 +214,7 @@ if [ ! -f ${REFERENCE_FILE_PATH}.fai ] && [ ! -f ${REFERENCE_FILE_PATH%.*}.fai ]
 
 if [ "${BED_FILE_PATH}" != "EMPTY" ] && [ ! -z ${BED_FILE_PATH} ] && [ ! -f ${BED_FILE_PATH} ]; then echo -e "${ERROR} BED file ${BED_FILE_PATH} provides but not found${NC}"; exit 1; fi
 if [ "${VCF_FILE_PATH}" != "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [ ! -f ${VCF_FILE_PATH} ]; then echo -e "${ERROR} VCF file ${VCF_FILE_PATH} provides but not found${NC}"; exit 1; fi
+if [ ! -d ${MODEL_PATH} ] && [ -z ${CONDA_PREFIX} ]; then echo -e "${ERROR} Conda prefix not found, please activate clair3 conda environment first, model path: ${MODEL_PATH}${NC}"; exit 1; fi
 if [ ! -d ${MODEL_PATH} ]; then echo -e "${ERROR} Model path not found${NC}"; exit 1; fi
 
 # max threads detection
