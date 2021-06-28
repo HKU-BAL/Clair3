@@ -34,10 +34,9 @@ ENV CONDA_DEFAULT_ENV clair3
 RUN /bin/bash -c "source activate clair3" && \
     conda install -c conda-forge pypy3.6 -y && \
     pypy3 -m ensurepip && \
-    pypy3 -m pip install intervaltree==3.0.2 && \
     pypy3 -m pip install mpmath==1.2.1 && \
     pip install tensorflow-cpu==2.2.0 && \
-    pip install intervaltree==3.0.2  tensorflow-addons==0.11.2 tables==3.6.1 && \
+    pip install tensorflow-addons==0.11.2 tables==3.6.1 && \
     conda install -c anaconda pigz==2.4 -y && \
     conda install -c conda-forge parallel=20191122 zstd=1.4.4 -y && \
     conda install -c conda-forge -c bioconda samtools=1.10 -y && \
