@@ -22,7 +22,7 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 ---
 
-## Lastest Updates
+## Latest Updates
 
 We are actively fixing bugs and issues in Clair3 reported by users.
 
@@ -62,7 +62,7 @@ We are actively fixing bugs and issues in Clair3 reported by users.
   * [Guppy5 Model](docs/guppy5.md)
   * [Guppy3-4 Model](#pre-trained-models)
   * [Guppy2 Model](docs/guppy2.md)
-* [Training Data](#training-data)
+* [Training Data](docs/training_data.md)
 * [VCF/GVCF Output Formats](#vcfgvcf-output-formats)
 * [Pileup Model Training](docs/pileup_training.md)
 * [Full-Alignment Model Training](docs/full_alignment_training.md)
