@@ -3,7 +3,7 @@
 *Jun 28, 2021.*  The ONT model trained with Guppy3 and Guppy4 data performed even worse than Clair on Guppy2 data. We collected and trained a model specially for reads basecalled using Guppy2 or prior. The new model is available [here](https://github.com/HKU-BAL/Clair3#pre-trained-models) (first released with `v0.1-r4`). Below are some benchmarks (GIAB v4.2.1) showing a signficiant improvement when using the correct model for your data.
 
 | Model/Caller    | Testing<br>Dataset      | Overall-<br>Precision | Overall-<br>Recall | Overall-<br>F1 | SNP-<br>Precision | SNP-<br>Recall | SNP-<br>F1 | Indel-<br>Precision | Indel-<br>Recall | Indel-<br>F1 |
-| --------------- | ----------------------- | ---------- | -------- | --------------------- | ------------------ | -------------- | ----------------- | -------------- | ---------- | ------------------- | ---------------- | ------------ |
+| --------------- | ----------------------- | --------------------- | ------------------ | -------------- | ----------------- | -------------- | ---------- | ------------------- | ---------------- | ------------ |
 | Guppy2 model    | Guppy2 HG002 chr20 ~64x |  98.365%               | 92.406%            | 95.292%        | 99.541%           | 99.080%        | 99.310%    | 85.847%             | 50.107%          | 63.279%      |
 | Guppy3,4 model  | Guppy2 HG002 chr20 ~64x |  72.329%               | 90.896%            | 80.556%        | 99.337%           | 98.536%        | 98.935%    | 14.648%             | 42.475%          | 21.784%      |
 | Guppy2 model    | Guppy4 HG002 chr20 ~64x |  86.897%               | 92.707%            | 89.708%        | 97.983%           | 99.579%        | 98.775%    | 35.773%             | 49.156%          | 41.410%      |
