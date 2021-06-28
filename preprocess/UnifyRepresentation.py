@@ -1252,7 +1252,7 @@ def UnifyRepresentation(args):
         return
     if output_vcf_fn is not None:
         for pos, vcf_info in rescue_dict.items():
-            print(vcf_info,file=output_vcf_fn)
+            print(vcf_info, file=output_vcf_fn)
         output_vcf_fn.close()
 
     if os.path.exists(args.output_vcf_fn):

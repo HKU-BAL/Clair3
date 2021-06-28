@@ -7,13 +7,13 @@ from subprocess import PIPE
 from os.path import isfile
 from argparse import ArgumentParser, SUPPRESS
 from collections import defaultdict
-from intervaltree import IntervalTree
 
 import shared.param_f as param
 from shared.utils import file_path_from, subprocess_popen, reference_sequence_from, \
     IUPAC_base_to_ACGT_base_dict as BASE2ACGT, IUPAC_base_to_num_dict as BASE2NUM
 
 from shared.interval_tree import bed_tree_from
+from shared.intervaltree.intervaltree import IntervalTree
 
 min_dbg_mapping_quality = min_dbg_base_quality = 20
 region_expansion_in_bp = expand_align_ref_region = 20

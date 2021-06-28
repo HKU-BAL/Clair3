@@ -3,7 +3,8 @@ import os
 import sys
 from argparse import ArgumentParser, SUPPRESS
 from collections import defaultdict
-from intervaltree import IntervalTree
+from shared.intervaltree.intervaltree import IntervalTree
+
 
 import shared.param_f as param
 from shared.utils import subprocess_popen

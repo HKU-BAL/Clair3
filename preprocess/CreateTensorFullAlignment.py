@@ -8,12 +8,12 @@ from subprocess import PIPE
 from os.path import isfile
 from argparse import ArgumentParser, SUPPRESS
 from collections import Counter, defaultdict, OrderedDict
-from intervaltree import IntervalTree
 
 import shared.param_f as param
 from shared.utils import subprocess_popen, file_path_from, IUPAC_base_to_num_dict as BASE2NUM, region_from, \
     reference_sequence_from, str2bool, vcf_candidates_from
 from shared.interval_tree import bed_tree_from, is_region_in
+from shared.intervaltree.intervaltree import IntervalTree
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 BASES = set(list(BASE2NUM.keys()) + ["-"])
@@ -296,6 +296,8 @@ def generate_tensor(ctg_name, center_pos, sorted_read_name_list, pileup_dict, re
     tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
     reference_base = ref_seq[flanking_base_num]
     tensor_depth = len(sorted_read_name_list)
+    if tensor_depth == 0:
+        return None, None
     tensor = [[[0] * tensor_shape[2] for _ in range(tensor_shape[1])] for _ in range(tensor_depth)]
     start_pos, end_pos = center_pos - flanking_base_num, center_pos + flanking_base_num + 1
     insert_tuple = []
@@ -657,9 +659,14 @@ def CreateTensorFullAlignment(args):
 
             if phasing_info_in_bam:
                 phasing_info = columns[8].split(',')
-                for hap_idx, hap in enumerate(phasing_info):
-                    if hap in '12' and read_name_list[hap_idx] not in hap_dict:
-                        hap_dict[read_name_list[hap_idx]] = int(hap)
+                # https://github.com/HKU-BAL/Clair3/issues/32, skip adding phase info when BAM phase info lacks
+                # add read name list size check in following steps
+                if len(read_name_list) != len(phasing_info):
+                    continue
+                else:
+                    for hap_idx, hap in enumerate(phasing_info):
+                        if hap in '12' and read_name_list[hap_idx] not in hap_dict:
+                            hap_dict[read_name_list[hap_idx]] = int(hap)
 
             if len(read_name_list) != len(base_list):
                 continue

@@ -6,9 +6,10 @@ import os
 
 from argparse import ArgumentParser, SUPPRESS
 from collections import defaultdict
-from intervaltree import IntervalTree
+
+from shared.intervaltree.intervaltree import IntervalTree
 import shared.param_f as param
-from shared.utils import subprocess_popen, IUPAC_base_to_num_dict as BASE2NUM, region_from, reference_sequence_from, str2bool, log_warning
+from shared.utils import subprocess_popen, IUPAC_base_to_num_dict as BASE2NUM, region_from, reference_sequence_from, str2bool
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 

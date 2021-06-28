@@ -1,4 +1,3 @@
-import mpmath as math
 from cffi import FFI
 import logging
 import os
@@ -7,7 +6,13 @@ import re
 logging.getLogger().setLevel(logging.INFO)
 from shared.utils import file_path_from
 
-           
+try:
+    import mpmath as math
+except ImportError:
+    import math
+
+LOG_10 = 2.3025
+LOG_2 = 0.3010
 
 class gvcfGenerator(object):
 
@@ -15,8 +20,6 @@ class gvcfGenerator(object):
 
         self.reference_file_path = ref_path
         self.samtools = samtools
-
-        
         pass
 
     def readCalls(self, callPath, callType='variant', ctgName=None, ctgStart=None, ctgEnd=None):
@@ -300,10 +303,10 @@ class variantInfoCalculator(object):
 
         # default p_error is 0.001, while it could be set by the users' option
         self.p_error = p_err
-        self.LOG_10 = math.log(10.0)
+        self.LOG_10 = LOG_10
         self.logp = math.log(self.p_error) / self.LOG_10
         self.log1p = math.log1p(-self.p_error) / self.LOG_10
-        self.LOG_2 = math.log(2) / self.LOG_10
+        self.LOG_2 = LOG_2
         # need to check with the clair3 settings
         #self.max_gq = 255
         self.max_gq = 50
@@ -602,7 +605,7 @@ class mathcalculator(object):
 
     def __init__(self,speedUp=True):
 
-        self.LOG_10 = math.log(10.0)
+        self.LOG_10 = LOG_10
         self.maxPhredScore = 255
         self.speedUp = speedUp
         if(speedUp):
@@ -621,7 +624,7 @@ class mathcalculator(object):
         self.lib = self.ffi.verify("""
                         #include<math.h>
                         #include<stdio.h>
-                        double LOG_10 = log(10.0);
+                        double LOG_10 = 2.3025;
                         double log10p_to_phred(double log10p){
                             double ptrue;
                             ptrue = pow(10,log10p);
