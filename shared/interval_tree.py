@@ -1,6 +1,6 @@
 import shlex
 import sys
-from intervaltree import IntervalTree
+from shared.intervaltree.intervaltree import IntervalTree
 
 from shared.utils import subprocess_popen
 
