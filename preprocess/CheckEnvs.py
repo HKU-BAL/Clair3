@@ -47,7 +47,7 @@ def check_version(tool, pos=None, is_pypy=False):
 
 def check_python_path():
     python_path = subprocess.run("which python", stdout=subprocess.PIPE, shell=True).stdout.decode().rstrip()
-    sys.exit("[ERROR] Current python execution path: {}".format(python_path))
+    sys.exit(log_error("[ERROR] Current python execution path: {}".format(python_path)))
 
 def check_tools_version(tool_version, required_tool_version):
     for tool, version in tool_version.items():
