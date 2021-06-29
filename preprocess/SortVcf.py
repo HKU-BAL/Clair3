@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 from sys import stdin, exit
 from argparse import ArgumentParser
@@ -7,6 +8,13 @@ from collections import defaultdict
 from shared.utils import log_error, log_warning, file_path_from
 major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] + [str(a) for a in
                                                                                    list(range(1, 23)) + ["X", "Y"]]
+
+
+def compress_index_vcf(input_vcf):
+    # use bgzip to compress vcf -> vcf.gz
+    # use tabix to index vcf.gz
+    proc = subprocess.run('bgzip -f {}'.format(input_vcf), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run('tabix -f -p vcf {}.gz'.format(input_vcf), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 def output_header(output_fn, reference_file_path, sample_name='SAMPLE'):
     output_file = open(output_fn, "w")
@@ -36,15 +44,14 @@ def output_header(output_fn, reference_file_path, sample_name='SAMPLE'):
     output_file.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s' % (sample_name))
     output_file.close()
 
-def print_calling_step(vcf_fn_prefix):
-    if vcf_fn_prefix == 'pileup':
-        print (log_warning("[WARNING] Exit in pileup variant calling"))
-    elif vcf_fn_prefix == 'full-alignment':
-        print (log_warning("[WARNING] Exit in full-alignment variant calling"))
-    elif vcf_fn_prefix == 'merge':
-        print (log_warning("[WARNING] Exit in variant merging"))
-    else:
-        print (log_warning("[WARNING] Finish variant calling"))
+def print_calling_step(output_fn=""):
+
+    merge_output = os.path.join(os.path.dirname(output_fn), 'merge_output.vcf.gz')
+    pileup_output = os.path.join(os.path.dirname(output_fn), 'pileup.vcf.gz')
+
+    print (log_warning("[WARNING] Copying pileup.vcf.gz to {}".format(merge_output)))
+    subprocess.run('cp {} {}'.format(pileup_output, merge_output), shell=True, stdout=subprocess.PIPE,
+                   stderr=subprocess.PIPE)
 
 def sort_vcf_from_stdin(args):
     """
@@ -67,9 +74,9 @@ def sort_vcf_from_stdin(args):
         contig_dict[ctg_name][int(pos)] = row
         no_vcf_output = False
     if row_count == 0:
-        exit(log_error("[ERROR] No vcf file found, please check the setting"))
+        print(log_warning("[WARNING] No vcf file found, please check the setting"))
     if no_vcf_output:
-        exit(log_error("[ERROR] No variant found, please check the setting"))
+        print(log_warning("[WARNING] No variant found, please check the setting"))
 
     contigs_order = major_contigs_order + list(contig_dict.keys())
     contigs_order_list = sorted(contig_dict.keys(), key=lambda x: contigs_order.index(x))
@@ -102,8 +109,8 @@ def sort_vcf_from(args):
             output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
             print (log_warning(
                 "[WARNING] No vcf file found with prefix:{}/{}, output empty vcf file".format(input_dir,vcf_fn_prefix)))
-            print_calling_step(vcf_fn_prefix)
-            exit(1)
+            print_calling_step(output_fn=output_fn)
+            compress_index_vcf(output_fn)
             return
 
     if vcf_fn_suffix is not None:
@@ -112,8 +119,8 @@ def sort_vcf_from(args):
             output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
             print (log_warning(
                 "[WARNING] No vcf file found with suffix:{}/{}, output empty vcf file".format(input_dir,vcf_fn_prefix)))
-            print_calling_step(vcf_fn_prefix)
-            exit(1)
+            print_calling_step(output_fn=output_fn)
+            compress_index_vcf(output_fn)
             return
 
     row_count = 0
@@ -133,18 +140,28 @@ def sort_vcf_from(args):
             contig_dict[ctg_name][int(pos)] = row
             no_vcf_output = False
     if row_count == 0:
-        exit(log_error("[ERROR] No vcf file found, please check the setting"))
+        print (log_warning("[WARNING] No vcf file found, output empty vcf file"))
+        output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
+        print_calling_step(output_fn=output_fn)
+        compress_index_vcf(output_fn)
+        return
     if no_vcf_output:
-        exit(log_error("[ERROR] No variant found, please check the setting"))
+        output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
+        print (log_warning("[WARNING] No variant found, output empty vcf file"))
+        print_calling_step(output_fn=output_fn)
+        compress_index_vcf(output_fn)
+        return
 
     contigs_order = major_contigs_order + list(contig_dict.keys())
     contigs_order_list = sorted(contig_dict.keys(), key=lambda x: contigs_order.index(x))
-    with open(args.output_fn, 'w') as output:
+    with open(output_fn, 'w') as output:
         output.write(''.join(header))
         for contig in contigs_order_list:
             all_pos = sorted(contig_dict[contig].keys())
             for pos in all_pos:
                 output.write(contig_dict[contig][pos])
+
+    compress_index_vcf(output_fn)
 
 
 def main():

@@ -6,7 +6,7 @@ import logging
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 
-from shared.utils import subprocess_popen, str2bool
+from shared.utils import subprocess_popen, str2bool, log_error, log_warning
 import shared.param_f as param
 from shared.interval_tree import bed_tree_from, is_region_in
 from preprocess.utils import gvcfGenerator
@@ -57,12 +57,24 @@ def MarkLowQual(row, quality_score_for_pass, qual):
 
 def MergeVcf_illumina(args):
     # region vcf merge for illumina, as read realignment will make candidate varaints shift and missing.
-    bed_fn = args.bed_fn
+    bed_fn_prefix = args.bed_fn_prefix
     output_fn = args.output_fn
     full_alignment_vcf_fn = args.full_alignment_vcf_fn
     pileup_vcf_fn = args.pileup_vcf_fn  # true vcf var
     contig_name = args.ctgName
     QUAL = args.qual
+    bed_fn = None
+    if not os.path.exists(bed_fn_prefix):
+        exit(log_error("[ERROR] Input directory: {} not exists!").format(bed_fn_prefix))
+
+    all_files = os.listdir(bed_fn_prefix)
+    all_files = [item for item in all_files if item.startswith(contig_name + '.')]
+    if len(all_files) != 0:
+        bed_fn = os.path.join(bed_fn_prefix, "full_aln_regions_{}".format(contig_name))
+        with open(bed_fn, 'w') as output_file:
+            for file in all_files:
+                f = open(os.path.join(bed_fn_prefix, file)).read()
+                output_file.write(f)
 
     is_haploid_precise_mode_enabled = args.haploid_precise
     is_haploid_sensitive_mode_enabled = args.haploid_sensitive
@@ -286,8 +298,8 @@ def main():
     parser.add_argument('--ctgEnd', type=int, default=None,
                         help="The 1-based inclusive ending position of the sequence to be processed")
 
-    parser.add_argument('--bed_fn', type=str, default=None,
-                        help="Process variant only in the provided regions")
+    parser.add_argument('--bed_fn_prefix', type=str, default=None,
+                        help="Process variant only in the provided regions prefix")
 
     parser.add_argument('--qual', type=int, default=2,
                         help="If set, variants with >=$qual will be marked 'PASS', or 'LowQual' otherwise, optional")

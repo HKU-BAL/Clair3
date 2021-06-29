@@ -13,6 +13,7 @@ def select_phase_qual_from_stdin(args):
     Select a global quality cut-off for phasing and reads haplotag.
     """
 
+    var_pct_full = args.var_pct_full
     phase_qual_list = []
     for row in stdin:
         if row[0] == '#':
@@ -29,7 +30,15 @@ def select_phase_qual_from_stdin(args):
 
     # in phase mode, var_pct_full is the proportion of low-quality heterozygous variants to be discarded for whatshap phasing
     phase_qual_list = sorted(phase_qual_list)
-    qual_cut_off = phase_qual_list[:int(args.var_pct_full * len(phase_qual_list))][-1]
+    low_phase_qual_list = phase_qual_list[:int(var_pct_full * len(phase_qual_list))]
+    if len(low_phase_qual_list) == 0:
+        print(log_warning(
+            "[WARNING] Cannot find any 0/1 variant in pileup output using variant quality cut-off proportion: {}, total heterozygous variants: {}".format(
+                var_pct_full, len(low_phase_qual_list))))
+        print(log_warning("[WARNING] Set low variant quality score cut-off to 0.0"))
+        qual_cut_off = 0.0
+    else:
+        qual_cut_off = low_phase_qual_list[-1]
     print ('[INFO] Select phasing quality cut off {}'.format(round(qual_cut_off), 0))
 
     if args.output_fn:
