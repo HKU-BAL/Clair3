@@ -109,8 +109,8 @@ def sort_vcf_from(args):
             output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
             print (log_warning(
                 "[WARNING] No vcf file found with prefix:{}/{}, output empty vcf file".format(input_dir,vcf_fn_prefix)))
-            print_calling_step(output_fn=output_fn)
             compress_index_vcf(output_fn)
+            print_calling_step(output_fn=output_fn)
             return
 
     if vcf_fn_suffix is not None:
@@ -119,8 +119,8 @@ def sort_vcf_from(args):
             output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
             print (log_warning(
                 "[WARNING] No vcf file found with suffix:{}/{}, output empty vcf file".format(input_dir,vcf_fn_prefix)))
-            print_calling_step(output_fn=output_fn)
             compress_index_vcf(output_fn)
+            print_calling_step(output_fn=output_fn)
             return
 
     row_count = 0
@@ -142,14 +142,14 @@ def sort_vcf_from(args):
     if row_count == 0:
         print (log_warning("[WARNING] No vcf file found, output empty vcf file"))
         output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
-        print_calling_step(output_fn=output_fn)
         compress_index_vcf(output_fn)
+        print_calling_step(output_fn=output_fn)
         return
     if no_vcf_output:
         output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
         print (log_warning("[WARNING] No variant found, output empty vcf file"))
-        print_calling_step(output_fn=output_fn)
         compress_index_vcf(output_fn)
+        print_calling_step(output_fn=output_fn)
         return
 
     contigs_order = major_contigs_order + list(contig_dict.keys())
