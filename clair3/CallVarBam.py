@@ -20,7 +20,7 @@ from shared.command_options import (
     command_string_from,
     command_option_from
 )
-from shared.utils import file_path_from, executable_command_string_from, subprocess_popen, str2bool
+from shared.utils import file_path_from, executable_command_string_from, subprocess_popen, str2bool, log_warning
 import shared.param_p as param
 
 
@@ -72,7 +72,14 @@ def Run(args):
     samtoolsBin = executable_command_string_from(args.samtools, exit_on_not_found=True)
 
     chkpnt_fn = args.chkpnt_fn
-    bam_fn = file_path_from(args.bam_fn, exit_on_not_found=True)
+    if args.pileup:
+        bam_fn = file_path_from(args.bam_fn, exit_on_not_found=True)
+    else:
+        bam_fn = file_path_from(args.bam_fn)
+        if bam_fn is None or bam_fn == "":
+            print(log_warning(
+                "[WARNING] Skip full-alignment variant calling for empty full-alignment regions"))
+            return
     ref_fn = file_path_from(args.ref_fn, exit_on_not_found=True)
     bed_fn = file_path_from(args.bed_fn)
     vcf_fn = file_path_from(args.vcf_fn)
@@ -407,7 +414,7 @@ def main():
     ## Wait a short while for no more than a few seconds to start the job. This is to avoid starting multiple jobs simultaneously
     ## that might use up the maximum number of threads allowed, because Tensorflow will create more threads than needed at the beginning of running the program
     ## Obseleted after adding --tensorflow_threads defaulted at 4
-    parser.add_argument('--delay', type=int, default=10,
+    parser.add_argument('--delay', type=int, default=5,
                         help=SUPPRESS)
 
     ## Provide the regions to be included in full-alignment based calling
