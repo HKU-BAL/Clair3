@@ -131,7 +131,6 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
     --temp_file_dir ${GVCF_TMP_PATH} \
     --pileup" :::: ${OUTPUT_FOLDER}/tmp/CHUNK_LIST |& tee ${LOG_PATH}/1_call_var_bam_pileup.log
 
-
 echo "[INFO] Merge chunked contigs vcf files"
 ${PYPY} ${CLAIR3} SortVcf \
     --input_dir ${PILEUP_VCF_PATH} \
@@ -140,9 +139,7 @@ ${PYPY} ${CLAIR3} SortVcf \
     --sampleName ${SAMPLE} \
     --ref_fn ${REFERENCE_FILE_PATH}
 
-bgzip -f ${OUTPUT_FOLDER}/pileup.vcf
-tabix -f -p vcf ${OUTPUT_FOLDER}/pileup.vcf.gz
-
+if [ "$( gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in pileup variant calling"; exit 0; fi
 if [ ${PILEUP_ONLY} == True ]; then
     echo "[INFO] Only call pileup output with --pileup_only, output file: ${OUTPUT_FOLDER}/pileup.vcf.gz"
     echo "[INFO] Finish calling!"
@@ -225,26 +222,22 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_b
     --samtools ${SAMTOOLS} \
     --platform ${PLATFORM}" :::: ${CANDIDATE_BED_PATH}/FULL_ALN_FILES |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
 
-##Merge pileup and full alignment vcf
-##-----------------------------------------------------------------------------------------------------------------------
 ${PYPY} ${CLAIR3} SortVcf \
     --input_dir ${FULL_ALIGNMENT_OUTPUT_PATH} \
     --vcf_fn_prefix "full_alignment" \
     --output_fn ${OUTPUT_FOLDER}/full_alignment.vcf \
     --sampleName ${SAMPLE} \
     --ref_fn ${REFERENCE_FILE_PATH}
-
-cat ${CANDIDATE_BED_PATH}/*.* > ${CANDIDATE_BED_PATH}/full_aln_regions
-bgzip -f ${OUTPUT_FOLDER}/full_alignment.vcf
-tabix -f -p vcf ${OUTPUT_FOLDER}/full_alignment.vcf.gz
+if [ "$( gzip -fdc ${OUTPUT_FOLDER}/full_alignment.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in full-alignment variant calling"; exit 0; fi
 if [ ${GVCF} == True ]; then cat ${GVCF_TMP_PATH}/*.tmp.g.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${GVCF_TMP_PATH}/non_var.gvcf; fi
 
-
+##Merge pileup and full alignment vcf
+##-----------------------------------------------------------------------------------------------------------------------
 echo "[INFO] 7/7 Merge pileup vcf and full alignment vcf"
 time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_7_merge_vcf.log -j${THREADS} \
 "${PYPY} ${CLAIR3} MergeVcf \
     --pileup_vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
-    --bed_fn ${CANDIDATE_BED_PATH}/full_aln_regions \
+    --bed_fn_prefix ${CANDIDATE_BED_PATH} \
     --full_alignment_vcf_fn ${OUTPUT_FOLDER}/full_alignment.vcf.gz \
     --output_fn ${TMP_FILE_PATH}/merge_output/merge_{1}.vcf \
     --platform ${PLATFORM} \
@@ -264,8 +257,7 @@ ${PYPY} ${CLAIR3} SortVcf \
     --sampleName ${SAMPLE} \
     --ref_fn ${REFERENCE_FILE_PATH}
 
+if [ "$( gzip -fdc ${OUTPUT_FOLDER}/merge_output.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in variant merging"; exit 0; fi
 if [ ${GVCF} == True ]; then cat ${TMP_FILE_PATH}/merge_output/merge_*.gvcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_FOLDER}/merge_output.gvcf; fi
-bgzip -f ${OUTPUT_FOLDER}/merge_output.vcf
-tabix -f -p vcf ${OUTPUT_FOLDER}/merge_output.vcf.gz
 
 echo "[INFO] Finish calling, output file: ${OUTPUT_FOLDER}/merge_output.vcf.gz"
