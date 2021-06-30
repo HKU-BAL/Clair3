@@ -76,11 +76,11 @@ export OPENBLAS_NUM_THREADS=1
 export GOTO_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
-echo "[INFO] Check envrionment variables"
+echo "[INFO] Check environment variables"
 ${PYTHON} ${CLAIR3} CheckEnvs \
     --bam_fn ${BAM_FILE_PATH} \
     --bed_fn ${BED_FILE_PATH} \
-    --output_fn ${OUTPUT_FOLDER} \
+    --output_fn_prefix ${OUTPUT_FOLDER} \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --vcf_fn ${VCF_FILE_PATH} \
     --ctg_name ${CONTIGS} \
@@ -94,11 +94,13 @@ ${PYTHON} ${CLAIR3} CheckEnvs \
     --whatshap ${WHATSHAP} \
     --parallel ${PARALLEL} \
     --qual ${QUAL} \
+    --sampleName ${SAMPLE} \
     --var_pct_full ${PRO} \
     --ref_pct_full ${REF_PRO} \
     --snp_min_af ${SNP_AF} \
     --indel_min_af ${INDEL_AF}
 readarray -t CHR < "${OUTPUT_FOLDER}/tmp/CONTIGS"
+if [ ${#CHR[@]} -eq 0 ]; then echo "[INFO] Exit in environment checking"; exit 0; fi
 THREADS_LOW=$((${THREADS}*3/4))
 if [[ ${THREADS_LOW} < 1 ]]; then THREADS_LOW=1; fi
 
