@@ -29,10 +29,10 @@ required_tool_version = {
 }
 
 def check_version(tool, pos=None, is_pypy=False):
-
     try:
         if is_pypy:
-            proc = subprocess.run("{} -c 'import sys; print (sys.version)'".format(tool), stdout=subprocess.PIPE,shell=True)
+            proc = subprocess.run("{} -c 'import sys; print (sys.version)'".format(tool), stdout=subprocess.PIPE,
+                                  shell=True)
         else:
             proc = subprocess.run([tool, "--version"], stdout=subprocess.PIPE)
         if proc.returncode != 0:
@@ -45,9 +45,11 @@ def check_version(tool, pos=None, is_pypy=False):
 
     return version
 
+
 def check_python_path():
     python_path = subprocess.run("which python", stdout=subprocess.PIPE, shell=True).stdout.decode().rstrip()
     sys.exit(log_error("[ERROR] Current python execution path: {}".format(python_path)))
+
 
 def check_tools_version(tool_version, required_tool_version):
     for tool, version in tool_version.items():
@@ -56,10 +58,10 @@ def check_tools_version(tool_version, required_tool_version):
             print(log_error("[ERROR] {} not found, please check you are in clair3 virtual environment".format(tool)))
             check_python_path()
         elif version < required_version:
-            print (log_error("[ERROR] Tool version not match, please check you are in clair3 virtual environment"))
-            print (' '.join([str(item).ljust(10) for item in ["Tool", "Version", "Required"]]))
+            print(log_error("[ERROR] Tool version not match, please check you are in clair3 virtual environment"))
+            print(' '.join([str(item).ljust(10) for item in ["Tool", "Version", "Required"]]))
             error_info = ' '.join([str(item).ljust(10) for item in [tool, version, '>=' + str(required_version)]])
-            print (error_info)
+            print(error_info)
             check_python_path()
     return
 
@@ -78,13 +80,17 @@ def check_contig_in_bam(bam_fn, sorted_contig_list, samtools):
             contig_with_read_support_set.add(contig_name)
     for contig_name in sorted_contig_list:
         if contig_name not in contig_with_read_support_set:
-            print (log_warning(
+            print(log_warning(
                 "[WARNING] Contig name {} provided but no mapped reads in BAM, skip!".format(contig_name)))
     filtered_sorted_contig_list = [item for item in sorted_contig_list if item in contig_with_read_support_set]
 
+    found_contig = True
     if len(filtered_sorted_contig_list) == 0:
-        sys.exit(log_error("[ERROR] No mapped reads support in BAM and provided contigs set {}".format(' '.join(sorted_contig_list))))
-    return filtered_sorted_contig_list
+        found_contig = False
+        print(log_warning(
+            "[WARNING] No mapped reads support in BAM for provided contigs set {}".format(
+                ' '.join(sorted_contig_list))))
+    return filtered_sorted_contig_list, found_contig
 
 
 def split_extend_vcf(vcf_fn, output_fn):
@@ -101,7 +107,8 @@ def split_extend_vcf(vcf_fn, output_fn):
         center_pos = int(columns[1])
         ctg_start, ctg_end = center_pos - 1, center_pos
         if ctg_start < 0:
-            sys.exit(log_error("[ERROR] Invalid VCF input in {}-th row {} {} {}".format(row_id+1, ctg_name, center_pos)))
+            sys.exit(
+                log_error("[ERROR] Invalid VCF input in {}-th row {} {} {}".format(row_id + 1, ctg_name, center_pos)))
         if ctg_start - expand_region_size < 0:
             continue
         expand_ctg_start = ctg_start - expand_region_size
@@ -122,6 +129,7 @@ def split_extend_vcf(vcf_fn, output_fn):
 
     return know_vcf_contig_set
 
+
 def split_extend_bed(bed_fn, output_fn, contig_set=None):
     expand_region_size = param.no_of_positions
     output_ctg_dict = defaultdict(list)
@@ -137,7 +145,8 @@ def split_extend_bed(bed_fn, output_fn, contig_set=None):
         ctg_start, ctg_end = int(columns[1]), int(columns[2])
 
         if ctg_end < ctg_start or ctg_start < 0 or ctg_end < 0:
-            sys.exit(log_error("[ERROR] Invalid BED input in {}-th row {} {} {}".format(row_id+1, ctg_name, ctg_start, ctg_end)))
+            sys.exit(log_error(
+                "[ERROR] Invalid BED input in {}-th row {} {} {}".format(row_id + 1, ctg_name, ctg_start, ctg_end)))
         expand_ctg_start = max(0, ctg_start - expand_region_size)
         expand_ctg_end = max(0, ctg_end + expand_region_size)
         output_ctg_dict[ctg_name].append(
@@ -151,6 +160,41 @@ def split_extend_bed(bed_fn, output_fn, contig_set=None):
     unzip_process.stdout.close()
     unzip_process.wait()
 
+
+def output_header(output_fn, reference_file_path, sample_name='SAMPLE'):
+    output_file = open(output_fn, "w")
+    from textwrap import dedent
+    output_file.write(dedent("""\
+        ##fileformat=VCFv4.2
+        ##FILTER=<ID=PASS,Description="All filters passed">
+        ##FILTER=<ID=LowQual,Description="Low quality variant">
+        ##FILTER=<ID=RefCall,Description="Reference call">
+        ##INFO=<ID=P,Number=0,Type=Flag,Description="Result from pileup calling">
+        ##INFO=<ID=F,Number=0,Type=Flag,Description="Result from full-alignment calling">
+        ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+        ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+        ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+        ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
+        ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">"""
+                             ) + '\n')
+
+    if reference_file_path is not None:
+        reference_index_file_path = file_path_from(reference_file_path, suffix=".fai", exit_on_not_found=True, sep='.')
+        with open(reference_index_file_path, "r") as fai_fp:
+            for row in fai_fp:
+                columns = row.strip().split("\t")
+                contig_name, contig_size = columns[0], columns[1]
+                output_file.write(("##contig=<ID=%s,length=%s>" % (contig_name, contig_size) + '\n'))
+
+    output_file.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s' % (sample_name))
+    output_file.close()
+
+def compress_index_vcf(input_vcf):
+    # use bgzip to compress vcf -> vcf.gz
+    # use tabix to index vcf.gz
+    proc = subprocess.run('bgzip -f {}'.format(input_vcf), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run('tabix -f -p vcf {}.gz'.format(input_vcf), shell=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
 
 def CheckEnvs(args):
     basedir = os.path.dirname(__file__)
@@ -189,7 +233,10 @@ def CheckEnvs(args):
     var_pct_full = args.var_pct_full
     ref_pct_full = args.ref_pct_full
     snp_min_af = args.snp_min_af
-    indel_min_af=args.indel_min_af
+    indel_min_af = args.indel_min_af
+    sample_name = args.sampleName
+    contig_name_list = os.path.join(tmp_file_path, 'CONTIGS')
+    chunk_list = os.path.join(tmp_file_path, 'CHUNK_LIST')
 
     legal_range_from(param_name="qual", x=qual, min_num=0, exit_out_of_range=True)
     legal_range_from(param_name="var_pct_full", x=var_pct_full, min_num=0, max_num=1, exit_out_of_range=True)
@@ -197,7 +244,8 @@ def CheckEnvs(args):
     legal_range_from(param_name="snp_min_af", x=snp_min_af, min_num=0, max_num=1, exit_out_of_range=True)
     legal_range_from(param_name="indel_min_af", x=indel_min_af, min_num=0, max_num=1, exit_out_of_range=True)
     if ref_pct_full > 0.3:
-        print (log_warning("[WARNING] For efficiency, we use a maximum 30% reference candidates for full-alignment calling"))
+        print(log_warning(
+            "[WARNING] For efficiency, we use a maximum 30% reference candidates for full-alignment calling"))
     tool_version = {
         'python': LooseVersion(sys.version.split()[0]),
         'pypy': check_version(tool=pypy, pos=0, is_pypy=True),
@@ -222,10 +270,10 @@ def CheckEnvs(args):
     contig_set = set(ctg_name_list.split(',')) if is_ctg_name_list_provided else set()
 
     if is_ctg_name_list_provided and is_bed_file_provided:
-        print (log_warning("[WARNING] both --ctg_name and --bed_fn provided, will only proceed contigs in intersection"))
+        print(log_warning("[WARNING] both --ctg_name and --bed_fn provided, will only proceed contigs in intersection"))
 
     if is_ctg_name_list_provided and is_known_vcf_file_provided:
-        print (log_warning("[WARNING] both --ctg_name and --vcf_fn provided, will only proceed contigs in intersection"))
+        print(log_warning("[WARNING] both --ctg_name and --vcf_fn provided, will only proceed contigs in intersection"))
 
     if is_ctg_name_list_provided:
 
@@ -241,7 +289,6 @@ def CheckEnvs(args):
         contig_set = contig_set.union(
             know_vcf_contig_set) if is_known_vcf_file_provided else contig_set
 
-
     # if each split region is too small(long) for given default chunk num, will increase(decrease) the total chunk num
     default_chunk_num = args.chunk_num
     DEFAULT_CHUNK_SIZE = args.chunk_size
@@ -253,8 +300,9 @@ def CheckEnvs(args):
     numCpus = len(sched_getaffinity_list)
 
     if threads > numCpus:
-        print (log_warning('[WARNING] Current maximum threads {} is larger than support cpu count {}, You may set a smaller parallel threads by setting --threads=$ for better parallelism.'.format(
-            threads, numCpus)))
+        print(log_warning(
+            '[WARNING] Current maximum threads {} is larger than support cpu count {}, You may set a smaller parallel threads by setting --threads=$ for better parallelism.'.format(
+                threads, numCpus)))
 
     ## for better parallelism for create tensor and call variants, we over commit the overall threads/4 for 3 times, which is 0.75 * overall threads.
     threads_over_commit = max(4, int(threads * 0.75))
@@ -263,7 +311,9 @@ def CheckEnvs(args):
         for row in fai_fp:
             columns = row.strip().split("\t")
             contig_name, contig_length = columns[0], int(columns[1])
-            if not is_include_all_contigs and (not (is_bed_file_provided or is_ctg_name_list_provided or is_known_vcf_file_provided)) and str(contig_name) not in major_contigs:
+            if not is_include_all_contigs and (
+            not (is_bed_file_provided or is_ctg_name_list_provided or is_known_vcf_file_provided)) and str(
+                    contig_name) not in major_contigs:
                 continue
 
             if is_bed_file_provided and contig_name not in tree:
@@ -280,7 +330,6 @@ def CheckEnvs(args):
                 contig_length / float(DEFAULT_CHUNK_SIZE))
             contig_chunk_num[contig_name] = max(chunk_num, 1)
 
-
     if default_chunk_num > 0:
         min_chunk_length = min(contig_length_list) / float(default_chunk_num)
         max_chunk_length = max(contig_length_list) / float(default_chunk_num)
@@ -289,53 +338,59 @@ def CheckEnvs(args):
 
     sorted_contig_list = sorted(list(contig_set), key=lambda x: contigs_order.index(x))
 
+    found_contig = True
     if not len(contig_set):
         if is_bed_file_provided:
             all_contig_in_bed = ' '.join(list(tree.keys()))
-            print ("[ERROR] All contig in BED: {}".format(all_contig_in_bed))
-            sys.exit(log_error("[ERROR] No contig found by --bed_fn"))
-        elif is_known_vcf_file_provided:
+            print(log_warning("[WARNING] No contig intersection found by --bed_fn, contigs in BED {}: {}".format(bed_fn, all_contig_in_bed)))
+        if is_known_vcf_file_provided:
             all_contig_in_vcf = ' '.join(list(know_vcf_contig_set))
-            print ("[ERROR] All contig in BED: {}".format(all_contig_in_vcf))
-            sys.exit(log_error("[ERROR] No contig found by --vcf_fn"))
-        elif is_ctg_name_list_provided:
+            print(log_warning("[WARNING] No contig intersection found by --vcf_fn, contigs in VCF {}: {}".format(vcf_fn, all_contig_in_vcf)))
+        if is_ctg_name_list_provided:
             all_contig_in_ctg_name = ' '.join(ctg_name_list.split(','))
-            print ("[ERROR] All contig in --ctg_name: {}".format(all_contig_in_ctg_name))
-            sys.exit(log_error("[ERROR] No contig found by --ctg_name"))
-
-        sys.exit(log_error("[ERROR] No contig found!"))
+            print(log_warning("[WARNING] No contig intersection found by --ctg_name, contigs in contigs list: {}".format(all_contig_in_ctg_name)))
+        found_contig = False
     else:
         for c in sorted_contig_list:
             if c not in contig_chunk_num:
-                sys.exit(log_error("[ERROR] contig {} not found in reference fai file".format(c)))
+                print(log_warning(("[WARNING] Contig {} given but not found in reference fai file".format(c))))
 
-        #check contig in bam have support reads
-        sorted_contig_list = check_contig_in_bam(bam_fn=bam_fn, sorted_contig_list=sorted_contig_list, samtools=samtools)
+        # check contig in bam have support reads
+        sorted_contig_list, found_contig = check_contig_in_bam(bam_fn=bam_fn, sorted_contig_list=sorted_contig_list,
+                                                               samtools=samtools)
 
-        print('[INFO] Call variant in contigs: {}'.format(' '.join(sorted_contig_list)))
-        print('[INFO] Chunk number for each contig: {}'.format(
-            ' '.join([str(contig_chunk_num[c]) for c in sorted_contig_list])))
+    if not found_contig:
+        # output header only to merge_output.vcf.gz
+        output_fn = os.path.join(output_fn_prefix, "merge_output.vcf")
+        output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
+        compress_index_vcf(output_fn)
+        print(log_warning(
+            ("[WARNING] No contig intersection found, output header only in {}").format(output_fn + ".gz")))
+        with open(contig_name_list, 'w') as output_file:
+            output_file.write("")
+        return
+
+    print('[INFO] Call variant in contigs: {}'.format(' '.join(sorted_contig_list)))
+    print('[INFO] Chunk number for each contig: {}'.format(
+        ' '.join([str(contig_chunk_num[c]) for c in sorted_contig_list])))
 
     if default_chunk_num > 0 and max_chunk_length > MAX_CHUNK_LENGTH:
-        print (log_warning(
-        '[WARNING] Current maximum chunk size {} is larger than default maximum chunk size {}, You may set a larger chunk_num by setting --chunk_num=$ for better parallelism.'.format(
-            min_chunk_length, MAX_CHUNK_LENGTH)))
+        print(log_warning(
+            '[WARNING] Current maximum chunk size {} is larger than default maximum chunk size {}, You may set a larger chunk_num by setting --chunk_num=$ for better parallelism.'.format(
+                min_chunk_length, MAX_CHUNK_LENGTH)))
 
     elif default_chunk_num > 0 and min_chunk_length < MIN_CHUNK_LENGTH:
-        print (log_warning(
-        '[WARNING] Current minimum chunk size {} is smaller than default minimum chunk size {}, You may set a smaller chunk_num by setting --chunk_num=$.'.format(
-            min_chunk_length, MIN_CHUNK_LENGTH)))
+        print(log_warning(
+            '[WARNING] Current minimum chunk size {} is smaller than default minimum chunk size {}, You may set a smaller chunk_num by setting --chunk_num=$.'.format(
+                min_chunk_length, MIN_CHUNK_LENGTH)))
 
     if default_chunk_num == 0 and max(contig_length_list) < DEFAULT_CHUNK_SIZE / 5:
-        print (log_warning(
-        '[WARNING] Current maximum contig length {} is much smaller than default chunk size {}, You may set a smaller chunk size by setting --chunk_size=$ for better parallelism.'.format(
-            max(contig_length_list), DEFAULT_CHUNK_SIZE)))
-        
+        print(log_warning(
+            '[WARNING] Current maximum contig length {} is much smaller than default chunk size {}, You may set a smaller chunk size by setting --chunk_size=$ for better parallelism.'.format(
+                max(contig_length_list), DEFAULT_CHUNK_SIZE)))
+
     if is_bed_file_provided:
         split_extend_bed(bed_fn=bed_fn, output_fn=split_bed_path, contig_set=contig_set)
-
-    contig_name_list = os.path.join(tmp_file_path, 'CONTIGS')
-    chunk_list = os.path.join(tmp_file_path, 'CHUNK_LIST')
 
     with open(contig_name_list, 'w') as output_file:
         output_file.write('\n'.join(sorted_contig_list))
@@ -348,7 +403,8 @@ def CheckEnvs(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Check the environment and the validity of the input variables, preprocess the BED input if necessary")
+    parser = argparse.ArgumentParser(
+        description="Check the environment and the validity of the input variables, preprocess the BED input if necessary")
 
     parser.add_argument('--bam_fn', type=str, default=None,
                         help="BAM file input, default: %(default)s")
@@ -392,6 +448,9 @@ def main():
     parser.add_argument('--whatshap', type=str, default="whatshap",
                         help="Path to the 'whatshap', default: %(default)s")
 
+    parser.add_argument('--sampleName', type=str, default="SAMPLE",
+                        help="Define the sample name to be shown in the VCF file, optional")
+
     parser.add_argument('--qual', type=int, default=None,
                         help="If set, variants with >=$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
 
@@ -422,7 +481,7 @@ def main():
         print("[INFO] --include_all_ctgs not enabled, use chr{1..22,X,Y} and {1..22,X,Y} by default")
     elif args.include_all_ctgs:
         print("[INFO] --include_all_ctgs enabled")
-        print (log_warning("[WARNING] Please enable --no_phasing_for_fa if calling variant in non-diploid organisms"))
+        print(log_warning("[WARNING] Please enable --no_phasing_for_fa if calling variant in non-diploid organisms"))
 
     CheckEnvs(args)
 
