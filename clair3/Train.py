@@ -214,6 +214,7 @@ def train_model(args):
     early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, mode="min")
     model_save_callback = tf.keras.callbacks.ModelCheckpoint(ochk_prefix + ".{epoch:02d}", period=1, save_weights_only=False)
     model_best_callback = tf.keras.callbacks.ModelCheckpoint("best_val_loss", monitor='val_loss', save_best_only=True, mode="min")
+    train_log_callback = tf.keras.callbacks.CSVLogger("training.log", separator='\t')
 
     # Use first 20 element to initialize tensorflow model using graph mode
     output = model(np.array(table_dataset_list[0].root.position_matrix[:20]))
@@ -235,7 +236,8 @@ def train_model(args):
                               validation_data=validate_dataset,
                               callbacks=[early_stop_callback,
                                          model_save_callback,
-                                         model_best_callback],
+                                         model_best_callback,
+                                         train_log_callback],
                               verbose=1,
                               shuffle=False)
 
