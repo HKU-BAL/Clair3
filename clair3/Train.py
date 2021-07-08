@@ -153,35 +153,36 @@ def train_model(args):
 
         """
 
-        epochs = max_epoch
         chunk_iters = batch_size // chunk_size
-        batch_num = data_size // batch_size if data_size % batch_size == 0 else data_size // batch_size - 1
+        batch_num = data_size // batch_size
         position_matrix = np.empty([batch_size] + tensor_shape, np.int32)
         label = np.empty((batch_size, param.label_size), np.float32)
 
-        for epoch in range(epochs):
-            random_start_position = np.random.randint(0, batch_size) if train_flag else 0
-            if train_flag:
-                np.random.shuffle(shuffle_chunk_list)
-            for batch_idx in range(batch_num):
-                for chunk_idx in range(chunk_iters):
-                    offset_chunk_id = shuffle_chunk_list[batch_idx * chunk_iters + chunk_idx]
-                    bin_id, chunk_id = offset_chunk_id
-                    position_matrix[chunk_idx * chunk_size:(chunk_idx + 1) * chunk_size] = x[
-                                                                                               bin_id].root.position_matrix[
-                                                                                           random_start_position + chunk_id * chunk_size:random_start_position + (
-                                                                                                   chunk_id + 1) * chunk_size]
-                    label[chunk_idx * chunk_size:(chunk_idx + 1) * chunk_size] = x[bin_id].root.label[
-                                                                                 random_start_position + chunk_id * chunk_size:random_start_position + (
-                                                                                         chunk_id + 1) * chunk_size]
+        random_start_position = np.random.randint(0, batch_size) if train_flag else 0
+        if train_flag:
+            np.random.shuffle(shuffle_chunk_list)
+        for batch_idx in range(batch_num):
+            for chunk_idx in range(chunk_iters):
+                offset_chunk_id = shuffle_chunk_list[batch_idx * chunk_iters + chunk_idx]
+                bin_id, chunk_id = offset_chunk_id
+                position_matrix[chunk_idx * chunk_size:(chunk_idx + 1) * chunk_size] = x[bin_id].root.position_matrix[
+                        random_start_position + chunk_id * chunk_size:random_start_position + (chunk_id + 1) * chunk_size]
+                label[chunk_idx * chunk_size:(chunk_idx + 1) * chunk_size] = x[bin_id].root.label[
+                        random_start_position + chunk_id * chunk_size:random_start_position + (chunk_id + 1) * chunk_size]
 
-                if add_indel_length:
-                    yield position_matrix, (
-                    label[:, :label_shape_cum[0]], label[:, label_shape_cum[0]:label_shape_cum[1]],
-                    label[:, label_shape_cum[1]:label_shape_cum[2]], label[:, label_shape_cum[2]:])
-                else:
-                    yield position_matrix, (
-                    label[:, :label_shape_cum[0]], label[:, label_shape_cum[0]:label_shape_cum[1]])
+            if add_indel_length:
+                yield position_matrix, (
+                        label[:,                   :label_shape_cum[0]],
+                        label[:, label_shape_cum[0]:label_shape_cum[1]],
+                        label[:, label_shape_cum[1]:label_shape_cum[2]],
+                        label[:, label_shape_cum[2]:                  ]
+                    )
+            else:
+                yield position_matrix, (
+                        label[:,                   :label_shape_cum[0]],
+                        label[:, label_shape_cum[0]:label_shape_cum[1]]
+                    )
+
 
     train_dataset = tf.data.Dataset.from_generator(
         lambda: DataGenerator(table_dataset_list, train_data_size, train_shuffle_chunk_list, True), TensorDtype,
@@ -224,11 +225,6 @@ def train_model(args):
     logging.info("[INFO] Maximum training epoch: {}".format(max_epoch))
     logging.info("[INFO] Start training...")
 
-    no_of_training_examples = train_data_size
-    no_of_validation_examples = validate_data_size
-
-    train_steps = no_of_training_examples // param.trainBatchSize - 1
-    validate_steps = no_of_validation_examples // param.trainBatchSize - 1 if add_validation_dataset else None
     validate_dataset = validate_dataset if add_validation_dataset else None
     if args.chkpnt_fn is not None:
         model.load_weights(args.chkpnt_fn)
@@ -236,8 +232,6 @@ def train_model(args):
     train_history = model.fit(x=train_dataset,
                               epochs=max_epoch,
                               validation_data=validate_dataset,
-                              validation_steps=validate_steps,
-                              steps_per_epoch=train_steps,
                               callbacks=[early_stop_callback, model_save_callbakck],
                               verbose=1,
                               shuffle=False)
