@@ -48,12 +48,12 @@ class gvcfGenerator(object):
                         cur_variant_end = cur_variant_start - 1 + len(ref)
 
 
-                        # assumed AD at last 3 columns, add 0 to AD
+                        # assuming AD is at the columns [-3], add 0 to AD for gVCF
                         ori_info = tmp[-1].split(':')
                         ori_info[-3] += ',0'
                         tmp[-1] = ':'.join(ori_info)
 
-                        # assumed PL at last column 
+                        # assumeing PL is at the last column 
                         # add <NON_REF> to variant calls
                         tmp[4] = tmp[4] + ',<NON_REF>'
                         if (n_alt == 1):
