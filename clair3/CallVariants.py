@@ -1154,7 +1154,6 @@ def output_with(
     insert_num = sum([item for item in alt_type_list[1].values()]) if len(alt_type_list[1]) else 0
     del_num = sum([item for item in alt_type_list[2].values()]) if len(alt_type_list[2]) else 0
     ref_count = max(0, read_depth - snp_num - insert_num - del_num)
-    _if_conflict = 0
     if is_reference:
         supported_reads_count = ref_count
     elif is_homo_SNP or is_hetero_SNP:
@@ -1175,17 +1174,6 @@ def output_with(
             supported_reads_count += _read_count 
             alt_list_count.append(supported_reads_count)
 
-        ori_supported_reads_count = 0
-        if len(alt_type_list[1]) > 0:
-            if is_homo_insertion:
-                ori_supported_reads_count = sorted(list(alt_type_list[1].values()))[-1]
-            if is_hetero_InsIns and len(alt_type_list[1]) > 1:
-                sorted_alt_list_reads_count = sorted(list(alt_type_list[1].values()))
-                ori_supported_reads_count = sum(sorted_alt_list_reads_count[-2:])
-        cpm_reads_count = supported_reads_count
-        _if_conflict = ori_supported_reads_count - cpm_reads_count
-        if _if_conflict > 0:
-            print('homo_ins', chr_pos_seq, reference_base, alternate_base, genotype_string, read_depth, alt_type_list, ori_supported_reads_count, cpm_reads_count)
     elif is_hetero_ACGT_Ins:
         for _bases in alternate_base.split(','):
             if _bases[0] != reference_base[0]:
@@ -1204,13 +1192,6 @@ def output_with(
             supported_reads_count += _read_count 
             alt_list_count.append(supported_reads_count)
         
-        ori_supported_reads_count = 0
-        ori_supported_reads_count += sorted(list(alt_type_list[1].values()))[-1] if len(alt_type_list[1]) else 0
-        # cpm_reads_count = supported_reads_count
-        _if_conflict = ori_supported_reads_count - cpm_reads_count
-        if _if_conflict > 0:
-            print('het_ACGT_Ins', chr_pos_seq, reference_base, alternate_base, genotype_string, read_depth, alt_type_list, ori_supported_reads_count, cpm_reads_count)
-
     elif is_homo_deletion or is_hetero_DelDel:
         # del base are like: ACC to CC
         for _bases in alternate_base.split(','):
@@ -1222,18 +1203,6 @@ def output_with(
             _read_count = _tmp_cnt[0]
             supported_reads_count += _read_count 
             alt_list_count.append(supported_reads_count)
-
-        ori_supported_reads_count = 0
-        if len(alt_type_list[2]) > 0:
-            if is_homo_deletion:
-                ori_supported_reads_count = sorted(list(alt_type_list[2].values()))[-1]
-            if is_hetero_DelDel and len(alt_type_list[2]) > 1:
-                sorted_alt_list_reads_count = sorted(list(alt_type_list[2].values()))
-                ori_supported_reads_count = sum(sorted_alt_list_reads_count[-2:])
-        cpm_reads_count = supported_reads_count
-        _if_conflict = ori_supported_reads_count - cpm_reads_count
-        if _if_conflict > 0:
-            print('hom_del', chr_pos_seq, reference_base, alternate_base, genotype_string, read_depth, alt_type_list, ori_supported_reads_count, cpm_reads_count)
 
     elif is_hetero_ACGT_Del:
         for _bases in alternate_base.split(','):
@@ -1251,12 +1220,6 @@ def output_with(
             supported_reads_count += _read_count 
             alt_list_count.append(supported_reads_count)
 
-        ori_supported_reads_count = 0
-        ori_supported_reads_count = sorted(list(alt_type_list[2].values()))[-1] if len(alt_type_list[2]) else 0
-        # cpm_reads_count = supported_reads_count
-        _if_conflict = ori_supported_reads_count - cpm_reads_count
-        if _if_conflict > 0:
-            print('het_ACGT_Del', chr_pos_seq, reference_base, alternate_base, genotype_string, read_depth, alt_type_list, ori_supported_reads_count, cpm_reads_count)
     elif is_insertion_and_deletion:
         for _bases in alternate_base.split(','):
             _alt_len = len(reference_base) - len(_bases)
@@ -1264,7 +1227,6 @@ def output_with(
                 return
             if _alt_len < 0:
                 # ins
-                # print('het_Ins_Del', chr_pos_seq, reference_base, alternate_base, genotype_string, read_depth, alt_type_list)
                 if len(reference_base) > 1:
                     _read_count = alt_type_list[1][_bases[:-(len(reference_base)-1)]]
                 else:
@@ -1274,19 +1236,9 @@ def output_with(
                 _alt_len = len(reference_base) - len(_bases)
                 # for each alt delte cnt
                 _tmp_cnt = [alt_type_list[2][_i] for _i in alt_type_list[2] if len(_i) == _alt_len]
-                if len(_tmp_cnt) >= 2:
-                    print('support read count error', chr_pos_seq)
                 _read_count = _tmp_cnt[0]
             supported_reads_count += _read_count 
             alt_list_count.append(supported_reads_count)
-
-        ori_supported_reads_count = 0
-        ori_supported_reads_count += sorted(list(alt_type_list[1].values()))[-1] if len(alt_type_list[1]) else 0
-        ori_supported_reads_count += sorted(list(alt_type_list[2].values()))[-1] if len(alt_type_list[2]) else 0 
-        cpm_reads_count = supported_reads_count
-        _if_conflict = ori_supported_reads_count - cpm_reads_count
-        if _if_conflict > 0:
-            print('het_Ins_Del', chr_pos_seq, reference_base, alternate_base, genotype_string, read_depth, alt_type_list, ori_supported_reads_count, cpm_reads_count)
 
     allele_frequency = ((supported_reads_count + 0.0) / read_depth) if read_depth != 0 else 0.0
     if allele_frequency > 1:
@@ -1357,7 +1309,6 @@ def output_with(
                 read_depth,
                 allele_frequency
             ))
-
 
 
 def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, reference_base, alternate_base):
