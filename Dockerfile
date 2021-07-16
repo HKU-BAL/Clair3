@@ -39,7 +39,7 @@ RUN /bin/bash -c "source activate clair3" && \
     conda install -c anaconda pigz==2.4 -y && \
     conda install -c conda-forge parallel=20191122 zstd=1.4.4 -y && \
     conda install -c conda-forge -c bioconda samtools=1.10 -y && \
-    conda install -c conda-forge -c bioconda whatshap=1.0 -y &&
+    conda install -c conda-forge -c bioconda whatshap=1.0 -y
 
 COPY . .
 
