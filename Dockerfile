@@ -14,7 +14,6 @@ RUN apt-get update --fix-missing && \
     rm -rf /bar/lib/apt/lists/*
 
 WORKDIR /opt/bin
-COPY . .
 
 # install anaconda
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
@@ -40,8 +39,11 @@ RUN /bin/bash -c "source activate clair3" && \
     conda install -c anaconda pigz==2.4 -y && \
     conda install -c conda-forge parallel=20191122 zstd=1.4.4 -y && \
     conda install -c conda-forge -c bioconda samtools=1.10 -y && \
-    conda install -c conda-forge -c bioconda whatshap=1.0 -y && \
-    cd /opt/bin/preprocess/realign && \
+    conda install -c conda-forge -c bioconda whatshap=1.0 -y &&
+
+COPY . .
+
+RUN cd /opt/bin/preprocess/realign && \
     g++ -std=c++14 -O1 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c realigner.cpp && \
     g++ -std=c++11 -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp && \
     rm -rf /opt/conda/pkgs/* && \
