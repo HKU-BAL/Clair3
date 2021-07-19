@@ -26,7 +26,9 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 We are actively fixing bugs and issues in Clair3 reported by users.
 
-*v0.1-r4 (Jun 28)* : 1. Install via [bioconda](#option-3--bioconda). 2. Added an ONT Guppy2 model to the images (`ont_guppy2`). Click [here](docs/guppy2.md) for more benchmarking results. **The results show you have to use the Guppy2 model for Guppy2 or earlier data**. 3. Added [google colab notebooks](colab) for quick demo. 4. Fixed a bug when there are too few variant candidates ([#28](https://github.com/HKU-BAL/Clair3/issues/28)). 
+*v0.1-r5 (July 19)* : 1. Modified data generator in model training to avoid memory exhaustion and unexpected segmentation fault by Tensorflow (contributor @[ftostevin-ont](https://github.com/ftostevin-ont) ). 2. Simplified dockerfile workflow to reuse container caching (contributor @[amblina](https://github.com/amblina)**). 3. Fixed ALT output for reference calls (contributor @[wdecoster](https://github.com/wdecoster)). 4. Fixed a bug in multi-allelic AF computation (AF of [ACGT]Del variants was wrong before r5). 5. Added AD tag to the GVCF output. 6. Added the `--call_snp_only` option to only call SNP only ([#40](https://github.com/HKU-BAL/Clair3/issues/40)). 7. Added pileup and full-alignment output validity check to avoid workflow crashing ([#32](https://github.com/HKU-BAL/Clair3/issues/32), [#38](https://github.com/HKU-BAL/Clair3/issues/38)).
+
+*v0.1-r4 (Jun 28)* : 1. Install via [bioconda](https://github.com/HKU-BAL/Clair3#option-3--bioconda). 2. Added an ONT Guppy2 model to the images (`ont_guppy2`). Click [here](https://github.com/HKU-BAL/Clair3/blob/main/docs/guppy2.md) for more benchmarking results. **The results show you have to use the Guppy2 model for Guppy2 or earlier data**. 3. Added [google colab notebooks](https://github.com/HKU-BAL/Clair3/blob/main/colab) for quick demo. 4. Fixed a bug when there are too few variant candidates ([#28](https://github.com/HKU-BAL/Clair3/issues/28)).
 
 *v0.1-r3 (Jun 9)* : 1. Added `ulimit -u` (max user processes) check (lowers the `THREADS` if the resource is insufficient) and automatic retries on failed jobs ([#20](https://github.com/HKU-BAL/Clair3/issues/20), [#23](https://github.com/HKU-BAL/Clair3/issues/23), [#24](https://github.com/HKU-BAL/Clair3/issues/24)). 2. Added an ONT Guppy5 model to the images (`ont_guppy5`). Click [here](docs/guppy5.md) for more benchmarks on the Guppy5 model and data.
 
@@ -122,12 +124,11 @@ A pre-built docker image is available [here](https://hub.docker.com/r/hkubal/cla
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r4"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
@@ -147,17 +148,16 @@ Check [Usage](#Usage) for more options.
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r4"
 
 conda config --add channels defaults
 conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
 
 # singularity pull docker pre-built image
-singularity pull docker://hkubal/clair3:v0.1-r4
+singularity pull docker://hkubal/clair3:latest
 
 # run clair3 like this afterward
-singularity exec clair3_"${BIN_VERSION}".sif \
+singularity exec clair3_latest.sif \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
@@ -255,18 +255,16 @@ tar -zxvf clair3_models.tar.gz -C ./models
 This is the same as option 1 except that you are building a docker image yourself. Please refer to option 1 for usage. 
 
 ```bash
-BIN_VERSION="v0.1-r4"
-
 # clone Clair3
 git clone https://github.com/hku-bal/Clair3.git
 cd Clair3
 
-# build a docker image named hkubal/clair3:v0.1-r4
+# build a docker image named hkubal/clair3:latest
 # might require docker authentication to build docker image 
-docker build -f ./Dockerfile -t hkubal/clair3:"${BIN_VERSION}" .
+docker build -f ./Dockerfile -t hkubal/clair3:latest .
 
 # run clair3 docker image like option 1
-docker run -it hkubal/clair3:"${BIN_VERSION}" /opt/bin/run_clair3.sh --help
+docker run -it hkubal/clair3:latest /opt/bin/run_clair3.sh --help
 ```
 
 ---
@@ -333,6 +331,7 @@ docker run -it hkubal/clair3:"${BIN_VERSION}" /opt/bin/run_clair3.sh --help
       --haploid_precise         EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.
       --haploid_sensitive       EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.
       --no_phasing_for_fa       EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.
+      --call_snp_only           EXPERIMENTAL: Call candidates pass SNP minimum AF only, ignore Indel candidates, default: disable.
 ```
 
 #### Call variants in a chromosome
@@ -342,12 +341,11 @@ CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r4"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
@@ -365,12 +363,11 @@ KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. /home/user1/known_variants.vcf.gz 
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r4"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
@@ -400,12 +397,11 @@ BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed (absolute path
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r4"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
@@ -422,12 +418,11 @@ docker run -it \
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-BIN_VERSION="v0.1-r4"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
