@@ -458,7 +458,7 @@ def main():
     parser.add_argument('--var_pct_full', type=float, default=0.3,
                         help="Default variant call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
 
-    parser.add_argument('--ref_pct_full', type=float, default=None,
+    parser.add_argument('--ref_pct_full', type=float, default=0.3,
                         help="Default reference call proportion for raw alignment or remove low quality proportion for whatshap phasing. (default: %(default)f)")
 
     parser.add_argument('--snp_min_af', type=float, default=0.08,
