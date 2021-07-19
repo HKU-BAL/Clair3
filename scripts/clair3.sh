@@ -136,7 +136,6 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
     --temp_file_dir ${GVCF_TMP_PATH} \
     --pileup" :::: ${OUTPUT_FOLDER}/tmp/CHUNK_LIST |& tee ${LOG_PATH}/1_call_var_bam_pileup.log
 
-echo "[INFO] Merge chunked pileup VCF files"
 ${PYPY} ${CLAIR3} SortVcf \
     --input_dir ${PILEUP_VCF_PATH} \
     --vcf_fn_prefix "pileup" \
