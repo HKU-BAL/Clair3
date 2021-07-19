@@ -46,22 +46,25 @@ class gvcfGenerator(object):
                         n_alt = len(alt.split(','))
                         cur_variant_start = int(line.strip('\n').split('\t')[1])
                         cur_variant_end = cur_variant_start - 1 + len(ref)
-
-
+                        is_reference_call = (alt == '.') or (ref == alt)
+                        if not is_reference_call:
                         # assuming AD is at the columns [-3], add 0 to AD for gVCF
-                        ori_info = tmp[-1].split(':')
-                        ori_info[-3] += ',0'
-                        tmp[-1] = ':'.join(ori_info)
+                            ori_info = tmp[-1].split(':')
+                            ori_info[-3] += ',0'
+                            tmp[-1] = ':'.join(ori_info)
 
-                        # assumeing PL is at the last column 
-                        # add <NON_REF> to variant calls
-                        tmp[4] = tmp[4] + ',<NON_REF>'
-                        if (n_alt == 1):
+                            # assumeing PL is at the last column
+                            # add <NON_REF> to variant calls
+                            tmp[4] = tmp[4] + ',<NON_REF>'
+                            if (n_alt == 1):
 
-                            tmp[-1] = tmp[-1] + ',990,990,990'
+                                tmp[-1] = tmp[-1] + ',990,990,990'
 
-                        elif (n_alt == 2):
-                            tmp[-1] = tmp[-1] + ',990,990,990,990'
+                            elif (n_alt == 2):
+                                tmp[-1] = tmp[-1] + ',990,990,990,990'
+                        else:
+                            # skip reference calls
+                            continue
                         new_line = '\t'.join(tmp)
 
                         cur_variant_chr = tmp[0]
@@ -356,7 +359,6 @@ class variantInfoCalculator(object):
         '''
         
         make gvcf while reading from pileup
-                
 
         '''
 
@@ -483,15 +485,11 @@ class variantInfoCalculator(object):
 
         '''
         calculate the phred genotype likelihood for a single non-variant site.
-
         n_ref: number of referece bases
         n_total: number of all bases by ignoring Ns
-
         P(hom_ref) =  (1-prr)^n_ref*prr^(n_total-n_ref)
         P(Het_alt) = (1/2)^n_total
         P(hom_alt) = prr^n_ref*(1-prr)^(n_total-n_ref)
-
-
         return flag of validPL, raw GQ, binned GQ, PLs
         '''
 
@@ -640,50 +638,36 @@ class mathcalculator(object):
                                 
                                 return 50;
                             }
-
                             return -10*(log(1.0-ptrue)/LOG_10);
                         }
                        double f_log10(double myInput){
                             double res;
-
                             res=log(myInput)/LOG_10;
                             return res;
                        }
                        double getMyMaxItem(double list[],int n_list){
                            double curMax;
                            int i;
-
                            curMax = list[0];
                            for(i=1;i<=n_list;i++){
                                if(list[i]>curMax){
                                    curMax= list[i];
                                }
                             }
-
-
                            return curMax;
                        } 
-
-
                        double log10sumexp(double log10_array[],int n_array){
-
                            double m, mySum,tmp;
                            int i;
         
                            m = getMyMaxItem(log10_array,n_array);
                            mySum = 0.0;
                            for(i=0;i<n_array;i++){
-
                                tmp = pow(10,log10_array[i]-m);
                                mySum += tmp;
                            }
-
                            return m+log(mySum)/LOG_10;
-
                        }
-
-
-
                        """
                        )
 
@@ -692,7 +676,6 @@ class mathcalculator(object):
 
         '''
         log10(p) to -10log10(1-p)
-
         '''
         
         if(self.speedUp):
@@ -709,7 +692,6 @@ class mathcalculator(object):
     def log10sumexp(self,log10_array):
 
         '''
-
         return value approxiameting to log10(sum(10^log10_probs))
         '''
 
@@ -740,14 +722,3 @@ class mathcalculator(object):
             normalized_log10_probs.append(min(x-lse,0))
    
         return normalized_log10_probs
-
-
-
-
-
-
-
-
-
-
-
