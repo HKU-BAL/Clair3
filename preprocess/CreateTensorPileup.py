@@ -53,7 +53,7 @@ class CandidateStdout(object):
 
 
 def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, reference_base, minimum_af_for_candidate,
-                    minimum_snp_af_for_candidate, minimum_indel_af_for_candidate, platform, fast_mode):
+                    minimum_snp_af_for_candidate, minimum_indel_af_for_candidate, platform, fast_mode, call_snp_only):
     """
     Generate pileup input tensor
     pos: center position for pileup generation, default no_of_positions = flankingBaseNum + 1 + flankingBaseNum
@@ -144,7 +144,7 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
 
     # check whether first non reference candidate in the first position
     pass_af = len(pileup_list) and (pileup_list[0][0] != reference_base)
-                                    
+
     for item, count in pileup_list:
         if item == reference_base:
             continue
@@ -163,7 +163,8 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
     pileup_tensor[BASE2INDEX[reference_base]] = -1 * sum([pileup_tensor[BASE2INDEX[item]] for item in 'ACGT'])
     pileup_tensor[BASE2INDEX[reference_base.lower()]] = -1 * sum([pileup_tensor[BASE2INDEX[item]] for item in 'acgt'])
 
-    pass_af = pass_af or pass_snp_af or pass_indel_af
+    pass_af = pass_snp_af if call_snp_only else (pass_af or pass_snp_af or pass_indel_af)
+
     # add a return: base_counter for generating GVCF
     return pileup_tensor, alt_dict, af, depth, pass_af, pileup_list, max_del_length
 
@@ -207,6 +208,7 @@ def CreateTensorPileup(args):
     fast_mode = args.fast_mode
     vcf_fn = args.vcf_fn
     is_known_vcf_file_provided = vcf_fn is not None
+    call_snp_only = args.call_snp_only
 
     global test_pos
     test_pos = None
@@ -275,7 +277,6 @@ def CreateTensorPileup(args):
 
     # samtools mpileup options
     # reverse-del: deletion in forward/reverse strand were marked as '*'/'#'
-    min_mapping_quality = 0 if args.gvcf else min_mapping_quality
     min_base_quality = 0 if args.gvcf else min_base_quality
     max_depth = param.max_depth_dict[args.platform] if args.platform else args.max_depth
     mq_option = ' --min-MQ {}'.format(min_mapping_quality)
@@ -363,7 +364,8 @@ def CreateTensorPileup(args):
                                                                                                    minimum_snp_af_for_candidate=minimum_snp_af_for_candidate,
                                                                                                    minimum_indel_af_for_candidate=minimum_indel_af_for_candidate,
                                                                                                    platform=platform,
-                                                                                                   fast_mode=fast_mode)
+                                                                                                   fast_mode=fast_mode,
+                                                                                                   call_snp_only=call_snp_only)
         if args.gvcf and within_flag and valid_reference_flag:
             cur_n_total = 0
             cur_n_ref = 0
@@ -501,6 +503,9 @@ def main():
 
     parser.add_argument('--max_depth', type=int, default=144,
                         help="EXPERIMENTAL: Maximum pileup depth to be processed. default: %(default)s")
+
+    parser.add_argument('--call_snp_only', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Call candidates pass snp minimum AF only, ignore Indel candidates")
 
     # options for debug purpose
     parser.add_argument('--extend_bed', type=str, default=None,

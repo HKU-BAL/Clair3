@@ -174,6 +174,7 @@ def output_header(output_fn, reference_file_path, sample_name='SAMPLE'):
         ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
         ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
         ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+        ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Read depth for each allele">
         ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
         ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">"""
                              ) + '\n')
