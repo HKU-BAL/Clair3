@@ -18,7 +18,7 @@ from clair3.task.gt21 import (
 )
 import clair3.utils as utils
 from clair3.task.genotype import Genotype, genotype_string_from, genotype_enum_from, genotype_enum_for_task
-from shared.utils import IUPAC_base_to_ACGT_base_dict as BASE2ACGT, BASIC_BASES, str2bool, file_path_from
+from shared.utils import IUPAC_base_to_ACGT_base_dict as BASE2ACGT, BASIC_BASES, str2bool, file_path_from, log_error, log_warning
 from clair3.task.variant_length import VariantLength
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -105,11 +105,8 @@ def insertion_bases_using_alt_info_from(
         key = raw_key[1:]  # remove first cigar +-X and reference_base
         if propose_insertion_length and len(key) == propose_insertion_length and key != insertion_bases_to_ignore:
             propose_insertion_bases_dict[key] = items
-        #elif minimum_insertion_length <= len(key) <= maximum_insertion_length and key != insertion_bases_to_ignore:
-        #    insertion_bases_dict[key] = items
-        elif key != insertion_bases_to_ignore:
+        elif minimum_insertion_length <= len(key) <= maximum_insertion_length and key != insertion_bases_to_ignore:
             insertion_bases_dict[key] = items
-
 
     if propose_insertion_length and len(propose_insertion_bases_dict):
         return max(propose_insertion_bases_dict, key=propose_insertion_bases_dict.get) if len(
@@ -151,9 +148,7 @@ def deletion_bases_using_alt_info_from(
         if propose_deletion_length and len(key) == propose_deletion_length and key != deletion_bases_to_ignore:
             propose_deletion_bases_dict[key] = items
 
-        # elif minimum_deletion_length <= len(key) <= maximum_deletion_length and key != deletion_bases_to_ignore:
-        #     deletion_bases_dict[key] = items
-        elif key != deletion_bases_to_ignore:
+        elif minimum_deletion_length <= len(key) <= maximum_deletion_length and key != deletion_bases_to_ignore:
             deletion_bases_dict[key] = items
 
     if propose_deletion_length and len(propose_deletion_bases_dict):
@@ -1156,6 +1151,8 @@ def output_with(
     ref_count = max(0, read_depth - snp_num - insert_num - del_num)
     if is_reference:
         supported_reads_count = ref_count
+        alternate_base = "."
+
     elif is_homo_SNP or is_hetero_SNP:
         for base in str(alternate_base):
             if base == ',':
@@ -1163,90 +1160,69 @@ def output_with(
             supported_reads_count += alt_type_list[0][base] if base in alt_type_list[0] else 0
             alt_list_count.append(supported_reads_count)
     elif is_homo_insertion or is_hetero_InsIns:
-        for _bases in alternate_base.split(','):
-            if len(reference_base) > 1:
-                _read_count = alt_type_list[1][_bases[:-(len(reference_base)-1)]]
-            else:
-                _read_count = alt_type_list[1][_bases]
-            _alt_len = len(_bases)-len(reference_base)
-            if _alt_len > maximum_variant_length_that_need_infer:
-                return
-            supported_reads_count += _read_count 
-            alt_list_count.append(supported_reads_count)
-
+        base_list = alternate_base.split(',')
+        for ins_bases in base_list:
+            insertion_type_reads_count = alt_type_list[1][ins_bases] if ins_bases in alt_type_list[1] else 0
+            supported_reads_count += insertion_type_reads_count
+            alt_list_count.append(insertion_type_reads_count)
     elif is_hetero_ACGT_Ins:
-        for _bases in alternate_base.split(','):
-            if _bases[0] != reference_base[0]:
-                # if is SNP:
-                _read_count = alt_type_list[0][_bases[0]]
-            else:
-                # if is iNS:
-                if len(reference_base) > 1:
-                    _read_count = alt_type_list[1][_bases[:-(len(reference_base)-1)]]
-                else:
-                    _read_count = alt_type_list[1][_bases]
-                _alt_len = len(_bases)-len(reference_base)
-                if _alt_len > maximum_variant_length_that_need_infer:
-                    return
-                cpm_reads_count = _read_count
-            supported_reads_count += _read_count 
-            alt_list_count.append(supported_reads_count)
-        
+        is_SNP_Ins_multi = is_multi
+        SNP_base = alternate_base.split(",")[0][0] if is_SNP_Ins_multi else None
+        ins_bases = alternate_base.split(",")[1] if is_SNP_Ins_multi else alternate_base
+
+        supported_reads_for_SNP = (
+            alt_type_list[0][SNP_base] if SNP_base in alt_type_list[0] else 0) if is_SNP_Ins_multi else 0
+
+        supported_reads_for_ins = alt_type_list[1][ins_bases] if ins_bases in alt_type_list[1] else 0
+        supported_reads_count = supported_reads_for_ins + supported_reads_for_SNP
+        if SNP_base:
+            alt_list_count.append(supported_reads_for_SNP)
+        alt_list_count.append(supported_reads_for_ins)
     elif is_homo_deletion or is_hetero_DelDel:
-        # del base are like: ACC to CC
-        for _bases in alternate_base.split(','):
-            _alt_len = len(reference_base) - len(_bases)
-            if _alt_len > maximum_variant_length_that_need_infer:
-                return
-            # for each alt del cnt
-            _tmp_cnt = [alt_type_list[2][_i] for _i in alt_type_list[2] if len(_i) == _alt_len]
-            _read_count = _tmp_cnt[0]
-            supported_reads_count += _read_count 
-            alt_list_count.append(supported_reads_count)
-
+        if len(alt_type_list[2]) > 0:
+            if is_homo_deletion:
+                del_bases = reference_base[1:] if len(reference_base) > 1 else None
+                supported_reads_count = alt_type_list[2][del_bases] if del_bases in alt_type_list[2] else 0
+                alt_list_count.append(supported_reads_count)
+            elif is_hetero_DelDel and len(alt_type_list[2]) > 1:
+                for _bases in alternate_base.split(','):
+                    _alt_len = len(reference_base) - len(_bases)
+                    _tmp_cnt = [alt_type_list[2][_i] for _i in alt_type_list[2] if len(_i) == _alt_len]
+                    _read_count = _tmp_cnt[0] if len(_tmp_cnt) > 0 else 0
+                    alt_list_count.append(_read_count)
+                    supported_reads_count += _read_count
     elif is_hetero_ACGT_Del:
-        for _bases in alternate_base.split(','):
-            if _bases[0] != reference_base[0]:
-                # if is SNP:
-                _read_count = alt_type_list[0][_bases[0]]
-            else:
-                _alt_len = len(reference_base) - len(_bases)
-                if _alt_len > maximum_variant_length_that_need_infer:
-                    return
-                # for each alt delte cnt
-                _tmp_cnt = [alt_type_list[2][_i] for _i in alt_type_list[2] if len(_i) == _alt_len]
-                _read_count = _tmp_cnt[0]
-                cpm_reads_count = _read_count
-            supported_reads_count += _read_count 
-            alt_list_count.append(supported_reads_count)
+        alt_list = alternate_base.split(",")
+        is_SNP_Del_multi = False if len(alt_list) == 0 else is_multi
+        SNP_base = (alt_list[1][0] if len(alt_list) > 1 else None) if is_SNP_Del_multi else None
+        supported_reads_for_SNP = (
+            alt_type_list[0][SNP_base] if SNP_base in alt_type_list[0] else 0) if is_SNP_Del_multi else 0
 
+        del_bases = reference_base[1:] if len(reference_base) > 1 else None
+        supported_reads_for_del = alt_type_list[2][del_bases] if del_bases in alt_type_list[2] else 0
+        supported_reads_count = supported_reads_for_del + supported_reads_for_SNP
+        if SNP_base:
+            alt_list_count.append(supported_reads_for_SNP)
+        alt_list_count.append(supported_reads_for_del)
     elif is_insertion_and_deletion:
         for _bases in alternate_base.split(','):
             _alt_len = len(reference_base) - len(_bases)
-            if abs(_alt_len) > maximum_variant_length_that_need_infer:
-                return
-            if _alt_len < 0:
-                # ins
+            if _alt_len < 0: #ins
                 if len(reference_base) > 1:
-                    _read_count = alt_type_list[1][_bases[:-(len(reference_base)-1)]]
+                    ins_bases = _bases[:-(len(reference_base) - 1)]
+                    _read_count = alt_type_list[1][ins_bases] if ins_bases in alt_type_list[1] else 0
                 else:
-                    _read_count = alt_type_list[1][_bases]
-            else:
-                # del
-                _alt_len = len(reference_base) - len(_bases)
-                # for each alt delte cnt
+                    _read_count = alt_type_list[1][_bases] if _bases in alt_type_list[1] else 0
+            else: # del
                 _tmp_cnt = [alt_type_list[2][_i] for _i in alt_type_list[2] if len(_i) == _alt_len]
-                _read_count = _tmp_cnt[0]
-            supported_reads_count += _read_count 
-            alt_list_count.append(supported_reads_count)
+                _read_count = _tmp_cnt[0] if len(_tmp_cnt) > 0 else 0
+            alt_list_count.append(_read_count)
+            supported_reads_count += _read_count
 
     allele_frequency = ((supported_reads_count + 0.0) / read_depth) if read_depth != 0 else 0.0
     if allele_frequency > 1:
         allele_frequency = 1
 
-    # Allele depth
-    ad_alt = ',' + ','.join([str(item) for item in alt_list_count])
-    allele_depth = str(ref_count) + (ad_alt if len(alt_list_count) else "" )
     # quality score
     quality_score = quality_score_from(maximum_probability)
 
@@ -1274,11 +1250,14 @@ def output_with(
     else:
         if output_config.gvcf:
 
+            # allele depth
+            ad_alt = ',' + ','.join([str(item) for item in alt_list_count])
+            allele_depth = str(ref_count) + (ad_alt if len(alt_list_count) else "")
+
             PLs = compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, reference_base,
                              alternate_base)
 
             PLs = ','.join([str(x) for x in PLs])
-
 
             output_utilities.output("%s\t%d\t.\t%s\t%s\t%.2f\t%s\t%s\tGT:GQ:DP:AD:AF:PL\t%s:%d:%d:%s:%.4f:%s" % (
                 chromosome,
@@ -1314,10 +1293,8 @@ def output_with(
 def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, reference_base, alternate_base):
     '''
     PL computation
-
     for bi-allelic: AA(00), AB(01), BB(11)
     for tri-allielic: AA(00),AB(01), BB(11), AC(02), BC(12), CC(22)
-
     '''
     alt_array = alternate_base.split(',')
     alt_num = len(alt_array)
@@ -1333,7 +1310,11 @@ def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, refe
         partial_label_1 = partial_label_from(reference_base, all_base[encoded_genotype[0]])
         partial_label_2 = partial_label_from(reference_base, all_base[encoded_genotype[1]])
         gt21_label = mix_two_partial_labels(partial_label_1, partial_label_2)
-        gt21_prob_index = gt21_enum_from_label(gt21_label)
+        try:
+            gt21_prob_index = gt21_enum_from_label(gt21_label)
+        except:
+            #skip N positions
+            return [990 * len(genotypes[alt_num])]
         genotype_prob_21 = gt21_probabilities[gt21_prob_index]
 
         # obtain the genotype probability from 3 zygosity
@@ -1389,6 +1370,7 @@ def call_variants(args, output_config, output_utilities):
     output_utilities.output_header()
     chunk_id = args.chunk_id - 1 if args.chunk_id else None  # 1-base to 0-base
     chunk_num = args.chunk_num
+    full_alignment_mode = not args.pileup
 
     tensor_generator = utils.tensor_generator_from(args.tensor_fn, param.predictBatchSize, args.pileup, args.platform)
     logging.info("Calling variants ...")
@@ -1461,10 +1443,20 @@ def call_variants(args, output_config, output_utilities):
                 if is_finish_loaded_all_mini_batches and is_nothing_to_predict_and_output:
                     break
 
-        if chunk_id:
-            logging.info("Total process positions in {} with chunk {}/{} : {}".format(args.ctgName, chunk_id, chunk_num, total))
+        if chunk_id is not None:
+            logging.info("Total processed positions in {} (chunk {}/{}) : {}".format(args.ctgName, chunk_id+1, chunk_num, total))
+        elif full_alignment_mode:
+            try:
+                chunk_infos = args.call_fn.split('.')[-2]
+                c_id, c_num = chunk_infos.split('_')
+                c_id = int(c_id) + 1 # 0-index to 1-index
+                logging.info("Total processed positions in {} (chunk {}/{}) : {}".format(args.ctgName, c_id, c_num, total))
+            except:
+                logging.info("Total processed positions in {} : {}".format(args.ctgName, total))
         else:
-            logging.info("Total process positions in {} : {}".format(args.ctgName, total))
+            logging.info("Total processed positions in {} : {}".format(args.ctgName, total))
+        if full_alignment_mode and total == 0:
+            logging.info(log_error("[ERROR] No full-alignment output for file {}/{}".format(args.ctgName, args.call_fn)))
     else:
         dataset = tables.open_file(args.tensor_fn, 'r').root
         batch_size = param.predictBatchSize
@@ -1497,7 +1489,6 @@ def call_variants(args, output_config, output_utilities):
         for row in open(args.call_fn, 'r'):
             if row[0] != '#':
                 return
-
         logging.info("[INFO] No vcf output for file {}, remove empty file".format(args.call_fn))
         os.remove(args.call_fn)
 
@@ -1692,7 +1683,7 @@ def predict(args, output_config, output_utilities):
             alt_info_memmap[start_pos:end_pos] = alt_info_list.numpy()
 
             total += len(position_matrix)
-        logging.info("Total process positions/bin file size: {}/{}".format(total, len(dataset.label)))
+        logging.info("Total processed positions/bin file size: {}/{}".format(total, len(dataset.label)))
     logging.info("Total time elapsed: %.2f s" % (time() - variant_call_start_time))
 
 
