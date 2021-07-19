@@ -115,6 +115,7 @@ def Run(args):
     pileup_mode = command_option_from(args.pileup, 'pileup')
     gvcf_mode = CommandOption('gvcf', args.gvcf)
     fast_mode = CommandOption('fast_mode', args.fast_mode)
+    call_snp_only_mode = CommandOption('call_snp_only', args.call_snp_only)
 
     ctgStart = None
     ctgEnd = None
@@ -189,6 +190,7 @@ def Run(args):
         create_tensor_command_options.append(CommandOption('snp_min_af', snp_min_af))
         create_tensor_command_options.append(CommandOption('indel_min_af', indel_min_af))
         create_tensor_command_options.append(fast_mode)
+        create_tensor_command_options.append(call_snp_only_mode)
 
         if (args.gvcf):
             create_tensor_command_options.append(CommandOption('base_err', args.base_err))
@@ -359,6 +361,9 @@ def main():
 
     parser.add_argument('--haploid_sensitive', action='store_true',
                         help="EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant")
+
+    parser.add_argument('--call_snp_only', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Call candidates pass snp minimum AF only, ignore Indel candidates")
 
     # options for debug purpose
     parser.add_argument('--phasing_info_in_bam', action='store_true',
