@@ -47,6 +47,13 @@ class gvcfGenerator(object):
                         cur_variant_start = int(line.strip('\n').split('\t')[1])
                         cur_variant_end = cur_variant_start - 1 + len(ref)
 
+
+                        # assuming AD is at the columns [-3], add 0 to AD for gVCF
+                        ori_info = tmp[-1].split(':')
+                        ori_info[-3] += ',0'
+                        tmp[-1] = ':'.join(ori_info)
+
+                        # assumeing PL is at the last column 
                         # add <NON_REF> to variant calls
                         tmp[4] = tmp[4] + ',<NON_REF>'
                         if (n_alt == 1):
@@ -537,6 +544,7 @@ class variantInfoCalculator(object):
             ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
             ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
             ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+            ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Read depth for each allele">
             ##FORMAT=<ID=MIN_DP,Number=1,Type=Integer,Description="Minimum DP observed within the GVCF block">
             ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
             ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">"""), file
