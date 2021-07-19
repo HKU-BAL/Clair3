@@ -96,7 +96,7 @@ def MergeVcf_illumina(args):
         qual = float(columns[5])
         pass_bed = is_region_in(tree, ctg_name, pos)
         ref_base, alt_base = columns[3], columns[4]
-        is_reference = ref_base == alt_base
+        is_reference = (alt_base == "." or ref_base == alt_base)
         if is_haploid_precise_mode_enabled:
             row = update_haploid_precise_genotype(columns)
         if is_haploid_sensitive_mode_enabled:
@@ -127,7 +127,7 @@ def MergeVcf_illumina(args):
         pos = int(columns[1])
         qual = float(columns[5])
         ref_base, alt_base = columns[3], columns[4]
-        is_reference = ref_base == alt_base
+        is_reference = (alt_base == "." or ref_base == alt_base)
 
         if is_haploid_precise_mode_enabled:
             row = update_haploid_precise_genotype(columns)
@@ -182,7 +182,7 @@ def MergeVcf(args):
         pos = int(columns[1])
         qual = float(columns[5])
         ref_base, alt_base = columns[3], columns[4]
-        is_reference = ref_base == alt_base
+        is_reference = (alt_base == "." or ref_base == alt_base)
 
         full_alignment_output_set.add((ctg_name, pos))
 
@@ -216,7 +216,7 @@ def MergeVcf(args):
         pos = int(columns[1])
         qual = float(columns[5])
         ref_base, alt_base = columns[3], columns[4]
-        is_reference = ref_base == alt_base
+        is_reference = (alt_base == "." or ref_base == alt_base)
 
         if (ctg_name, pos) in full_alignment_output_set:
             continue
@@ -233,8 +233,8 @@ def MergeVcf(args):
         elif print_ref:
             pileup_output.append((pos, row))
 
-    logging.info('[INFO] Pileup variants proceeded in {}: {}'.format(contig_name, len(pileup_output)))
-    logging.info('[INFO] Full alignment variants proceeded in {}: {}'.format(contig_name, len(full_alignment_output)))
+    logging.info('[INFO] Pileup variants processed in {}: {}'.format(contig_name, len(pileup_output)))
+    logging.info('[INFO] Full-alignment variants processed in {}: {}'.format(contig_name, len(full_alignment_output)))
 
     with open(output_fn, 'w') as output_file:
         output_file.write(''.join(header))
@@ -262,7 +262,6 @@ def mergeNonVariant(args):
 
 
 def main():
-    logging.info("Merge pileup and full alignment VCF/GVCF")
     parser = ArgumentParser(description="Generate 1-based variant candidates using alignments")
 
     parser.add_argument('--platform', type=str, default="ont",

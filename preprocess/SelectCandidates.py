@@ -186,7 +186,7 @@ def SelectCandidates(args):
             qual = float(columns[5])
 
             # reference calling
-            if ref_base == alt_base:
+            if alt_base == "." or ref_base == alt_base:
                 ref_call_pos_list.append((pos, qual))
             else:
                 need_phasing_list.append((pos, qual))
@@ -219,11 +219,11 @@ def SelectCandidates(args):
         # calling with phasing_info_in_bam: select low qual ref and low qual vairant for phasing calling
         if phasing_info_in_bam:
             logging.info(
-                '[INFO] Total low qual ref variants to procceed in {}: {}'.format(contig_name, len(low_qual_ref_list)))
+                '[INFO] Low quality reference calls to be processed in {}: {}'.format(contig_name, len(low_qual_ref_list)))
             logging.info(
-                '[INFO] Total low qual variants to procceed in {}: {}'.format(contig_name, len(low_qual_variant_list)))
+                '[INFO] Low quality variants to be processed in {}: {}'.format(contig_name, len(low_qual_variant_list)))
             if call_low_seq_entropy:
-                logging.info('[INFO] Total low sequence entropy variants to procceed in {}: {}'.format(contig_name, len(
+                logging.info('[INFO] Total low sequence entropy variants to be processed in {}: {}'.format(contig_name, len(
                     low_sequence_entropy_list)))
 
             need_phasing_row_list = set(

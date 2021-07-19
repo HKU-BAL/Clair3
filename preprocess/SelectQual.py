@@ -39,7 +39,7 @@ def select_phase_qual_from_stdin(args):
         qual_cut_off = 0.0
     else:
         qual_cut_off = low_phase_qual_list[-1]
-    print ('[INFO] Select phasing quality cut off {}'.format(round(qual_cut_off), 0))
+    print ('[INFO] Select heterozygous pileup variants exceeding phasing quality cutoff {}'.format(round(qual_cut_off), 0))
 
     if args.output_fn:
         with open(os.path.join(args.output_fn, 'phase_qual'), 'w') as output:
@@ -60,7 +60,8 @@ def select_qual_from_stdin(args):
     ref_pct_full = args.ref_pct_full if args.ref_pct_full else var_pct_full
     # for efficiency, we use a maximum 30% reference candidates proportion for full-alignment calling, which is almost cover all false negative candidates
     # for ont platform, we set a default 10% reference candidates proportion for full-alignment calling unless a known vcf file is provided (genotyping mode)
-    ref_pct_full = 0.1 if args.platform == 'ont' else ref_pct_full
+    # directly set default value in run_clair3.sh from v0.1-r5
+    # ref_pct_full = 0.1 if args.platform == 'ont' else ref_pct_full
     ref_pct_full = min(ref_pct_full, 0.3)
 
     variant_qual_list = []
@@ -99,8 +100,8 @@ def select_qual_from_stdin(args):
         ref_qual_cut_off = 0.0
     else:
         ref_qual_cut_off = low_ref_qual_list[-1]
-    print ('[INFO] Select variant quality cut off {}'.format(round(var_qual_cut_off, 0)))
-    print ('[INFO] Select reference quality cut off {}'.format(round(ref_qual_cut_off, 0)))
+    print ('[INFO] Set variants quality cutoff {}'.format(round(var_qual_cut_off, 0)))
+    print ('[INFO] Set reference calls quality cutoff {}'.format(round(ref_qual_cut_off, 0)))
 
     if args.output_fn:
         with open(os.path.join(args.output_fn, 'qual'), 'w') as output:

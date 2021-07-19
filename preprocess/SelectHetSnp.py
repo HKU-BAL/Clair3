@@ -59,7 +59,7 @@ def FiterHeteSnpPhasing(args):
     for pos, qual in remove_low_qual_list:
         del variant_dict[pos]
 
-    print ('[INFO] Total hete snp positions pass filtering: {}: {}'.format(contig_name, len(variant_dict)))
+    print ('[INFO] Total heterozygous SNP positions selected: {}: {}'.format(contig_name, len(variant_dict)))
 
     f = open(os.path.join(split_folder, '{}.vcf'.format(contig_name)), 'w')
     f.write(''.join(header))
@@ -227,8 +227,8 @@ def FiterHeteSnp(args):
 
         #calling with phasing_info_in_bam: select low qual ref and low qual vairant for phasing calling
         if phasing_info_in_bam:
-            print('[INFO] {} {} total low qual ref calling to proceed: {}'.format(sample_name, contig_name, len(low_qual_ref_list)))
-            print('[INFO] {} {} total low qual variant calling to proceed: {}'.format(sample_name, contig_name, len(low_qual_variant_list)))
+            print('[INFO] {} {} total low qual ref calling to process: {}'.format(sample_name, contig_name, len(low_qual_ref_list)))
+            print('[INFO] {} {} total low qual variant calling to process: {}'.format(sample_name, contig_name, len(low_qual_variant_list)))
 
             need_phasing_row_list = set([item[0] for item in low_qual_ref_list] + [item[0] for item in low_qual_variant_list])
             need_phasing_row_list = sorted(list(need_phasing_row_list))
