@@ -45,12 +45,13 @@ print_help_messages()
     echo $'      --haploid_precise         EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.'
     echo $'      --haploid_sensitive       EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.'
     echo $'      --no_phasing_for_fa       EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.'
+    echo $'      --call_snp_only           EXPERIMENTAL: Call candidates pass SNP minimum AF only, ignore Indel candidates, default: disable.'
     echo $''
 }
 
 print_version()
 {
-    VERSION='v0.1-r4'
+    VERSION='v0.1-r5'
     echo "Clair3 ${VERSION}"
 
     exit 0
@@ -63,7 +64,7 @@ NC="\\033[0m"
 ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
-snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_preix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,no_phasing_for_fa,help,version -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_preix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,no_phasing_for_fa,call_snp_only,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -82,15 +83,16 @@ CHUNK_NUM=0
 CHUNK_SIZE=5000000
 QUAL=2
 PRO=0.3
-REF_PRO=0.3
+REF_PRO=0
 GVCF=False
 PILEUP_ONLY=False
 FAST_MODE=False
 SHOW_REF=False
-SNP_AF=0.0
-INDEL_AF=0.0
+SNP_AF=0
+INDEL_AF=0
 HAP_PRE=False
 HAP_SEN=False
+SNP_ONLY=False
 INCLUDE_ALL_CTGS=False
 NO_PHASING=False
 PILEUP_PREFIX="pileup"
@@ -125,6 +127,7 @@ while true; do
     --gvcf ) GVCF=True; shift 1 ;;
     --pileup_only ) PILEUP_ONLY=True; shift 1 ;;
     --fast_mode ) FAST_MODE=True; shift 1 ;;
+    --call_snp_only ) SNP_ONLY=True; shift 1 ;;
     --print_ref_calls ) SHOW_REF=True; shift 1 ;;
     --haploid_precise ) HAP_PRE=True; shift 1 ;;
     --haploid_sensitive ) HAP_SEN=True; shift 1 ;;
@@ -170,6 +173,9 @@ if [[ ! "${OUTPUT_FOLDER}" = /* ]]; then echo -e "${WARNING} No absolute output 
 mkdir -p ${OUTPUT_FOLDER}
 if [ ! -d ${OUTPUT_FOLDER} ]; then echo -e "${ERROR} Cannot create output folder ${OUTPUT_FOLDER}${NC}"; exit 1; fi
 
+# show default reference proportion 0.3 for ilmn and hifi, 0.1 for ont
+if [ ${REF_PRO} -eq 0 ] && [ ${PLATFORM} = "ont" ]; then REF_PRO=0.1; fi
+if [ ${REF_PRO} -eq 0 ] && [ ! ${PLATFORM} = "ont" ]; then REF_PRO=0.3; fi
 
 # optional parameters should use "="
 (time (
@@ -189,13 +195,14 @@ echo "[INFO] PYPY PATH: ${PYPY}"
 echo "[INFO] PARALLEL PATH: ${PARALLEL}"
 echo "[INFO] WHATSHAP PATH: ${WHATSHAP}"
 echo "[INFO] CHUNK SIZE: ${CHUNK_SIZE}"
-echo "[INFO] CHUNK NUM: ${CHUNK_NUM}"
+if [ ${CHUNK_NUM} -gt 0 ]; then echo "[INFO] CHUNK NUM: ${CHUNK_NUM}"; fi
 echo "[INFO] FULL ALIGN PROPORTION: ${PRO}"
-echo "[INFO] FULL ALIGN RERFERENCE PROPORTION: ${REF_PRO}"
-echo "[INFO] USER DEFINED SNP THRESHOLD: ${SNP_AF}"
-echo "[INFO] USER DEFINED INDEL THRESHOLD: ${INDEL_AF}"
+echo "[INFO] FULL ALIGN REFERENCE PROPORTION: ${REF_PRO}"
+if [ ${SNP_AF} -gt 0 ]; then echo "[INFO] USER DEFINED SNP THRESHOLD: ${SNP_AF}"; fi
+if [ ${INDEL_AF} -gt 0 ]; then echo "[INFO] USER DEFINED INDEL THRESHOLD: ${INDEL_AF}"; fi
 echo "[INFO] ENABLE FILEUP ONLY CALLING: ${PILEUP_ONLY}"
 echo "[INFO] ENABLE FAST MODE CALLING: ${FAST_MODE}"
+echo "[INFO] ENABLE CALLING SNP CANDIDATES ONLY: ${SNP_ONLY}"
 echo "[INFO] ENABLE PRINTING REFERENCE CALLS: ${SHOW_REF}"
 echo "[INFO] ENABLE OUTPUT GVCF: ${GVCF}"
 echo "[INFO] ENABLE HAPLOID PRECISE MODE: ${HAP_PRE}"
@@ -280,6 +287,7 @@ ${SCRIPT_PATH}/scripts/clair3.sh \
     --pileup_only=${PILEUP_ONLY} \
     --gvcf=${GVCF} \
     --fast_mode=${FAST_MODE} \
+    --call_snp_only=${SNP_ONLY} \
     --print_ref_calls=${SHOW_REF} \
     --haploid_precise=${HAP_PRE} \
     --haploid_sensitive=${HAP_SEN} \

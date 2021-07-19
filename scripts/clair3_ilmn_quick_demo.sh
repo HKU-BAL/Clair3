@@ -3,7 +3,6 @@ PLATFORM='ilmn'
 INPUT_DIR="${HOME}/clair3_illumina_quickDemo"
 OUTPUT_DIR="${INPUT_DIR}/output"
 THREADS=4
-BIN_VERSION="v0.1-r4"
 
 ## Create local directory structure
 mkdir -p ${INPUT_DIR}
@@ -37,7 +36,7 @@ cd ${OUTPUT_DIR}
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
