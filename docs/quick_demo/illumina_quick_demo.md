@@ -49,7 +49,6 @@ echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > ${INPUT_DIR}/quick_demo.bed
 ### Option 1. Docker pre-built image
 
 ```bash
-BIN_VERSION='v0.1-r4'
 THREADS=4
 cd ${OUTPUT_DIR}
 
@@ -58,7 +57,7 @@ cd ${OUTPUT_DIR}
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
