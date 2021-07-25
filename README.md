@@ -169,7 +169,7 @@ singularity exec clair3_latest.sif \
 
 ### Option 3.  Bioconda
 
-*For using Clair3 with Illumina data, additional installation steps are needed. Please follow this [guide](docs/quick_demo/illumina_quick_demo.md#step-2-install-boost-graph-library-for-illumina-realignment-process) for the additional steps.*
+*For using Clair3 with Illumina data, install [clair3-illumina](https://anaconda.org/bioconda/clair3-illumina) package in bioconda channel instead.*
 
 ```bash
 # make sure channels are added in conda
@@ -178,6 +178,7 @@ conda config --add channels bioconda
 conda config --add channels conda-forge
 
 # create conda environment named "clair3"
+# replace clair3 by clair3-illumina for using illumina data
 conda create -n clair3 -c bioconda clair3 python=3.6.10 -y
 conda activate clair3
 

@@ -123,7 +123,6 @@ conda install -c conda-forge boost=1.67.0 -y
 echo "Environment:" ${CONDA_PREFIX}
 # Make sure in Clair3 directory
 cd Clair3
-# cd ${CONDA_PREFIX}/bin if installing Clair3 using bioconda
 
 cd preprocess/realign
 g++ -std=c++14 -O1 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c realigner.cpp
