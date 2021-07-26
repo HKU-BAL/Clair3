@@ -686,11 +686,8 @@ def output_from(
         hetero_InsDel_length_tuples, hetero_InsDel_probabilities,
     ) = all_pro
     maximum_probability = 0.0
-    maximum_loops = 4
     reference_base, alternate_base = None, None
-    loop_index = 0
-    while (reference_base is None or alternate_base is None) and loop_index < maximum_loops:
-        loop_index += 1
+    while (reference_base is None or alternate_base is None):
         maximum_probability = max(
             homo_Ref_probability,
             max(homo_SNP_probabilities),
