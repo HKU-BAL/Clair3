@@ -230,6 +230,7 @@ def train_model(args):
     validate_dataset = validate_dataset if add_validation_dataset else None
     if args.chkpnt_fn is not None:
         model.load_weights(args.chkpnt_fn)
+        logging.info("[INFO] Starting from model {}".format(args.chkpnt_fn))
 
     train_history = model.fit(x=train_dataset,
                               epochs=max_epoch,
