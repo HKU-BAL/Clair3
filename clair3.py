@@ -18,6 +18,7 @@ data_preprocess_folder = [
     'RealignReads',
     'CreateTensorPileup',
     "CreateTensorFullAlignment",
+    'CreateTrainingTensor',
     'SplitExtendBed',
     'MergeVcf',
     'SelectHetSnp',

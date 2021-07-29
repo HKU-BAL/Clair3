@@ -23,8 +23,7 @@ def Run(args):
         chunk_num=args.chunk_num,
         pileup=args.pileup,
         platform=args.platform,
-        maximum_non_variant_ratio=args.maximum_non_variant_ratio,
-        candidate_details_fn_prefix=args.candidate_details_fn_prefix)
+        maximum_non_variant_ratio=args.maximum_non_variant_ratio)
     logging.info("Finish!")
 
 
@@ -34,8 +33,8 @@ def main():
     parser.add_argument('--platform', type=str, default="ont",
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
 
-    parser.add_argument('--tensor_fn', type=str, default=None, required=True,
-                        help="Tensor input, required")
+    parser.add_argument('--tensor_fn', type=str, default="PIPE",
+                        help="Tensor input")
 
     parser.add_argument('--var_fn', type=str, default=None, required=True,
                         help="Truth variants list input, required")
@@ -67,10 +66,6 @@ def main():
 
     ## Maximum non-variant ratio against variant in the training data
     parser.add_argument('--maximum_non_variant_ratio', type=float, default=None,
-                        help=SUPPRESS)
-
-    ## Path to the variant candidate details
-    parser.add_argument('--candidate_details_fn_prefix', type=str, default=None,
                         help=SUPPRESS)
 
     args = parser.parse_args()

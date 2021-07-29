@@ -206,67 +206,80 @@ def print_bin_size(path, prefix=None):
     print('[INFO] total: {}'.format(total))
 
 
-def bin_reader_generator_from(subprocess_list, Y, is_tree_empty, tree, miss_variant_set, is_allow_duplicate_chr_pos=False, non_variant_subsample_ratio=1.0):
+def bin_reader_generator_from(tensor_fn, Y, is_tree_empty, tree, miss_variant_set, is_allow_duplicate_chr_pos=False, maximum_non_variant_ratio=None):
 
     """
     Bin reader generator for bin file generation.
-    subprocess_list: a list includes all tensor generator of each tensor file.
+    tensor_fn: tensor file.
     Y: dictionary (contig name: label information) to store all variant and non variant information.
     tree: dictionary(contig name : intervaltree) for quick region querying.
     miss_variant_set:  sometimes there will have true variant missing after downsampling reads.
     is_allow_duplicate_chr_pos: whether allow duplicate positions when training, if there exists downsampled data, lower depth will add a random prefix character.
-    non_variant_subsample_ratio: define a maximum non variant ratio for training, we always expect use more non variant data, while it would greatly increase training
+    maximum_non_variant_ratio: define a maximum non variant ratio for training, we always expect use more non variant data, while it would greatly increase training
     time, especially in ont data, here we usually use 1:1 or 1:2 for variant candidate: non variant candidate.
     """
 
     X = {}
+    ref_list = []
     total = 0
-    for f in subprocess_list:
-        for row_idx, row in enumerate(f.stdout):
-            chrom, coord, seq, string, alt_info = row.split("\t")
-            alt_info = alt_info.rstrip()
-            if not (is_tree_empty or is_region_in(tree, chrom, int(coord))):
-                continue
-            seq = seq.upper()
-            if seq[param.flankingBaseNum] not in 'ACGT':
-                continue
-            key = chrom + ":" + coord
-            is_reference = key not in Y
+    for row_idx, row in enumerate(tensor_fn):
+        chrom, coord, seq, string, alt_info = row.split("\t")
+        alt_info = alt_info.rstrip()
+        if not (is_tree_empty or is_region_in(tree, chrom, int(coord))):
+            continue
+        seq = seq.upper()
+        if seq[param.flankingBaseNum] not in 'ACGT':
+            continue
+        key = chrom + ":" + coord
+        is_reference = key not in Y
 
-            if key in miss_variant_set:
-                continue
+        if key in miss_variant_set:
+            continue
 
-            if is_reference and non_variant_subsample_ratio < 1.0 and random() >= non_variant_subsample_ratio:
-                continue
-            if key not in X:
-                X[key] = (string, alt_info, seq)
-            elif is_allow_duplicate_chr_pos:
-                new_key = ""
-                for character in PREFIX_CHAR_STR:
-                    tmp_key = character + key
-                    if tmp_key not in X:
-                        new_key = tmp_key
-                        break
-                if len(new_key) > 0:
-                    X[new_key] = (string, alt_info, seq)
+        if key not in X:
+            X[key] = (string, alt_info, seq)
+        elif is_allow_duplicate_chr_pos:
+            new_key = ""
+            for character in PREFIX_CHAR_STR:
+                tmp_key = character + key
+                if tmp_key not in X:
+                    new_key = tmp_key
+                    break
+            if len(new_key) > 0:
+                X[new_key] = (string, alt_info, seq)
 
-            if is_reference:
-                Y[key] = output_labels_from_reference(BASE2BASE[seq[param.flankingBaseNum]])
+        if is_reference:
+            ref_list.append(key)
+            Y[key] = output_labels_from_reference(BASE2BASE[seq[param.flankingBaseNum]])
 
-            if len(X) == shuffle_bin_size:
-                yield X, total
-                X = {}
-            total += 1
-            if total % 100000 == 0:
-                print("[INFO] Processed %d tensors" % total, file=sys.stderr)
-        f.stdout.close()
-        f.wait()
-    yield X, total
-    yield None, total
+        if len(X) == shuffle_bin_size:
+            if maximum_non_variant_ratio is not None:
+                _filter_non_variants(X, ref_list, maximum_non_variant_ratio)
+            yield X, total, False
+            X = {}
+            ref_list = []
+        total += 1
+        if total % 100000 == 0:
+            print("[INFO] Processed %d tensors" % total, file=sys.stderr)
 
+    if maximum_non_variant_ratio is not None:
+        _filter_non_variants(X, ref_list, maximum_non_variant_ratio)
+    yield X, total, True
+
+
+def _filter_non_variants(X, ref_list, maximum_non_variant_ratio):
+    non_variant_num = len(ref_list)
+    variant_num = len(X) - non_variant_num
+    max_non_variant_num = int(variant_num * maximum_non_variant_ratio)
+    if max_non_variant_num < non_variant_num:
+        remove_list = np.random.choice(ref_list,
+                                       size=non_variant_num - max_non_variant_num,
+                                       replace=False)
+        for key in remove_list:
+            X.pop(key)
 
 def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow_duplicate_chr_pos=True, chunk_id=None,
-                       chunk_num=None, platform='ont', pileup=False, maximum_non_variant_ratio=None, candidate_details_fn_prefix=None):
+                       chunk_num=None, platform='ont', pileup=False, maximum_non_variant_ratio=None):
 
     """
     Generate training array for training. here pytables with blosc:lz4hc are used for extreme fast compression and decompression,
@@ -283,7 +296,6 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
     pileup: whether in pileup mode. Define two calling mode, pileup or full alignment.
     maximum_non_variant_ratio: define a maximum non variant ratio for training, we always expect use more non variant data, while it would greatly increase training
     time, especially in ont data, here we usually use 1:1 or 1:2 for variant candidate: non variant candidate.
-    candidate_details_fn_prefix: a counter to calculate total variant and non variant from the information in alternative file.
     """
 
     tree = bed_tree_from(bed_file_path=bed_fn)
@@ -300,53 +312,7 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
 
     tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
 
-    variant_num, non_variant_num, non_variant_subsample_ratio = 0, 0, 1.0
-    if maximum_non_variant_ratio is not None and candidate_details_fn_prefix:
-        candidate_details_fn_prefix = candidate_details_fn_prefix.split('/')
-        directry, file_prefix = '/'.join(candidate_details_fn_prefix[:-1]), candidate_details_fn_prefix[-1]
-        file_list = [f for f in os.listdir(directry) if f.startswith(file_prefix)]
-        for f in file_list:
-            fn = open(os.path.join(directry, f), 'r')
-            for row in fn:
-                chr_pos = row.split('\t')[0]
-                key = chr_pos.replace(' ', ':')
-                if key in Y:
-                    variant_num += 1
-                else:
-                    non_variant_num += 1
-            fn.close()
-
-        max_non_variant_num = variant_num * maximum_non_variant_ratio
-        if max_non_variant_num < non_variant_num:
-            non_variant_subsample_ratio = float(max_non_variant_num / non_variant_num)
-        print("[INFO] variants/non variants/subsample ratio: {}/{}/{}".format(variant_num, non_variant_num,
-                                                                              round(non_variant_subsample_ratio, 4)),
-              file=sys.stderr)
     # select all match prefix if file path not exists
-    subprocess_list = []
-    if os.path.exists(tensor_fn):
-        subprocess_list.append(subprocess_popen(shlex.split("{} -fdc {}".format(param.zstd, tensor_fn))))
-    else:
-        tensor_fn = tensor_fn.split('/')
-        directry, file_prefix = '/'.join(tensor_fn[:-1]), tensor_fn[-1]
-        all_file_name = []
-        for file_name in os.listdir(directry):
-            if file_name.startswith(file_prefix + '_') or file_name.startswith(
-                    file_prefix + '.'):  # add '_.' to avoid add other prefix chr
-                all_file_name.append(file_name)
-        all_file_name = sorted(all_file_name)
-        if chunk_id is not None:
-            chunk_size = len(all_file_name) // chunk_num if len(all_file_name) % chunk_num == 0 else len(
-                all_file_name) // chunk_num + 1
-            chunk_start = chunk_size * chunk_id
-            chunk_end = chunk_start + chunk_size
-            all_file_name = all_file_name[chunk_start:chunk_end]
-        if not len(all_file_name):
-            print("[INFO] chunk_id exceed total file number, skip chunk", file=sys.stderr)
-            return 0
-        for file_name in all_file_name:
-            subprocess_list.append(
-                subprocess_popen(shlex.split("{} -fdc {}".format(param.zstd, os.path.join(directry, file_name)))))
     tables.set_blosc_max_threads(64)
     int_atom = tables.Atom.from_dtype(np.dtype(float_type))
     string_atom = tables.StringAtom(itemsize=param.no_of_positions + 50)
@@ -360,17 +326,29 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
 
     table_dict = update_table_dict()
 
+    if tensor_fn != 'PIPE':
+        f = subprocess_popen(shlex.split("{} -fdc {}".format(param.zstd, tensor_fn)))
+        fo = f.stdout
+    else:
+        fo = sys.stdin
+
     # generator to avoid high memory occupy
-    bin_reader_generator = bin_reader_generator_from(subprocess_list=subprocess_list,
+    bin_reader_generator = bin_reader_generator_from(tensor_fn=fo,
                                                      Y=Y,
                                                      is_tree_empty=is_tree_empty,
                                                      tree=tree,
                                                      miss_variant_set=miss_variant_set,
                                                      is_allow_duplicate_chr_pos=is_allow_duplicate_chr_pos,
-                                                     non_variant_subsample_ratio=non_variant_subsample_ratio)
+                                                     maximum_non_variant_ratio=maximum_non_variant_ratio)
+
     total_compressed = 0
-    while True:
-        X, total = next(bin_reader_generator)
+    completed = False
+    while not completed:
+        try:
+            X, total, completed = next(bin_reader_generator)
+        except StopIteration:
+            completed = True
+        
         if X is None or not len(X):
             break
         all_chr_pos = sorted(X.keys())
@@ -407,3 +385,7 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
 
     table_file.close()
     print("[INFO] Compressed %d/%d tensor" % (total_compressed, total), file=sys.stderr)
+
+    if tensor_fn != "PIPE":
+        fo.close()
+        f.wait()
