@@ -606,14 +606,17 @@ def CreateTensorFullAlignment(args):
     samtools_mpileup_process = subprocess_popen(
         shlex.split(samtools_command), stdin=stdin)
 
-    if tensor_can_output_path != "PIPE":
-        tensor_can_fpo = open(tensor_can_output_path, "wb")
-        tensor_can_fp = subprocess_popen(shlex.split("{} -c".format(args.zstd)), stdin=PIPE, stdout=tensor_can_fpo)
-    elif not unify_repre:
-        tensor_can_fp = TensorStdout(sys.stdout)
-
-    if unify_repre_fn:
-        label_fp = open(unify_repre_fn, 'w')
+    if not unify_repre:
+        if tensor_can_output_path != "PIPE":
+            tensor_can_fpo = open(tensor_can_output_path, "wb")
+            tensor_can_fp = subprocess_popen(shlex.split("{} -c".format(args.zstd)), stdin=PIPE, stdout=tensor_can_fpo)
+        else:
+            tensor_can_fp = TensorStdout(sys.stdout)
+    else:
+        if unify_repre_fn != "PIPE":
+            label_fp = open(unify_repre_fn, 'w')
+        else:
+            label_fp = sys.stdout
     if alt_fn:
         output_alt_fn = alt_fn
         alt_fp = open(output_alt_fn, 'w')
@@ -800,7 +803,7 @@ def CreateTensorFullAlignment(args):
                 alt_info = alt_info.replace('-', '\t')
                 alt_fp.write('\t'.join([ctg_name + ' ' + str(pos), alt_info]) + '\n')
 
-        if unify_repre and unify_repre_fn:
+        if unify_repre:
             label_info = get_alt_info(center_pos=pos,
                                       pileup_dict=pileup_dict,
                                       ref_seq=ref_seq,
@@ -820,7 +823,7 @@ def CreateTensorFullAlignment(args):
     if alt_fn:
         alt_fp.close()
 
-    if unify_repre_fn:
+    if unify_repre and unify_repre_fn != "PIPE":
         label_fp.close()
 
 

@@ -5,6 +5,7 @@ import os
 import tables
 import numpy as np
 from random import random
+from functools import partial
 
 from clair3.task.main import *
 from shared.interval_tree import bed_tree_from, is_region_in
@@ -279,7 +280,7 @@ def _filter_non_variants(X, ref_list, maximum_non_variant_ratio):
             X.pop(key)
 
 def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow_duplicate_chr_pos=True, chunk_id=None,
-                       chunk_num=None, platform='ont', pileup=False, maximum_non_variant_ratio=None):
+                       chunk_num=None, platform='ont', pileup=False, maximum_non_variant_ratio=None, candidate_details_fn_prefix=None):
 
     """
     Generate training array for training. here pytables with blosc:lz4hc are used for extreme fast compression and decompression,
@@ -296,6 +297,7 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
     pileup: whether in pileup mode. Define two calling mode, pileup or full alignment.
     maximum_non_variant_ratio: define a maximum non variant ratio for training, we always expect use more non variant data, while it would greatly increase training
     time, especially in ont data, here we usually use 1:1 or 1:2 for variant candidate: non variant candidate.
+    candidate_details_fn_prefix: a counter to calculate total variant and non variant from the information in alternative file.
     """
 
     tree = bed_tree_from(bed_file_path=bed_fn)
@@ -312,7 +314,34 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
 
     tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
 
+    subprocess_list = []
+    if tensor_fn == 'PIPE':
+        subprocess_list.append(sys.stdin)
+    elif os.path.exists(tensor_fn):
+        subprocess_list.append(subprocess_popen(shlex.split("{} -fdc {}".format(param.zstd, tensor_fn))).stdout)
     # select all match prefix if file path not exists
+    else:
+        tensor_fn = tensor_fn.split('/')
+        directry, file_prefix = '/'.join(tensor_fn[:-1]), tensor_fn[-1]
+        all_file_name = []
+        for file_name in os.listdir(directry):
+            if file_name.startswith(file_prefix + '_') or file_name.startswith(
+                    file_prefix + '.'):  # add '_.' to avoid add other prefix chr
+                all_file_name.append(file_name)
+        all_file_name = sorted(all_file_name)
+        if chunk_id is not None:
+            chunk_size = len(all_file_name) // chunk_num if len(all_file_name) % chunk_num == 0 else len(
+                all_file_name) // chunk_num + 1
+            chunk_start = chunk_size * chunk_id
+            chunk_end = chunk_start + chunk_size
+            all_file_name = all_file_name[chunk_start:chunk_end]
+        if not len(all_file_name):
+            print("[INFO] chunk_id exceed total file number, skip chunk", file=sys.stderr)
+            return 0
+        for file_name in all_file_name:
+            subprocess_list.append(
+                subprocess_popen(shlex.split("{} -fdc {}".format(param.zstd, os.path.join(directry, file_name)))).stdout)
+
     tables.set_blosc_max_threads(64)
     int_atom = tables.Atom.from_dtype(np.dtype(float_type))
     string_atom = tables.StringAtom(itemsize=param.no_of_positions + 50)
@@ -326,59 +355,56 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
 
     table_dict = update_table_dict()
 
-    if tensor_fn != 'PIPE':
-        f = subprocess_popen(shlex.split("{} -fdc {}".format(param.zstd, tensor_fn)))
-        fo = f.stdout
-    else:
-        fo = sys.stdin
-
     # generator to avoid high memory occupy
-    bin_reader_generator = bin_reader_generator_from(tensor_fn=fo,
-                                                     Y=Y,
-                                                     is_tree_empty=is_tree_empty,
-                                                     tree=tree,
-                                                     miss_variant_set=miss_variant_set,
-                                                     is_allow_duplicate_chr_pos=is_allow_duplicate_chr_pos,
-                                                     maximum_non_variant_ratio=maximum_non_variant_ratio)
+    bin_reader_generator = partial(bin_reader_generator_from, 
+                                   Y=Y,
+                                   is_tree_empty=is_tree_empty,
+                                   tree=tree,
+                                   miss_variant_set=miss_variant_set,
+                                   is_allow_duplicate_chr_pos=is_allow_duplicate_chr_pos,
+                                   maximum_non_variant_ratio=maximum_non_variant_ratio)
 
     total_compressed = 0
-    completed = False
-    while not completed:
-        try:
-            X, total, completed = next(bin_reader_generator)
-        except StopIteration:
-            completed = True
+    for fin in subprocess_list:
+        bin_g = bin_reader_generator(tensor_fn=fin)
+        completed = False
+        while not completed:
+            try:
+                X, total, completed = next(bin_g)
+            except StopIteration:
+                completed = True
         
-        if X is None or not len(X):
-            break
-        all_chr_pos = sorted(X.keys())
-        if shuffle == True:
-            np.random.shuffle(all_chr_pos)
-        for key in all_chr_pos:
+            if X is None or not len(X):
+                break
+            all_chr_pos = sorted(X.keys())
+            if shuffle == True:
+                np.random.shuffle(all_chr_pos)
+            for key in all_chr_pos:
 
-            string, alt_info, seq = X[key]
-            del X[key]
-            label = None
-            if key in Y:
-                label = Y[key]
-                pos = key + ':' + seq
-                if not is_allow_duplicate_chr_pos:
-                    del Y[key]
-            elif is_allow_duplicate_chr_pos:
-                tmp_key = key[1:]
-                label = Y[tmp_key]
-                pos = tmp_key + ':' + seq
-            if label is None:
-                print(key)
-                continue
-            total_compressed = write_table_dict(table_dict, string, label, pos, total_compressed, alt_info,
-                                                tensor_shape, pileup)
+                string, alt_info, seq = X[key]
+                del X[key]
+                label = None
+                if key in Y:
+                    label = Y[key]
+                    pos = key + ':' + seq
+                    if not is_allow_duplicate_chr_pos:
+                        del Y[key]
+                elif is_allow_duplicate_chr_pos:
+                    tmp_key = key[1:]
+                    label = Y[tmp_key]
+                    pos = tmp_key + ':' + seq
+                if label is None:
+                    print(key)
+                    continue
+                total_compressed = write_table_dict(table_dict, string, label, pos, total_compressed, alt_info,
+                                                    tensor_shape, pileup)
 
-            if total_compressed % 500 == 0 and total_compressed > 0:
-                table_dict = write_table_file(table_file, table_dict, tensor_shape, param.label_size, float_type)
+                if total_compressed % 500 == 0 and total_compressed > 0:
+                    table_dict = write_table_file(table_file, table_dict, tensor_shape, param.label_size, float_type)
 
-            if total_compressed % 50000 == 0:
-                print("[INFO] Compressed %d tensor" % (total_compressed), file=sys.stderr)
+                if total_compressed % 50000 == 0:
+                    print("[INFO] Compressed %d tensor" % (total_compressed), file=sys.stderr)
+        fin.close()
 
     if total_compressed % 500 != 0 and total_compressed > 0:
         table_dict = write_table_file(table_file, table_dict, tensor_shape, param.label_size, float_type)
@@ -386,6 +412,3 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
     table_file.close()
     print("[INFO] Compressed %d/%d tensor" % (total_compressed, total), file=sys.stderr)
 
-    if tensor_fn != "PIPE":
-        fo.close()
-        f.wait()

@@ -23,7 +23,8 @@ def Run(args):
         chunk_num=args.chunk_num,
         pileup=args.pileup,
         platform=args.platform,
-        maximum_non_variant_ratio=args.maximum_non_variant_ratio)
+        maximum_non_variant_ratio=args.maximum_non_variant_ratio,
+        candidate_details_fn_prefix=args.candidate_details_fn_prefix)
     logging.info("Finish!")
 
 
@@ -35,6 +36,9 @@ def main():
 
     parser.add_argument('--tensor_fn', type=str, default="PIPE",
                         help="Tensor input")
+
+    parser.add_argument('--candidate_details_fn_prefix', type=str, default=None,
+                        help="Candidate details input (unused, retained for compatibility)")
 
     parser.add_argument('--var_fn', type=str, default=None, required=True,
                         help="Truth variants list input, required")
