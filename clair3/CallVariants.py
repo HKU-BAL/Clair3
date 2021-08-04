@@ -367,7 +367,7 @@ def quality_score_from(probability):
     make a modification for quality score calculation. did not apply quality square for computation.
     """
     p = probability
-    tmp = max(Phred_Trans * log(((1.0 - p) + 1e-300) / (p + 1e-300)) + 10, 0)
+    tmp = max(Phred_Trans * log(((1.0 - p) + 1e-10) / (p + 1e-10)) + 10, 0)
     return float(round(tmp, 2))
 
 
