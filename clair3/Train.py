@@ -82,7 +82,8 @@ class DataSequence(tf.keras.utils.Sequence):
         return int((len(self.chunk_list) // self.chunks_per_batch) // self.mini_epochs)
 
     def __getitem__(self, index):
-        chunk_batch_list = self.chunk_list[index * self.chunks_per_batch:(index + 1) * self.chunks_per_batch]
+        mini_epoch_offset = self.mini_epochs_count * self.__len__()
+        chunk_batch_list = self.chunk_list[(mini_epoch_offset + index) * self.chunks_per_batch:(mini_epoch_offset + index + 1) * self.chunks_per_batch]
         for chunk_idx, (bin_id, chunk_id) in enumerate(chunk_batch_list):
             start_pos = self.random_offset + chunk_id * self.chunk_size
             self.position_matrix[chunk_idx * self.chunk_size:(chunk_idx + 1) * self.chunk_size] = \
