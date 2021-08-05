@@ -62,6 +62,46 @@ class FocalLoss(tf.keras.losses.Loss):
         return reduce_fl
 
 
+class DataSequence(tf.keras.utils.Sequence):
+    def __init__(self, data, chunk_list, param, tensor_shape, mini_epochs=1, add_indel_length=False, validation=False):
+        self.data = data
+        self.chunk_list = chunk_list
+        self.batch_size = param.trainBatchSize
+        self.chunk_size = param.chunk_size
+        self.chunks_per_batch = self.batch_size // self.chunk_size
+        self.label_shape_cum = list(accumulate(param.label_shape))[0:4 if add_indel_length else 2]
+        self.mini_epochs = mini_epochs
+        self.mini_epochs_count = -1
+        self.validation = validation
+        self.position_matrix = np.empty([self.batch_size] + tensor_shape, np.int32)
+        self.label = np.empty((self.batch_size, param.label_size), np.float32)
+        self.random_offset = 0
+        self.on_epoch_end()
+
+    def __len__(self):
+        return int((len(self.chunk_list) // self.chunks_per_batch) // self.mini_epochs)
+
+    def __getitem__(self, index):
+        chunk_batch_list = self.chunk_list[index * self.chunks_per_batch:(index + 1) * self.chunks_per_batch]
+        for chunk_idx, (bin_id, chunk_id) in enumerate(chunk_batch_list):
+            start_pos = self.random_offset + chunk_id * self.chunk_size
+            self.position_matrix[chunk_idx * self.chunk_size:(chunk_idx + 1) * self.chunk_size] = \
+                self.data[bin_id].root.position_matrix[start_pos:start_pos + self.chunk_size]
+            self.label[chunk_idx * self.chunk_size:(chunk_idx + 1) * self.chunk_size] = \
+                self.data[bin_id].root.label[start_pos:start_pos + self.chunk_size]
+
+        return self.position_matrix, tuple(
+                np.split(self.label, self.label_shape_cum, axis=1)[:len(self.label_shape_cum)]
+            )
+
+    def on_epoch_end(self):
+        self.mini_epochs_count += 1
+        if not self.validation and (self.mini_epochs_count % self.mini_epochs) == 0:
+            self.random_offset = np.random.randint(0, self.chunk_size)
+            np.random.shuffle(self.chunk_list)
+            self.mini_epochs_count = 0
+
+
 def get_chunk_list(chunk_offset, train_chunk_num):
     """
     get chunk list for training and validation data. we will randomly split training and validation dataset,
@@ -100,7 +140,7 @@ def train_model(args):
         model = model_path.Clair3_F(add_indel_length=add_indel_length)
 
     tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
-    label_size, label_shape = param.label_size, param.label_shape
+    label_shape = param.label_shape
     label_shape_cum = list(accumulate(label_shape))
     batch_size, chunk_size = param.trainBatchSize, param.chunk_size
     chunks_per_batch = batch_size // chunk_size
@@ -109,9 +149,7 @@ def train_model(args):
     learning_rate = args.learning_rate if args.learning_rate else param.initialLearningRate
     max_epoch = args.maxEpoch if args.maxEpoch else param.maxEpoch
     task_num = 4 if add_indel_length else 2
-    TensorShape = (
-    tf.TensorShape([None] + tensor_shape), tuple(tf.TensorShape([None, label_shape[task]]) for task in range(task_num)))
-    TensorDtype = (tf.int32, tuple(tf.float32 for _ in range(task_num)))
+    mini_epochs = args.mini_epochs
 
     def populate_dataset_table(file_list, file_path):
         chunk_offset = np.zeros(len(file_list), dtype=int)
@@ -155,50 +193,13 @@ def train_model(args):
         train_chunk_num = len(train_shuffle_chunk_list)
         validate_chunk_num = len(validate_shuffle_chunk_list)
 
-
-    def DataGenerator(x, shuffle_chunk_list, train_flag=True):
-
-        """
-        data generator for pileup or full alignment data processing, pytables with blosc:lz4hc are used for extreme fast
-        compression and decompression. random chunk shuffling and random start position to increase training model robustness.
-
-        """
-
-        batch_num = len(shuffle_chunk_list) // chunks_per_batch
-        position_matrix = np.empty([batch_size] + tensor_shape, np.int32)
-        label = np.empty((batch_size, param.label_size), np.float32)
-
-        random_start_position = np.random.randint(0, chunk_size) if train_flag else 0
-        if train_flag:
-            np.random.shuffle(shuffle_chunk_list)
-        for batch_idx in range(batch_num):
-            for chunk_idx in range(chunks_per_batch):
-                bin_id, chunk_id = shuffle_chunk_list[batch_idx * chunks_per_batch + chunk_idx]
-                position_matrix[chunk_idx * chunk_size:(chunk_idx + 1) * chunk_size] = x[bin_id].root.position_matrix[
-                        random_start_position + chunk_id * chunk_size:random_start_position + (chunk_id + 1) * chunk_size]
-                label[chunk_idx * chunk_size:(chunk_idx + 1) * chunk_size] = x[bin_id].root.label[
-                        random_start_position + chunk_id * chunk_size:random_start_position + (chunk_id + 1) * chunk_size]
-
-            if add_indel_length:
-                yield position_matrix, (
-                        label[:,                   :label_shape_cum[0]],
-                        label[:, label_shape_cum[0]:label_shape_cum[1]],
-                        label[:, label_shape_cum[1]:label_shape_cum[2]],
-                        label[:, label_shape_cum[2]:                  ]
-                    )
-            else:
-                yield position_matrix, (
-                        label[:,                   :label_shape_cum[0]],
-                        label[:, label_shape_cum[0]:label_shape_cum[1]]
-                    )
-
-
-    train_dataset = tf.data.Dataset.from_generator(
-        lambda: DataGenerator(table_dataset_list, train_shuffle_chunk_list, True), TensorDtype,
-        TensorShape).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-    validate_dataset = tf.data.Dataset.from_generator(
-        lambda: DataGenerator(validate_table_dataset_list if validation_fn else table_dataset_list, validate_shuffle_chunk_list, False), TensorDtype,
-        TensorShape).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+    train_seq = DataSequence(table_dataset_list, train_shuffle_chunk_list, param, tensor_shape,
+        mini_epochs=mini_epochs, add_indel_length=add_indel_length)
+    if add_validation_dataset:
+        val_seq = DataSequence(validate_table_dataset_list if validation_fn else table_dataset_list, validate_shuffle_chunk_list, param, tensor_shape,
+            mini_epochs=1, add_indel_length=add_indel_length, validation=True)
+    else:
+        val_seq = None
 
     total_steps = max_epoch * (train_chunk_num // chunks_per_batch)
 
@@ -234,16 +235,16 @@ def train_model(args):
     logging.info("[INFO] The training learning_rate: {}".format(learning_rate))
     logging.info("[INFO] Total training steps: {}".format(total_steps))
     logging.info("[INFO] Maximum training epoch: {}".format(max_epoch))
+    logging.info("[INFO] Mini-epochs per epoch: {}".format(mini_epochs))
     logging.info("[INFO] Start training...")
 
-    validate_dataset = validate_dataset if add_validation_dataset else None
     if args.chkpnt_fn is not None:
         model.load_weights(args.chkpnt_fn)
         logging.info("[INFO] Starting from model {}".format(args.chkpnt_fn))
 
-    train_history = model.fit(x=train_dataset,
-                              epochs=max_epoch,
-                              validation_data=validate_dataset,
+    train_history = model.fit(x=train_seq,
+                              epochs=max_epoch * mini_epochs,
+                              validation_data=val_seq,
                               callbacks=[early_stop_callback,
                                          model_save_callback,
                                          model_best_callback,
@@ -292,6 +293,9 @@ def main():
 
     parser.add_argument('--exclude_training_samples', type=str, default=None,
                         help="Define training samples to be excluded")
+
+    parser.add_argument('--mini_epochs', type=int, default=1,
+                        help="Number of mini-epochs per epoch")
 
     # Internal process control
     ## In pileup training mode or not
