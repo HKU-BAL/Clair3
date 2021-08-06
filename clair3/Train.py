@@ -97,10 +97,11 @@ class DataSequence(tf.keras.utils.Sequence):
 
     def on_epoch_end(self):
         self.mini_epochs_count += 1
-        if not self.validation and (self.mini_epochs_count % self.mini_epochs) == 0:
-            self.random_offset = np.random.randint(0, self.chunk_size)
-            np.random.shuffle(self.chunk_list)
+        if (self.mini_epochs_count % self.mini_epochs) == 0:
             self.mini_epochs_count = 0
+            if not self.validation:
+                self.random_offset = np.random.randint(0, self.chunk_size)
+                np.random.shuffle(self.chunk_list)
 
 
 def get_chunk_list(chunk_offset, train_chunk_num):
