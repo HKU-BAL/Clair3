@@ -174,6 +174,7 @@ def Run(args):
 
     try:
         c.compress_tensor.wait()
+        signal.alarm(0)
         c.create_tensor.stdout.close()
         c.create_tensor.wait()
     except KeyboardInterrupt as e:

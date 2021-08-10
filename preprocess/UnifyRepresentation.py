@@ -36,7 +36,7 @@ c = InstancesClass()
 
 def check_return_code(signum, frame):
     c.poll()
-    if c.create_tensor.returncode != None:
+    if c.create_tensor.returncode != None and c.create_tensor.returncode != 0:
         c.compress_tensor.kill()
         sys.exit("CreateTensor.py exited with exceptions. Exiting...")
 
@@ -1170,6 +1170,9 @@ def UnifyRepresentation(args):
                 shlex.split(command_string_from(create_tensor_command_options))
             )
             candidate_source = c.create_tensor.stdout
+
+            signal.signal(signal.SIGALRM, check_return_code)
+            signal.alarm(2)
         except Exception as e:
             print(e, file=sys.stderr)
             sys.exit("Failed to start required processes. Exiting...")
@@ -1263,6 +1266,7 @@ def UnifyRepresentation(args):
     if candidate_details_fn is None:
         c.create_tensor.stdout.close()
         c.create_tensor.wait()
+        signal.alarm(0)
 
     if not len(alt_dict) or not len(variant_dict):
         return
