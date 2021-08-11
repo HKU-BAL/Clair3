@@ -69,7 +69,7 @@ class DataSequence(tf.keras.utils.Sequence):
         self.batch_size = param.trainBatchSize
         self.chunk_size = param.chunk_size
         self.chunks_per_batch = self.batch_size // self.chunk_size
-        self.label_shape_cum = list(accumulate(param.label_shape))[0:4 if add_indel_length else 2]
+        self.label_shape_cum = param.label_shape_cum[0:4 if add_indel_length else 2]
         self.mini_epochs = mini_epochs
         self.mini_epochs_count = -1
         self.validation = validation
@@ -143,7 +143,7 @@ def train_model(args):
 
     tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
     label_shape = param.label_shape
-    label_shape_cum = list(accumulate(label_shape))
+    label_shape_cum = param.label_shape_cum
     batch_size, chunk_size = param.trainBatchSize, param.chunk_size
     chunks_per_batch = batch_size // chunk_size
     random.seed(param.RANDOM_SEED)
