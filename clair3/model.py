@@ -262,21 +262,27 @@ class PyramidPolling(tf.keras.layers.Layer):
         super(PyramidPolling, self).__init__()
 
         self.spatial_pool_size = spatial_pool_size
+        self.pool_len = len(self.spatial_pool_size)
+        self.window_h = np.empty(self.pool_len, dtype=int)
+        self.stride_h = np.empty(self.pool_len, dtype=int)
+        self.window_w = np.empty(self.pool_len, dtype=int)
+        self.stride_w = np.empty(self.pool_len, dtype=int)
 
         self.flatten = tf.keras.layers.Flatten()
 
+    def build(self, input_shape):
+        height = int(input_shape[1])
+        width = int(input_shape[2])
+
+        for i in range(self.pool_len):
+            self.window_h[i] = self.stride_h[i] = int(np.ceil(height / self.spatial_pool_size[i]))
+            self.window_w[i] = self.stride_w[i] = int(np.ceil(width / self.spatial_pool_size[i]))
+
     def call(self, x):
-
-        height = int(x.get_shape()[1])
-        width = int(x.get_shape()[2])
-
-        for i in range(len(self.spatial_pool_size)):
-
-            window_h = stride_h = int(np.ceil(height / self.spatial_pool_size[i]))
-
-            window_w = stride_w = int(np.ceil(width / self.spatial_pool_size[i]))
-
-            max_pool = tf.nn.max_pool(x, ksize=[1, window_h, window_w, 1], strides=[1, stride_h, stride_w, 1],
+        for i in range(self.pool_len):
+            max_pool = tf.nn.max_pool(x,
+                                      ksize=[1, self.window_h[i], self.window_w[i], 1],
+                                      strides=[1, self.stride_h[i], self.stride_w[i], 1],
                                       padding='SAME')
             if i == 0:
                 pp = self.flatten(max_pool)
