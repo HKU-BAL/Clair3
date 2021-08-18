@@ -98,6 +98,7 @@ def Run(args):
         sys.exit("--ctgName must be specified. You can call variants on multiple chromosomes simultaneously.")
 
     pileup_mode = command_option_from(args.pileup, 'pileup')
+    add_no_phasing_mode = command_option_from(args.add_no_phasing_data_training, 'add_no_phasing_data_training')
     allow_duplicate_mode = command_option_from(args.allow_duplicate_chr_pos, 'allow_duplicate_chr_pos')
     maximum_non_variant_ratio = CommandOption('maximum_non_variant_ratio', args.maximum_non_variant_ratio)
     shuffle_mode = command_option_from(args.shuffle, 'shuffle')
@@ -122,7 +123,6 @@ def Run(args):
         CommandOption('ref_fn', ref_fn),
         CommandOption('vcf_fn', vcf_fn),
         CommandOption('ctgName', ctgName),
-        CommandOption('min_af', min_af),
         CommandOption('platform', platform),
         CommandOption('samtools', samtoolsBin),
         CommandOption('bed_fn', bed_fn),
@@ -134,7 +134,8 @@ def Run(args):
     ]
 
     if not pileup:
-        create_tensor_command_options.append(CommandOptionWithNoValue('add_no_phasing_data_training'))
+        create_tensor_command_options.append(CommandOption('min_af', min_af))
+        create_tensor_command_options.append(add_no_phasing_mode)
         create_tensor_command_options.append(CommandOptionWithNoValue('phasing_info_in_bam'))
     else:
         create_tensor_command_options.append(CommandOption('snp_min_af', snp_min_af))
@@ -259,6 +260,9 @@ def main():
     # options for internal process control, don't use any of them unless you are sure about the consequences
     ## In pileup mode or not
     parser.add_argument('--pileup', action='store_true',
+                        help=SUPPRESS)
+
+    parser.add_argument('--add_no_phasing_data_training', action='store_true',
                         help=SUPPRESS)
 
     parser.add_argument('--allow_duplicate_chr_pos', action='store_true',
