@@ -1,5 +1,6 @@
 import sys
 import gc
+import copy
 import shlex
 import os
 import tables
@@ -207,11 +208,12 @@ def print_bin_size(path, prefix=None):
     print('[INFO] total: {}'.format(total))
 
 
-def bin_reader_generator_from(tensor_fn, Y, is_tree_empty, tree, miss_variant_set, is_allow_duplicate_chr_pos=False, maximum_non_variant_ratio=None):
+def bin_reader_generator_from(tensor_fn, Y_true_var, Y, is_tree_empty, tree, miss_variant_set, is_allow_duplicate_chr_pos=False, maximum_non_variant_ratio=None):
 
     """
     Bin reader generator for bin file generation.
     tensor_fn: tensor file.
+    Y_true_var: dictionary (contig name: label information) containing all true variant information (should not be changed).
     Y: dictionary (contig name: label information) to store all variant and non variant information.
     tree: dictionary(contig name : intervaltree) for quick region querying.
     miss_variant_set:  sometimes there will have true variant missing after downsampling reads.
@@ -232,13 +234,15 @@ def bin_reader_generator_from(tensor_fn, Y, is_tree_empty, tree, miss_variant_se
         if seq[param.flankingBaseNum] not in 'ACGT':
             continue
         key = chrom + ":" + coord
-        is_reference = key not in Y
+        is_reference = key not in Y_true_var
 
         if key in miss_variant_set:
             continue
 
         if key not in X:
             X[key] = (string, alt_info, seq)
+            if is_reference:
+                ref_list.append(key)
         elif is_allow_duplicate_chr_pos:
             new_key = ""
             for character in PREFIX_CHAR_STR:
@@ -248,9 +252,10 @@ def bin_reader_generator_from(tensor_fn, Y, is_tree_empty, tree, miss_variant_se
                     break
             if len(new_key) > 0:
                 X[new_key] = (string, alt_info, seq)
+            if is_reference:
+                ref_list.append(new_key)
 
-        if is_reference:
-            ref_list.append(key)
+        if is_reference and key not in Y:
             Y[key] = output_labels_from_reference(BASE2BASE[seq[param.flankingBaseNum]])
 
         if len(X) == shuffle_bin_size:
@@ -302,7 +307,8 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
 
     tree = bed_tree_from(bed_file_path=bed_fn)
     is_tree_empty = len(tree.keys()) == 0
-    Y, miss_variant_set = variant_map_from(var_fn, tree, is_tree_empty)
+    Y_true_var, miss_variant_set = variant_map_from(var_fn, tree, is_tree_empty)
+    Y = copy.deepcopy(Y_true_var)
 
     global param
     float_type = 'int32'
@@ -357,6 +363,7 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
 
     # generator to avoid high memory occupy
     bin_reader_generator = partial(bin_reader_generator_from, 
+                                   Y_true_var=Y_true_var,
                                    Y=Y,
                                    is_tree_empty=is_tree_empty,
                                    tree=tree,
