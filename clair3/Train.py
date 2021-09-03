@@ -89,7 +89,8 @@ def train_model(args):
     add_indel_length = args.add_indel_length
     exclude_training_samples = args.exclude_training_samples
     exclude_training_samples = set(exclude_training_samples.split(',')) if exclude_training_samples else set()
-    add_validation_dataset = args.validation_dataset
+    add_validation_dataset = args.random_validation or (args.validation_fn is not None)
+    validation_fn = args.validation_fn
     ochk_prefix = args.ochk_prefix if args.ochk_prefix is not None else ""
     if pileup:
         import shared.param_p as param
@@ -131,14 +132,28 @@ def train_model(args):
 
     table_dataset_list, chunk_offset = populate_dataset_table(bin_list, args.bin_fn)
 
-    total_chunks = int(sum(chunk_offset))
-    if add_validation_dataset:
-        total_batches = total_chunks // chunks_per_batch
-        validate_chunk_num = int(max(1., np.floor(total_batches * (1 - param.trainingDatasetPercentage))) * chunks_per_batch)
-        train_chunk_num = int(total_chunks - validate_chunk_num)
+    if validation_fn:
+        val_list = os.listdir(validation_fn)
+        logging.info("[INFO] total {} validation bin files: {}".format(len(val_list), ','.join(val_list)))
+        validate_table_dataset_list, validate_chunk_offset = populate_dataset_table(val_list, args.validation_fn)
+
+        train_chunk_num = int(sum(chunk_offset))
+        train_shuffle_chunk_list, _ = get_chunk_list(chunk_offset, train_chunk_num)
+
+        validate_chunk_num = int(sum(validate_chunk_offset))
+        validate_shuffle_chunk_list, _ = get_chunk_list(validate_chunk_offset, validate_chunk_num)
+        total_chunks = train_chunk_num + validate_chunk_num
     else:
-        train_chunk_num = total_chunks
-    train_shuffle_chunk_list, validate_shuffle_chunk_list = get_chunk_list(chunk_offset, train_chunk_num)
+        total_chunks = int(sum(chunk_offset))
+        if add_validation_dataset:
+            total_batches = total_chunks // chunks_per_batch
+            validate_chunk_num = int(max(1., np.floor(total_batches * (1 - param.trainingDatasetPercentage))) * chunks_per_batch)
+            train_chunk_num = int(total_chunks - validate_chunk_num)
+        else:
+            train_chunk_num = total_chunks
+        train_shuffle_chunk_list, validate_shuffle_chunk_list = get_chunk_list(chunk_offset, train_chunk_num)
+        train_chunk_num = len(train_shuffle_chunk_list)
+        validate_chunk_num = len(validate_shuffle_chunk_list)
 
 
     def DataGenerator(x, shuffle_chunk_list, train_flag=True):
@@ -182,7 +197,7 @@ def train_model(args):
         lambda: DataGenerator(table_dataset_list, train_shuffle_chunk_list, True), TensorDtype,
         TensorShape).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
     validate_dataset = tf.data.Dataset.from_generator(
-        lambda: DataGenerator(table_dataset_list, validate_shuffle_chunk_list, False), TensorDtype,
+        lambda: DataGenerator(validate_table_dataset_list if validation_fn else table_dataset_list, validate_shuffle_chunk_list, False), TensorDtype,
         TensorShape).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
     total_steps = max_epoch * (train_chunk_num // chunks_per_batch)
@@ -233,6 +248,10 @@ def train_model(args):
     for table_dataset in table_dataset_list:
         table_dataset.close()
 
+    if validation_fn:
+        for table_dataset in validate_table_dataset_list:
+            table_dataset.close()
+
     # show the parameter set with the smallest validation loss
     if 'val_loss' in train_history.history:
         best_validation_epoch = np.argmin(np.array(train_history.history["val_loss"])) + 1
@@ -264,8 +283,6 @@ def main():
     parser.add_argument('--learning_rate', type=float, default=1e-3,
                         help="Set the initial learning rate, default: %(default)s")
 
-    parser.add_argument('--validation_dataset', action='store_true',
-                        help="Use validation dataset when training, default: %(default)s")
 
     parser.add_argument('--exclude_training_samples', type=str, default=None,
                         help="Define training samples to be excluded")
@@ -279,6 +296,13 @@ def main():
     parser.add_argument('--add_indel_length', type=str2bool, default=False,
                         help=SUPPRESS)
 
+    # mutually-incompatible validation options
+    vgrp = parser.add_mutually_exclusive_group()
+    vgrp.add_argument('--random_validation', action='store_true',
+                        help="Use random sample of dataset for validation, default: %(default)s")
+
+    vgrp.add_argument('--validation_fn', type=str, default=None,
+                        help="Binary tensor input for use in validation: %(default)s")
 
 
     args = parser.parse_args()
