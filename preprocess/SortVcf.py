@@ -97,8 +97,9 @@ def sort_vcf_from(args):
     input_dir = args.input_dir
     vcf_fn_prefix = args.vcf_fn_prefix
     vcf_fn_suffix = args.vcf_fn_suffix
-    sample_name= args.sampleName
-    ref_fn= args.ref_fn
+    sample_name = args.sampleName
+    ref_fn = args.ref_fn
+    contigs_fn = args.contigs_fn
 
     if not os.path.exists(input_dir):
         exit(log_error("[ERROR] Input directory: {} not exists!").format(input_dir))
@@ -124,22 +125,51 @@ def sort_vcf_from(args):
             print_calling_step(output_fn=output_fn)
             return
 
+    all_contigs_list = []
+    if contigs_fn and os.path.exists(contigs_fn):
+        with open(contigs_fn) as f:
+            all_contigs_list = [item.rstrip() for item in f.readlines()]
+    else:
+        exit(log_error("[ERROR] Cannot find contig file {}. Exit!").format(contigs_fn))
+
+    contigs_order = major_contigs_order + all_contigs_list
+    contigs_order_list = sorted(all_contigs_list, key=lambda x: contigs_order.index(x))
+
     row_count = 0
     header = []
-    contig_dict = defaultdict(defaultdict)
     no_vcf_output = True
-    for vcf_fn in all_files:
-        for row in open(os.path.join(input_dir, vcf_fn), 'r'):
-            row_count += 1
-            if row[0] == '#':
-                if row not in header:
-                    header.append(row)
-                continue
-            # use the first vcf header
-            columns = row.strip().split(maxsplit=3)
-            ctg_name, pos = columns[0], columns[1]
-            contig_dict[ctg_name][int(pos)] = row
-            no_vcf_output = False
+    need_write_header = True
+    output = open(output_fn, 'w')
+
+    for contig in contigs_order_list:
+        contig_dict = defaultdict(str)
+        contig_vcf_fns = [fn for fn in all_files if contig in fn]
+        for vcf_fn in contig_vcf_fns:
+            fn = open(os.path.join(input_dir, vcf_fn), 'r')
+            for row in fn:
+                row_count += 1
+                if row[0] == '#':
+                    if row not in header:
+                        header.append(row)
+                    continue
+                # use the first vcf header
+                columns = row.strip().split(maxsplit=3)
+                ctg_name, pos = columns[0], columns[1]
+                # skip vcf file sharing same contig prefix, ie, chr1 and chr11
+                if ctg_name != contig:
+                    break
+                contig_dict[int(pos)] = row
+                no_vcf_output = False
+            fn.close()
+        if need_write_header and len(header):
+            output.write(''.join(header))
+            need_write_header = False
+        all_pos = sorted(contig_dict.keys())
+        for pos in all_pos:
+            output.write(contig_dict[pos])
+
+    output.close()
+
     if row_count == 0:
         print (log_warning("[WARNING] No vcf file found, output empty vcf file"))
         output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
@@ -152,15 +182,6 @@ def sort_vcf_from(args):
         compress_index_vcf(output_fn)
         print_calling_step(output_fn=output_fn)
         return
-
-    contigs_order = major_contigs_order + list(contig_dict.keys())
-    contigs_order_list = sorted(contig_dict.keys(), key=lambda x: contigs_order.index(x))
-    with open(output_fn, 'w') as output:
-        output.write(''.join(header))
-        for contig in contigs_order_list:
-            all_pos = sorted(contig_dict[contig].keys())
-            for pos in all_pos:
-                output.write(contig_dict[contig][pos])
 
     compress_index_vcf(output_fn)
 
@@ -186,10 +207,14 @@ def main():
     parser.add_argument('--sampleName', type=str, default="SAMPLE",
                         help="Define the sample name to be shown in the VCF file, optional")
 
+    parser.add_argument('--contigs_fn', type=str, default=None,
+                        help="Contigs file with all processing contigs")
+
     args = parser.parse_args()
     if args.input_dir is None:
         sort_vcf_from_stdin(args)
     else:
         sort_vcf_from(args)
+
 if __name__ == "__main__":
     main()
