@@ -1,11 +1,12 @@
 import sys
 import os
 import shlex
-from argparse import ArgumentParser, SUPPRESS
 import logging
+import heapq
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 
+from argparse import ArgumentParser, SUPPRESS
 from shared.utils import subprocess_popen, str2bool, log_error, log_warning
 import shared.param_f as param
 from shared.interval_tree import bed_tree_from, is_region_in
@@ -73,8 +74,8 @@ def MergeVcf_illumina(args):
         bed_fn = os.path.join(bed_fn_prefix, "full_aln_regions_{}".format(contig_name))
         with open(bed_fn, 'w') as output_file:
             for file in all_files:
-                f = open(os.path.join(bed_fn_prefix, file)).read()
-                output_file.write(f)
+                with open(os.path.join(bed_fn_prefix, file)) as f:
+                    output_file.write(f.read())
 
     is_haploid_precise_mode_enabled = args.haploid_precise
     is_haploid_sensitive_mode_enabled = args.haploid_sensitive
@@ -168,12 +169,13 @@ def MergeVcf(args):
     print_ref = args.print_ref_calls
     full_alignment_vcf_unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (full_alignment_vcf_fn)))
 
-    pileup_output = []
     full_alignment_output = []
     full_alignment_output_set = set()
+    header = []
 
     for row in full_alignment_vcf_unzip_process.stdout:
         if row[0] == '#':
+            header.append(row)
             continue
         columns = row.strip().split()
         ctg_name = columns[0]
@@ -201,46 +203,57 @@ def MergeVcf(args):
     full_alignment_vcf_unzip_process.stdout.close()
     full_alignment_vcf_unzip_process.wait()
 
-    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (pileup_vcf_fn)))
+    pileup_vcf_unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (pileup_vcf_fn)))
 
-    header = []
-    for row in unzip_process.stdout:
-        if row[0] == '#':
-            header.append(row)
-            continue
+    output_file = open(output_fn, 'w')
+    output_file.write(''.join(header))
+    
+    def pileup_vcf_generator_from(pileup_vcf_unzip_process):
+        pileup_row_count = 0
+        for row in pileup_vcf_unzip_process.stdout:
+            if row[0] == '#':
+                continue
 
-        columns = row.rstrip().split('\t')
-        ctg_name = columns[0]
-        if contig_name and contig_name != ctg_name:
-            continue
-        pos = int(columns[1])
-        qual = float(columns[5])
-        ref_base, alt_base = columns[3], columns[4]
-        is_reference = (alt_base == "." or ref_base == alt_base)
+            columns = row.rstrip().split('\t')
+            ctg_name = columns[0]
+            if contig_name and contig_name != ctg_name:
+                continue
+            pos = int(columns[1])
+            qual = float(columns[5])
+            ref_base, alt_base = columns[3], columns[4]
+            is_reference = (alt_base == "." or ref_base == alt_base)
 
-        if (ctg_name, pos) in full_alignment_output_set:
-            continue
+            if (ctg_name, pos) in full_alignment_output_set:
+                continue
 
-        if is_haploid_precise_mode_enabled:
-            row = update_haploid_precise_genotype(columns)
-        if is_haploid_sensitive_mode_enabled:
-            row = update_haploid_sensitive_genotype(columns)
+            if is_haploid_precise_mode_enabled:
+                row = update_haploid_precise_genotype(columns)
+            if is_haploid_sensitive_mode_enabled:
+                row = update_haploid_sensitive_genotype(columns)
 
-        if not is_reference:
+            if not is_reference:
                 row = MarkLowQual(row, QUAL, qual)
-                pileup_output.append((pos, row))
+                pileup_row_count += 1
+                yield (pos, row)
+            elif print_ref:
+                pileup_row_count += 1
+                yield (pos, row)
 
-        elif print_ref:
-            pileup_output.append((pos, row))
+        logging.info('[INFO] Pileup variants processed in {}: {}'.format(contig_name, pileup_row_count))
 
-    logging.info('[INFO] Pileup variants processed in {}: {}'.format(contig_name, len(pileup_output)))
+    pileup_vcf_generator = pileup_vcf_generator_from(pileup_vcf_unzip_process=pileup_vcf_unzip_process)
+    full_alignment_vcf_generator = iter(full_alignment_output)
+    for vcf_infos in heapq.merge(full_alignment_vcf_generator, pileup_vcf_generator):
+        if len(vcf_infos) != 2:
+            continue
+        pos, row = vcf_infos
+        output_file.write(row)
+    
     logging.info('[INFO] Full-alignment variants processed in {}: {}'.format(contig_name, len(full_alignment_output)))
 
-    with open(output_fn, 'w') as output_file:
-        output_file.write(''.join(header))
-        output = [item[1] for item in sorted(pileup_output + full_alignment_output, key=lambda x: x[0])]
-        output_file.write(''.join(output))
-
+    pileup_vcf_unzip_process.stdout.close()
+    pileup_vcf_unzip_process.wait()
+    output_file.close()
 
 def mergeNonVariant(args):
     '''
