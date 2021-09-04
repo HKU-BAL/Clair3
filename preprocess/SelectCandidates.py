@@ -145,7 +145,8 @@ def SelectCandidates(args):
     # try to find the global quality cut off:
     f_qual = os.path.join(split_folder, 'qual')
     if os.path.exists(f_qual):
-        line = open(f_qual, 'r').read().rstrip().split(' ')
+        with open(f_qual, 'r') as f:
+            line = f.read().rstrip().split(' ')
         var_qual, ref_qual = float(line[0]), float(line[1])
         found_qual_cut_off = True
 

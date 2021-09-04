@@ -306,13 +306,15 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
         directry, file_prefix = '/'.join(candidate_details_fn_prefix[:-1]), candidate_details_fn_prefix[-1]
         file_list = [f for f in os.listdir(directry) if f.startswith(file_prefix)]
         for f in file_list:
-            for row in open(os.path.join(directry, f), 'r'):
+            fn = open(os.path.join(directry, f), 'r')
+            for row in fn:
                 chr_pos = row.split('\t')[0]
                 key = chr_pos.replace(' ', ':')
                 if key in Y:
                     variant_num += 1
                 else:
                     non_variant_num += 1
+            fn.close()
 
         max_non_variant_num = variant_num * maximum_non_variant_ratio
         if max_non_variant_num < non_variant_num:
