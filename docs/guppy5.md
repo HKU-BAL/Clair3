@@ -21,12 +21,11 @@ The benchmarks of the model and the data are as follows. With all precision incr
 INPUT_DIR="[YOUR_INPUT_FOLDER]"           # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"         # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"               # e.g. 8
-BIN_VERSION="v0.1-r3"
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:"${BIN_VERSION}" \
+  hkubal/clair3::latest \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \       ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \          ## change your reference name here
