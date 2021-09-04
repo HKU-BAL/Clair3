@@ -6,10 +6,12 @@ import re
 logging.getLogger().setLevel(logging.INFO)
 from shared.utils import file_path_from
 
+use_mpmath = True
 try:
     import mpmath as math
 except ImportError:
     import math
+    use_mpmath = False
 
 LOG_10 = 2.3025
 LOG_2 = 0.3010
@@ -615,8 +617,11 @@ class mathcalculator(object):
         self.maxPhredScore = 255
         self.speedUp = speedUp
         if(speedUp):
-            self._creatCFFIFunc()
-            
+            try:
+                self._creatCFFIFunc()
+            except:
+                self.speedUp = False
+                pass
             
 
     
@@ -679,15 +684,12 @@ class mathcalculator(object):
         '''
         
         if(self.speedUp):
-            
             return round(self.lib.log10p_to_phred(log10p),6)
-        
-        
-        
-        #if(ptrue==1):
-        #    return 255
-        
-        #return round(-10*(math.log1p(-ptrue)/self.LOG_10),6)
+
+        ptrue = math.power(10, log10p) if use_mpmath else math.pow(10, log10p)
+        if ptrue == 1:
+            return 50
+        return round(-10*(math.log(1-ptrue)/self.LOG_10),6)
         
     def log10sumexp(self,log10_array):
 
@@ -699,11 +701,10 @@ class mathcalculator(object):
             
             n_array = self.ffi.cast("int", len(log10_array))
             log10_array_c = self.ffi.new("double []",log10_array)
-            
             return self.lib.log10sumexp(log10_array_c,n_array) 
             
         m = max(log10_array)
-        return  m + math.log10(sum(pow(10.0, x - m) for x in log10_array))
+        return m + math.log10(sum(pow(10.0, x - m) for x in log10_array))
    
 
     def normalize_log10_prob(self,log10_prob):
