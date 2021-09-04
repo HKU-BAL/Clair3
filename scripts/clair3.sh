@@ -141,7 +141,8 @@ ${PYPY} ${CLAIR3} SortVcf \
     --vcf_fn_prefix "pileup" \
     --output_fn ${OUTPUT_FOLDER}/pileup.vcf \
     --sampleName ${SAMPLE} \
-    --ref_fn ${REFERENCE_FILE_PATH}
+    --ref_fn ${REFERENCE_FILE_PATH} \
+    --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
 if [ "$( gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in pileup variant calling"; exit 0; fi
 if [ ${PILEUP_ONLY} == True ]; then
@@ -236,7 +237,9 @@ ${PYPY} ${CLAIR3} SortVcf \
     --vcf_fn_prefix "full_alignment" \
     --output_fn ${OUTPUT_FOLDER}/full_alignment.vcf \
     --sampleName ${SAMPLE} \
-    --ref_fn ${REFERENCE_FILE_PATH}
+    --ref_fn ${REFERENCE_FILE_PATH} \
+    --contigs_fn ${TMP_FILE_PATH}/CONTIGS
+
 if [ "$( gzip -fdc ${OUTPUT_FOLDER}/full_alignment.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in full-alignment variant calling"; exit 0; fi
 if [ ${GVCF} == True ]; then cat ${GVCF_TMP_PATH}/*.tmp.g.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${GVCF_TMP_PATH}/non_var.gvcf; fi
 
@@ -265,10 +268,21 @@ ${PYPY} ${CLAIR3} SortVcf \
     --vcf_fn_prefix "merge" \
     --output_fn ${OUTPUT_FOLDER}/merge_output.vcf \
     --sampleName ${SAMPLE} \
-    --ref_fn ${REFERENCE_FILE_PATH}
+    --ref_fn ${REFERENCE_FILE_PATH} \
+    --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
 if [ "$( gzip -fdc ${OUTPUT_FOLDER}/merge_output.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in variant merging"; exit 0; fi
-if [ ${GVCF} == True ]; then cat ${TMP_FILE_PATH}/merge_output/merge_*.gvcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_FOLDER}/merge_output.gvcf; fi
+if [ ${GVCF} == True ]
+then
+    ${PYPY} ${CLAIR3} SortVcf \
+        --input_dir ${TMP_FILE_PATH}/merge_output \
+        --vcf_fn_prefix "merge" \
+        --vcf_fn_suffix ".gvcf" \
+        --output_fn ${OUTPUT_FOLDER}/merge_output.gvcf \
+        --sampleName ${SAMPLE} \
+        --ref_fn ${REFERENCE_FILE_PATH} \
+        --contigs_fn ${TMP_FILE_PATH}/CONTIGS
+fi
 
 echo $''
 echo "[INFO] Finish calling, output file: ${OUTPUT_FOLDER}/merge_output.vcf.gz"
