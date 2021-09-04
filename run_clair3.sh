@@ -1,6 +1,7 @@
 #!/bin/bash
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH=`dirname "$0"`
+VERSION='v0.1-r6'
 Usage="Usage: ./${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
 set -e
@@ -51,9 +52,7 @@ print_help_messages()
 
 print_version()
 {
-    VERSION='v0.1-r5'
     echo "Clair3 ${VERSION}"
-
     exit 0
 }
 
@@ -179,6 +178,7 @@ if [ "${PLATFORM}" != "ont" ] && [ ! "${REF_PRO}" -gt 0 ]; then REF_PRO=0.3; fi
 
 # optional parameters should use "="
 (time (
+echo "[INFO] CLAIR3 VERSION: ${VERSION}"
 echo "[INFO] BAM FILE PATH: ${BAM_FILE_PATH}"
 echo "[INFO] REFERENCE FILE PATH: ${REFERENCE_FILE_PATH}"
 echo "[INFO] MODEL PATH: ${MODEL_PATH}"
