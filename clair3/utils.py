@@ -5,7 +5,6 @@ import shlex
 import os
 import tables
 import numpy as np
-from random import random
 from functools import partial
 
 from clair3.task.main import *
@@ -276,13 +275,13 @@ def bin_reader_generator_from(tensor_fn, Y_true_var, Y, is_tree_empty, tree, mis
 def _filter_non_variants(X, ref_list, maximum_non_variant_ratio):
     non_variant_num = len(ref_list)
     variant_num = len(X) - non_variant_num
-    max_non_variant_num = int(variant_num * maximum_non_variant_ratio)
-    if max_non_variant_num < non_variant_num:
-        remove_list = np.random.choice(ref_list,
-                                       size=non_variant_num - max_non_variant_num,
-                                       replace=False)
-        for key in remove_list:
-            X.pop(key)
+    if non_variant_num > variant_num * maximum_non_variant_ratio:
+        non_variant_keep_fraction = maximum_non_variant_ratio * variant_num / (1. * non_variant_num)
+        probabilities = np.random.random_sample((non_variant_num,))
+        for key, p in zip(ref_list, probabilities):
+            if p > non_variant_keep_fraction:
+                X.pop(key)
+
 
 def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow_duplicate_chr_pos=True, chunk_id=None,
                        chunk_num=None, platform='ont', pileup=False, maximum_non_variant_ratio=None, candidate_details_fn_prefix=None):
