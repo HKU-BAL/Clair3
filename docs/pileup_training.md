@@ -66,6 +66,8 @@ mkdir -p ${SUBSAMPLED_BAMS_FOLDER_PATH}
 
 # Other parameters
 THREADS=8
+THREADS_LOW=$((${THREADS}*3/4))
+if [[ ${THREADS_LOW} < 1 ]]; then THREADS_LOW=1; fi
 PARALLEL='parallel'
 SAMTOOLS='samtools'
 
@@ -225,7 +227,7 @@ ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
 
 ```bash
 # Create pileup tensor for model training
-${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS} \
+${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS_LOW} \
 "${PYPY} ${CLAIR3} CreateTrainingTensor \
     --bam_fn {4} \
     --ref_fn {5} \

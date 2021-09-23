@@ -75,6 +75,8 @@ CHR=(20)
 
 # Number of threads to be used
 THREADS=8
+THREADS_LOW=$((${THREADS}*3/4))
+if [[ ${THREADS_LOW} < 1 ]]; then THREADS_LOW=1; fi
 
 ```
 
@@ -278,7 +280,7 @@ ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
 
 ```bash
 # Create full-alignment tensor for model training
-${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_full_alignment.log -j${THREADS} \
+${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_full_alignment.log -j${THREADS_LOW} \
 "${PYPY} ${CLAIR3} CreateTrainingTensor \
     --bam_fn {4} \
     --ref_fn {5} \
