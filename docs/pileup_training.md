@@ -260,7 +260,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS
 # Merge compressed binaries
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/mergeBin.log -j${THREADS} \
 "${PYTHON3} ${CLAIR3} MergeBin \
-    ${TENSOR_CANDIDATE_PATH}/tensor_can_{2}_{3}_{1}_* \
+    ${TENSOR_CANDIDATE_PATH}/tensor_{2}_{3}_{1}_* \
     --out_fn ${BINS_FOLDER_PATH}/bin_{2}_{3}_{1} \
     --pileup \
     --chunk_num ${bin_chunk_num}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]}
