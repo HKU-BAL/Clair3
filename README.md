@@ -67,6 +67,7 @@ We are actively fixing bugs and issues in Clair3 reported by users.
   * [Guppy3-4 Model](#pre-trained-models)
   * [Guppy5 Model](docs/guppy5.md)
   * [Guppy2 Model](docs/guppy2.md)
+  * [ONT-provided Models](#ont-provided-models)
 * [Training Data](docs/training_data.md)
 * [VCF/GVCF Output Formats](#vcfgvcf-output-formats)
 * [Pileup Model Training](docs/pileup_training.md)
@@ -497,6 +498,10 @@ Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or 
 | ont_guppy2.tar.gz |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              |    1    | 20210627 |   Guppy2   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy2.tar.gz) |
 |    hifi.tar.gz    | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
 |    ilmn.tar.gz    |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+
+#### ONT-provided Models
+
+Additionally, ONT provides models for specific chemistries and basecallers through [Rerio](https://github.com/nanoporetech/rerio). These models are not tested or supported by the developers of Clair3.
 
 ----
 
