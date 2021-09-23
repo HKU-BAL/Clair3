@@ -12,7 +12,7 @@ Contact: Ruibang Luo
 
 Email: rbluo@cs.hku.hk  
 
----
+----
 
 ## Introduction
 
@@ -20,11 +20,41 @@ Clair3 is a small variant caller for long-reads. Compare to PEPPER (r0.4), Clair
 
 Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Clair) (the 2<sup>nd</sup>) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante) (the 1<sup>st</sup>).
 
----
+----
+
+## Contents
+
+* [Introduction](#introduction)
+* [Latest Updates](#latest-updates)
+* [Pre-trained Models](#pre-trained-models)
+  * [Guppy3-4 Model](#pre-trained-models)
+  * [Guppy5 Model](docs/guppy5.md)
+  * [Guppy2 Model](docs/guppy2.md)
+  * [ONT-provided Models](#ont-provided-models)
+* [What's New in Clair3](#whats-new-in-clair3)
+* [Installation](#installation)
+  + [Option 1. Docker pre-built image](#option-1--docker-pre-built-image)
+  + [Option 2. Singularity](#option-2-singularity)
+  + [Option 3. Bioconda](#option-3--bioconda)
+  + [Option 4. Build an anaconda virtual environment](#option-4-build-an-anaconda-virtual-environment)
+  + [Option 5. Docker Dockerfile](#option-5-docker-dockerfile)
+* [Quick Demo](#quick-demo)
+* [Usage](#usage)
+* [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
+* [Training Data](docs/training_data.md)
+* [VCF/GVCF Output Formats](#vcfgvcf-output-formats)
+* [Pileup Model Training](docs/pileup_training.md)
+* [Full-Alignment Model Training](docs/full_alignment_training.md)
+* [Representation Unification](docs/representation_unification.md)
+* [Visualization](docs)
+  * [Model Input](docs/model_input_visualization.md)
+  * [Representation Unification](docs/representation_unification_visualization.md)
+
+----
 
 ## Latest Updates
 
-We are actively fixing bugs and issues in Clair3 reported by users.
+*ONT-provided Models (Sep 23)*: ONT also provides Clair3 models for specific chemistries and basecallers through [Rerio](https://github.com/nanoporetech/rerio).
 
 *v0.1-r6 (Sep 4)* : 1. Reduced memory footprint at the `SortVcf` stage([#45](https://github.com/HKU-BAL/Clair3/issues/45)). 2. Reduced `ulimit -n` (number of files simultaneously opened) requirement ([#45](https://github.com/HKU-BAL/Clair3/issues/45), [#47](https://github.com/HKU-BAL/Clair3/issues/47)). 3. Added Clair3-Illumina package in bioconda([#42](https://github.com/HKU-BAL/Clair3/issues/42)).
 
@@ -47,37 +77,26 @@ We are actively fixing bugs and issues in Clair3 reported by users.
 
 * A paper on detailed methods and benchmarks.
 
----
+----
 
-## Contents
+#### Pre-trained Models
 
-* [Introduction](#introduction)
-* [Latest Updates](#latest-updates)
-* [What's New in Clair3](#whats-new-in-clair3)
-* [Installation](#installation)
-  + [Option 1. Docker pre-built image](#option-1--docker-pre-built-image)
-  + [Option 2. Singularity](#option-2-singularity)
-  + [Option 3. Bioconda](#option-3--bioconda)
-  + [Option 4. Build an anaconda virtual environment](#option-4-build-an-anaconda-virtual-environment)
-  + [Option 5. Docker Dockerfile](#option-5-docker-dockerfile)
-* [Quick Demo](#quick-demo)
-* [Usage](#usage)
-* [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
-* [Pre-trained Models](#pre-trained-models)
-  * [Guppy3-4 Model](#pre-trained-models)
-  * [Guppy5 Model](docs/guppy5.md)
-  * [Guppy2 Model](docs/guppy2.md)
-  * [ONT-provided Models](#ont-provided-models)
-* [Training Data](docs/training_data.md)
-* [VCF/GVCF Output Formats](#vcfgvcf-output-formats)
-* [Pileup Model Training](docs/pileup_training.md)
-* [Full-Alignment Model Training](docs/full_alignment_training.md)
-* [Representation Unification](docs/representation_unification.md)
-* [Visualization](docs)
-  * [Model Input](docs/model_input_visualization.md)
-  * [Representation Unification](docs/representation_unification_visualization.md)
+Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
----
+|       File        |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image | Release |   Date   | Basecaller |                             Link                             |
+| :---------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :-----: | :------: | :--------: | :----------------------------------------------------------: |
+|    ont.tar.gz     |     ONT     |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
+|  ont_1235.tar.gz  |     ONT     |                         HG001,2,3,5                          |                                  |                              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
+| ont_guppy5.tar.gz |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) | Yes                              |             Yes              |    1    | 20210609 |   Guppy5   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy5.tar.gz) |
+| ont_guppy2.tar.gz |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              |    1    | 20210627 |   Guppy2   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy2.tar.gz) |
+|    hifi.tar.gz    | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|    ilmn.tar.gz    |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+
+#### ONT-provided Models
+
+Additionally, ONT provides models for specific chemistries and basecallers through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers.
+
+----
 
 ## What's New in Clair3
 
@@ -272,7 +291,7 @@ docker build -f ./Dockerfile -t hkubal/clair3:latest .
 docker run -it hkubal/clair3:latest /opt/bin/run_clair3.sh --help
 ```
 
----
+----
 
 ## Usage
 
@@ -485,23 +504,6 @@ Clair3 trained both its pileup and full-alignment models using four GIAB samples
 |  Illumina   |    GRCh38     | BWA-MEM/NovoAlign |   HG001,2,4,5    |
 
 Please find more details about the training data and links at [Training Data](docs/training_data.md).
-
-#### Pre-trained Models
-
-Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
-
-|       File        |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image | Release |   Date   | Basecaller |                             Link                             |
-| :---------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :-----: | :------: | :--------: | :----------------------------------------------------------: |
-|    ont.tar.gz     |     ONT     |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
-|  ont_1235.tar.gz  |     ONT     |                         HG001,2,3,5                          |                                  |                              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
-| ont_guppy5.tar.gz |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) | Yes                              |             Yes              |    1    | 20210609 |   Guppy5   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy5.tar.gz) |
-| ont_guppy2.tar.gz |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              |    1    | 20210627 |   Guppy2   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy2.tar.gz) |
-|    hifi.tar.gz    | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|    ilmn.tar.gz    |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
-
-#### ONT-provided Models
-
-Additionally, ONT provides models for specific chemistries and basecallers through [Rerio](https://github.com/nanoporetech/rerio). These models are not tested or supported by the developers of Clair3.
 
 ----
 
