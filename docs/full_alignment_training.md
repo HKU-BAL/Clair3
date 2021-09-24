@@ -356,7 +356,7 @@ ${PYTHON3} ${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
     --ochk_prefix ${MODEL_FOLDER_PATH}/full_alignment \
     --add_indel_length True \
-    --validation_dataset \
+    --random_validation \
     --platform ${PLATFORM}
     
 ```
@@ -364,7 +364,7 @@ ${PYTHON3} ${CLAIR3} Train \
 **Options**
 
  - `--add_indel_length` :  enable or disable the two indel-length tasks. In the pre-trained models, the two tasks are enabled in full-alignment calling.
- - `--validation_dataset`: randomly holdout 10% from all candidate sites as validation data, the best-performing epoch on the validation data are selected as our pre-trained models.
+ - `--random_validation`: randomly holdout 10% from all candidate sites as validation data, the best-performing epoch on the validation data are selected as our pre-trained models.
 
 #### 2. full-alignment model fine-tune using pre-trained model (optional)
 
@@ -380,7 +380,7 @@ ${PYTHON3} ${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
     --ochk_prefix ${MODEL_FOLDER_PATH}/full_alignment \
     --add_indel_length True \
-    --validation_dataset \
+    --random_validation \
     --platform ${PLATFORM} \
     --learning_rate 0.0001 \
     --chkpnt_fn "[YOUR_PRETRAINED_MODEL]"  ## use pre-trained full-alignment model here

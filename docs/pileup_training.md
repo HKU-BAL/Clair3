@@ -301,7 +301,7 @@ ${PYTHON3} ${CLAIR3} Train \
     --ochk_prefix ${MODEL_FOLDER_PATH}/pileup \
     --pileup \
     --add_indel_length False \
-    --validation_dataset \
+    --random_validation \
     --platform ${PLATFORM}
 
 ```
@@ -310,7 +310,7 @@ ${PYTHON3} ${CLAIR3} Train \
 
  - `--pileup` : enable pileup model training mode. (enable full-alignment mode if the option is not set).
  - `--add_indel_length` :  enable or disable the two indel-length tasks. In the pre-trained models, the two tasks are disabled in pileup calling.
- - `--validation_dataset`: randomly holdout 10% from all candidate sites as validation data, the best-performing epoch on the validation data are selected as our pre-trained models.
+ - `--random_validation`: randomly holdout 10% from all candidate sites as validation data, the best-performing epoch on the validation data are selected as our pre-trained models.
 
 #### 2. Pileup model fine-tune using pre-trained model (option 2)
 
@@ -327,7 +327,7 @@ ${PYTHON3} ${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
     --ochk_prefix ${MODEL_FOLDER_PATH}/pileup \
     --add_indel_length False \
-    --validation_dataset \
+    --random_validation \
     --platform ${PLATFORM} \
     --learning_rate 0.0001 \
     --chkpnt_fn "[YOUR_PRETRAINED_MODEL]"  ## use pre-trained pileup model here
