@@ -162,7 +162,6 @@ ${PARALLEL} --joblog ${OUTPUT_DIR}/unify_repre.log -j${THREADS} \
     --bed_fn ${BED_FILE_PATH} \
     --extend_bed ${SPLIT_BED_PATH}/{1} \
     --output_vcf_fn ${VCF_OUTPUT_PATH}/vcf_{1}_{2} \
-    --samtools ${SAMTOOLS} \
     --min_af ${MIN_AF} \
     --chunk_id {2} \
     --chunk_num ${chunk_num} \
