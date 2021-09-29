@@ -3,16 +3,46 @@ import heapq
 import itertools
 import json
 import shlex
+import signal
+import sys
 import os
 
 from collections import Counter
 from argparse import ArgumentParser, SUPPRESS
 from collections import defaultdict
-from sys import stderr
 from subprocess import PIPE, Popen
+from shared.command_options import (
+    CommandOption,
+    CommandOptionWithNoValue,
+    ExecuteCommand,
+    command_string_from,
+    command_option_from
+)
+from shared.utils import file_path_from, executable_command_string_from, subprocess_popen, str2bool, log_warning
 
 from shared.interval_tree import bed_tree_from, is_region_in
 from shared.utils import subprocess_popen, region_from, reference_sequence_from
+import shared.param_p as param
+
+class InstancesClass(object):
+    def __init__(self):
+        self.create_tensor = None
+
+    def poll(self):
+        self.create_tensor.poll()
+
+
+c = InstancesClass()
+
+def check_return_code(signum, frame):
+    c.poll()
+    if c.create_tensor.returncode != None and c.create_tensor.returncode != 0:
+        c.compress_tensor.kill()
+        sys.exit("CreateTensor.py exited with exceptions. Exiting...")
+
+    if c.create_tensor.returncode == None:
+        signal.alarm(5)
+
 
 extended_window_size = 200
 region_size = 50000
@@ -20,8 +50,8 @@ reference_region_size = region_size * 2
 extend_bp = 100
 reference_allele_gap = 0.9
 
-def subprocess_popen(args, stdin=None, stdout=PIPE, stderr=stderr, bufsize=8388608):
-    return Popen(args, stdin=stdin, stdout=stdout, stderr=stderr, bufsize=bufsize, universal_newlines=True)
+def subprocess_popen(args, stdin=None, stdout=PIPE, stderr=sys.stderr, bufsize=8388608):
+    return Popen(args, stdin=stdin, stdout=stdout, stderr=sys.stderr, bufsize=bufsize, universal_newlines=True)
 
 class Reference(object):
     """
@@ -873,7 +903,8 @@ class RepresentationUnification(object):
                 for truth in all_truths:
                     pos = truth.start
                 # add missing low-confident tp position
-                    if not (pos >= split_start and pos < split_end) or not (pos >= ctg_start and pos < ctg_end):
+                    if not (pos >= split_start and pos < split_end) or (ctg_start is not None and ctg_end is not None
+                                                                        and not (pos >= ctg_start and pos < ctg_end)):
                         continue
                     if pos in alt_dict and pos in variant_dict:
                         ref_base = variant_dict[pos].reference_bases
@@ -950,7 +981,8 @@ class RepresentationUnification(object):
             for idx, (pos, raw_genotype, truth_genotype) in enumerate(
                     zip(match_pairs.truths_pos_list, match_pairs.raw_genotypes,
                         match_pairs.truth_genotypes)):
-                if not (pos >= split_start and pos < split_end) or not (pos >= ctg_start and pos < ctg_end):
+                if not (pos >= split_start and pos < split_end) or (ctg_start is not None and ctg_end is not None
+                                                                    and not (pos >= ctg_start and pos < ctg_end)):
                     continue
 
                 if truth_genotype == (0, 0) and sum(raw_genotype) > 0:# miss genoytpe
@@ -974,6 +1006,23 @@ class RepresentationUnification(object):
                             rescue_dict[pos] = "%s\t%d\t.\t%s\t%s\t%d\t%s\t%s\tGT:GQ:DP:AF\t%s:%d:%d:%.4f" % (
                                 self.contig_name, pos, ref_base, variant, 10, 'PASS', '.', genotype_string, 10, 10, 0.5)
 
+
+def parse_candidates_file(candidate_details_fn, contig_name=None):
+    candidate_details_list = []
+    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % candidate_details_fn))
+    for row in unzip_process.stdout:
+        candidate_details_list.append(row)
+    return candidate_details_list
+
+
+def parse_line(row):
+    row = row.strip().split('\t')  # ['chr_pos', 'depth', 'cigar_count']
+    chr_pos, depth, var_read_json = row[:3]
+    ctg_name, pos = chr_pos.split()
+    pos, depth = int(pos), int(depth)
+    return (ctg_name, pos, depth, var_read_json)
+
+
 def UnifyRepresentation(args):
 
     """
@@ -989,7 +1038,7 @@ def UnifyRepresentation(args):
     """
     sample_name = args.sampleName
     var_fn = args.var_fn  # true vcf var
-    candidate_details_fn_prefix = args.candidate_details_fn_prefix
+    candidate_details_fn = args.candidate_details_fn
     contig_name = args.ctgName
     ctg_start = args.ctgStart
     ctg_end = args.ctgEnd
@@ -1002,42 +1051,77 @@ def UnifyRepresentation(args):
     max_calculate_count = args.max_calculate_count
     subsample_ratio = args.subsample_ratio
     platform = args.platform
+    chunk_id = args.chunk_id
+    chunk_num = args.chunk_num
 
     global test_pos
     test_pos = None
 
     alt_dict = defaultdict()
-    candidate_details_list = []
     read_name_info_dict = defaultdict(Read)
 
-    var_read_prefix = '/'.join(candidate_details_fn_prefix.split('/')[:-1])
-    var_read_p = candidate_details_fn_prefix.split('/')[-1]
-    for f in os.listdir(var_read_prefix):
-        if not f.startswith(var_read_p):
-            continue
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (os.path.join(var_read_prefix, f))))
-        for row in unzip_process.stdout:
-            row = row.strip().split('\t')  # ['chr_pos', 'depth', 'cigar_count']
-            chr_pos, depth, var_read_json = row[:3]
-            ctg_name, pos = chr_pos.split()
-            pos, depth = int(pos), int(depth)
-            if contig_name and contig_name != ctg_name:
-                continue
+    if candidate_details_fn is None:
+        basedir = os.path.dirname(__file__)
+        CTFA_Bin = basedir + "/../clair3.py CreateTensorFullAlignment"
+        pypyBin = executable_command_string_from(args.pypy, exit_on_not_found=True)
+        bam_fn = file_path_from(args.bam_fn, exit_on_not_found=True)
+        ref_fn = file_path_from(args.ref_fn, exit_on_not_found=True)
+        vcf_fn = file_path_from(args.vcf_fn)
+        extend_bed = file_path_from(args.extend_bed)
+        min_af = args.min_af
+        ctgStart, ctgEnd = None, None
+        if ctg_start is not None and ctg_end is not None and int(ctg_start) <= int(ctg_end):
+            ctgStart = CommandOption('ctgStart', ctg_start)
+            ctgEnd = CommandOption('ctgEnd', ctg_end)
+        chunkId, chunkNum = None, None
+        if chunk_id is not None and chunk_num is not None and int(chunk_id) <= int(chunk_num):
+            chunkId = CommandOption('chunk_id', chunk_id)
+            chunkNum = CommandOption('chunk_num', chunk_num)
 
-            candidate_details_list.append((pos, depth, var_read_json))
+        create_tensor_command_options = [
+            pypyBin,
+            CTFA_Bin,
+            CommandOption('bam_fn', bam_fn),
+            CommandOption('ref_fn', ref_fn),
+            CommandOption('vcf_fn', vcf_fn),
+            CommandOption('ctgName', contig_name),
+            CommandOption('platform', platform),
+            CommandOption('bed_fn', bed_fn),
+            CommandOption('extend_bed', extend_bed),
+            ctgStart,
+            ctgEnd,
+            chunkId,
+            chunkNum,
+            CommandOptionWithNoValue('unify_repre'),
+            CommandOptionWithNoValue('phasing_info_in_bam'),
+            CommandOption('unify_repre_fn', 'PIPE')
+        ]
+        if min_af is not None:
+            create_tensor_command_options.append(CommandOption('min_af', min_af))
+    else:
+        candidate_details_list = []
+        if os.path.exists(candidate_details_fn):
+            candidate_details_list = parse_candidates_file(candidate_details_fn, contig_name)
+        else:
+            directory, prefix = os.path.split(candidate_details_fn)
+            for f in os.listdir(directory):
+                if not f.startswith(prefix):
+                    continue
+                candidate_details_list += parse_candidates_file(os.path.join(directory, f), contig_name)
 
-    candidate_details_list = sorted(candidate_details_list, key=lambda x: x[0])
+        candidate_details_list = sorted(candidate_details_list, key=lambda x: x[0])
 
-    if not len(candidate_details_list):
-        return
+        if not len(candidate_details_list):
+            return
 
-    if ctg_start is None or ctg_end is None:
-        alt_start, alt_end = candidate_details_list[0][0], candidate_details_list[-1][0]
-        chunk_id = args.chunk_id - 1  # 1-base to 0-base
-        chunk_num = args.chunk_num
-        chunk_size = (alt_end - alt_start) // chunk_num + 1
-        ctg_start = alt_start + chunk_size * chunk_id
-        ctg_end = ctg_start + chunk_size
+        if ctg_start is None or ctg_end is None:
+            alt_start = parse_line(candidate_details_list[0])[1]
+            alt_end = parse_line(candidate_details_list[-1])[1]
+            chunk_id = args.chunk_id - 1  # 1-base to 0-base
+            chunk_num = args.chunk_num
+            chunk_size = (alt_end - alt_start) // chunk_num + 1
+            ctg_start = alt_start + chunk_size * chunk_id
+            ctg_end = ctg_start + chunk_size
 
     is_ctg_name_given = contig_name is not None
     is_ctg_range_given = is_ctg_name_given and ctg_start is not None and ctg_end is not None
@@ -1067,7 +1151,8 @@ def UnifyRepresentation(args):
         if contig_name and contig_name != ctg_name:
             continue
         pos = int(columns[1])
-        if pos < ctg_start - extended_window_size or pos > ctg_end + extended_window_size:
+        if ctg_start is not None and ctg_end is not None and \
+            (pos < ctg_start - extended_window_size or pos > ctg_end + extended_window_size):
             continue
         ref_base = columns[2]
         alt_base = columns[3]
@@ -1079,9 +1164,27 @@ def UnifyRepresentation(args):
                                      genotype1=genotype1,
                                      genotype2=genotype2)
 
-    for row in candidate_details_list:
-        pos, depth, var_read_json = row
-        if pos < ctg_start - extended_window_size or pos > ctg_end + extended_window_size:
+    if candidate_details_fn is None:
+        try:
+            c.create_tensor = subprocess_popen(
+                shlex.split(command_string_from(create_tensor_command_options))
+            )
+            candidate_source = c.create_tensor.stdout
+
+            signal.signal(signal.SIGALRM, check_return_code)
+            signal.alarm(2)
+        except Exception as e:
+            print(e, file=sys.stderr)
+            sys.exit("Failed to start required processes. Exiting...")
+    else:
+        candidate_source = candidate_details_list
+
+    for row in candidate_source:
+        ctg_name, pos, depth, var_read_json = parse_line(row)
+        if contig_name != ctg_name:
+            continue
+        if ctg_start is not None and ctg_end is not None and \
+            (pos < ctg_start - extended_window_size or pos > ctg_end + extended_window_size):
             continue
 
         var_read_dict = json.loads(var_read_json)
@@ -1160,11 +1263,16 @@ def UnifyRepresentation(args):
               continue
         read.end = max([item[1] for item in read.seq]) if len(read.seq) else None
 
+    if candidate_details_fn is None:
+        c.create_tensor.stdout.close()
+        c.create_tensor.wait()
+        signal.alarm(0)
+
     if not len(alt_dict) or not len(variant_dict):
         return
 
-    region_start = ctg_start
-    region_end = ctg_end
+    region_start = ctg_start if ctg_start else min(alt_dict.keys())
+    region_end = ctg_end if ctg_end else max(alt_dict.keys())
     rescue_dict = defaultdict()
     all_pos = set()
 
@@ -1274,8 +1382,8 @@ def main():
     parser.add_argument('--ref_fn', type=str, default="ref.fa",
                         help="Reference fasta file input, default: %(default)s")
 
-    parser.add_argument('--candidate_details_fn_prefix', type=str, default=None,
-                        help="All read-level candidate details of provided contig, default: %(default)s")
+    parser.add_argument('--candidate_details_fn', type=str, default=None,
+                        help="Read-level candidate details file, default: %(default)s")
 
     parser.add_argument('--output_vcf_fn', type=str, default=None,
                         help="VCF output filename or stdout if not set,default: %(default)s")
@@ -1308,6 +1416,12 @@ def main():
     parser.add_argument('--bed_fn', type=str, default=None,
                         help="Candidate sites VCF file input, if provided, will choose candidate +/- 1 or +/- 2. Use together with gen4Training. default: %(default)s")
 
+    parser.add_argument('--vcf_fn', type=str, default=None,
+                        help="Candidate sites VCF file input, if provided, will choose candidate +/- 1 or +/- 2. Use together with gen4Training. default: %(default)s")
+
+    parser.add_argument('--extend_bed', type=str, default=None,
+                        help=SUPPRESS)
+
     # options for internal process control
     ## Subsample ratio tag for sub-sampled BAM file
     parser.add_argument('--subsample_ratio', type=int, default=1000,
@@ -1323,6 +1437,15 @@ def main():
 
     ## The chuck ID to work on
     parser.add_argument('--chunk_id', type=int, default=None,
+                        help=SUPPRESS)
+
+    parser.add_argument('--min_af', type=float, default=None,
+                        help=SUPPRESS)
+
+    parser.add_argument('--bam_fn', type=str, default=None,
+                        help=SUPPRESS)
+
+    parser.add_argument('--pypy', type=str, default="pypy3",
                         help=SUPPRESS)
 
     args = parser.parse_args()

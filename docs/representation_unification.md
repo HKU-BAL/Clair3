@@ -36,7 +36,7 @@ This document shows how Clair3 unifies the representation between the training m
 - [1. Setup variables](#1-setup-variables)
 - [2.  Phase VCF file using WhatsHap](#2--phase-vcf-file-using-whatshap)
 - [3.  Haplotag read alignment using WhatsHap](#3--haplotag-read-alignment-using-whatshap)
-- [4.  Prepare true variant set and candidate input](#4--prepare-true-variant-set-and-candidate-input)
+- [4.  Prepare true variant set](#4--prepare-true-variant-set)
 - [5.  Unify Representation for true variant set and candidate sites](#5--unify-representation-for-true-variant-set-and-candidate-sites)
 - [6.  Merge and sort unified VCF output](#6--merge-and-sort-unified-vcf-output)
 - [7.  Benchmark using unified VCF and true variant set (optional)](#7--benchmark-using-unified-vcf-and-true-variant-set-optional)
@@ -76,14 +76,12 @@ CHUNK_LIST=`seq 1 ${chunk_num}`
 MIN_AF=0.08
 
 # Temporary working directory
-CANDIDATE_DETAILS_PATH="${OUTPUT_DIR}/candidate_details"
 SPLIT_BED_PATH="${OUTPUT_DIR}/split_beds"
 VCF_OUTPUT_PATH="${OUTPUT_DIR}/vcf_output"
 VAR_OUTPUT_PATH="${OUTPUT_DIR}/var"
 PHASE_VCF_PATH="${OUTPUT_DIR}/phased_vcf"
 PHASE_BAM_PATH="${OUTPUT_DIR}/phased_bam"
 
-mkdir -p ${CANDIDATE_DETAILS_PATH}
 mkdir -p ${SPLIT_BED_PATH}
 mkdir -p ${VCF_OUTPUT_PATH}
 mkdir -p ${VAR_OUTPUT_PATH}
@@ -134,7 +132,7 @@ ${PARALLEL} --joblog ${PHASE_BAM_PATH}/index.log -j ${THREADS} ${SAMTOOLS} index
 
 ```
 
-#### 4.  Prepare true variant set and candidate input
+#### 4.  Prepare true variant set
 
 ```bash
 # Split bed file regions according to the contig name and extend bed region
@@ -151,23 +149,6 @@ ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
     --ctgName ${CHR_PREFIX}{1} \
     --var_fn ${VAR_OUTPUT_PATH}/var_{1}" ::: ${CHR[@]}
 
-# Create candidate details for representation unification
-${PARALLEL} --joblog ${CANDIDATE_DETAILS_PATH}/create_tensor.log -j${THREADS} \
-"${PYPY} ${CLAIR3} CreateTensorFullAlignment \
-    --bam_fn ${PHASE_BAM_PATH}/{1}.bam \
-    --ref_fn ${REFERENCE_FILE_PATH} \
-    --indel_fn ${CANDIDATE_DETAILS_PATH}/{1}_{2} \
-    --ctgName ${CHR_PREFIX}{1} \
-    --samtools ${SAMTOOLS} \
-    --min_af ${MIN_AF} \
-    --extend_bed ${SPLIT_BED_PATH}/{1} \
-    --unify_repre_fn ${CANDIDATE_DETAILS_PATH}/{1}_{2} \
-    --unify_repre \
-    --phasing_info_in_bam \
-    --bed_fn ${BED_FILE_PATH} \
-    --chunk_id {2} \
-    --chunk_num ${chunk_num}" ::: ${CHR[@]} ::: ${CHUNK_LIST[@]}
-    
 ```
 
 #### 5.  Unify Representation for true variant set and candidate sites
@@ -175,13 +156,16 @@ ${PARALLEL} --joblog ${CANDIDATE_DETAILS_PATH}/create_tensor.log -j${THREADS} \
 ```bash
 ${PARALLEL} --joblog ${OUTPUT_DIR}/unify_repre.log -j${THREADS} \
 "${PYPY} ${CLAIR3} UnifyRepresentation \
+    --bam_fn ${PHASE_BAM_PATH}/{1}.bam \
     --var_fn ${VAR_OUTPUT_PATH}/var_{1} \
-    --candidate_details_fn_prefix ${CANDIDATE_DETAILS_PATH}/{1}_ \
     --ref_fn ${REFERENCE_FILE_PATH} \
+    --bed_fn ${BED_FILE_PATH} \
+    --extend_bed ${SPLIT_BED_PATH}/{1} \
     --output_vcf_fn ${VCF_OUTPUT_PATH}/vcf_{1}_{2} \
+    --samtools ${SAMTOOLS} \
+    --min_af ${MIN_AF} \
     --chunk_id {2} \
     --chunk_num ${chunk_num} \
-    --bed_fn ${BED_FILE_PATH} \
     --platform ${PLATFORM} \
     --ctgName ${CHR_PREFIX}{1}" ::: ${CHR[@]} ::: ${CHUNK_LIST[@]} > ${OUTPUT_DIR}/RU.log
     

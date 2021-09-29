@@ -25,9 +25,9 @@ This document shows how to train and fine-tune a deep learning model for Clair3 
     - [1. Setup variables](#1-setup-variables)
     - [2. Create temporary working folders for each submodule](#2-create-temporary-working-folders-for-each-submodule)
     - [3. Split and extend bed regions](#3-split-and-extend-bed-regions-using-the-splitextendbed-submodule)
-    - [4. Create full-alignment tensor](#4-create-full-alignment-tensor-using-the-createtensorfullalignment-submodule)
-    - [5. Get truth variants from unified VCF file](#5-get-truth-variants-from-unified-vcf-using-the-gettruth-submodule)
-    - [6. Convert full-alignment tensor to compressed binary files](#6-convert-full-alignment-tensor-to-compressed-binary-file-using-the-tensor2bin-submodule)
+    - [4. Get truth variants from unified VCF file](#4-get-truth-variants-from-unified-vcf-using-the-gettruth-submodule)
+    - [5. Create full-alignment tensor](#5-create-full-alignment-tensor-using-the-createtrainingtensor-submodule)
+    - [6. Merge compressed binaries](#6-merge-compressed-binaries-using-the-mergebin-submodule)
 * [III. Model training](#iii-model-training)
     - [1. full-alignment model training](#1-full-alignment-model-training)
     - [2. full-alignment model fine-tune using pre-trained model (optional)](#2-full-alignment-model-fine-tune-using-pre-trained-model-optional)
@@ -75,6 +75,8 @@ CHR=(20)
 
 # Number of threads to be used
 THREADS=8
+THREADS_LOW=$((${THREADS}*3/4))
+if [[ ${THREADS_LOW} < 1 ]]; then THREADS_LOW=1; fi
 
 ```
 
@@ -236,14 +238,12 @@ MAXIMUM_NON_VARIANT_RATIO=1
 DATASET_FOLDER_PATH="${OUTPUT_DIR}/build"
 TENSOR_CANDIDATE_PATH="${DATASET_FOLDER_PATH}/tensor_can"
 BINS_FOLDER_PATH="${DATASET_FOLDER_PATH}/bins"
-CANDIDATE_DETAILS_PATH="${DATASET_FOLDER_PATH}/candidate_details"
 SPLIT_BED_PATH="${DATASET_FOLDER_PATH}/split_beds"
 VAR_OUTPUT_PATH="${DATASET_FOLDER_PATH}/var"
 
 mkdir -p ${DATASET_FOLDER_PATH}
 mkdir -p ${TENSOR_CANDIDATE_PATH}
 mkdir -p ${BINS_FOLDER_PATH}
-mkdir -p ${CANDIDATE_DETAILS_PATH}
 mkdir -p ${SPLIT_BED_PATH}
 mkdir -p ${VAR_OUTPUT_PATH}
 
@@ -263,36 +263,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/split_extend_bed.log -j${THREADS} \
     
 ```
 
-#### 4. Create full-alignment tensor using the `CreateTensorFullAlignment` submodule
-
-```bash
-# Create full-alignment tensor for model training
-${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_full_alignment.log -j${THREADS} \
-"${PYPY} ${CLAIR3} CreateTensorFullAlignment \
-    --bam_fn {4} \
-    --ref_fn {5} \
-    --tensor_can_fn ${TENSOR_CANDIDATE_PATH}/tensor_can_{2}_{3}_{1}_{7} \
-    --indel_fn ${CANDIDATE_DETAILS_PATH}/{2}_{3}_{1}_{7} \
-    --ctgName ${CHR_PREFIX}{1} \
-    --samtools ${SAMTOOLS} \
-    --min_af ${MIN_AF} \
-    --extend_bed ${SPLIT_BED_PATH}/{2}_{3}_{1} \
-    --bed_fn {6} \
-    --add_no_phasing_data_training \
-    --phasing_info_in_bam \
-    --chunk_id {7} \
-    --platform ${PLATFORM} \
-    --chunk_num ${chunk_num}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${ALL_PHASED_BAM_FILE_PATH[@]} :::+ ${ALL_REFERENCE_FILE_PATH[@]} :::+ ${ALL_BED_FILE_PATH[@]} ::: ${CHUNK_LIST[@]}
-
-```
-
-**Options**
-
- - `--zstd` : we recommend using [zstd](https://github.com/facebook/zstd) , an extremely fast and lossless compression tool to compress temporary tensor output. zstd provides much higher compression ratios compared to other compression tools.
- - `--phasing_info_in_bam` : enabled by default, indicating the input BAM is phased using WhatsHap's `haplotag` module, and phased alignments are having a `HP` tag with haplotype details. 
- - `--add_no_phasing_data_training` : also include unphased alignments in additional to the phased alignments for training. We found including unphased alignments increased model robustness.  
-
-#### 5. Get truth variants from unified VCF using the `GetTruth` submodule
+#### 4. Get truth variants from unified VCF using the `GetTruth` submodule
 
 ```bash
 # Covert unified VCF file into simplified var file
@@ -304,30 +275,51 @@ ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
 
 ```
 
-#### 6. Convert full-alignment tensor to compressed binary file using the `Tensor2Bin` submodule
+#### 5. Create full-alignment tensor using the `CreateTrainingTensor` submodule
 
 ```bash
-# Convert full-alignment tensor to compressed bin
-${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/tensor2Bin.log -j${THREADS} \
-"${PYTHON3} ${CLAIR3} Tensor2Bin \
-    --tensor_fn ${TENSOR_CANDIDATE_PATH}/tensor_can_{2}_{3}_{1} \
-    --var_fn ${VAR_OUTPUT_PATH}/var_{2}_{3}_{1} \
-    --bin_fn ${BINS_FOLDER_PATH}/{2}_{3}_{1}_{4} \
-    --chunk_id {4} \
-    --chunk_num ${bin_chunk_num} \
+# Create full-alignment tensor for model training
+${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_full_alignment.log -j${THREADS_LOW} \
+"${PYPY} ${CLAIR3} CreateTrainingTensor \
+    --bam_fn {4} \
+    --ref_fn {5} \
+    --var_fn ${VAR_OUTPUT_PATH}/var_{2}_{3}_{1}" \
+    --bin_fn ${TENSOR_CANDIDATE_PATH}/tensor_{2}_{3}_{1}_{7} \
+    --ctgName ${CHR_PREFIX}{1} \
+    --samtools ${SAMTOOLS} \
+    --min_af ${MIN_AF} \
+    --extend_bed ${SPLIT_BED_PATH}/{2}_{3}_{1} \
+    --bed_fn {6} \
+    --phasing_info_in_bam \
+    --add_no_phasing_data_training \
     --allow_duplicate_chr_pos \
     --platform ${PLATFORM} \
     --shuffle \
     --maximum_non_variant_ratio ${MAXIMUM_NON_VARIANT_RATIO} \
-    --candidate_details_fn_prefix ${CANDIDATE_DETAILS_PATH}/{2}_{3}_{1}_" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} ::: ${BIN_CHUNK_LIST[@]}
+    --chunk_id {7} \
+    --chunk_num ${chunk_num}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${ALL_PHASED_BAM_FILE_PATH[@]} :::+ ${ALL_REFERENCE_FILE_PATH[@]} :::+ ${ALL_BED_FILE_PATH[@]} ::: ${CHUNK_LIST[@]}
 
 ```
 
 **Options**
 
+ - `--phasing_info_in_bam` : enabled by default, indicating the input BAM is phased using WhatsHap's `haplotag` module, and phased alignments are having a `HP` tag with haplotype details. 
  - `--allow_duplicate_chr_pos` : for multiple coverages training, this option is required to to allow different coverage training samples at the same variant site.
  - `--shuffle` :  as the input tensors are created in the order of starting positions, this option shuffles the training data in each chunk. During the training process, we also apply index reshuffling in each epoch.
  - `--maximum_non_variant_ratio` :  we set a maximum non-variant ratio (variant:non-variant = 1:1) for full-alignment model training, non-variants are randomly selected from the candidate set if the ratio is exceeded, or all non-variants will be used for training otherwise. 
+ - `--add_no_phasing_data_training` : also include unphased alignments in additional to the phased alignments for training. We found including unphased alignments increased model robustness.  
+
+#### 6. Merge compressed binaries using the `MergeBin` submodule
+
+```bash
+# Merge compressed binaries
+${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/mergeBin.log -j${THREADS} \
+"${PYTHON3} ${CLAIR3} MergeBin \
+    ${TENSOR_CANDIDATE_PATH}/tensor_{2}_{3}_{1}_* \
+    --out_fn ${BINS_FOLDER_PATH}/bin_{2}_{3}_{1} \
+    --chunk_num ${bin_chunk_num}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]}
+
+```
 
 ----
 
