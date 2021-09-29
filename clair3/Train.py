@@ -62,27 +62,18 @@ class FocalLoss(tf.keras.losses.Loss):
         return reduce_fl
 
 
-def get_chunk_list(chunk_offset, train_data_size, chunk_size):
+def get_chunk_list(chunk_offset, train_chunk_num):
     """
     get chunk list for training and validation data. we will randomly split training and validation dataset,
     all training data is directly acquired from various tensor bin files.
 
     """
     all_shuffle_chunk_list = []
-    total_size = 0
-    offset_idx = 0
     for bin_idx, chunk_num in enumerate(chunk_offset):
         all_shuffle_chunk_list += [(bin_idx, chunk_idx) for chunk_idx in range(chunk_num)]
     np.random.seed(0)
     np.random.shuffle(all_shuffle_chunk_list)  # keep the same random validate dataset
-    for bin_idx, chunk_num in enumerate(chunk_offset):
-        if chunk_num * chunk_size + total_size >= train_data_size:
-            chunk_num = (train_data_size - total_size) // chunk_size
-            offset_idx += chunk_num
-            return np.array(all_shuffle_chunk_list[:offset_idx]), np.array(all_shuffle_chunk_list[offset_idx + 1:])
-        else:
-            total_size += chunk_num * chunk_size
-            offset_idx += chunk_num
+    return np.array(all_shuffle_chunk_list[:train_chunk_num]), np.array(all_shuffle_chunk_list[train_chunk_num:])
 
 
 def exist_file_prefix(exclude_training_samples, f):
@@ -98,7 +89,8 @@ def train_model(args):
     add_indel_length = args.add_indel_length
     exclude_training_samples = args.exclude_training_samples
     exclude_training_samples = set(exclude_training_samples.split(',')) if exclude_training_samples else set()
-    add_validation_dataset = args.validation_dataset
+    add_validation_dataset = args.random_validation or (args.validation_fn is not None)
+    validation_fn = args.validation_fn
     ochk_prefix = args.ochk_prefix if args.ochk_prefix is not None else ""
     if pileup:
         import shared.param_p as param
@@ -111,6 +103,7 @@ def train_model(args):
     label_size, label_shape = param.label_size, param.label_shape
     label_shape_cum = list(accumulate(label_shape))
     batch_size, chunk_size = param.trainBatchSize, param.chunk_size
+    chunks_per_batch = batch_size // chunk_size
     random.seed(param.RANDOM_SEED)
     np.random.seed(param.RANDOM_SEED)
     learning_rate = args.learning_rate if args.learning_rate else param.initialLearningRate
@@ -120,32 +113,50 @@ def train_model(args):
     tf.TensorShape([None] + tensor_shape), tuple(tf.TensorShape([None, label_shape[task]]) for task in range(task_num)))
     TensorDtype = (tf.int32, tuple(tf.float32 for _ in range(task_num)))
 
+    def populate_dataset_table(file_list, file_path):
+        chunk_offset = np.zeros(len(file_list), dtype=int)
+        table_dataset_list = []
+        for bin_idx, bin_file in enumerate(file_list):
+            table_dataset = tables.open_file(os.path.join(file_path, bin_file), 'r')
+            table_dataset_list.append(table_dataset)
+            chunk_num = (len(table_dataset.root.label) - chunk_size) // chunk_size
+            chunk_offset[bin_idx] = chunk_num
+        return table_dataset_list, chunk_offset
+
     bin_list = os.listdir(args.bin_fn)
     # default we exclude sample hg003 and all chr20 for training
     bin_list = [f for f in bin_list if '_20_' not in f and not exist_file_prefix(exclude_training_samples, f)]
     logging.info("[INFO] total {} training bin files: {}".format(len(bin_list), ','.join(bin_list)))
-    total_data_size = 0
-    table_dataset_list = []
-    validate_table_dataset_list = []
-    chunk_offset = np.zeros(len(bin_list), dtype=int)
 
     effective_label_num = None
-    for bin_idx, bin_file in enumerate(bin_list):
-        table_dataset = tables.open_file(os.path.join(args.bin_fn, bin_file), 'r')
-        validate_table_dataset = tables.open_file(os.path.join(args.bin_fn, bin_file), 'r')
-        table_dataset_list.append(table_dataset)
-        validate_table_dataset_list.append(validate_table_dataset)
-        chunk_num = (len(table_dataset.root.label) - batch_size) // chunk_size
-        data_size = int(chunk_num * chunk_size)
-        chunk_offset[bin_idx] = chunk_num
-        total_data_size += data_size
 
-    train_data_size = total_data_size * param.trainingDatasetPercentage
-    validate_data_size = int((total_data_size - train_data_size) // chunk_size) * chunk_size
-    train_data_size = int(train_data_size // chunk_size) * chunk_size
-    train_shuffle_chunk_list, validate_shuffle_chunk_list = get_chunk_list(chunk_offset, train_data_size, chunk_size)
+    table_dataset_list, chunk_offset = populate_dataset_table(bin_list, args.bin_fn)
 
-    def DataGenerator(x, data_size, shuffle_chunk_list, train_flag=True):
+    if validation_fn:
+        val_list = os.listdir(validation_fn)
+        logging.info("[INFO] total {} validation bin files: {}".format(len(val_list), ','.join(val_list)))
+        validate_table_dataset_list, validate_chunk_offset = populate_dataset_table(val_list, args.validation_fn)
+
+        train_chunk_num = int(sum(chunk_offset))
+        train_shuffle_chunk_list, _ = get_chunk_list(chunk_offset, train_chunk_num)
+
+        validate_chunk_num = int(sum(validate_chunk_offset))
+        validate_shuffle_chunk_list, _ = get_chunk_list(validate_chunk_offset, validate_chunk_num)
+        total_chunks = train_chunk_num + validate_chunk_num
+    else:
+        total_chunks = int(sum(chunk_offset))
+        if add_validation_dataset:
+            total_batches = total_chunks // chunks_per_batch
+            validate_chunk_num = int(max(1., np.floor(total_batches * (1 - param.trainingDatasetPercentage))) * chunks_per_batch)
+            train_chunk_num = int(total_chunks - validate_chunk_num)
+        else:
+            train_chunk_num = total_chunks
+        train_shuffle_chunk_list, validate_shuffle_chunk_list = get_chunk_list(chunk_offset, train_chunk_num)
+        train_chunk_num = len(train_shuffle_chunk_list)
+        validate_chunk_num = len(validate_shuffle_chunk_list)
+
+
+    def DataGenerator(x, shuffle_chunk_list, train_flag=True):
 
         """
         data generator for pileup or full alignment data processing, pytables with blosc:lz4hc are used for extreme fast
@@ -153,18 +164,16 @@ def train_model(args):
 
         """
 
-        chunk_iters = batch_size // chunk_size
-        batch_num = data_size // batch_size
+        batch_num = len(shuffle_chunk_list) // chunks_per_batch
         position_matrix = np.empty([batch_size] + tensor_shape, np.int32)
         label = np.empty((batch_size, param.label_size), np.float32)
 
-        random_start_position = np.random.randint(0, batch_size) if train_flag else 0
+        random_start_position = np.random.randint(0, chunk_size) if train_flag else 0
         if train_flag:
             np.random.shuffle(shuffle_chunk_list)
         for batch_idx in range(batch_num):
-            for chunk_idx in range(chunk_iters):
-                offset_chunk_id = shuffle_chunk_list[batch_idx * chunk_iters + chunk_idx]
-                bin_id, chunk_id = offset_chunk_id
+            for chunk_idx in range(chunks_per_batch):
+                bin_id, chunk_id = shuffle_chunk_list[batch_idx * chunks_per_batch + chunk_idx]
                 position_matrix[chunk_idx * chunk_size:(chunk_idx + 1) * chunk_size] = x[bin_id].root.position_matrix[
                         random_start_position + chunk_id * chunk_size:random_start_position + (chunk_id + 1) * chunk_size]
                 label[chunk_idx * chunk_size:(chunk_idx + 1) * chunk_size] = x[bin_id].root.label[
@@ -185,13 +194,13 @@ def train_model(args):
 
 
     train_dataset = tf.data.Dataset.from_generator(
-        lambda: DataGenerator(table_dataset_list, train_data_size, train_shuffle_chunk_list, True), TensorDtype,
+        lambda: DataGenerator(table_dataset_list, train_shuffle_chunk_list, True), TensorDtype,
         TensorShape).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
     validate_dataset = tf.data.Dataset.from_generator(
-        lambda: DataGenerator(validate_table_dataset_list, validate_data_size, validate_shuffle_chunk_list, False), TensorDtype,
+        lambda: DataGenerator(validate_table_dataset_list if validation_fn else table_dataset_list, validate_shuffle_chunk_list, False), TensorDtype,
         TensorShape).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
-    total_steps = max_epoch * train_data_size // batch_size
+    total_steps = max_epoch * (train_chunk_num // chunks_per_batch)
 
     #RectifiedAdam with warmup start
     optimizer = tfa.optimizers.Lookahead(tfa.optimizers.RectifiedAdam(
@@ -220,7 +229,7 @@ def train_model(args):
     output = model(np.array(table_dataset_list[0].root.position_matrix[:20]))
     logging.info(model.summary(print_fn=logging.info))
 
-    logging.info("[INFO] The size of dataset: {}".format(total_data_size))
+    logging.info("[INFO] The size of dataset: {}".format(total_chunks * chunk_size))
     logging.info("[INFO] The training batch size: {}".format(batch_size))
     logging.info("[INFO] The training learning_rate: {}".format(learning_rate))
     logging.info("[INFO] Total training steps: {}".format(total_steps))
@@ -245,8 +254,9 @@ def train_model(args):
     for table_dataset in table_dataset_list:
         table_dataset.close()
 
-    for table_dataset in validate_table_dataset_list:
-        table_dataset.close()
+    if validation_fn:
+        for table_dataset in validate_table_dataset_list:
+            table_dataset.close()
 
     # show the parameter set with the smallest validation loss
     if 'val_loss' in train_history.history:
@@ -279,8 +289,6 @@ def main():
     parser.add_argument('--learning_rate', type=float, default=1e-3,
                         help="Set the initial learning rate, default: %(default)s")
 
-    parser.add_argument('--validation_dataset', action='store_true',
-                        help="Use validation dataset when training, default: %(default)s")
 
     parser.add_argument('--exclude_training_samples', type=str, default=None,
                         help="Define training samples to be excluded")
@@ -294,6 +302,13 @@ def main():
     parser.add_argument('--add_indel_length', type=str2bool, default=False,
                         help=SUPPRESS)
 
+    # mutually-incompatible validation options
+    vgrp = parser.add_mutually_exclusive_group()
+    vgrp.add_argument('--random_validation', action='store_true',
+                        help="Use random sample of dataset for validation, default: %(default)s")
+
+    vgrp.add_argument('--validation_fn', type=str, default=None,
+                        help="Binary tensor input for use in validation: %(default)s")
 
 
     args = parser.parse_args()
