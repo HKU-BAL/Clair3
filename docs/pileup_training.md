@@ -230,7 +230,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS
 "${PYPY} ${CLAIR3} CreateTrainingTensor \
     --bam_fn {4} \
     --ref_fn {5} \
-    --var_fn ${VAR_OUTPUT_PATH}/var_{2}_{3}_{1}" \
+    --var_fn ${VAR_OUTPUT_PATH}/var_{2}_{3}_{1} \
     --bin_fn ${TENSOR_CANDIDATE_PATH}/tensor_{2}_{3}_{1}_{7} \
     --ctgName ${CHR_PREFIX}{1} \
     --samtools ${SAMTOOLS} \
@@ -262,8 +262,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/mergeBin.log -j${THREADS} \
 "${PYTHON3} ${CLAIR3} MergeBin \
     ${TENSOR_CANDIDATE_PATH}/tensor_{2}_{3}_{1}_* \
     --out_fn ${BINS_FOLDER_PATH}/bin_{2}_{3}_{1} \
-    --pileup \
-    --chunk_num ${bin_chunk_num}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]}
+    --pileup" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]}
 
 ```
 
