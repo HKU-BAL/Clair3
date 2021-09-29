@@ -140,7 +140,7 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
     
     minimum_snp_af_for_candidate = minimum_snp_af_for_candidate if minimum_snp_af_for_candidate > 0 else param.min_af
     minimum_snp_af_for_candidate = max(minimum_snp_af_for_candidate, param.min_af_dict[platform]) if fast_mode else minimum_snp_af_for_candidate
-    minimum_indel_af_for_candidate = max(minimum_indel_af_for_candidate, param.min_af_dict[platform]) if minimum_indel_af_for_candidate > 0 else param.min_af_dict[platform]
+    minimum_indel_af_for_candidate = minimum_indel_af_for_candidate if minimum_indel_af_for_candidate > 0 else param.min_af_dict[platform]
 
     # check whether first non reference candidate in the first position
     pass_af = len(pileup_list) and (pileup_list[0][0] != reference_base)

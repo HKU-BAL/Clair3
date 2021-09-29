@@ -686,11 +686,8 @@ def output_from(
         hetero_InsDel_length_tuples, hetero_InsDel_probabilities,
     ) = all_pro
     maximum_probability = 0.0
-    maximum_loops = 4
     reference_base, alternate_base = None, None
-    loop_index = 0
-    while (reference_base is None or alternate_base is None) and loop_index < maximum_loops:
-        loop_index += 1
+    while (reference_base is None or alternate_base is None):
         maximum_probability = max(
             homo_Ref_probability,
             max(homo_SNP_probabilities),
@@ -723,32 +720,37 @@ def output_from(
 
         if is_homo_SNP:
             reference_base = reference_sequence[tensor_position_center]
+            idx = homo_SNP_probabilities.index(maximum_probability)
             base1, base2 = homo_SNP_bases_from(homo_SNP_probabilities)
             alternate_base = base1 if base1 != reference_base else base2
             sorted_alt_bases, alternate_base = find_alt_base(alt_info_dict, alternate_base)
+            if alternate_base is None or alternate_base == reference_base:
+                homo_SNP_probabilities[idx] = 0
+                continue
 
         elif is_hetero_SNP:
             base1, base2 = hetero_SNP_bases_from(hetero_SNP_probabilities)
+            idx = hetero_SNP_probabilities.index(maximum_probability)
             reference_base = reference_sequence[tensor_position_center]
             is_multi = base1 != reference_base and base2 != reference_base
             if is_multi:
                 sorted_alt_bases, _ = find_alt_base(alt_info_dict)
-                if len(sorted_alt_bases) == 0:
-                    break
                 if len(sorted_alt_bases) < 2:
-                    alternate_base = sorted_alt_bases[0]
-                    hetero_SNP_probabilities[np.argmax(hetero_SNP_probabilities)] = 0.0
-                    break
+                    hetero_SNP_probabilities[idx] = 0
+                    continue
                 alternate_base = ','.join(sorted_alt_bases[:2])
             else:
                 alternate_base = base1 if base1 != reference_base else base2
                 sorted_alt_bases, alternate_base = find_alt_base(alt_info_dict, alternate_base)
+                if alternate_base is None or alternate_base == reference_base:
+                    hetero_SNP_probabilities[idx] = 0
+                    continue
 
 
         elif is_homo_insertion:
             variant_length = None
+            idx = homo_Ins_probabilities.index(maximum_probability)
             if add_indel_length:
-                idx = homo_Ins_probabilities.index(maximum_probability)
                 variant_length = homo_Ins_lengths[idx]
             insertion_bases = insertion_bases_using_alt_info_from(
                 alt_info_dict=alt_info_dict,
@@ -757,7 +759,8 @@ def output_from(
 
             insertion_length = len(insertion_bases)
             if insertion_length == 0:
-                break
+                homo_Ins_probabilities[idx] = 0
+                continue
             reference_base = reference_sequence[tensor_position_center]
             alternate_base = insertion_bases
 
@@ -776,7 +779,8 @@ def output_from(
             )
             insertion_length = len(insertion_bases)
             if insertion_length == 0:
-                break
+                hetero_ACGT_Ins_probabilities[idx] = 0
+                continue
             reference_base = reference_sequence[tensor_position_center]
             alternate_base = insertion_bases
 
@@ -784,17 +788,18 @@ def output_from(
             if is_SNP_Ins_multi:
                 sorted_alt_bases, _ = find_alt_base(alt_info_dict)
                 if len(sorted_alt_bases) == 0:
-                    break
+                    hetero_ACGT_Ins_probabilities[idx] = 0
+                    continue
                 else:
                     alternate_base = "{},{}".format(sorted_alt_bases[0], alternate_base)
 
         elif is_hetero_InsIns:
             insertion_bases_list = []
+            idx = hetero_InsIns_probabilities.index(maximum_probability)
             if add_indel_length:
-                idx = hetero_InsIns_probabilities.index(maximum_probability)
                 variant_length_1, variant_length_2 = hetero_InsIns_length_tuples[idx]
-                del hetero_InsIns_probabilities[idx]
-                del hetero_InsIns_length_tuples[idx]
+                # del hetero_InsIns_probabilities[idx]
+                # del hetero_InsIns_length_tuples[idx]
 
                 insertion_bases1 = insertion_bases_using_alt_info_from(
                     alt_info_dict=alt_info_dict,
@@ -819,7 +824,8 @@ def output_from(
                     return_multi=True
                 )
             if len(insertion_bases_list) < 2:
-                break
+                hetero_InsIns_probabilities[idx] = 0
+                continue
             insertion_bases, another_insertion_bases = insertion_bases_list
 
             reference_base = reference_sequence[tensor_position_center]
@@ -830,12 +836,13 @@ def output_from(
             if alternate_base_1 != alternate_base_2:
                 alternate_base = "{},{}".format(alternate_base_1, alternate_base_2)
             else:
-                reference_base, alternate_base = None, None
+                hetero_InsIns_probabilities[idx] = 0
+                continue
 
         elif is_homo_deletion:
             variant_length = None
+            idx = homo_Del_probabilities.index(maximum_probability)
             if add_indel_length:
-                idx = homo_Del_probabilities.index(maximum_probability)
                 variant_length = homo_Del_lengths[idx]
 
             deletion_bases = deletion_bases_using_alt_info_from(
@@ -844,7 +851,8 @@ def output_from(
             )
             deletion_length = len(deletion_bases)
             if deletion_length == 0:
-                break
+                homo_Del_probabilities[idx] = 0
+                continue
             reference_base = reference_sequence[tensor_position_center] + deletion_bases
             alternate_base = reference_base[0]
 
@@ -862,7 +870,8 @@ def output_from(
             )
             deletion_length = len(deletion_bases)
             if deletion_length == 0:
-                break
+                hetero_ACGT_Del_probabilities[idx] = 0
+                continue
             reference_base = reference_sequence[tensor_position_center] + deletion_bases
             alternate_base = reference_base[0]
 
@@ -874,8 +883,8 @@ def output_from(
 
         elif is_hetero_DelDel:
             deletion_bases_list = []
+            idx = hetero_DelDel_probabilities.index(maximum_probability)
             if add_indel_length:
-                idx = hetero_DelDel_probabilities.index(maximum_probability)
                 variant_length_1, variant_length_2 = sorted(hetero_DelDel_length_tuples[idx],
                                                             reverse=True)  # longer deletion should be in first position
                 deletion_base1 = deletion_bases_using_alt_info_from(
@@ -903,7 +912,8 @@ def output_from(
                 )
 
             if len(deletion_bases_list) < 2:
-                break
+                hetero_DelDel_probabilities[idx] = 0
+                continue
 
             deletion_bases, deletion_bases1 = deletion_bases_list
 
@@ -918,12 +928,13 @@ def output_from(
             ):
                 alternate_base = "{},{}".format(alternate_base_1, alternate_base_2)
             else:
-                reference_base, alternate_base = None, None
+                hetero_DelDel_probabilities[idx] = 0
+                continue
 
         elif is_insertion_and_deletion:
             variant_length_1, variant_length_2 = None, None
+            idx = hetero_InsDel_probabilities.index(maximum_probability)
             if add_indel_length:
-                idx = hetero_InsDel_probabilities.index(maximum_probability)
                 variant_length_1, variant_length_2 = hetero_InsDel_length_tuples[idx]
 
             insertion_bases = insertion_bases_using_alt_info_from(
@@ -939,7 +950,8 @@ def output_from(
             deletion_length = len(deletion_bases)
 
             if insertion_length == 0 or deletion_length == 0:
-                break
+                hetero_InsDel_probabilities[idx] = 0
+                continue
             reference_base = reference_sequence[tensor_position_center] + deletion_bases
             alternate_base = "{},{}".format(
                 reference_base[0],
