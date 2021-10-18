@@ -1,7 +1,7 @@
 #!/bin/bash
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH=`dirname "$0"`
-VERSION='v0.1-r6'
+VERSION='v0.1-r7'
 Usage="Usage: ./${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
 set -e
@@ -83,7 +83,7 @@ WHATSHAP='whatshap'
 CHUNK_NUM=0
 CHUNK_SIZE=5000000
 QUAL=2
-PRO=0.3
+PRO=0
 REF_PRO=0
 GVCF=False
 PILEUP_ONLY=False
@@ -179,6 +179,10 @@ if [ ! -d ${OUTPUT_FOLDER} ]; then echo -e "${ERROR} Cannot create output folder
 # show default reference proportion 0.3 for ilmn and hifi, 0.1 for ont
 if [ "${PLATFORM}" = "ont" ] && [ ! "${REF_PRO}" -gt 0 ]; then REF_PRO=0.1; fi
 if [ "${PLATFORM}" != "ont" ] && [ ! "${REF_PRO}" -gt 0 ]; then REF_PRO=0.3; fi
+
+# show default variant proportion 0.3 for ilmn and hifi, 0.7 for ont
+if [ "${PLATFORM}" = "ont" ] && [ ! "${PRO}" -gt 0 ]; then PRO=0.7; fi
+if [ "${PLATFORM}" != "ont" ] && [ ! "${PRO}" -gt 0 ]; then PRO=0.3; fi
 
 # optional parameters should use "="
 (time (
