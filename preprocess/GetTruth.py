@@ -2,7 +2,7 @@ import sys
 import shlex
 from subprocess import PIPE
 from argparse import ArgumentParser
-from shared.utils import subprocess_popen
+from shared.utils import subprocess_popen, vcf_candidates_from
 
 class TruthStdout(object):
     def __init__(self, handle):
@@ -14,10 +14,15 @@ class TruthStdout(object):
 def OutputVariant(args):
     var_fn = args.var_fn
     vcf_fn = args.vcf_fn
+    truth_vcf_fn = args.truth_vcf_fn
     ctg_name = args.ctgName
     ctg_start = args.ctgStart
     ctg_end = args.ctgEnd
 
+    truth_vcf_set = set()
+    variant_set = set()
+    if args.truth_vcf_fn is not None:
+        truth_vcf_set = set(vcf_candidates_from(vcf_fn=truth_vcf_fn, contig_name=ctg_name))
     if args.var_fn != "PIPE":
         var_fpo = open(var_fn, "wb")
         var_fp = subprocess_popen(shlex.split("gzip -c"), stdin=PIPE, stdout=var_fpo)
@@ -58,8 +63,16 @@ def OutputVariant(args):
             # * always have a genotype 1/2
 
             genotype_1, genotype_2 = '0', '1'
+
+        variant_set.add(int(position))
         var_fp.stdin.write(" ".join((chromosome, position, reference, alternate, genotype_1, genotype_2)))
         var_fp.stdin.write("\n")
+
+    for position in truth_vcf_set:
+        if position not in variant_set:
+            # miss variant set used in Tensor2Bin
+            var_fp.stdin.write(" ".join((chromosome, str(position), "", "", "-1", "-1")))
+            var_fp.stdin.write("\n")
 
     vcf_fp.stdout.close()
     vcf_fp.wait()
@@ -87,6 +100,9 @@ def main():
 
     parser.add_argument('--ctgEnd', type=int, default=None,
                         help="The 1-based inclusive ending position of the sequence to be processed")
+
+    parser.add_argument('--truth_vcf_fn', type=str, default=None,
+                        help="Truth VCF file input, only used when vcf_fn is unified vcf. Marked truth variants not in unified as missing")
 
     args = parser.parse_args()
 

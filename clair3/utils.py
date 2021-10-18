@@ -105,17 +105,48 @@ def tensor_generator_from(tensor_file_path, batch_size, pileup, platform):
         f.wait()
 
 
+def remove_common_suffix(ref_base, alt_base):
+    min_length = min(len(ref_base) - 1, min([len(item) - 1 for item in alt_base]))  # keep at least one base
+    prefix = ref_base[::-1]
+    for string in alt_base:
+        string = string[::-1]
+        while string[:len(prefix)] != prefix and prefix:
+            prefix = prefix[:len(prefix) - 1]
+        if not prefix:
+            break
+    res_length = len(prefix)
+    if res_length > min_length:
+        return ref_base, alt_base
+    return ref_base[:len(ref_base) - res_length], [item[:len(item) - res_length] for item in alt_base]
+
+    return ref_base[-min_length], [item[-min_length] for item in alt_base]
+
+
+def decode_alt(ref_base, alt_base):
+    if ',' not in alt_base:
+        return [ref_base], [alt_base]
+    alt_base = alt_base.split(',')
+    ref_base_list, alt_base_list = [], []
+    for ab in alt_base:
+        rb,ab = remove_common_suffix(ref_base, [ab])
+        ref_base_list.append(rb)
+        alt_base_list.append(ab[0])
+    return ref_base_list, alt_base_list
+
+
 def variant_map_from(var_fn, tree, is_tree_empty):
     Y = {}
+    truth_alt_dict = {}
     miss_variant_set = set()
     if var_fn is None:
-        return Y, miss_variant_set
+        return Y, miss_variant_set, truth_alt_dict
 
     f = subprocess_popen(shlex.split("gzip -fdc %s" % (var_fn)))
     for row in f.stdout:
-        columns = row.split()
-        ctg_name, position_str = columns[0], columns[1]
-        genotype1, genotype2 = columns[-2], columns[-1]
+        if row[0] == "#":
+            continue
+        columns = row.strip().split()
+        ctg_name, position_str, ref_base, alt_base, genotype1, genotype2 = columns
         key = ctg_name + ":" + position_str
         if genotype1 == '-1' or genotype2 == '-1':
             miss_variant_set.add(key)
@@ -124,11 +155,41 @@ def variant_map_from(var_fn, tree, is_tree_empty):
             continue
 
         Y[key] = output_labels_from_vcf_columns(columns)
-
+        ref_base_list, alt_base_list = decode_alt(ref_base, alt_base)
+        truth_alt_dict[int(position_str)] = (ref_base_list, alt_base_list)
     f.stdout.close()
     f.wait()
-    return Y, miss_variant_set
+    return Y, miss_variant_set, truth_alt_dict
 
+def find_read_support(pos, truth_alt_dict, alt_info):
+    alt_info = alt_info.rstrip().split('-')
+    seqs = alt_info[1].split(' ') if len(alt_info) > 1 else ''
+    seq_alt_bases_dict = dict(zip(seqs[::2], [int(item) for item in seqs[1::2]])) if len(seqs) else {}
+
+    pos = int(pos)
+    if pos not in truth_alt_dict:
+        # candidate position not in the truth vcf or unified truth vcf
+        return None
+    ref_base_list, alt_base_list = truth_alt_dict[pos]
+    found = 0
+    for alt_type in seq_alt_bases_dict:
+        if '*' in alt_type or '#' in alt_type or 'R' in alt_type:
+            continue
+        if alt_type[0] == 'X':
+            if alt_type[1] in alt_base_list:
+                found += 1
+        elif alt_type[0] == 'I':
+            if alt_type[1:] in alt_base_list:
+                found += 1
+        elif alt_type[0] == 'D':
+            del_cigar = alt_type[1:]
+            for rb, ab in zip(ref_base_list, alt_base_list):
+                if rb[1:] == del_cigar and len(ab) == 1:
+                    found += 1
+    if found >= len(alt_base_list):
+        return True
+    # return False if we find any alternative bases missed in subsampled bam, then remove the position from training
+    return False
 
 def write_table_dict(table_dict, string, label, pos, total, alt_info, tensor_shape, pileup):
     """
@@ -207,7 +268,7 @@ def print_bin_size(path, prefix=None):
     print('[INFO] total: {}'.format(total))
 
 
-def bin_reader_generator_from(tensor_fn, Y_true_var, Y, is_tree_empty, tree, miss_variant_set, is_allow_duplicate_chr_pos=False, maximum_non_variant_ratio=None):
+def bin_reader_generator_from(tensor_fn, Y_true_var, Y, is_tree_empty, tree, miss_variant_set, truth_alt_dict, is_allow_duplicate_chr_pos=False, maximum_non_variant_ratio=None):
 
     """
     Bin reader generator for bin file generation.
@@ -216,6 +277,7 @@ def bin_reader_generator_from(tensor_fn, Y_true_var, Y, is_tree_empty, tree, mis
     Y: dictionary (contig name: label information) to store all variant and non variant information.
     tree: dictionary(contig name : intervaltree) for quick region querying.
     miss_variant_set:  sometimes there will have true variant missing after downsampling reads.
+    truth_alt_dict: unified truth reference base and alternative bases to find read support.
     is_allow_duplicate_chr_pos: whether allow duplicate positions when training, if there exists downsampled data, lower depth will add a random prefix character.
     maximum_non_variant_ratio: define a maximum non variant ratio for training, we always expect use more non variant data, while it would greatly increase training
     time, especially in ont data, here we usually use 1:1 or 1:2 for variant candidate: non variant candidate.
@@ -224,6 +286,8 @@ def bin_reader_generator_from(tensor_fn, Y_true_var, Y, is_tree_empty, tree, mis
     X = {}
     ref_list = []
     total = 0
+    variant_set_with_read_support = set()
+    variants_without_read_support = 0
     for row_idx, row in enumerate(tensor_fn):
         chrom, coord, seq, string, alt_info = row.split("\t")
         alt_info = alt_info.rstrip()
@@ -238,6 +302,13 @@ def bin_reader_generator_from(tensor_fn, Y_true_var, Y, is_tree_empty, tree, mis
         if key in miss_variant_set:
             continue
 
+        have_read_support = find_read_support(pos=coord, truth_alt_dict=truth_alt_dict, alt_info=alt_info)
+        if have_read_support is not None and not have_read_support:
+            miss_variant_set.add(key)
+            variants_without_read_support += 1
+            continue
+
+        variant_set_with_read_support.add(key)
         if key not in X:
             X[key] = (string, alt_info, seq)
             if is_reference:
@@ -267,6 +338,7 @@ def bin_reader_generator_from(tensor_fn, Y_true_var, Y, is_tree_empty, tree, mis
         if total % 100000 == 0:
             print("[INFO] Processed %d tensors" % total, file=sys.stderr)
 
+    print("[INFO] Variants with read support/variants without read support: {}/{}".format(len(variant_set_with_read_support), variants_without_read_support))
     if maximum_non_variant_ratio is not None:
         _filter_non_variants(X, ref_list, maximum_non_variant_ratio)
     yield X, total, True
@@ -306,7 +378,7 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
 
     tree = bed_tree_from(bed_file_path=bed_fn)
     is_tree_empty = len(tree.keys()) == 0
-    Y_true_var, miss_variant_set = variant_map_from(var_fn, tree, is_tree_empty)
+    Y_true_var, miss_variant_set, truth_alt_dict = variant_map_from(var_fn, tree, is_tree_empty)
     Y = copy.deepcopy(Y_true_var)
 
     global param
@@ -367,6 +439,7 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
                                    is_tree_empty=is_tree_empty,
                                    tree=tree,
                                    miss_variant_set=miss_variant_set,
+                                   truth_alt_dict=truth_alt_dict,
                                    is_allow_duplicate_chr_pos=is_allow_duplicate_chr_pos,
                                    maximum_non_variant_ratio=maximum_non_variant_ratio)
 

@@ -215,8 +215,8 @@ def FiterHeteSnp(args):
 
 
             candidate_positions.add(pos)
-            #ref_call
-            if ref_base == alt_base:
+            #ref_call was marked as '.' after v0.1-r5
+            if ref_base == alt_base or alt_base == ".":
                 ref_call_pos_list.append((pos,qual))
             else:
                 need_phasing_list.append((pos,qual))

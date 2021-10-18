@@ -321,7 +321,7 @@ def CreateTensorPileup(args):
                                        bed_ctg_end=extend_end)
 
 
-    empty_pileup_flag = True 
+    empty_pileup_flag = True
     for row in samtools_mpileup_process.stdout:
         empty_pileup_flag = False 
         columns = row.strip().split('\t')
@@ -426,7 +426,7 @@ def CreateTensorPileup(args):
     if args.gvcf and empty_pileup_flag:
         nonVariantCaller.write_empty_pileup(ctg_name,ctg_start,ctg_end)
     if args.gvcf:
-        nonVariantCaller.vcf_writer.close()
+        nonVariantCaller.close_vcf_writer()
 
     samtools_mpileup_process.stdout.close()
     samtools_mpileup_process.wait()
