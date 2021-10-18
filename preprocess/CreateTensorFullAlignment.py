@@ -169,7 +169,7 @@ def get_tensor_info(base_info, bq, ref_base, read_mq):
     return read_channel, ins_base, query_base
 
 
-def decode_pileup_bases(pileup_bases, reference_base, minimum_af_for_candidate, has_pileup_candidates):
+def decode_pileup_bases(pileup_bases, reference_base, minimum_af_for_candidate, minimum_snp_af_for_candidate, minimum_indel_af_for_candidate, has_pileup_candidates, platform='ont'):
     """
     Decode mpileup input string.
     pileup_bases: pileup base string for each position, include all mapping information.
@@ -219,12 +219,29 @@ def decode_pileup_bases(pileup_bases, reference_base, minimum_af_for_candidate, 
         elif len(key) > 1 and key[1] == '-':
             pileup_dict['D'] += count
 
+    minimum_snp_af_for_candidate = minimum_snp_af_for_candidate if minimum_snp_af_for_candidate > 0 else param.min_af
+    minimum_indel_af_for_candidate = minimum_indel_af_for_candidate if minimum_indel_af_for_candidate > 0 else param.min_af_dict[platform]
+
     denominator = depth if depth > 0 else 1
     pileup_list = sorted(list(pileup_dict.items()), key=lambda x: x[1], reverse=True)
+
+    pass_af = len(pileup_list) and (pileup_list[0][0] != reference_base)
+    pass_snp_af = False
+    pass_indel_af = False
+
+    for item, count in pileup_list:
+        if item == reference_base:
+            continue
+        elif item[0] in 'ID':
+            pass_indel_af = (pass_indel_af or (float(count) / denominator >= minimum_indel_af_for_candidate))
+            continue
+        pass_snp_af = pass_snp_af or (float(count) / denominator >= minimum_snp_af_for_candidate)
+
     af = (float(pileup_list[1][1]) / denominator) if len(pileup_list) > 1 else 0.0
-    pass_af = len(pileup_list) and (pileup_list[0][0] != reference_base or af >= minimum_af_for_candidate)
     af = (float(pileup_list[0][1]) / denominator) if len(pileup_list) >= 1 and pileup_list[0][
         0] != reference_base else af
+
+    pass_af = pass_af or pass_snp_af or pass_indel_af
 
     return base_list, depth, pass_af, af
 
@@ -438,9 +455,12 @@ def CreateTensorFullAlignment(args):
     extend_bp = param.extend_bp
     unify_repre = args.unify_repre
     minimum_af_for_candidate = args.min_af
+    minimum_snp_af_for_candidate = args.snp_min_af
+    minimum_indel_af_for_candidate = args.indel_min_af
     min_coverage = args.minCoverage
     platform = args.platform
     confident_bed_fn = args.bed_fn
+    is_confident_bed_file_given = confident_bed_fn is not None
     phased_vcf_fn = args.phased_vcf_fn
     alt_fn = args.indel_fn
     extend_bed = args.extend_bed
@@ -511,18 +531,29 @@ def CreateTensorFullAlignment(args):
         Whole genome calling option, acquire contig start end position from reference fasta index(.fai), then split the
         reference accroding to chunk id and total chunk numbers.
         """
-        contig_length = 0
-        with open(fai_fn, 'r') as fai_fp:
-            for row in fai_fp:
-                columns = row.strip().split("\t")
+        if is_confident_bed_file_given:
+            # consistent with pileup generation, faster to extract tensor using bed region
+            tree, bed_start, bed_end = bed_tree_from(bed_file_path=extend_bed,
+                                                     contig_name=ctg_name,
+                                                     return_bed_region=True)
 
-                contig_name = columns[0]
-                if contig_name != ctg_name:
-                    continue
-                contig_length = int(columns[1])
-        chunk_size = contig_length // chunk_num + 1 if contig_length % chunk_num else contig_length // chunk_num
-        ctg_start = chunk_size * chunk_id  # 0-base to 1-base
-        ctg_end = ctg_start + chunk_size
+            chunk_size = (bed_end - bed_start) // chunk_num + 1 if (bed_end - bed_start) % chunk_num else (
+                                                                                                                      bed_end - bed_start) // chunk_num
+            ctg_start = bed_start + 1 + chunk_size * chunk_id  # 0-base to 1-base
+            ctg_end = ctg_start + chunk_size
+        else:
+            contig_length = 0
+            with open(fai_fn, 'r') as fai_fp:
+                for row in fai_fp:
+                    columns = row.strip().split("\t")
+
+                    contig_name = columns[0]
+                    if contig_name != ctg_name:
+                        continue
+                    contig_length = int(columns[1])
+            chunk_size = contig_length // chunk_num + 1 if contig_length % chunk_num else contig_length // chunk_num
+            ctg_start = chunk_size * chunk_id  # 0-base to 1-base
+            ctg_end = ctg_start + chunk_size
 
         # for illumina platform, the reads alignment is acquired after reads realignment from ReadsRealign.py
         if platform == 'ilmn' and bam_file_path != "PIPE":
@@ -658,6 +689,8 @@ def CreateTensorFullAlignment(args):
             base_list, depth, pass_af, af = decode_pileup_bases(pileup_bases=pileup_bases,
                                                                 reference_base=reference_base,
                                                                 minimum_af_for_candidate=minimum_af_for_candidate,
+                                                                minimum_snp_af_for_candidate=minimum_snp_af_for_candidate,
+                                                                minimum_indel_af_for_candidate=minimum_indel_af_for_candidate,
                                                                 has_pileup_candidates=has_pileup_candidates)
 
             if phasing_info_in_bam:
@@ -847,6 +880,12 @@ def main():
 
     parser.add_argument('--min_af', type=float, default=0.08,
                         help="Minimum allele frequency for both SNP and Indel for a site to be considered as a condidate site, default: %(default)f")
+
+    parser.add_argument('--snp_min_af', type=float, default=0.08,
+                        help="Minimum snp allele frequency for a site to be considered as a candidate site, default: %(default)f")
+
+    parser.add_argument('--indel_min_af', type=float, default=0.15,
+                        help="Minimum indel allele frequency for a site to be considered as a candidate site, default: %(default)f")
 
     parser.add_argument('--ctgName', type=str, default=None,
                         help="The name of sequence to be processed, required if --bed_fn is not defined")
