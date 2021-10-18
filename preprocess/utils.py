@@ -3,8 +3,10 @@ import logging
 import os
 import sys
 import re
+import subprocess
+import shlex
 logging.getLogger().setLevel(logging.INFO)
-from shared.utils import file_path_from
+from shared.utils import file_path_from, subprocess_popen
 
 use_mpmath = True
 try:
@@ -16,6 +18,66 @@ except ImportError:
 LOG_10 = 2.3025
 LOG_2 = 0.3010
 
+# compress intermediate gvcf row using lz4, issue:https://github.com/HKU-BAL/Clair3/issues/48
+lz4_path = subprocess.run("which lz4", stdout=subprocess.PIPE, shell=True).stdout.decode().rstrip()
+COMPRESS_GVCF = True if lz4_path != "" else False
+LZ4_COMPRESS = "lz4 -c"
+LZ4_DECOMPRESS = "lz4 -fdc"
+GVCF_SUFFIX = ".tmp.gvcf"
+
+class compressReaderWriter(object):
+    def __init__(self, input_path=None, output_path=None, compress=False):
+        self.input_path = input_path
+        self.output_path = output_path
+        self.compress = compress
+        self.read_proc = None
+        self.reader = None
+
+        self.writer = None
+        self.write_proc = None
+        self.write_fpo = None
+
+    def read_input(self):
+        is_lz4_format = 'LZ4' in subprocess.run("file {}".format(self.input_path), stdout=subprocess.PIPE,
+                                                shell=True).stdout.decode().rstrip()
+        if not is_lz4_format:
+            self.compress = False
+        if self.compress:
+            self.read_proc = subprocess_popen(shlex.split("{} {}".format(LZ4_DECOMPRESS, self.input_path)), stderr=subprocess.DEVNULL)
+            a = subprocess_popen(shlex.split("{} {}".format(LZ4_DECOMPRESS, self.input_path)), stderr=subprocess.DEVNULL)
+            streamdata = a.communicate()[0]
+            rc = a.returncode
+            self.reader = self.read_proc.stdout
+        else:
+            self.reader = open(self.input_path, 'r')
+        return self.reader
+
+    def close_reader(self):
+        if self.compress:
+            self.read_proc.stdout.close()
+            self.read_proc.wait()
+        else:
+            self.reader.close()
+
+    def write_output(self):
+        if self.compress:
+            self.write_fpo = open(self.output_path, 'w')
+            self.write_proc = subprocess_popen(shlex.split(LZ4_COMPRESS), stdin=subprocess.PIPE, stdout=self.write_fpo, stderr=subprocess.DEVNULL)
+            self.writer = self.write_proc.stdin
+
+        else:
+            self.writer = open(self.output_path, 'w')
+        return self.writer
+
+    def close_writer(self):
+        if self.compress:
+            self.write_proc.stdin.close()
+            self.write_proc.wait()
+            self.write_fpo.close()
+        else:
+            self.writer.close()
+
+
 class gvcfGenerator(object):
 
     def __init__(self, ref_path, samtools='samtools'):
@@ -24,94 +86,68 @@ class gvcfGenerator(object):
         self.samtools = samtools
         pass
 
-    def readCalls(self, callPath, callType='variant', ctgName=None, ctgStart=None, ctgEnd=None):
+    def readCalls(self, callPath, callType='variant', ctgName=None, ctgStart=None, ctgEnd=None, add_header=False, writer=None):
 
-        with open(callPath, 'r') as reader:
-            for line in reader:
-                if (line.startswith('#')):
-                    continue
+        CR = compressReaderWriter(input_path=callPath, compress=COMPRESS_GVCF)
+        reader = CR.read_input()
+        need_write_header = True
+        header = []
+        for line in reader:
+            if (line.startswith('#')):
+                if add_header and line not in header:
+                        header.append(line)
+
+                continue
+            if add_header and len(header) and need_write_header:
+                print(''.join(header).rstrip(), file=writer)
+                need_write_header = False
+            if (callType == 'non-variant'):
+                cur_non_variant_start = int(line.strip('\n').split('\t')[1])
+                cur_non_variant_end = int(re.search(r'.*END=(.*)\tGT.*', line).group(1))
+                cur_non_variant_chr = line.strip('\n').split('\t')[0]
+                if ((ctgName and cur_non_variant_chr == ctgName) or (not ctgName)):
+                    if ((ctgStart and cur_non_variant_start >= ctgStart) or (not ctgStart)):
+                        if ((ctgEnd and cur_non_variant_end <= ctgEnd) or (not ctgEnd)):
+                            yield line.strip('\n'), cur_non_variant_start, cur_non_variant_end, 'original'
+            else:
+                # for variant calls, return "pos"
+                # DEL and INS should be considered here
+                tmp = line.strip('\n').split('\t')
+                ref = tmp[3]
+                alt = tmp[4]
+                n_alt = len(alt.split(','))
+                cur_variant_start = int(line.strip('\n').split('\t')[1])
+                cur_variant_end = cur_variant_start - 1 + len(ref)
+                is_reference_call = (alt == '.') or (ref == alt)
+                if not is_reference_call:
+                # assuming AD is at the columns [-3], add 0 to AD for gVCF
+                    ori_info = tmp[-1].split(':')
+                    ori_info[-3] += ',0'
+                    tmp[-1] = ':'.join(ori_info)
+
+                    # assumeing PL is at the last column
+                    # add <NON_REF> to variant calls
+                    tmp[4] = tmp[4] + ',<NON_REF>'
+                    if (n_alt == 1):
+
+                        tmp[-1] = tmp[-1] + ',990,990,990'
+
+                    elif (n_alt == 2):
+                        tmp[-1] = tmp[-1] + ',990,990,990,990'
                 else:
-                    if (callType == 'non-variant'):
-                        cur_non_variant_start = int(line.strip('\n').split('\t')[1])
-                        cur_non_variant_end = int(re.search(r'.*END=(.*)\tGT.*', line).group(1))
-                        cur_non_variant_chr = line.strip('\n').split('\t')[0]
-                        if ((ctgName and cur_non_variant_chr == ctgName) or (not ctgName)):
-                            if ((ctgStart and cur_non_variant_start >= ctgStart) or (not ctgStart)):
-                                if ((ctgEnd and cur_non_variant_end <= ctgEnd) or (not ctgEnd)):
-                                    yield line.strip('\n'), cur_non_variant_start, cur_non_variant_end, 'original'
-                    else:
-                        # for variant calls, return "pos"
-                        # DEL and INS should be considered here
-                        tmp = line.strip('\n').split('\t')
-                        ref = tmp[3]
-                        alt = tmp[4]
-                        n_alt = len(alt.split(','))
-                        cur_variant_start = int(line.strip('\n').split('\t')[1])
-                        cur_variant_end = cur_variant_start - 1 + len(ref)
-                        is_reference_call = (alt == '.') or (ref == alt)
-                        if not is_reference_call:
-                        # assuming AD is at the columns [-3], add 0 to AD for gVCF
-                            ori_info = tmp[-1].split(':')
-                            ori_info[-3] += ',0'
-                            tmp[-1] = ':'.join(ori_info)
-
-                            # assumeing PL is at the last column
-                            # add <NON_REF> to variant calls
-                            tmp[4] = tmp[4] + ',<NON_REF>'
-                            if (n_alt == 1):
-
-                                tmp[-1] = tmp[-1] + ',990,990,990'
-
-                            elif (n_alt == 2):
-                                tmp[-1] = tmp[-1] + ',990,990,990,990'
-                        else:
-                            # skip reference calls
-                            continue
-                        new_line = '\t'.join(tmp)
-
-                        cur_variant_chr = tmp[0]
-
-
-                        if ((ctgName and cur_variant_chr == ctgName) or (not ctgName)):
-                            if ((ctgStart and cur_variant_start >= ctgStart) or (not ctgStart)):
-                                if ((ctgEnd and cur_variant_end <= ctgEnd) or (not ctgEnd)):
-                                    yield new_line, cur_variant_start, cur_variant_end
-
-
-
-    def _print_vcf_header(self,save_writer,tmp_gvcf_path,tmp_vcf_path):
-        '''
-        merge the two headers of tmp_gvcf and tmp_vcf
- 
-        '''
-        headers=[]
-        contigs = []
-        sample_line = ""
-        with open(tmp_gvcf_path,'r') as reader:
-            for line in reader:
-                if(not line.startswith('#')):
-                    break
-                if(not line.startswith('##')):
-                    sample_line = line 
-                elif(line.startswith('##contig')):
-                    contigs.append(line)
-                else:
-                    headers.append(line)
-
-        with open(tmp_vcf_path,'r') as reader:
-            for line in reader:
-                if(not line.startswith('##')):
-                    break
-                if(line.startswith('##contig')):
+                    # skip reference calls
                     continue
-                elif(line not in headers):
-                    headers.append(line)
-         
-        print(''.join(headers).strip(),file=save_writer)
-        print(''.join(contigs).strip(),file=save_writer)
-        print(sample_line.strip(),file=save_writer)       
-        pass
-    
+                new_line = '\t'.join(tmp)
+
+                cur_variant_chr = tmp[0]
+
+
+                if ((ctgName and cur_variant_chr == ctgName) or (not ctgName)):
+                    if ((ctgStart and cur_variant_start >= ctgStart) or (not ctgStart)):
+                        if ((ctgEnd and cur_variant_end <= ctgEnd) or (not ctgEnd)):
+                            yield new_line, cur_variant_start, cur_variant_end
+
+        CR.close_reader()
 
     def readReferenceBaseAtPos(self, pos):
 
@@ -153,16 +189,18 @@ class gvcfGenerator(object):
                    ctgEnd=None):
 
         '''
-
         merge calls between variant and non-variant
-
         '''
 
         varCallStop = False
         nonVarCallStop = False
-        printCurVar = True
+
+        #output writer
+        CW = compressReaderWriter(output_path=savePath, compress=COMPRESS_GVCF)
+        save_writer = CW.write_output()
+
         varCallGenerator = self.readCalls(variantCallPath, 'variant', ctgName, ctgStart, ctgEnd)
-        nonVarCallGenerator = self.readCalls(nonVarCallPath, 'non-variant', ctgName, ctgStart, ctgEnd)
+        nonVarCallGenerator = self.readCalls(nonVarCallPath, 'non-variant', ctgName, ctgStart, ctgEnd, add_header=True, writer=save_writer)
         hasVar = True
         # in case of empty file
         try:
@@ -174,9 +212,7 @@ class gvcfGenerator(object):
             curNonVarCall, curNonVarStart, curNonVarEnd, curNonVarPos = next(nonVarCallGenerator)
         except StopIteration:
             nonVarCallStop = True
-        save_writer = open(savePath, 'w')
-        # print gvcf header
-        self._print_vcf_header(save_writer,nonVarCallPath,variantCallPath)
+
         while True and (not varCallStop) and (not nonVarCallStop):
             if (curNonVarEnd < curVarStart):
 
@@ -305,8 +341,7 @@ class gvcfGenerator(object):
             for curNonVarCall, curNonVarStart, curNonVarEnd, curNonVarPos in nonVarCallGenerator:
                 print(curNonVarCall, file=save_writer)
 
-        save_writer.close()
-
+        CW.close_writer()
 
 
 class variantInfoCalculator(object):
@@ -325,11 +360,14 @@ class variantInfoCalculator(object):
         self.variantMath = mathcalculator()
         self.constant_log10_probs = self.variantMath.normalize_log10_prob([-1.0, -1.0, -1.0])
         self.gq_bin_size = gq_bin_size
+        self.CW = None
         # set by the users
         if (gvcfWritePath != "PIPE"):
             if (not os.path.exists(gvcfWritePath)):
                 os.mkdir(gvcfWritePath)
-            self.vcf_writer = open(os.path.join(gvcfWritePath, sample_name + '.tmp.g.vcf'), 'w')
+
+            self.CW = compressReaderWriter(output_path=os.path.join(gvcfWritePath, sample_name + GVCF_SUFFIX), compress=COMPRESS_GVCF)
+            self.vcf_writer = self.CW.write_output()
         else:
             self.vcf_writer = sys.stdout
         self.writePath = gvcfWritePath
@@ -342,7 +380,7 @@ class variantInfoCalculator(object):
             self.normalized_prob_pool = {}
 
             self.current_block = []
-            self._print_vcf_header(ctgName=ctgName)
+            self._print_vcf_header()
             self.cur_gq_bin_index = None
             self.cur_gt = None
             self.cur_min_DP = None
@@ -361,7 +399,6 @@ class variantInfoCalculator(object):
         '''
         
         make gvcf while reading from pileup
-
         '''
 
         if (push_current):
@@ -529,7 +566,7 @@ class variantInfoCalculator(object):
         validPL = log10_probs[0] == max(log10_probs)
         return validPL, gq, binned_gq, log10_probs
 
-    def _print_vcf_header(self,ctgName):
+    def _print_vcf_header(self):
 
         from textwrap import dedent
         print(dedent("""\
@@ -555,8 +592,7 @@ class variantInfoCalculator(object):
                 for row in fai_fp:
                     columns = row.strip().split("\t")
                     contig_name, contig_size = columns[0], columns[1]
-                    if(contig_name==ctgName):
-                        print("##contig=<ID=%s,length=%s>" % (contig_name, contig_size), file=self.vcf_writer)
+                    print("##contig=<ID=%s,length=%s>" % (contig_name, contig_size), file=self.vcf_writer)
 
         print('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s' % (self.sampleName), file=self.vcf_writer)
 
@@ -607,6 +643,8 @@ class variantInfoCalculator(object):
         print(_tmpLine, file=self.vcf_writer)
 
 
+    def close_vcf_writer(self):
+        self.CW.close_writer()
 
 class mathcalculator(object):
 
