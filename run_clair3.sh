@@ -177,12 +177,12 @@ mkdir -p ${OUTPUT_FOLDER}
 if [ ! -d ${OUTPUT_FOLDER} ]; then echo -e "${ERROR} Cannot create output folder ${OUTPUT_FOLDER}${NC}"; exit 1; fi
 
 # show default reference proportion 0.3 for ilmn and hifi, 0.1 for ont
-if [ "${PLATFORM}" = "ont" ] && [ ! "${REF_PRO}" -gt 0 ]; then REF_PRO=0.1; fi
-if [ "${PLATFORM}" != "ont" ] && [ ! "${REF_PRO}" -gt 0 ]; then REF_PRO=0.3; fi
+if [ "${PLATFORM}" = "ont" ] && [ ! ${REF_PRO} -gt 0 ]; then REF_PRO=0.1; fi
+if [ "${PLATFORM}" != "ont" ] && [ ! ${REF_PRO} -gt 0 ]; then REF_PRO=0.3; fi
 
 # show default variant proportion 0.3 for ilmn and hifi, 0.7 for ont
-if [ "${PLATFORM}" = "ont" ] && [ ! "${PRO}" -gt 0 ]; then PRO=0.7; fi
-if [ "${PLATFORM}" != "ont" ] && [ ! "${PRO}" -gt 0 ]; then PRO=0.3; fi
+if [ "${PLATFORM}" = "ont" ] && [ ! ${PRO} -gt 0 ]; then PRO=0.7; fi
+if [ "${PLATFORM}" != "ont" ] && [ ! ${PRO} -gt 0 ]; then PRO=0.3; fi
 
 # optional parameters should use "="
 (time (
