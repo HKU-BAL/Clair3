@@ -14,7 +14,7 @@ print_help_messages()
     echo $'Required parameters:'
     echo $'  -b, --bam_fn=FILE             BAM file input. The input file must be samtools indexed.'
     echo $'  -f, --ref_fn=FILE             FASTA reference file input. The input file must be samtools indexed.'
-    echo $'  -m, --model_path=STR          The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00002, pileup.data-00001-of-00002 pileup.index, full_alignment.data-00000-of-00002, full_alignment.data-00001-of-00002  and full_alignment.index).'
+    echo $'  -m, --model_path=STR          The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00002, pileup.data-00001-of-00002 pileup.index, full_alignment.data-00000-of-00002, full_alignment.data-00001-of-00002 and full_alignment.index).'
     echo $'  -t, --threads=INT             Max #threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The #chunks being processed simultaneously is ceil(#threads/4)*3. 3 is the overloading factor.'
     echo $'  -p, --platform=STR            Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.'
     echo $'  -o, --output=PATH             VCF/GVCF output directory.'
@@ -36,6 +36,7 @@ print_help_messages()
     echo $'      --print_ref_calls         Show reference calls (0/0) in VCF file, default: disable.'
     echo $'      --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.'
     echo $'      --gvcf                    Enable GVCF output, default: disable.'
+    echo $'      --remove_intermediate_dir Remove intermediate directory, including intermediate phased BAM, pileup and full-alignment results. default: disable.'
     echo $'      --snp_min_af=FLOAT        Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
     echo $'      --indel_min_af=FLOAT      Minimum Indel AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
     echo $'      --var_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.'
@@ -63,7 +64,8 @@ NC="\\033[0m"
 ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
-snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,no_phasing_for_fa,call_snp_only,help,version -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
+remove_intermediate_dir,no_phasing_for_fa,call_snp_only,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -94,6 +96,7 @@ HAP_SEN=False
 SNP_ONLY=False
 INCLUDE_ALL_CTGS=False
 NO_PHASING=False
+RM_TMP_DIR=False
 PILEUP_PREFIX="pileup"
 FA_PREFIX="full_alignment"
 
@@ -132,6 +135,7 @@ while true; do
     --haploid_sensitive ) HAP_SEN=True; shift 1 ;;
     --include_all_ctgs ) INCLUDE_ALL_CTGS=True; shift 1 ;;
     --no_phasing_for_fa ) NO_PHASING=True; shift 1 ;;
+    --remove_intermediate_dir ) RM_TMP_DIR=True; shift 1 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; exit 0 ;;
@@ -209,6 +213,7 @@ echo "[INFO] ENABLE HAPLOID PRECISE MODE: ${HAP_PRE}"
 echo "[INFO] ENABLE HAPLOID SENSITIVE MODE: ${HAP_SEN}"
 echo "[INFO] ENABLE INCLUDE ALL CTGS CALLING: ${INCLUDE_ALL_CTGS}"
 echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
+echo "[INFO] ENABLE REMOVING INTERMEDIATE FILES: ${RM_TMP_DIR}"
 echo $''
 
 # file check
@@ -294,7 +299,8 @@ ${SCRIPT_PATH}/scripts/clair3.sh \
     --include_all_ctgs=${INCLUDE_ALL_CTGS} \
     --no_phasing_for_fa=${NO_PHASING} \
     --pileup_model_prefix=${PILEUP_PREFIX} \
-    --fa_model_prefix=${FA_PREFIX}
+    --fa_model_prefix=${FA_PREFIX} \
+    --remove_intermediate_dir=${RM_TMP_DIR}
 
 
 )) |& tee ${OUTPUT_FOLDER}/run_clair3.log

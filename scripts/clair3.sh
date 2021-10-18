@@ -8,7 +8,7 @@ ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
 snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
-no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only:: -n 'run_clair3.sh' -- "$@"`
+no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -48,6 +48,7 @@ while true; do
     --haploid_sensitive ) HAP_SEN="$2"; shift 2 ;;
     --include_all_ctgs ) INCLUDE_ALL_CTGS="$2"; shift 2 ;;
     --no_phasing_for_fa ) NO_PHASING="$2"; shift 2 ;;
+    --remove_intermediate_dir ) RM_TMP_DIR="$2"; shift 2 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
@@ -292,6 +293,8 @@ then
         --ref_fn ${REFERENCE_FILE_PATH} \
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 fi
+
+if [ ${RM_TMP_DIR} == True ]; then echo "[INFO] Removing intermediate files in ${OUTPUT_FOLDER}/tmp"; rm -rf ${OUTPUT_FOLDER}/tmp; fi
 
 echo $''
 echo "[INFO] Finish calling, output file: ${OUTPUT_FOLDER}/merge_output.vcf.gz"
