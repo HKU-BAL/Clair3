@@ -28,7 +28,7 @@ docker run -it \
   --ref_fn=${INPUT_DIR}/ref.fa \          ## change your reference name here
   --threads=${THREADS} \                  ## maximum threads to be used
   --platform="ont" \                       
-  --model_path="/opt/models/ont_guppy2" \  
+  --model_path="/opt/models/r941_prom_hac_g238" \  
   --output=${OUTPUT_DIR}                  ## absolute output path prefix 
 ```
 
