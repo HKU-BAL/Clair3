@@ -44,7 +44,7 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 * [Training Data](docs/training_data.md)
 * [VCF/GVCF Output Formats](#vcfgvcf-output-formats)
 * [Pileup Model Training](docs/pileup_training.md)
-* [Full-Alignment Model Training](docs/full_alignment_training.md)
+* [Full-Alignment Model Training](docs/full_alignment_training_r1.md)
 * [Representation Unification](docs/representation_unification.md)
 * [Visualization](docs)
   * [Model Input](docs/model_input_visualization.md)
@@ -54,12 +54,13 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 ## Latest Updates
 
+*v0.1-r7 (Oct 18)* : 1. Increased `var_pct_full` in ONT mode from 0.3 to 0.7. Indel F1-score increased ~0.2%, but took ~30 minutes longer to finish calling a ~50x ONT dataset. 2. Expand fall through to next most likely variant if network prediction has insufficient read coverage ([#53](https://github.com/HKU-BAL/Clair3/pull/53) commit 09a7d185, contributor @[ftostevin-ont](https://github.com/ftostevin-ont)), accuracy improved on complex Indels. 3. Streamized pileup and full-alignment training workflows. Reduce diskspace demand in model training ([#55](https://github.com/HKU-BAL/Clair3/pull/55) commit 09a7d185, contributor @[ftostevin-ont](https://github.com/ftostevin-ont)). 4.  Added `mini_epochs` option in Train.py, performance  slightly improved in training a model for ONT Q20 data using mini-epochs([#60](https://github.com/HKU-BAL/Clair3/pull/60), contributor @[ftostevin-ont](https://github.com/ftostevin-ont)). 5. Massively reduced disk space demand when outputting GVCF. Now compressing GVCF intermediate files with lz4, five times smaller with little speed penalty. 6. Added `--remove_intermediate_dir`to remove intermediate files as soon as no longer needed ([#48](https://github.com/HKU-BAL/Clair3/issues/48)). 7. Renamed ONT pre-trained models with [Medaka](https://github.com/nanoporetech/medaka/blob/master/medaka/options.py#L22)'s naming convention. 8. Fixed training data spilling over to validation data ([#57](https://github.com/HKU-BAL/Clair3/issues/57)).
+
 *ONT-provided Models (Sep 23)*: ONT also provides Clair3 models for specific chemistries and basecallers through [Rerio](https://github.com/nanoporetech/rerio).
 
 *v0.1-r6 (Sep 4)* : 1. Reduced memory footprint at the `SortVcf` stage([#45](https://github.com/HKU-BAL/Clair3/issues/45)). 2. Reduced `ulimit -n` (number of files simultaneously opened) requirement ([#45](https://github.com/HKU-BAL/Clair3/issues/45), [#47](https://github.com/HKU-BAL/Clair3/issues/47)). 3. Added Clair3-Illumina package in bioconda([#42](https://github.com/HKU-BAL/Clair3/issues/42)).
 
 *v0.1-r5 (July 19)* : 1. Modified data generator in model training to avoid memory exhaustion and unexpected segmentation fault by Tensorflow (contributor @[ftostevin-ont](https://github.com/ftostevin-ont) ). 2. Simplified dockerfile workflow to reuse container caching (contributor @[amblina](https://github.com/amblina)). 3. Fixed ALT output for reference calls (contributor @[wdecoster](https://github.com/wdecoster)). 4. Fixed a bug in multi-allelic AF computation (AF of [ACGT]Del variants was wrong before r5). 5. Added AD tag to the GVCF output. 6. Added the `--call_snp_only` option to only call SNP only ([#40](https://github.com/HKU-BAL/Clair3/issues/40)). 7. Added pileup and full-alignment output validity check to avoid workflow crashing ([#32](https://github.com/HKU-BAL/Clair3/issues/32), [#38](https://github.com/HKU-BAL/Clair3/issues/38)).
-
 
 *v0.1-r4 (June 28)* : 1. Install via [bioconda](https://github.com/HKU-BAL/Clair3#option-3--bioconda). 2. Added an ONT Guppy2 model to the images (`ont_guppy2`). Click [here](https://github.com/HKU-BAL/Clair3/blob/main/docs/guppy2.md) for more benchmarking results. **The results show you have to use the Guppy2 model for Guppy2 or earlier data**. 3. Added [google colab notebooks](https://github.com/HKU-BAL/Clair3/blob/main/colab) for quick demo. 4. Fixed a bug when there are too few variant candidates ([#28](https://github.com/HKU-BAL/Clair3/issues/28)).
 
@@ -83,14 +84,16 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
-|       File        |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image | Release |   Date   | Basecaller |                             Link                             |
-| :---------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :-----: | :------: | :--------: | :----------------------------------------------------------: |
-|    ont.tar.gz     |     ONT     |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont.tar.gz) |
-|  ont_1235.tar.gz  |     ONT     |                         HG001,2,3,5                          |                                  |                              |    1    | 20210517 |  Guppy3,4  | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_1235.tar.gz) |
-| ont_guppy5.tar.gz |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) | Yes                              |             Yes              |    1    | 20210609 |   Guppy5   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy5.tar.gz) |
-| ont_guppy2.tar.gz |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              |    1    | 20210627 |   Guppy2   | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ont_guppy2.tar.gz) |
-|    hifi.tar.gz    | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|    ilmn.tar.gz    |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+In a docker installation, models are in `/opt/models/`. In a bioconda installation, models are in `{CONDA_PREFIX}/bin/models/`.
+
+|          Model name          |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image | Release |   Date   | Basecaller | File                                |                             Link                             |
+| :--------------------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :-----: | :------: | :--------: | ----------------------------------- | :----------------------------------------------------------: |
+|   r941_prom_hac_g360+g422    |     ONT     |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |  Guppy3,4  | r941_prom_hac_g360+g422.tar.gz      | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422.tar.gz) |
+| r941_prom_hac_g360+g422_1235 |     ONT     |                         HG001,2,3,5                          |                                  |                              |    1    | 20210517 |  Guppy3,4  | r941_prom_hac_g360+g422_1235.tar.gz | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422_1235.tar.gz) |
+|      r941_prom_sup_g506      |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) | Yes                              |             Yes              |    1    | 20210609 |   Guppy5   | r941_prom_sup_g506.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g506.tar.gz) |
+|      r941_prom_hac_g238      |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              |    1    | 20210627 |   Guppy2   | r941_prom_hac_g238.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g238.tar.gz) |
+|             hifi             | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | hifi.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|             ilmn             |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | ilmn.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
 #### ONT-provided Models
 
@@ -147,6 +150,7 @@ A pre-built docker image is available [here](https://hub.docker.com/r/hkubal/cla
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -157,7 +161,7 @@ docker run -it \
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
+  --model_path="/opt/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR}               ## absolute output path prefix 
 ```
 
@@ -171,6 +175,7 @@ Check [Usage](#Usage) for more options.
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
 
 conda config --add channels defaults
 conda create -n singularity-env -c conda-forge singularity -y
@@ -186,7 +191,7 @@ singularity exec clair3_latest.sif \
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
+  --model_path="/opt/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
 
@@ -206,12 +211,14 @@ conda create -n clair3 -c bioconda clair3 python=3.6.10 -y
 conda activate clair3
 
 # run clair3 like this afterward
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
+
 run_clair3.sh \
   --bam_fn=input.bam \                 ## change your bam file name here
   --ref_fn=ref.fa \                    ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path="${CONDA_PREFIX}/bin/models/ont" \ 
+  --model_path="${CONDA_PREFIX}/bin/models/${MODEL_NAME}" \ 
   --output=${OUTPUT_DIR}               ## output path prefix 
 ```
 
@@ -265,12 +272,13 @@ wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz
 tar -zxvf clair3_models.tar.gz -C ./models
 
 # run clair3
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
 ./run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path=`pwd`"/models/ont" \    ## model path prefix, change platform accordingly
+  --model_path=`pwd`"/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR}               ## output path prefix
 ```
 
@@ -345,6 +353,7 @@ docker run -it hkubal/clair3:latest /opt/bin/run_clair3.sh --help
       --print_ref_calls         Show reference calls (0/0) in vcf file, default: disable.
       --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
       --gvcf                    Enable GVCF output, default: disable.
+      --remove_intermediate_dir Remove intermediate directory, including intermediate phased BAM, pileup and full-alignment results. default: disable.
       --snp_min_af=FLOAT        Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.
       --indel_min_af=FLOAT      Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
       --var_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.
@@ -365,6 +374,7 @@ CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -375,7 +385,7 @@ docker run -it \
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
+  --model_path="/opt/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR} \             ## absolute output path prefix
   --ctg_name=${CONTIGS_LIST}
 ```
@@ -387,6 +397,7 @@ KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. /home/user1/known_variants.vcf.gz 
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -397,7 +408,7 @@ docker run -it \
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
+  --model_path="/opt/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR} \             ## absolute output path prefix
   --vcf_fn=${KNOWN_VARIANTS_VCF}
 ```
@@ -421,6 +432,7 @@ BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed (absolute path
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -431,7 +443,7 @@ docker run -it \
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
+  --model_path="/opt/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR} \             ## absolute output path prefix
   --bed_fn=${BED_FILE_PATH}
 ```
@@ -442,6 +454,7 @@ docker run -it \
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -452,7 +465,7 @@ docker run -it \
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path="/opt/models/ont" \     ## absolute model path prefix, change platform accordingly
+  --model_path="/opt/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR} \
   --no_phasing_for_fa \                ## disable phasing for full-alignment
   --include_all_ctgs \                 ## call variants on all contigs in the reference fasta
@@ -489,6 +502,8 @@ Submodules in __`clair3/`__ are for variant calling and model training. Submodul
 `SortVcf` | Sort VCF file. 
 `SplitExtendBed` | Split BED file regions according to the contig names and extend bed region by 33bp by default for variant calling. 
 `UnifyRepresentation` | Representation unification between candidate sites and true variants. 
+`MergeBin` | Combine tensor binaries into a single file. 
+`CreateTrainingTensor` | Create tensor binaries for pileup or full-alignment training. 
 `Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary, using `blosc:lz4hc` meta-compressor, the overall training memory is 10~15G (pypy incompatible). 
 
 ----
