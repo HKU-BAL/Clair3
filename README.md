@@ -342,7 +342,7 @@ docker run -it hkubal/clair3:latest /opt/bin/run_clair3.sh --help
       --vcf_fn=FILE             Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.
       --ctg_name=STR            The name of the sequence to be processed.
       --sample_name=STR         Define the sample name to be shown in the VCF file.
-      --qual=INT                If set, variants with >=$qual will be marked PASS, or LowQual otherwise.
+      --qual=INT                If set, variants with >$qual will be marked PASS, or LowQual otherwise.
       --samtools=STR            Path of samtools, samtools version >= 1.10 is required.
       --python=STR              Path of python, python3 >= 3.6 is required.
       --pypy=STR                Path of pypy3, pypy3 >= 3.6 is required.

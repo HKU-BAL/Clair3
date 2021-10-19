@@ -25,7 +25,7 @@ print_help_messages()
     echo $'      --vcf_fn=FILE             Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.'
     echo $'      --ctg_name=STR            The name of the sequence to be processed.'
     echo $'      --sample_name=STR         Define the sample name to be shown in the VCF file.'
-    echo $'      --qual=INT                If set, variants with >=$qual will be marked PASS, or LowQual otherwise.'
+    echo $'      --qual=INT                If set, variants with >$qual will be marked PASS, or LowQual otherwise.'
     echo $'      --samtools=STR            Path of samtools, samtools version >= 1.10 is required.'
     echo $'      --python=STR              Path of python, python3 >= 3.6 is required.'
     echo $'      --pypy=STR                Path of pypy3, pypy3 >= 3.6 is required.'
