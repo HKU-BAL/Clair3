@@ -104,17 +104,34 @@ class DataSequence(tf.keras.utils.Sequence):
                 np.random.shuffle(self.chunk_list)
 
 
-def get_chunk_list(chunk_offset, train_chunk_num):
+def get_chunk_list(chunk_offset, train_chunk_num, chunks_per_batch=10, training_dataset_percentage=None):
     """
     get chunk list for training and validation data. we will randomly split training and validation dataset,
     all training data is directly acquired from various tensor bin files.
 
     """
+    need_split_validation_data = training_dataset_percentage is not None
     all_shuffle_chunk_list = []
+    training_chunk_list, validation_chunk_list = [], []
     for bin_idx, chunk_num in enumerate(chunk_offset):
-        all_shuffle_chunk_list += [(bin_idx, chunk_idx) for chunk_idx in range(chunk_num)]
-    np.random.seed(0)
-    np.random.shuffle(all_shuffle_chunk_list)  # keep the same random validate dataset
+        current_chunk_list = [(bin_idx, chunk_idx) for chunk_idx in range(chunk_num)]
+        all_shuffle_chunk_list += current_chunk_list
+        if need_split_validation_data:
+            buffer_chunk_num = chunks_per_batch
+            if chunk_num < buffer_chunk_num:
+                training_chunk_list += [(bin_idx, chunk_idx) for chunk_idx in range(chunk_num)]
+                continue
+
+            training_chunk_num = int((chunk_num - buffer_chunk_num) * training_dataset_percentage)
+            validation_chunk_num = int(chunk_num - buffer_chunk_num - training_chunk_num)
+            if training_chunk_num > 0:
+                training_chunk_list += current_chunk_list[:training_chunk_num]
+            if validation_chunk_num > 0:
+                validation_chunk_list += current_chunk_list[-validation_chunk_num:]
+
+    if need_split_validation_data:
+        return np.array(training_chunk_list), np.array(validation_chunk_list)
+
     return np.array(all_shuffle_chunk_list[:train_chunk_num]), np.array(all_shuffle_chunk_list[train_chunk_num:])
 
 
@@ -145,6 +162,7 @@ def train_model(args):
     label_shape = param.label_shape
     label_shape_cum = param.label_shape_cum
     batch_size, chunk_size = param.trainBatchSize, param.chunk_size
+    assert batch_size % chunk_size == 0
     chunks_per_batch = batch_size // chunk_size
     random.seed(param.RANDOM_SEED)
     np.random.seed(param.RANDOM_SEED)
@@ -159,7 +177,7 @@ def train_model(args):
         for bin_idx, bin_file in enumerate(file_list):
             table_dataset = tables.open_file(os.path.join(file_path, bin_file), 'r')
             table_dataset_list.append(table_dataset)
-            chunk_num = (len(table_dataset.root.label) - chunk_size) // chunk_size
+            chunk_num = (len(table_dataset.root.label) - batch_size) // chunk_size
             chunk_offset[bin_idx] = chunk_num
         return table_dataset_list, chunk_offset
 
@@ -185,13 +203,17 @@ def train_model(args):
         total_chunks = train_chunk_num + validate_chunk_num
     else:
         total_chunks = int(sum(chunk_offset))
+        training_dataset_percentage = param.trainingDatasetPercentage if add_validation_dataset else None
         if add_validation_dataset:
             total_batches = total_chunks // chunks_per_batch
-            validate_chunk_num = int(max(1., np.floor(total_batches * (1 - param.trainingDatasetPercentage))) * chunks_per_batch)
+            validate_chunk_num = int(max(1., np.floor(total_batches * (1 - training_dataset_percentage))) * chunks_per_batch)
+            # +++++++++++++**----
+            # +:training *:buffer -:validation
+            # distribute one batch data as buffer for each bin file, avoiding shifting training data to validation data
             train_chunk_num = int(total_chunks - validate_chunk_num)
         else:
             train_chunk_num = total_chunks
-        train_shuffle_chunk_list, validate_shuffle_chunk_list = get_chunk_list(chunk_offset, train_chunk_num)
+        train_shuffle_chunk_list, validate_shuffle_chunk_list = get_chunk_list(chunk_offset, train_chunk_num, chunks_per_batch, training_dataset_percentage)
         train_chunk_num = len(train_shuffle_chunk_list)
         validate_chunk_num = len(validate_shuffle_chunk_list)
 
@@ -223,7 +245,7 @@ def train_model(args):
         metrics=metrics,
         optimizer=optimizer
     )
-    early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, mode="min")
+    early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10*mini_epochs, mode="min")
     model_save_callback = tf.keras.callbacks.ModelCheckpoint(ochk_prefix + ".{epoch:02d}", period=1, save_weights_only=False)
     model_best_callback = tf.keras.callbacks.ModelCheckpoint("best_val_loss", monitor='val_loss', save_best_only=True, mode="min")
     train_log_callback = tf.keras.callbacks.CSVLogger("training.log", separator='\t')

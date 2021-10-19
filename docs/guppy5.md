@@ -31,9 +31,10 @@ docker run -it \
   --ref_fn=${INPUT_DIR}/ref.fa \          ## change your reference name here
   --threads=${THREADS} \                  ## maximum threads to be used
   --platform="ont" \                       
-  --model_path="/opt/models/ont_guppy5" \  
+  --model_path="/opt/models/r941_prom_sup_g506" \  
   --output=${OUTPUT_DIR}                  ## absolute output path prefix 
 ```
 
 Check [Usage](https://github.com/HKU-BAL/Clair3#Usage) for more options.
+
 

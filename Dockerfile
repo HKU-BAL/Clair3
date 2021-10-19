@@ -19,9 +19,6 @@ WORKDIR /opt/bin
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
     bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda && \
     rm Miniconda3-latest-Linux-x86_64.sh && \
-    wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz -P /opt/models && \
-    tar -zxvf /opt/models/clair3_models.tar.gz -C /opt/models && \
-    rm /opt/models/clair3_models.tar.gz && \
     conda config --add channels defaults && \
     conda config --add channels bioconda && \
     conda config --add channels conda-forge && \
@@ -48,4 +45,7 @@ COPY . .
 RUN cd /opt/bin/preprocess/realign && \
     g++ -std=c++14 -O1 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c realigner.cpp && \
     g++ -std=c++11 -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp && \
+    wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz -P /opt/models && \
+    tar -zxvf /opt/models/clair3_models.tar.gz -C /opt/models && \
+    rm /opt/models/clair3_models.tar.gz && \
     echo "source activate clair3" > ~/.bashrc

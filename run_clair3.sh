@@ -1,7 +1,7 @@
 #!/bin/bash
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH=`dirname "$0"`
-VERSION='v0.1-r6'
+VERSION='v0.1-r7'
 Usage="Usage: ./${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
 set -e
@@ -14,7 +14,7 @@ print_help_messages()
     echo $'Required parameters:'
     echo $'  -b, --bam_fn=FILE             BAM file input. The input file must be samtools indexed.'
     echo $'  -f, --ref_fn=FILE             FASTA reference file input. The input file must be samtools indexed.'
-    echo $'  -m, --model_path=STR          The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00002, pileup.data-00001-of-00002 pileup.index, full_alignment.data-00000-of-00002, full_alignment.data-00001-of-00002  and full_alignment.index).'
+    echo $'  -m, --model_path=STR          The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00002, pileup.data-00001-of-00002 pileup.index, full_alignment.data-00000-of-00002, full_alignment.data-00001-of-00002 and full_alignment.index).'
     echo $'  -t, --threads=INT             Max #threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The #chunks being processed simultaneously is ceil(#threads/4)*3. 3 is the overloading factor.'
     echo $'  -p, --platform=STR            Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.'
     echo $'  -o, --output=PATH             VCF/GVCF output directory.'
@@ -25,7 +25,7 @@ print_help_messages()
     echo $'      --vcf_fn=FILE             Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.'
     echo $'      --ctg_name=STR            The name of the sequence to be processed.'
     echo $'      --sample_name=STR         Define the sample name to be shown in the VCF file.'
-    echo $'      --qual=INT                If set, variants with >=$qual will be marked PASS, or LowQual otherwise.'
+    echo $'      --qual=INT                If set, variants with >$qual will be marked PASS, or LowQual otherwise.'
     echo $'      --samtools=STR            Path of samtools, samtools version >= 1.10 is required.'
     echo $'      --python=STR              Path of python, python3 >= 3.6 is required.'
     echo $'      --pypy=STR                Path of pypy3, pypy3 >= 3.6 is required.'
@@ -36,6 +36,7 @@ print_help_messages()
     echo $'      --print_ref_calls         Show reference calls (0/0) in VCF file, default: disable.'
     echo $'      --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.'
     echo $'      --gvcf                    Enable GVCF output, default: disable.'
+    echo $'      --remove_intermediate_dir Remove intermediate directory, including intermediate phased BAM, pileup and full-alignment results. default: disable.'
     echo $'      --snp_min_af=FLOAT        Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
     echo $'      --indel_min_af=FLOAT      Minimum Indel AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
     echo $'      --var_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.'
@@ -63,7 +64,8 @@ NC="\\033[0m"
 ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
-snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,no_phasing_for_fa,call_snp_only,help,version -n 'run_clair3.sh' -- "$@"`
+snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
+remove_intermediate_dir,no_phasing_for_fa,call_snp_only,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -81,19 +83,20 @@ WHATSHAP='whatshap'
 CHUNK_NUM=0
 CHUNK_SIZE=5000000
 QUAL=2
-PRO=0.3
-REF_PRO=0
+PRO="0"
+REF_PRO="0"
 GVCF=False
 PILEUP_ONLY=False
 FAST_MODE=False
 SHOW_REF=False
-SNP_AF=0
-INDEL_AF=0
+SNP_AF="0"
+INDEL_AF="0"
 HAP_PRE=False
 HAP_SEN=False
 SNP_ONLY=False
 INCLUDE_ALL_CTGS=False
 NO_PHASING=False
+RM_TMP_DIR=False
 PILEUP_PREFIX="pileup"
 FA_PREFIX="full_alignment"
 
@@ -132,6 +135,7 @@ while true; do
     --haploid_sensitive ) HAP_SEN=True; shift 1 ;;
     --include_all_ctgs ) INCLUDE_ALL_CTGS=True; shift 1 ;;
     --no_phasing_for_fa ) NO_PHASING=True; shift 1 ;;
+    --remove_intermediate_dir ) RM_TMP_DIR=True; shift 1 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; exit 0 ;;
@@ -173,8 +177,12 @@ mkdir -p ${OUTPUT_FOLDER}
 if [ ! -d ${OUTPUT_FOLDER} ]; then echo -e "${ERROR} Cannot create output folder ${OUTPUT_FOLDER}${NC}"; exit 1; fi
 
 # show default reference proportion 0.3 for ilmn and hifi, 0.1 for ont
-if [ "${PLATFORM}" = "ont" ] && [ ! "${REF_PRO}" -gt 0 ]; then REF_PRO=0.1; fi
-if [ "${PLATFORM}" != "ont" ] && [ ! "${REF_PRO}" -gt 0 ]; then REF_PRO=0.3; fi
+if [ "${PLATFORM}" = "ont" ] && [ "${REF_PRO}" = "0" ]; then REF_PRO=0.1; fi
+if [ "${PLATFORM}" != "ont" ] && [ "${REF_PRO}" = "0" ]; then REF_PRO=0.3; fi
+
+# show default variant proportion 0.3 for ilmn and hifi, 0.7 for ont
+if [ "${PLATFORM}" = "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.7; fi
+if [ "${PLATFORM}" != "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.3; fi
 
 # optional parameters should use "="
 (time (
@@ -198,8 +206,8 @@ echo "[INFO] CHUNK SIZE: ${CHUNK_SIZE}"
 if [ ${CHUNK_NUM} -gt 0 ]; then echo "[INFO] CHUNK NUM: ${CHUNK_NUM}"; fi
 echo "[INFO] FULL ALIGN PROPORTION: ${PRO}"
 echo "[INFO] FULL ALIGN REFERENCE PROPORTION: ${REF_PRO}"
-if [ ${SNP_AF} -gt 0 ]; then echo "[INFO] USER DEFINED SNP THRESHOLD: ${SNP_AF}"; fi
-if [ ${INDEL_AF} -gt 0 ]; then echo "[INFO] USER DEFINED INDEL THRESHOLD: ${INDEL_AF}"; fi
+if [ "${SNP_AF}" != "0" ]; then echo "[INFO] USER DEFINED SNP THRESHOLD: ${SNP_AF}"; fi
+if [ "${INDEL_AF}" != "0" ]; then echo "[INFO] USER DEFINED INDEL THRESHOLD: ${INDEL_AF}"; fi
 echo "[INFO] ENABLE FILEUP ONLY CALLING: ${PILEUP_ONLY}"
 echo "[INFO] ENABLE FAST MODE CALLING: ${FAST_MODE}"
 echo "[INFO] ENABLE CALLING SNP CANDIDATES ONLY: ${SNP_ONLY}"
@@ -209,6 +217,7 @@ echo "[INFO] ENABLE HAPLOID PRECISE MODE: ${HAP_PRE}"
 echo "[INFO] ENABLE HAPLOID SENSITIVE MODE: ${HAP_SEN}"
 echo "[INFO] ENABLE INCLUDE ALL CTGS CALLING: ${INCLUDE_ALL_CTGS}"
 echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
+echo "[INFO] ENABLE REMOVING INTERMEDIATE FILES: ${RM_TMP_DIR}"
 echo $''
 
 # file check
@@ -294,7 +303,8 @@ ${SCRIPT_PATH}/scripts/clair3.sh \
     --include_all_ctgs=${INCLUDE_ALL_CTGS} \
     --no_phasing_for_fa=${NO_PHASING} \
     --pileup_model_prefix=${PILEUP_PREFIX} \
-    --fa_model_prefix=${FA_PREFIX}
+    --fa_model_prefix=${FA_PREFIX} \
+    --remove_intermediate_dir=${RM_TMP_DIR}
 
 
 )) |& tee ${OUTPUT_FOLDER}/run_clair3.log

@@ -83,6 +83,7 @@ def Run(args):
     var_fn = file_path_from(args.var_fn, exit_on_not_found=True)
     bin_fn = args.bin_fn
     extend_bed = file_path_from(args.extend_bed)
+    full_aln_regions = file_path_from(args.full_aln_regions)
 
     platform = args.platform
     if not platform or platform not in param.support_platform:
@@ -128,6 +129,9 @@ def Run(args):
         CommandOption('samtools', samtoolsBin),
         CommandOption('bed_fn', bed_fn),
         CommandOption('extend_bed', extend_bed),
+        CommandOption('min_af', min_af),
+        CommandOption('snp_min_af', snp_min_af),
+        CommandOption('indel_min_af', indel_min_af),
         ctgStart,
         ctgEnd,
         chunk_id,
@@ -135,12 +139,9 @@ def Run(args):
     ]
 
     if not pileup:
-        create_tensor_command_options.append(CommandOption('min_af', min_af))
         create_tensor_command_options.append(phasing_info_mode)
         create_tensor_command_options.append(add_no_phasing_mode)
-    else:
-        create_tensor_command_options.append(CommandOption('snp_min_af', snp_min_af))
-        create_tensor_command_options.append(CommandOption('indel_min_af', indel_min_af))
+        create_tensor_command_options.append(CommandOption('full_aln_regions', full_aln_regions))
 
     compress_tensor_command_options = [
         pythonBin,
@@ -201,7 +202,7 @@ def Run(args):
 
 
 def main():
-    parser = ArgumentParser(description="Call variants using a trained model and a BAM file")
+    parser = ArgumentParser(description="Create tensor binaries for pileup or full-alignment training")
 
     parser.add_argument('--platform', type=str, default="ont",
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
@@ -261,6 +262,10 @@ def main():
     # options for internal process control, don't use any of them unless you are sure about the consequences
     ## In pileup mode or not
     parser.add_argument('--pileup', action='store_true',
+                        help=SUPPRESS)
+
+    ## Provide the regions to be included in full-alignment based calling
+    parser.add_argument('--full_aln_regions', type=str, default=None,
                         help=SUPPRESS)
 
     parser.add_argument('--phasing_info_in_bam', action='store_true',

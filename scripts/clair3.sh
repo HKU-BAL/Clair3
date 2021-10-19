@@ -8,7 +8,7 @@ ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
 snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
-no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only:: -n 'run_clair3.sh' -- "$@"`
+no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -48,6 +48,7 @@ while true; do
     --haploid_sensitive ) HAP_SEN="$2"; shift 2 ;;
     --include_all_ctgs ) INCLUDE_ALL_CTGS="$2"; shift 2 ;;
     --no_phasing_for_fa ) NO_PHASING="$2"; shift 2 ;;
+    --remove_intermediate_dir ) RM_TMP_DIR="$2"; shift 2 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
@@ -146,6 +147,7 @@ ${PYPY} ${CLAIR3} SortVcf \
 
 if [ "$( gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in pileup variant calling"; exit 0; fi
 if [ ${PILEUP_ONLY} == True ]; then
+    if [ ${RM_TMP_DIR} == True ]; then echo "[INFO] Removing intermediate files in ${OUTPUT_FOLDER}/tmp"; rm -rf ${OUTPUT_FOLDER}/tmp; fi
     echo "[INFO] Only call pileup output with --pileup_only, output file: ${OUTPUT_FOLDER}/pileup.vcf.gz"
     echo "[INFO] Finish calling!"
     exit 0;
@@ -241,7 +243,16 @@ ${PYPY} ${CLAIR3} SortVcf \
     --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
 if [ "$( gzip -fdc ${OUTPUT_FOLDER}/full_alignment.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in full-alignment variant calling"; exit 0; fi
-if [ ${GVCF} == True ]; then cat ${GVCF_TMP_PATH}/*.tmp.g.vcf | ${PYPY} ${CLAIR3} SortVcf --output_fn ${GVCF_TMP_PATH}/non_var.gvcf; fi
+# Compress GVCF output using lz4
+if [ ${GVCF} == True ]
+then
+    ${PYPY} ${CLAIR3} SortVcf \
+        --input_dir ${GVCF_TMP_PATH} \
+        --vcf_fn_suffix ".tmp.gvcf" \
+        --output_fn ${GVCF_TMP_PATH}/non_var.gvcf \
+        --ref_fn ${REFERENCE_FILE_PATH} \
+        --contigs_fn ${TMP_FILE_PATH}/CONTIGS
+fi
 
 ##Merge pileup and full alignment vcf
 ##-----------------------------------------------------------------------------------------------------------------------
@@ -283,6 +294,8 @@ then
         --ref_fn ${REFERENCE_FILE_PATH} \
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 fi
+
+if [ ${RM_TMP_DIR} == True ]; then echo "[INFO] Removing intermediate files in ${OUTPUT_FOLDER}/tmp"; rm -rf ${OUTPUT_FOLDER}/tmp; fi
 
 echo $''
 echo "[INFO] Finish calling, output file: ${OUTPUT_FOLDER}/merge_output.vcf.gz"

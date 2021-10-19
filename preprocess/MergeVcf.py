@@ -314,7 +314,7 @@ def main():
                         help="Process variant only in the provided regions prefix")
 
     parser.add_argument('--qual', type=int, default=2,
-                        help="If set, variants with >=$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
+                        help="If set, variants with >$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
 
     parser.add_argument('--sampleName', type=str, default="SAMPLE",
                         help="Define the sample name to be shown in the VCF file")

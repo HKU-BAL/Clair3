@@ -5,6 +5,8 @@ from itertools import accumulate
 zstd='zstd'
 default_optimizer = "Radam"
 default_loss_function = "FocalLoss"
+min_af = 0.08
+min_af_dict = {'ont':0.15, 'hifi':min_af, 'ilmn':min_af }
 matrix_depth_dict = {'ont': 89, 'hifi': 55, 'ilmn': 55}
 
 # Full alignment input feature list
