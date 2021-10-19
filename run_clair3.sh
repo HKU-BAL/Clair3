@@ -83,14 +83,14 @@ WHATSHAP='whatshap'
 CHUNK_NUM=0
 CHUNK_SIZE=5000000
 QUAL=2
-PRO=0
-REF_PRO=0
+PRO="0"
+REF_PRO="0"
 GVCF=False
 PILEUP_ONLY=False
 FAST_MODE=False
 SHOW_REF=False
-SNP_AF=0
-INDEL_AF=0
+SNP_AF="0"
+INDEL_AF="0"
 HAP_PRE=False
 HAP_SEN=False
 SNP_ONLY=False
@@ -177,12 +177,12 @@ mkdir -p ${OUTPUT_FOLDER}
 if [ ! -d ${OUTPUT_FOLDER} ]; then echo -e "${ERROR} Cannot create output folder ${OUTPUT_FOLDER}${NC}"; exit 1; fi
 
 # show default reference proportion 0.3 for ilmn and hifi, 0.1 for ont
-if [ "${PLATFORM}" = "ont" ] && [ ! ${REF_PRO} -gt 0 ]; then REF_PRO=0.1; fi
-if [ "${PLATFORM}" != "ont" ] && [ ! ${REF_PRO} -gt 0 ]; then REF_PRO=0.3; fi
+if [ "${PLATFORM}" = "ont" ] && [ "${REF_PRO}" = "0" ]; then REF_PRO=0.1; fi
+if [ "${PLATFORM}" != "ont" ] && [ "${REF_PRO}" = "0" ]; then REF_PRO=0.3; fi
 
 # show default variant proportion 0.3 for ilmn and hifi, 0.7 for ont
-if [ "${PLATFORM}" = "ont" ] && [ ! ${PRO} -gt 0 ]; then PRO=0.7; fi
-if [ "${PLATFORM}" != "ont" ] && [ ! ${PRO} -gt 0 ]; then PRO=0.3; fi
+if [ "${PLATFORM}" = "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.7; fi
+if [ "${PLATFORM}" != "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.3; fi
 
 # optional parameters should use "="
 (time (
@@ -206,8 +206,8 @@ echo "[INFO] CHUNK SIZE: ${CHUNK_SIZE}"
 if [ ${CHUNK_NUM} -gt 0 ]; then echo "[INFO] CHUNK NUM: ${CHUNK_NUM}"; fi
 echo "[INFO] FULL ALIGN PROPORTION: ${PRO}"
 echo "[INFO] FULL ALIGN REFERENCE PROPORTION: ${REF_PRO}"
-if [ ${SNP_AF} -gt 0 ]; then echo "[INFO] USER DEFINED SNP THRESHOLD: ${SNP_AF}"; fi
-if [ ${INDEL_AF} -gt 0 ]; then echo "[INFO] USER DEFINED INDEL THRESHOLD: ${INDEL_AF}"; fi
+if [ "${SNP_AF}" != "0" ]; then echo "[INFO] USER DEFINED SNP THRESHOLD: ${SNP_AF}"; fi
+if [ "${INDEL_AF}" != "0" ]; then echo "[INFO] USER DEFINED INDEL THRESHOLD: ${INDEL_AF}"; fi
 echo "[INFO] ENABLE FILEUP ONLY CALLING: ${PILEUP_ONLY}"
 echo "[INFO] ENABLE FAST MODE CALLING: ${FAST_MODE}"
 echo "[INFO] ENABLE CALLING SNP CANDIDATES ONLY: ${SNP_ONLY}"
