@@ -115,7 +115,6 @@ def sort_vcf_from(args):
     sample_name = args.sampleName
     ref_fn = args.ref_fn
     contigs_fn = args.contigs_fn
-    compress_gvcf = args.compress_gvcf
 
     if not os.path.exists(input_dir):
         exit(log_error("[ERROR] Input directory: {} not exists!").format(input_dir))
@@ -156,11 +155,15 @@ def sort_vcf_from(args):
     no_vcf_output = True
     need_write_header = True
 
+    # only compress intermediate gvcf using lz4 output and keep final gvcf in bgzip format
     output_bgzip_gvcf = vcf_fn_suffix == '.gvcf'
+    compress_gvcf = 'gvcf' in vcf_fn_suffix
     if compress_gvcf:
         lz4_path = subprocess.run("which lz4", stdout=subprocess.PIPE, shell=True).stdout.decode().rstrip()
-        compress_gvcf = compress_gvcf if lz4_path != "" else False
-    if compress_gvcf:
+        compress_gvcf = True if lz4_path != "" else False
+    is_lz4_format = compress_gvcf
+    compress_gvcf_output = compress_gvcf and not output_bgzip_gvcf
+    if compress_gvcf_output:
         write_fpo = open(output_fn, 'w')
         write_proc = subprocess_popen(shlex.split("lz4 -c"), stdin=subprocess.PIPE, stdout=write_fpo, stderr=subprocess.DEVNULL)
         output = write_proc.stdin
@@ -172,8 +175,6 @@ def sort_vcf_from(args):
         contig_vcf_fns = [fn for fn in all_files if contig in fn]
         for vcf_fn in contig_vcf_fns:
             file = os.path.join(input_dir, vcf_fn)
-            is_lz4_format = 'LZ4' in subprocess.run("file {}".format(file), stdout=subprocess.PIPE,
-                                                                     shell=True).stdout.decode().rstrip()
             if is_lz4_format:
                 read_proc = subprocess_popen(shlex.split("{} {}".format("lz4 -fdc", file)), stderr=subprocess.DEVNULL)
                 fn = read_proc.stdout
@@ -205,7 +206,7 @@ def sort_vcf_from(args):
         for pos in all_pos:
             output.write(contig_dict[pos])
 
-    if compress_gvcf:
+    if compress_gvcf_output:
         write_proc.stdin.close()
         write_proc.wait()
         write_fpo.close()
@@ -256,10 +257,6 @@ def main():
 
     parser.add_argument('--contigs_fn', type=str, default=None,
                         help="Contigs file with all processing contigs")
-
-    parser.add_argument('--compress_gvcf', action='store_true',
-                        help="Only work for gvcf file, reduce hard disk space")
-
 
     args = parser.parse_args()
     if args.input_dir is None:

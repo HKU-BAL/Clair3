@@ -38,10 +38,6 @@ class compressReaderWriter(object):
         self.write_fpo = None
 
     def read_input(self):
-        is_lz4_format = 'LZ4' in subprocess.run("file {}".format(self.input_path), stdout=subprocess.PIPE,
-                                                shell=True).stdout.decode().rstrip()
-        if not is_lz4_format:
-            self.compress = False
         if self.compress:
             self.read_proc = subprocess_popen(shlex.split("{} {}".format(LZ4_DECOMPRESS, self.input_path)), stderr=subprocess.DEVNULL)
             a = subprocess_popen(shlex.split("{} {}".format(LZ4_DECOMPRESS, self.input_path)), stderr=subprocess.DEVNULL)
