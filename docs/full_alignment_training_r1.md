@@ -225,7 +225,7 @@ ${PARALLEL} -j1 ${CLAIR3_PATH}/run_clair3.sh \
 # Select all pileup called variants (0/1, 1/1 and 1/2) and some pileup reference calls (0/0) for full-alignment model training
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/select_pileup_candidates.log -j${THREADS} \
 "${PYPY} ${CLAIR3} SelectHetSnp \
---alt_fn {4} \
+--alt_fn ${PILEUP_OUTPUT_PATH}/{2}_{3}/pileup.vcf.gz \
 --split_folder ${CANDIDATE_BED_PATH} \
 --sampleName {2} \
 --depth {3} \
@@ -234,7 +234,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/select_pileup_candidates.log -j${THR
 --chunk_num ${chunk_num} \
 --phasing_info_in_bam \
 --phase \
---ctgName ${CHR_PREFIX}{1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${PILEUP_VCF_FILE_PATH[@]}
+--ctgName ${CHR_PREFIX}{1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]}
 ```
 
 #### 3. Split and extend bed regions using the `SplitExtendBed` submodule
