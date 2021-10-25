@@ -71,7 +71,7 @@ def OutputVariant(args):
     for position in truth_vcf_set:
         if position not in variant_set:
             # miss variant set used in Tensor2Bin
-            var_fp.stdin.write(" ".join((chromosome, str(position), "", "", "-1", "-1")))
+            var_fp.stdin.write(" ".join((chromosome, str(position), "None", "None", "-1", "-1")))
             var_fp.stdin.write("\n")
 
     vcf_fp.stdout.close()
