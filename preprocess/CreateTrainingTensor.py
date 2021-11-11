@@ -259,6 +259,9 @@ def main():
     parser.add_argument('--extend_bed', nargs='?', action="store", type=str, default=None,
                         help="DEBUG: Extend the regions in the --bed_fn by a few bp for tensor creation, default extend 16bp")
 
+    parser.add_argument('--phasing_info_in_bam', action='store_true',
+                        help="DEBUG: Skip phasing and use the phasing info provided in the input BAM (HP tag), default: False")
+
     # options for internal process control, don't use any of them unless you are sure about the consequences
     ## In pileup mode or not
     parser.add_argument('--pileup', action='store_true',
@@ -267,9 +270,6 @@ def main():
     ## Provide the regions to be included in full-alignment based calling
     parser.add_argument('--full_aln_regions', type=str, default=None,
                         help=SUPPRESS)
-
-    parser.add_argument('--phasing_info_in_bam', action='store_true',
-                        help="DEBUG: Skip phasing and use the phasing info provided in the input BAM (HP tag), default: False")
 
     parser.add_argument('--add_no_phasing_data_training', action='store_true',
                         help=SUPPRESS)
