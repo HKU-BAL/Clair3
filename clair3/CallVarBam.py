@@ -250,6 +250,7 @@ def Run(args):
 
     try:
         c.call_variant.wait()
+        signal.alarm(0)
         c.create_tensor.stdout.close()
         c.create_tensor.wait()
         if need_realignment:
