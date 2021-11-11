@@ -15,7 +15,7 @@ def FiterHeteSnpPhasing(args):
     Filter heterozygous snp variant for phasing, currently, we only filter snp variant with low quality socore as low
     quality variant contains more false positive variant that would lead to a larger minimum error correction loss.
     """
-
+    qual_fn = args.qual_fn if args.qual_fn is not None else 'phase_qual'
     vcf_fn = args.vcf_fn
     var_pct_full = args.var_pct_full
     contig_name = args.ctgName
@@ -26,7 +26,7 @@ def FiterHeteSnpPhasing(args):
     header = []
 
     #try to find the global quality cut off:
-    f_qual = os.path.join(split_folder, 'phase_qual')
+    f_qual = os.path.join(split_folder, qual_fn)
     if os.path.exists(f_qual):
         phase_qual_cut_off = float(open(f_qual, 'r').read().rstrip())
         found_qual_cut_off = True
@@ -376,6 +376,10 @@ def main():
 
     ## Path of provided alternative file
     parser.add_argument('--alt_fn', type=str, default=None,
+                        help=SUPPRESS)
+
+    ## Input the file that contains the quality cut-off for selecting low-quality pileup calls for phasing and full-alignment calling
+    parser.add_argument('--qual_fn', type=str, default=None,
                         help=SUPPRESS)
 
     args = parser.parse_args()

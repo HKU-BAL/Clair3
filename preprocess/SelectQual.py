@@ -1,5 +1,5 @@
 from sys import stdin
-from argparse import ArgumentParser
+from argparse import ArgumentParser, SUPPRESS
 import os
 
 from shared.utils import file_path_from, log_warning
@@ -12,7 +12,7 @@ def select_phase_qual_from_stdin(args):
     """
     Select a global quality cut-off for phasing and reads haplotag.
     """
-
+    qual_fn = args.qual_fn if args.qual_fn is not None else "phase_qual"
     var_pct_full = args.var_pct_full
     phase_qual_list = []
     for row in stdin:
@@ -42,7 +42,7 @@ def select_phase_qual_from_stdin(args):
     print ('[INFO] Select heterozygous pileup variants exceeding phasing quality cutoff {}'.format(round(qual_cut_off), 0))
 
     if args.output_fn:
-        with open(os.path.join(args.output_fn, 'phase_qual'), 'w') as output:
+        with open(os.path.join(args.output_fn, qual_fn), 'w') as output:
             output.write(str(qual_cut_off))
 
 
@@ -56,13 +56,14 @@ def select_qual_from_stdin(args):
     output, as full alignment calling is substantially slower than pileup calling.
     """
     var_pct_full = args.var_pct_full
+    qual_fn = args.qual_fn if args.qual_fn is not None else "qual"
     vcf_fn = file_path_from(args.vcf_fn)
     ref_pct_full = args.ref_pct_full if args.ref_pct_full else var_pct_full
     # for efficiency, we use a maximum 30% reference candidates proportion for full-alignment calling, which is almost cover all false negative candidates
     # for ont platform, we set a default 10% reference candidates proportion for full-alignment calling unless a known vcf file is provided (genotyping mode)
     # directly set default value in run_clair3.sh from v0.1-r5
     # ref_pct_full = 0.1 if args.platform == 'ont' else ref_pct_full
-    ref_pct_full = min(ref_pct_full, 0.3)
+    # ref_pct_full = min(ref_pct_full, 0.3)
 
     variant_qual_list = []
     ref_qual_list = []
@@ -104,7 +105,7 @@ def select_qual_from_stdin(args):
     print ('[INFO] Set reference calls quality cutoff {}'.format(round(ref_qual_cut_off, 0)))
 
     if args.output_fn:
-        with open(os.path.join(args.output_fn, 'qual'), 'w') as output:
+        with open(os.path.join(args.output_fn, qual_fn), 'w') as output:
             output.write(str(var_qual_cut_off) + ' ' + str(ref_qual_cut_off))
 
 
@@ -128,6 +129,11 @@ def main():
 
     parser.add_argument('--vcf_fn', type=str, default=None,
                         help="Candidate sites VCF file input, if provided, variants will only be called at the sites in the VCF file,  default: %(default)s")
+
+    # options for internal process control
+    ## Input the file that contains the quality cut-off for selecting low-quality pileup calls for phasing and full-alignment calling
+    parser.add_argument('--qual_fn', type=str, default=None,
+                        help=SUPPRESS)
 
     args = parser.parse_args()
     if args.phase:

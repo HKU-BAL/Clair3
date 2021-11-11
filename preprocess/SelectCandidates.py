@@ -136,14 +136,14 @@ def SelectCandidates(args):
     ref_call_pos_list = []
     variant_dict = defaultdict(str)
     flankingBaseNum = param.flankingBaseNum
-
+    qual_fn = args.qual_fn if args.qual_fn is not None else 'qual'
     fasta_file_path = args.ref_fn
     samtools_execute_command = args.samtools
 
     found_qual_cut_off = False
     low_sequence_entropy_list = []
     # try to find the global quality cut off:
-    f_qual = os.path.join(split_folder, 'qual')
+    f_qual = os.path.join(split_folder, qual_fn)
     if os.path.exists(f_qual):
         with open(f_qual, 'r') as f:
             line = f.read().rstrip().split(' ')
@@ -369,6 +369,10 @@ def main():
 
     ## Output all alternative candidates path
     parser.add_argument('--all_alt_fn', type=str, default=None,
+                        help=SUPPRESS)
+
+    ## Input the file that contains the quality cut-off for selecting low-quality pileup calls for phasing and full-alignment calling
+    parser.add_argument('--qual_fn', type=str, default=None,
                         help=SUPPRESS)
 
     args = parser.parse_args()

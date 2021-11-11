@@ -183,6 +183,9 @@ def sort_vcf_from(args):
             for row in fn:
                 row_count += 1
                 if row[0] == '#':
+                    # skip phasing command line only occur with --enable_phasing, otherwise would lead to hap.py evaluation failure
+                    if row.startswith('##commandline='):
+                        continue
                     if row not in header:
                         header.append(row)
                     continue
