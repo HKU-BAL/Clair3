@@ -83,11 +83,12 @@ def MergeVcf_illumina(args):
 
     tree = bed_tree_from(bed_file_path=bed_fn, padding=param.no_of_positions, contig_name=contig_name)
     unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (pileup_vcf_fn)))
-    output = []
+    output_dict = {}
+    header = []
     pileup_count = 0
     for row in unzip_process.stdout:
         if row[0] == '#':
-            output.append(row)
+            header.append(row)
             continue
         columns = row.strip().split()
         ctg_name = columns[0]
@@ -106,10 +107,10 @@ def MergeVcf_illumina(args):
         if not pass_bed:
              if not is_reference:
                  row = MarkLowQual(row, QUAL, qual)
-                 output.append(row)
+                 output_dict[pos] = row
                  pileup_count += 1
              elif print_ref:
-                 output.append(row)
+                 output_dict[pos] = row
                  pileup_count += 1
 
     unzip_process.stdout.close()
@@ -138,10 +139,10 @@ def MergeVcf_illumina(args):
         if is_region_in(tree, ctg_name, pos):
             if not is_reference:
                 row = MarkLowQual(row, QUAL, qual)
-                output.append(row)
+                output_dict[pos] = row
                 realiged_read_num += 1
             elif print_ref:
-                output.append(row)
+                output_dict[pos] = row
                 realiged_read_num += 1
 
     logging.info('[INFO] Pileup positions variants proceeded in {}: {}'.format(contig_name, pileup_count))
@@ -150,7 +151,8 @@ def MergeVcf_illumina(args):
     realigned_vcf_unzip_process.wait()
 
     with open(output_fn, 'w') as output_file:
-        output_file.write(''.join(output))
+        output_list = header + [output_dict[pos] for pos in sorted(output_dict.keys())]
+        output_file.write(''.join(output_list))
 
 
 def MergeVcf(args):
