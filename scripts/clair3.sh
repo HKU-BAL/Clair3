@@ -8,7 +8,7 @@ ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
 snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
-no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir:: -n 'run_clair3.sh' -- "$@"`
+no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir::,enable_phasing:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -49,6 +49,7 @@ while true; do
     --include_all_ctgs ) INCLUDE_ALL_CTGS="$2"; shift 2 ;;
     --no_phasing_for_fa ) NO_PHASING="$2"; shift 2 ;;
     --remove_intermediate_dir ) RM_TMP_DIR="$2"; shift 2 ;;
+    --enable_phasing ) ENABLE_PHASING="$2"; shift 2 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
@@ -295,7 +296,29 @@ then
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 fi
 
+if [ ${ENABLE_PHASING} == True ]
+then
+    echo "[INFO] 7/7 Phasing VCF output in parallel using WhatsHap"
+    time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_8_phase_vcf_output.log -j${THREADS} \
+    "${WHATSHAP} phase \
+        --output ${TMP_FILE_PATH}/merge_output/phased_merge_{1}.vcf \
+        --reference ${REFERENCE_FILE_PATH} \
+        --ignore-read-groups \
+        ${TMP_FILE_PATH}/merge_output/merge_{1}.vcf \
+        ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/8_phase_vcf_output.log
+
+    ${PYPY} ${CLAIR3} SortVcf \
+        --input_dir ${TMP_FILE_PATH}/merge_output \
+        --vcf_fn_prefix "phased_merge" \
+        --output_fn ${OUTPUT_FOLDER}/phased_merge_output.vcf \
+        --sampleName ${SAMPLE} \
+        --ref_fn ${REFERENCE_FILE_PATH} \
+        --contigs_fn ${TMP_FILE_PATH}/CONTIGS
+fi
+
 if [ ${RM_TMP_DIR} == True ]; then echo "[INFO] Removing intermediate files in ${OUTPUT_FOLDER}/tmp"; rm -rf ${OUTPUT_FOLDER}/tmp; fi
 
 echo $''
 echo "[INFO] Finish calling, output file: ${OUTPUT_FOLDER}/merge_output.vcf.gz"
+
+if [ ${ENABLE_PHASING} == True ]; then echo "[INFO] Finish calling, phased output file: ${OUTPUT_FOLDER}/phased_merge_output.vcf.gz"; fi

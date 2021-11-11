@@ -1,7 +1,7 @@
 #!/bin/bash
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH=`dirname "$0"`
-VERSION='v0.1-r7'
+VERSION='v0.1-r8'
 Usage="Usage: ./${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
 set -e
@@ -36,6 +36,7 @@ print_help_messages()
     echo $'      --print_ref_calls         Show reference calls (0/0) in VCF file, default: disable.'
     echo $'      --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.'
     echo $'      --gvcf                    Enable GVCF output, default: disable.'
+    echo $'      --enable_phasing          Output phased variants using whatshap, default: disable.'
     echo $'      --remove_intermediate_dir Remove intermediate directory, including intermediate phased BAM, pileup and full-alignment results. default: disable.'
     echo $'      --snp_min_af=FLOAT        Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
     echo $'      --indel_min_af=FLOAT      Minimum Indel AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
@@ -65,7 +66,7 @@ ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
 snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
-remove_intermediate_dir,no_phasing_for_fa,call_snp_only,help,version -n 'run_clair3.sh' -- "$@"`
+remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -97,6 +98,7 @@ SNP_ONLY=False
 INCLUDE_ALL_CTGS=False
 NO_PHASING=False
 RM_TMP_DIR=False
+ENABLE_PHASING=False
 PILEUP_PREFIX="pileup"
 FA_PREFIX="full_alignment"
 
@@ -136,6 +138,7 @@ while true; do
     --include_all_ctgs ) INCLUDE_ALL_CTGS=True; shift 1 ;;
     --no_phasing_for_fa ) NO_PHASING=True; shift 1 ;;
     --remove_intermediate_dir ) RM_TMP_DIR=True; shift 1 ;;
+    --enable_phasing ) ENABLE_PHASING=True; shift 1 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; exit 0 ;;
@@ -218,6 +221,7 @@ echo "[INFO] ENABLE HAPLOID SENSITIVE MODE: ${HAP_SEN}"
 echo "[INFO] ENABLE INCLUDE ALL CTGS CALLING: ${INCLUDE_ALL_CTGS}"
 echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
 echo "[INFO] ENABLE REMOVING INTERMEDIATE FILES: ${RM_TMP_DIR}"
+echo "[INFO] ENABLE PHASING VCF OUTPUT: ${ENABLE_PHASING}"
 echo $''
 
 # file check
@@ -304,7 +308,8 @@ ${SCRIPT_PATH}/scripts/clair3.sh \
     --no_phasing_for_fa=${NO_PHASING} \
     --pileup_model_prefix=${PILEUP_PREFIX} \
     --fa_model_prefix=${FA_PREFIX} \
-    --remove_intermediate_dir=${RM_TMP_DIR}
+    --remove_intermediate_dir=${RM_TMP_DIR} \
+    --enable_phasing=${ENABLE_PHASING}
 
 
 )) |& tee ${OUTPUT_FOLDER}/run_clair3.log
