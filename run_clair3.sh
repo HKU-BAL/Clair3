@@ -49,6 +49,7 @@ print_help_messages()
     echo $'      --haploid_sensitive       EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.'
     echo $'      --no_phasing_for_fa       EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.'
     echo $'      --call_snp_only           EXPERIMENTAL: Call candidates pass SNP minimum AF only, ignore Indel candidates, default: disable.'
+    echo $'      --enable_long_indel       EXPERIMENTAL: Call long Indel variants(>50 bp), default: disable.'
     echo $''
 }
 
@@ -66,7 +67,7 @@ ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
 snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
-remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,help,version -n 'run_clair3.sh' -- "$@"`
+remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,enable_long_indel,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -99,6 +100,7 @@ INCLUDE_ALL_CTGS=False
 NO_PHASING=False
 RM_TMP_DIR=False
 ENABLE_PHASING=False
+ENABLE_LONG_INDEL=False
 PILEUP_PREFIX="pileup"
 FA_PREFIX="full_alignment"
 
@@ -139,6 +141,7 @@ while true; do
     --no_phasing_for_fa ) NO_PHASING=True; shift 1 ;;
     --remove_intermediate_dir ) RM_TMP_DIR=True; shift 1 ;;
     --enable_phasing ) ENABLE_PHASING=True; shift 1 ;;
+    --enable_long_indel ) ENABLE_LONG_INDEL=True; shift 1 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; exit 0 ;;
@@ -222,6 +225,7 @@ echo "[INFO] ENABLE INCLUDE ALL CTGS CALLING: ${INCLUDE_ALL_CTGS}"
 echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
 echo "[INFO] ENABLE REMOVING INTERMEDIATE FILES: ${RM_TMP_DIR}"
 echo "[INFO] ENABLE PHASING VCF OUTPUT: ${ENABLE_PHASING}"
+echo "[INFO] ENABLE LONG INDEL CALLING: ${ENABLE_LONG_INDEL}"
 echo $''
 
 # file check
@@ -309,7 +313,8 @@ ${SCRIPT_PATH}/scripts/clair3.sh \
     --pileup_model_prefix=${PILEUP_PREFIX} \
     --fa_model_prefix=${FA_PREFIX} \
     --remove_intermediate_dir=${RM_TMP_DIR} \
-    --enable_phasing=${ENABLE_PHASING}
+    --enable_phasing=${ENABLE_PHASING} \
+    --enable_long_indel=${ENABLE_LONG_INDEL}
 
 
 )) |& tee ${OUTPUT_FOLDER}/run_clair3.log

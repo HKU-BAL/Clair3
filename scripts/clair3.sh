@@ -8,7 +8,7 @@ ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
 snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
-no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir::,enable_phasing:: -n 'run_clair3.sh' -- "$@"`
+no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir::,enable_phasing::,enable_long_indel:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -50,6 +50,7 @@ while true; do
     --no_phasing_for_fa ) NO_PHASING="$2"; shift 2 ;;
     --remove_intermediate_dir ) RM_TMP_DIR="$2"; shift 2 ;;
     --enable_phasing ) ENABLE_PHASING="$2"; shift 2 ;;
+    --enable_long_indel ) ENABLE_LONG_INDEL="$2"; shift 2 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
@@ -132,6 +133,7 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
     --indel_min_af ${INDEL_AF} \
     --call_snp_only ${SNP_ONLY} \
     --gvcf ${GVCF} \
+    --enable_long_indel ${ENABLE_LONG_INDEL} \
     --python ${PYTHON} \
     --pypy ${PYPY} \
     --samtools ${SAMTOOLS} \
@@ -230,6 +232,7 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_b
     --add_indel_length \
     --phasing_info_in_bam \
     --gvcf ${GVCF} \
+    --enable_long_indel ${ENABLE_LONG_INDEL} \
     --python ${PYTHON} \
     --pypy ${PYPY} \
     --samtools ${SAMTOOLS} \

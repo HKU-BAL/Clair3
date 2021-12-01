@@ -8,6 +8,12 @@ default_loss_function = "FocalLoss"
 min_af = 0.08
 min_af_dict = {'ont':0.15, 'hifi':min_af, 'ilmn':min_af }
 matrix_depth_dict = {'ont': 89, 'hifi': 55, 'ilmn': 55}
+max_depth = 144
+maximum_variant_length_that_need_infer = 50
+maximum_variant_length_that_need_infer_include_long_indel = 100000
+min_mq = 5
+min_bq = 0
+min_coverage = 2
 
 # Full alignment input feature list
 channel = (

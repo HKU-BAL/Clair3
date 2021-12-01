@@ -20,11 +20,9 @@ import clair3.utils as utils
 from clair3.task.genotype import Genotype, genotype_string_from, genotype_enum_from, genotype_enum_for_task
 from shared.utils import IUPAC_base_to_ACGT_base_dict as BASE2ACGT, BASIC_BASES, str2bool, file_path_from, log_error, log_warning
 from clair3.task.variant_length import VariantLength
-
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 minimum_variant_length_that_need_infer = VariantLength.max
-maximum_variant_length_that_need_infer = 50
 ACGT = 'ACGT'
 Phred_Trans = (-10 * log(e, 10))
 
@@ -39,7 +37,8 @@ OutputConfig = namedtuple('OutputConfig', [
     'input_probabilities',
     'add_indel_length',
     'gvcf',
-    'pileup'
+    'pileup',
+    'maximum_variant_length_that_need_infer'
 ])
 OutputUtilities = namedtuple('OutputUtilities', [
     'print_debug_message',
@@ -81,7 +80,7 @@ def insertion_bases_using_alt_info_from(
         alt_info_dict,
         propose_insertion_length=None,
         minimum_insertion_length=1,
-        maximum_insertion_length=maximum_variant_length_that_need_infer,
+        maximum_insertion_length=50,
         insertion_bases_to_ignore="",
         return_multi=False
 ):
@@ -123,7 +122,7 @@ def deletion_bases_using_alt_info_from(
         alt_info_dict,
         propose_deletion_length=None,
         minimum_deletion_length=1,
-        maximum_deletion_length=maximum_variant_length_that_need_infer,
+        maximum_deletion_length=50,
         deletion_bases_to_ignore="",
         return_multi=False,
 
@@ -175,6 +174,17 @@ def Run(args):
 
     global test_pos
     test_pos = None
+    global param
+    if args.pileup:
+        import shared.param_p as param
+    else:
+        import shared.param_f as param
+
+    if args.enable_long_indel:
+        maximum_variant_length_that_need_infer = param.maximum_variant_length_that_need_infer_include_long_indel
+    else:
+        maximum_variant_length_that_need_infer = param.maximum_variant_length_that_need_infer
+
     output_config = OutputConfig(
         is_show_reference=args.showRef,
         is_debug=args.debug,
@@ -186,7 +196,8 @@ def Run(args):
         input_probabilities=args.input_probabilities,
         add_indel_length=args.add_indel_length,
         gvcf=args.gvcf,
-        pileup=args.pileup
+        pileup=args.pileup,
+        maximum_variant_length_that_need_infer=maximum_variant_length_that_need_infer
     )
     output_utilities = output_utilties_from(
         sample_name=args.sampleName,
@@ -353,13 +364,6 @@ def hetero_InsDel_tuples_from(variant_length_probabilities_1, variant_length_pro
                 variant_length_probabilities_2[j + VariantLength.index_offset] * extra_probability
             ))
     return probabilities
-
-
-def maximum_variant_length_from(variant_length):
-    if variant_length >= minimum_variant_length_that_need_infer:
-        return maximum_variant_length_that_need_infer
-    else:
-        return variant_length
 
 
 def quality_score_from(probability):
@@ -755,6 +759,7 @@ def output_from(
             insertion_bases = insertion_bases_using_alt_info_from(
                 alt_info_dict=alt_info_dict,
                 propose_insertion_length=variant_length if variant_length and variant_length < VariantLength.max else None,
+                maximum_insertion_length=output_config.maximum_variant_length_that_need_infer
             )
 
             insertion_length = len(insertion_bases)
@@ -775,6 +780,7 @@ def output_from(
             insertion_bases = insertion_bases_using_alt_info_from(
                 alt_info_dict=alt_info_dict,
                 propose_insertion_length=variant_length if variant_length and variant_length < VariantLength.max else None,
+                maximum_insertion_length=output_config.maximum_variant_length_that_need_infer
 
             )
             insertion_length = len(insertion_bases)
@@ -804,24 +810,28 @@ def output_from(
                 insertion_bases1 = insertion_bases_using_alt_info_from(
                     alt_info_dict=alt_info_dict,
                     propose_insertion_length=variant_length_1 if variant_length_1 and variant_length_1 < VariantLength.max else None,
+                    maximum_insertion_length=output_config.maximum_variant_length_that_need_infer
                 )
                 if len(insertion_bases1):
                     insertion_bases2 = insertion_bases_using_alt_info_from(
                         alt_info_dict=alt_info_dict,
                         propose_insertion_length=variant_length_2 if variant_length_2 and variant_length_2 < VariantLength.max else None,
-                        insertion_bases_to_ignore=insertion_bases1
+                        insertion_bases_to_ignore=insertion_bases1,
+                        maximum_insertion_length=output_config.maximum_variant_length_that_need_infer
                     )
                     if len(insertion_bases2):
                         insertion_bases_list = [insertion_bases1, insertion_bases2]
                 if len(insertion_bases_list) < 2:
                     insertion_bases_list = insertion_bases_using_alt_info_from(
                         alt_info_dict=alt_info_dict,
-                        return_multi=True
+                        return_multi=True,
+                        maximum_insertion_length=output_config.maximum_variant_length_that_need_infer
                     )
             else:
                 insertion_bases_list = insertion_bases_using_alt_info_from(
                     alt_info_dict=alt_info_dict,
-                    return_multi=True
+                    return_multi=True,
+                    maximum_insertion_length=output_config.maximum_variant_length_that_need_infer
                 )
             if len(insertion_bases_list) < 2:
                 hetero_InsIns_probabilities[idx] = 0
@@ -848,6 +858,7 @@ def output_from(
             deletion_bases = deletion_bases_using_alt_info_from(
                 alt_info_dict=alt_info_dict,
                 propose_deletion_length=variant_length if variant_length and variant_length < VariantLength.max else None,
+                maximum_deletion_length=output_config.maximum_variant_length_that_need_infer
             )
             deletion_length = len(deletion_bases)
             if deletion_length == 0:
@@ -867,6 +878,7 @@ def output_from(
             deletion_bases = deletion_bases_using_alt_info_from(
                 alt_info_dict=alt_info_dict,
                 propose_deletion_length=variant_length if variant_length and variant_length < VariantLength.max else None,
+                maximum_deletion_length=output_config.maximum_variant_length_that_need_infer
             )
             deletion_length = len(deletion_bases)
             if deletion_length == 0:
@@ -890,12 +902,14 @@ def output_from(
                 deletion_base1 = deletion_bases_using_alt_info_from(
                     alt_info_dict=alt_info_dict,
                     propose_deletion_length=variant_length_1 if variant_length_1 and variant_length_1 < VariantLength.max else None,
+                    maximum_deletion_length=output_config.maximum_variant_length_that_need_infer
                 )
                 if len(deletion_base1) > 0:
                     deletion_base2 = deletion_bases_using_alt_info_from(
                         alt_info_dict=alt_info_dict,
                         propose_deletion_length=variant_length_2 if variant_length_2 and variant_length_2 < VariantLength.max else None,
-                        deletion_bases_to_ignore=deletion_base1
+                        deletion_bases_to_ignore=deletion_base1,
+                        maximum_deletion_length=output_config.maximum_variant_length_that_need_infer
                     )
                     if len(deletion_base2) > 0:
                         deletion_bases_list = [deletion_base1, deletion_base2] if len(deletion_base1) > len(
@@ -903,12 +917,14 @@ def output_from(
                 if len(deletion_bases_list) < 2:
                     deletion_bases_list = deletion_bases_using_alt_info_from(
                         return_multi=True,
-                        alt_info_dict=alt_info_dict
+                        alt_info_dict=alt_info_dict,
+                        maximum_deletion_length=output_config.maximum_variant_length_that_need_infer
                     )
             else:
                 deletion_bases_list = deletion_bases_using_alt_info_from(
                     return_multi=True,
-                    alt_info_dict=alt_info_dict
+                    alt_info_dict=alt_info_dict,
+                    maximum_deletion_length=output_config.maximum_variant_length_that_need_infer
                 )
 
             if len(deletion_bases_list) < 2:
@@ -939,13 +955,15 @@ def output_from(
 
             insertion_bases = insertion_bases_using_alt_info_from(
                 alt_info_dict=alt_info_dict,
-                propose_insertion_length=variant_length_2 if variant_length_2 and variant_length_2 < VariantLength.max else None
+                propose_insertion_length=variant_length_2 if variant_length_2 and variant_length_2 < VariantLength.max else None,
+                maximum_insertion_length=output_config.maximum_variant_length_that_need_infer
             )
             insertion_length = len(insertion_bases)
 
             deletion_bases = deletion_bases_using_alt_info_from(
                 alt_info_dict=alt_info_dict,
                 propose_deletion_length=variant_length_1 if variant_length_1 and variant_length_1 < VariantLength.max else None,
+                maximum_deletion_length=output_config.maximum_variant_length_that_need_infer
             )
             deletion_length = len(deletion_bases)
 
@@ -1595,13 +1613,10 @@ def predict(args, output_config, output_utilities):
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-    global param
     if args.pileup:
-        import shared.param_p as param
         from clair3.model import Clair3_P
         m = Clair3_P(add_indel_length=args.add_indel_length, predict=True)
     else:
-        import shared.param_f as param
         from clair3.model import Clair3_F
         m = Clair3_F(add_indel_length=args.add_indel_length, predict=True)
 
@@ -1747,6 +1762,9 @@ def main():
 
     parser.add_argument('--haploid_sensitive', action='store_true',
                         help="EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant")
+
+    parser.add_argument('--enable_long_indel', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Enable long Indel variants(>50 bp) calling")
 
     # options for debug purpose
     parser.add_argument('--use_gpu', type=str2bool, default=False,

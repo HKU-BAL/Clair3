@@ -10,7 +10,14 @@ support_platform = {'ont', 'hifi','ilmn'}
 min_af = 0.08
 min_af_dict = {'ont':0.15, 'hifi':min_af, 'ilmn':min_af }
 #as three platform training data vary in depth distribution, we recommend below max_depth base on max training data depth for calling
-max_depth_dict = {'ont':144, 'hifi':72, 'ilmn':89}
+max_depth = 144
+max_depth_dict = {'ont':max_depth, 'hifi':max_depth, 'ilmn':max_depth}
+maximum_variant_length_that_need_infer = 50
+maximum_variant_length_that_need_infer_include_long_indel = 100000
+min_mq = 5
+min_bq = 0
+min_coverage = 2
+tensorflow_threads = 4
 
 
 #Pileup input feature list
@@ -23,7 +30,7 @@ ont_input_shape = input_shape = [no_of_positions, channel_size]
 label_shape = [21, 3, no_of_positions, no_of_positions]
 label_size = sum(label_shape)
 label_shape_cum = list(accumulate(label_shape))
-expandReferenceRegion = 1000000
+expandReferenceRegion = 1000
 SAMTOOLS_VIEW_FILTER_FLAG = 2316
 partition_size = 500000
 region_size =1000
