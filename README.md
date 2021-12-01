@@ -54,6 +54,8 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 ## Latest Updates
 
+*v0.1-r9 (Dec 1)* : Added the `--enable_long_indel` option to output indel variant calls >50bp ([#64](https://github.com/HKU-BAL/Clair3/issues/64)), Click [here](https://github.com/HKU-BAL/Clair3/blob/main/docs/indel_gt50_performance.md) to see more benchmarking results.
+
 *v0.1-r8 (Nov 11)* : 1. Added the `--enable_phasing` option that adds a step after Clair3 calling to output variants phased by WhatsHap ([#63](https://github.com/HKU-BAL/Clair3/issues/63)). 2. Fixed unexpected program termination on successful runs.
 
 *v0.1-r7 (Oct 18)* : 1. Increased `var_pct_full` in ONT mode from 0.3 to 0.7. Indel F1-score increased ~0.2%, but took ~30 minutes longer to finish calling a ~50x ONT dataset. 2. Expand fall through to next most likely variant if network prediction has insufficient read coverage ([#53](https://github.com/HKU-BAL/Clair3/pull/53) commit 09a7d185, contributor @[ftostevin-ont](https://github.com/ftostevin-ont)), accuracy improved on complex Indels. 3. Streamized pileup and full-alignment training workflows. Reduce diskspace demand in model training ([#55](https://github.com/HKU-BAL/Clair3/pull/55) commit 09a7d185, contributor @[ftostevin-ont](https://github.com/ftostevin-ont)). 4.  Added `mini_epochs` option in Train.py, performance  slightly improved in training a model for ONT Q20 data using mini-epochs([#60](https://github.com/HKU-BAL/Clair3/pull/60), contributor @[ftostevin-ont](https://github.com/ftostevin-ont)). 5. Massively reduced disk space demand when outputting GVCF. Now compressing GVCF intermediate files with lz4, five times smaller with little speed penalty. 6. Added `--remove_intermediate_dir`to remove intermediate files as soon as no longer needed ([#48](https://github.com/HKU-BAL/Clair3/issues/48)). 7. Renamed ONT pre-trained models with [Medaka](https://github.com/nanoporetech/medaka/blob/master/medaka/options.py#L22)'s naming convention. 8. Fixed training data spilling over to validation data ([#57](https://github.com/HKU-BAL/Clair3/issues/57)).
@@ -368,6 +370,7 @@ docker run -it hkubal/clair3:latest /opt/bin/run_clair3.sh --help
       --haploid_sensitive       EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.
       --no_phasing_for_fa       EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.
       --call_snp_only           EXPERIMENTAL: Call candidates pass SNP minimum AF only, ignore Indel candidates, default: disable.
+      --enable_long_indel       EXPERIMENTAL: Call long Indel variants(>50 bp), default: disable.
 ```
 
 #### Call variants in a chromosome
