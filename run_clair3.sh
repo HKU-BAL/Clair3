@@ -1,7 +1,7 @@
 #!/bin/bash
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH=`dirname "$0"`
-VERSION='v0.1-r8'
+VERSION='v0.1-r9'
 Usage="Usage: ./${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
 set -e
