@@ -247,6 +247,8 @@ def CreateTensorPileup(args):
         chunk_variants_size = total_variants_size // chunk_num if total_variants_size % chunk_num == 0 else total_variants_size // chunk_num + 1
         chunk_start_pos = chunk_id * chunk_variants_size
         known_variants_set = set(known_variants_list[chunk_start_pos: chunk_start_pos + chunk_variants_size])
+        if len(known_variants_set) == 0:
+            return
         ctg_start, ctg_end = min(known_variants_set), max(known_variants_set)
 
     is_ctg_name_given = ctg_name is not None
@@ -324,7 +326,7 @@ def CreateTensorPileup(args):
     empty_pileup_flag = True
     for row in samtools_mpileup_process.stdout:
         empty_pileup_flag = False 
-        columns = row.strip().split('\t')
+        columns = row.strip().split('\t',maxsplit=5)
         pos = int(columns[1])
         pileup_bases = columns[4]
         reference_base = reference_sequence[pos - reference_start].upper()
