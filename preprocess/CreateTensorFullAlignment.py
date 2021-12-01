@@ -909,16 +909,16 @@ def main():
                         help="Path to the 'samtools', samtools version >= 1.10 is required. default: %(default)s")
 
     # options for advanced users
-    parser.add_argument('--minCoverage', type=float, default=2,
+    parser.add_argument('--minCoverage', type=float, default=param.min_coverage,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
-    parser.add_argument('--minMQ', type=int, default=5,
+    parser.add_argument('--minMQ', type=int, default=param.min_mq,
                         help="EXPERIMENTAL: If set, reads with mapping quality with <$minMQ are filtered, default: %(default)d")
 
-    parser.add_argument('--minBQ', type=int, default=0,
+    parser.add_argument('--minBQ', type=int, default=param.min_bq,
                         help="EXPERIMENTAL: If set, bases with base quality with <$minBQ are filtered, default: %(default)d")
 
-    parser.add_argument('--max_depth', type=int, default=144,
+    parser.add_argument('--max_depth', type=int, default=param.max_depth,
                         help="EXPERIMENTAL: Maximum full alignment depth to be processed. default: %(default)s")
 
     # options for debug purpose

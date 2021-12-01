@@ -347,13 +347,13 @@ def main():
     parser.add_argument('--fast_mode', type=str2bool, default=False,
                         help="EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: %(default)s")
 
-    parser.add_argument('--minCoverage', type=float, default=2,
+    parser.add_argument('--minCoverage', type=float, default=param.min_coverage,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
-    parser.add_argument('--minMQ', type=int, default=5,
+    parser.add_argument('--minMQ', type=int, default=param.min_mq,
                         help="EXPERIMENTAL: If set, reads with mapping quality with <$minMQ are filtered, default: %(default)d")
 
-    parser.add_argument('--minBQ', type=int, default=0,
+    parser.add_argument('--minBQ', type=int, default=param.min_bq,
                         help="EXPERIMENTAL: If set, bases with base quality with <$minBQ are filtered, default: %(default)d")
 
     parser.add_argument('--bp_resolution', action='store_true',
@@ -375,10 +375,10 @@ def main():
     parser.add_argument('--phasing_info_in_bam', action='store_true',
                         help="DEBUG: Skip phasing and use the phasing info provided in the input BAM (HP tag), default: False")
 
-    parser.add_argument('--base_err', default=0.001, type=float,
+    parser.add_argument('--base_err', default=param.base_err, type=float,
                         help='DEBUG: Base error rate prior for GVCF output, default: %(default)f')
 
-    parser.add_argument('--gq_bin_size', default=5, type=int,
+    parser.add_argument('--gq_bin_size', default=param.gq_bin_size, type=int,
                         help='DEBUG: Default GQ bin size for merging non-variant block for GVCF output, default: %(default)d')
 
     parser.add_argument('--temp_file_dir', type=str, default='./',
@@ -387,7 +387,7 @@ def main():
     parser.add_argument('--use_gpu', type=str2bool, default=False,
                         help="DEBUG: Use GPU for calling. Speed up is mostly insignificant. Only use this for building your own pipeline")
 
-    parser.add_argument('--tensorflow_threads', type=int, default=4,
+    parser.add_argument('--tensorflow_threads', type=int, default=param.tensorflow_threads,
                         help="DEBUG: Number of threads per tensorflow job. Tune if you are building your own pipeline")
 
     parser.add_argument('--extend_bed', nargs='?', action="store", type=str, default=None,

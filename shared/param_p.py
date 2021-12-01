@@ -19,6 +19,9 @@ min_bq = 0
 min_coverage = 2
 tensorflow_threads = 4
 
+#GVCF parameters
+base_err = 0.001
+gq_bin_size = 5
 
 #Pileup input feature list
 #           0    1    2    3    4    5    6    7     8    9    10   11  12   13    14  15   16    17
@@ -36,7 +39,6 @@ partition_size = 500000
 region_size =1000
 phasing_window_size = 30000
 extend_bp=10
-
 
 #Training hyperparameters
 chunk_size = 250

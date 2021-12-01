@@ -72,7 +72,9 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
     pileup_dict = defaultdict(int)
     while base_idx < len(pileup_bases):
         base = pileup_bases[base_idx]
-        if base == '+' or base == '-':
+        if base in "ACGTNacgtn#*":
+            base_list.append(base)
+        elif base == '+' or base == '-':
             base_idx += 1
             advance = 0
             while True:
@@ -85,8 +87,6 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
             base_list.append(base + pileup_bases[base_idx: base_idx + advance])
             base_idx += advance - 1
 
-        elif base in "ACGTNacgtn#*":
-            base_list.append(base)
         elif base == '^':  # start of a read, next character is mapping quality
             base_idx += 1
         # elif base == '$': # end of read with '$' symbol
@@ -495,13 +495,13 @@ def main():
     parser.add_argument('--minCoverage', type=float, default=2,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
-    parser.add_argument('--minMQ', type=int, default=5,
+    parser.add_argument('--minMQ', type=int, default=param.min_mq,
                         help="EXPERIMENTAL: If set, reads with mapping quality with <$minMQ are filtered, default: %(default)d")
 
-    parser.add_argument('--minBQ', type=int, default=0,
+    parser.add_argument('--minBQ', type=int, default=param.min_bq,
                         help="EXPERIMENTAL: If set, bases with base quality with <$minBQ are filtered, default: %(default)d")
 
-    parser.add_argument('--max_depth', type=int, default=144,
+    parser.add_argument('--max_depth', type=int, default=param.max_depth,
                         help="EXPERIMENTAL: Maximum pileup depth to be processed. default: %(default)s")
 
     parser.add_argument('--call_snp_only', type=str2bool, default=False,
@@ -517,10 +517,10 @@ def main():
     parser.add_argument('--indel_fn', type=str, default=None,
                         help="DEBUG: Output all alternative indel cigar for debug purpose")
 
-    parser.add_argument('--base_err', default=0.001, type=float,
+    parser.add_argument('--base_err', default=param.base_err, type=float,
                         help='DEBUG: Estimated base error rate in gvcf option, default: %(default)f')
 
-    parser.add_argument('--gq_bin_size', default=5, type=int,
+    parser.add_argument('--gq_bin_size', default=param.gq_bin_size, type=int,
                         help='DEBUG: Default gq bin size for merge non-variant block in gvcf option, default: %(default)d')
 
     parser.add_argument('--bp_resolution', action='store_true',
