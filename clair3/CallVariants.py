@@ -38,6 +38,7 @@ OutputConfig = namedtuple('OutputConfig', [
     'add_indel_length',
     'gvcf',
     'pileup',
+    'enable_long_indel',
     'maximum_variant_length_that_need_infer'
 ])
 OutputUtilities = namedtuple('OutputUtilities', [
@@ -197,6 +198,7 @@ def Run(args):
         add_indel_length=args.add_indel_length,
         gvcf=args.gvcf,
         pileup=args.pileup,
+        enable_long_indel=args.enable_long_indel,
         maximum_variant_length_that_need_infer=maximum_variant_length_that_need_infer
     )
     output_utilities = output_utilties_from(
@@ -373,6 +375,28 @@ def quality_score_from(probability):
     p = probability
     tmp = max(Phred_Trans * log(((1.0 - p) + 1e-10) / (p + 1e-10)) + 10, 0)
     return float(round(tmp, 2))
+
+
+def get_long_indel_read_count(alt_info, proposed_ins_base="", propose_del_base_length=0, is_del=False):
+    """
+    https://github.com/HKU-BAL/Clair3/blob/main/docs/indel_gt50_performance.md
+    for long indel variant calls, we also calculate all flanking indel signals with proposed indel
+    alternative bases (default under 10% flanking distance)
+    """
+    long_indel_read_count = 0
+    maximum_variant_length_that_need_infer = param.maximum_variant_length_that_need_infer
+    if not param.cal_precise_long_indel_af and (len(proposed_ins_base) > maximum_variant_length_that_need_infer or propose_del_base_length > maximum_variant_length_that_need_infer):
+        propose_indel_base_length = propose_del_base_length if is_del else len(proposed_ins_base) - 1
+        min_long_indel_length_considered = max(propose_indel_base_length * (1.0 - param.long_indel_distance_proportion), maximum_variant_length_that_need_infer)
+        max_long_indel_length_considered = propose_indel_base_length * (1.0 + param.long_indel_distance_proportion)
+        for alt_base, count in alt_info.items():
+            if is_del and len(alt_base) == propose_del_base_length: # del
+                continue
+            if alt_base == proposed_ins_base:  # ins
+                continue
+            if len(alt_base) >= min_long_indel_length_considered and len(alt_base) <= max_long_indel_length_considered:
+                long_indel_read_count += count
+    return long_indel_read_count
 
 
 def possible_outcome_probabilites_with_indel_length_from(
@@ -1192,7 +1216,10 @@ def output_with(
     elif is_homo_insertion or is_hetero_InsIns:
         base_list = alternate_base.split(',')
         for ins_bases in base_list:
-            insertion_type_reads_count = alt_type_list[1][ins_bases] if ins_bases in alt_type_list[1] else 0
+            supported_reads_for_long_ins = get_long_indel_read_count(alt_info=alt_type_list[1],
+                                                                  proposed_ins_base=ins_bases,
+                                                                  is_del=False) if output_config.enable_long_indel else 0
+            insertion_type_reads_count = (alt_type_list[1][ins_bases] if ins_bases in alt_type_list[1] else 0) + supported_reads_for_long_ins
             supported_reads_count += insertion_type_reads_count
             alt_list_count.append(insertion_type_reads_count)
     elif is_hetero_ACGT_Ins:
@@ -1203,7 +1230,10 @@ def output_with(
         supported_reads_for_SNP = (
             alt_type_list[0][SNP_base] if SNP_base in alt_type_list[0] else 0) if is_SNP_Ins_multi else 0
 
-        supported_reads_for_ins = alt_type_list[1][ins_bases] if ins_bases in alt_type_list[1] else 0
+        supported_reads_for_long_ins = get_long_indel_read_count(alt_info=alt_type_list[1],
+                                                              proposed_ins_base=ins_bases, is_del=False) if output_config.enable_long_indel else 0
+
+        supported_reads_for_ins = (alt_type_list[1][ins_bases] if ins_bases in alt_type_list[1] else 0) + supported_reads_for_long_ins
         supported_reads_count = supported_reads_for_ins + supported_reads_for_SNP
         if SNP_base:
             alt_list_count.append(supported_reads_for_SNP)
@@ -1212,13 +1242,17 @@ def output_with(
         if len(alt_type_list[2]) > 0:
             if is_homo_deletion:
                 del_bases = reference_base[1:] if len(reference_base) > 1 else None
-                supported_reads_count = alt_type_list[2][del_bases] if del_bases in alt_type_list[2] else 0
+                supported_reads_for_long_del = get_long_indel_read_count(alt_info=alt_type_list[2],
+                                                                      propose_del_base_length=len(del_bases)) if output_config.enable_long_indel else 0
+                supported_reads_count = (alt_type_list[2][del_bases] if del_bases in alt_type_list[2] else 0) + supported_reads_for_long_del
                 alt_list_count.append(supported_reads_count)
             elif is_hetero_DelDel and len(alt_type_list[2]) > 1:
                 for _bases in alternate_base.split(','):
                     _alt_len = len(reference_base) - len(_bases)
                     _tmp_cnt = [alt_type_list[2][_i] for _i in alt_type_list[2] if len(_i) == _alt_len]
-                    _read_count = _tmp_cnt[0] if len(_tmp_cnt) > 0 else 0
+                    supported_reads_for_long_del = get_long_indel_read_count(alt_info=alt_type_list[2],
+                                                                         propose_del_base_length=_alt_len) if output_config.enable_long_indel else 0
+                    _read_count = (_tmp_cnt[0] if len(_tmp_cnt) > 0 else 0) + supported_reads_for_long_del
                     alt_list_count.append(_read_count)
                     supported_reads_count += _read_count
     elif is_hetero_ACGT_Del:
@@ -1229,7 +1263,10 @@ def output_with(
             alt_type_list[0][SNP_base] if SNP_base in alt_type_list[0] else 0) if is_SNP_Del_multi else 0
 
         del_bases = reference_base[1:] if len(reference_base) > 1 else None
-        supported_reads_for_del = alt_type_list[2][del_bases] if del_bases in alt_type_list[2] else 0
+        supported_reads_for_long_del = get_long_indel_read_count(alt_info=alt_type_list[2],
+                                                                 propose_del_base_length=len(
+                                                                     del_bases)) if output_config.enable_long_indel else 0
+        supported_reads_for_del = (alt_type_list[2][del_bases] if del_bases in alt_type_list[2] else 0) + supported_reads_for_long_del
         supported_reads_count = supported_reads_for_del + supported_reads_for_SNP
         if SNP_base:
             alt_list_count.append(supported_reads_for_SNP)
@@ -1238,14 +1275,16 @@ def output_with(
         for _bases in alternate_base.split(','):
             _alt_len = len(reference_base) - len(_bases)
             if _alt_len < 0: #ins
-                if len(reference_base) > 1:
-                    ins_bases = _bases[:-(len(reference_base) - 1)]
-                    _read_count = alt_type_list[1][ins_bases] if ins_bases in alt_type_list[1] else 0
-                else:
-                    _read_count = alt_type_list[1][_bases] if _bases in alt_type_list[1] else 0
+                ins_bases = _bases[:-(len(reference_base) - 1)] if len(reference_base) > 1 else _bases
+                supported_reads_for_long_ins = get_long_indel_read_count(alt_info=alt_type_list[1],
+                                                                         proposed_ins_base=ins_bases,
+                                                                         is_del=False) if output_config.enable_long_indel else 0
+                _read_count = (alt_type_list[1][ins_bases] if ins_bases in alt_type_list[1] else 0) + supported_reads_for_long_ins
             else: # del
                 _tmp_cnt = [alt_type_list[2][_i] for _i in alt_type_list[2] if len(_i) == _alt_len]
-                _read_count = _tmp_cnt[0] if len(_tmp_cnt) > 0 else 0
+                supported_reads_for_long_del = get_long_indel_read_count(alt_info=alt_type_list[2],
+                                                                         propose_del_base_length=_alt_len) if output_config.enable_long_indel else 0
+                _read_count = (_tmp_cnt[0] if len(_tmp_cnt) > 0 else 0) + supported_reads_for_long_del
             alt_list_count.append(_read_count)
             supported_reads_count += _read_count
 
