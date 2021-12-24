@@ -22,6 +22,13 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 ----
 
+## We are working on ...
+
+* An ONT Guppy 5 model for production use will be released in mid January.
+* A manuscript on detailed methods and benchmarks.
+
+----
+
 ## Contents
 
 * [Introduction](#introduction)
@@ -77,12 +84,6 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 *v0.1 (May 17)*: Initial release.
 
 ---
-
-## We are working on ...
-
-* A paper on detailed methods and benchmarks.
-
-----
 
 #### Pre-trained Models
 
