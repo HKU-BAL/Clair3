@@ -20,12 +20,13 @@ Clair3 is a small variant caller for long-reads. Compare to PEPPER (r0.4), Clair
 
 Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Clair) (the 2<sup>nd</sup>) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante) (the 1<sup>st</sup>).
 
+A short preprint describing Clair3's algorithms and results is at [bioRxiv](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v1).
+
 ----
 
 ## We are working on ...
 
 * An ONT Guppy 5 model for production use will be released in mid January.
-* A manuscript on detailed methods and benchmarks.
 
 ----
 
