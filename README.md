@@ -8,9 +8,9 @@
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)  [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/clair3/README.html)
 
-Contact: Ruibang Luo  
+Contact: Ruibang Luo, Zhenxian Zheng  
 
-Email: rbluo@cs.hku.hk  
+Email: rbluo@cs.hku.hk, zxzheng@cs.hku.hk  
 
 ----
 
