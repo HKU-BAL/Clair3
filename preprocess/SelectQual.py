@@ -14,6 +14,8 @@ def select_phase_qual_from_stdin(args):
     """
     qual_fn = args.qual_fn if args.qual_fn is not None else "phase_qual"
     var_pct_full = args.var_pct_full
+    var_pct_phasing = args.var_pct_phasing
+    low_qual_hete_var_pct = 1 - var_pct_phasing if var_pct_phasing is not None else var_pct_full
     phase_qual_list = []
     for row in stdin:
         if row[0] == '#':
@@ -30,11 +32,11 @@ def select_phase_qual_from_stdin(args):
 
     # in phase mode, var_pct_full is the proportion of low-quality heterozygous variants to be discarded for whatshap phasing
     phase_qual_list = sorted(phase_qual_list)
-    low_phase_qual_list = phase_qual_list[:int(var_pct_full * len(phase_qual_list))]
+    low_phase_qual_list = phase_qual_list[:int(low_qual_hete_var_pct * len(phase_qual_list))]
     if len(low_phase_qual_list) == 0:
         print(log_warning(
             "[WARNING] Cannot find any 0/1 variant in pileup output using variant quality cut-off proportion: {}, total heterozygous variants: {}".format(
-                var_pct_full, len(low_phase_qual_list))))
+                low_qual_hete_var_pct, len(low_phase_qual_list))))
         print(log_warning("[WARNING] Set low variant quality score cut-off to 0.0"))
         qual_cut_off = 0.0
     else:
@@ -123,6 +125,9 @@ def main():
 
     parser.add_argument('--ref_pct_full', type=float, default=0.3,
                         help="Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont")
+
+    parser.add_argument('--var_pct_phasing', type=float, default=0.7,
+                        help="Specify an expected percentage of high quality 0/1 variants used in WhatsHap phasing, default: 0.8 for ont guppy5 and 0.7 for other platforms")
 
     parser.add_argument('--phase', action='store_true',
                         help="Select only heterozygous candidates for phasing or not, default: False")

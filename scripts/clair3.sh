@@ -6,7 +6,7 @@ Usage="Usage: ./${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --t
 set -e
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
-bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,\
+bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,var_pct_phasing::,\
 snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
 no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir::,enable_phasing::,enable_long_indel:: -n 'run_clair3.sh' -- "$@"`
 
@@ -35,6 +35,7 @@ while true; do
     --whatshap ) WHATSHAP="$2"; shift 2 ;;
     --var_pct_full ) PRO="$2"; shift 2 ;;
     --ref_pct_full ) REF_PRO="$2"; shift 2 ;;
+    --var_pct_phasing ) PHASING_PCT="$2"; shift 2 ;;
     --pileup_only ) PILEUP_ONLY="$2"; shift 2 ;;
     --fast_mode ) FAST_MODE="$2"; shift 2 ;;
     --call_snp_only ) SNP_ONLY="$2"; shift 2 ;;
@@ -167,7 +168,7 @@ then
 else
     echo $''
     echo "[INFO] 2/7 Select heterozygous SNP variants for Whatshap phasing and haplotagging"
-    gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --phase --output_fn ${PHASE_VCF_PATH}
+    gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --phase --output_fn ${PHASE_VCF_PATH} --var_pct_phasing ${PHASING_PCT}
     time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_2_select_hetero_snp.log -j${THREADS} \
     "${PYPY} ${CLAIR3} SelectHetSnp \
         --vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \

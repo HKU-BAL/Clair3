@@ -42,6 +42,7 @@ print_help_messages()
     echo $'      --indel_min_af=FLOAT      Minimum Indel AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
     echo $'      --var_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.'
     echo $'      --ref_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.'
+    echo $'      --var_pct_phasing=FLOAT   EXPERIMENTAL: Specify an expected percentage of high quality 0/1 variants used in WhatsHap phasing, default: 0.8 for ont guppy5 and 0.7 for other platforms.'
     echo $'      --pileup_model_prefix=STR EXPERIMENTAL: Model prefix in pileup calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index. default: pileup.'
     echo $'      --fa_model_prefix=STR     EXPERIMENTAL: Model prefix in full-alignment calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index, default: full_alignment.'
     echo $'      --fast_mode               EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.'
@@ -65,7 +66,7 @@ NC="\\033[0m"
 
 ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
-bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,\
+bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,\
 snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
 remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,enable_long_indel,help,version -n 'run_clair3.sh' -- "$@"`
 
@@ -85,6 +86,7 @@ WHATSHAP='whatshap'
 CHUNK_NUM=0
 CHUNK_SIZE=5000000
 QUAL=2
+PHASING_PCT="0"
 PRO="0"
 REF_PRO="0"
 GVCF=False
@@ -126,6 +128,7 @@ while true; do
     --whatshap ) WHATSHAP="$2"; shift 2 ;;
     --var_pct_full ) PRO="$2"; shift 2 ;;
     --ref_pct_full ) REF_PRO="$2"; shift 2 ;;
+    --var_pct_phasing ) PHASING_PCT="$2"; shift 2 ;;
     --snp_min_af ) SNP_AF="$2"; shift 2 ;;
     --indel_min_af ) INDEL_AF="$2"; shift 2 ;;
     --pileup_model_prefix ) PILEUP_PREFIX="$2"; shift 2 ;;
@@ -190,6 +193,15 @@ if [ "${PLATFORM}" != "ont" ] && [ "${REF_PRO}" = "0" ]; then REF_PRO=0.3; fi
 if [ "${PLATFORM}" = "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.7; fi
 if [ "${PLATFORM}" != "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.3; fi
 
+# show default high quality hete variant proportion for whatshap phasing, 0.8 for ont guppy5 and 0.7 for others
+if [ "${PHASING_PCT}" = "0" ]; then PHASING_PCT=0.7; fi
+BASE_MODEL=$(basename ${MODEL_PATH})
+if [ "${BASE_MODEL}" = "r941_prom_sup_g5014" ] || [ "${BASE_MODEL}" = "r941_prom_hac_g5014" ] || [ "${BASE_MODEL}" = "ont_guppy5" ]; then PHASING_PCT=0.8; fi
+
+# remove the last '/' character in directory input
+OUTPUT_FOLDER=$(echo ${OUTPUT_FOLDER%*/})
+MODEL_PATH=$(echo ${MODEL_PATH%*/})
+
 # optional parameters should use "="
 (time (
 echo "[INFO] CLAIR3 VERSION: ${VERSION}"
@@ -212,6 +224,7 @@ echo "[INFO] CHUNK SIZE: ${CHUNK_SIZE}"
 if [ ${CHUNK_NUM} -gt 0 ]; then echo "[INFO] CHUNK NUM: ${CHUNK_NUM}"; fi
 echo "[INFO] FULL ALIGN PROPORTION: ${PRO}"
 echo "[INFO] FULL ALIGN REFERENCE PROPORTION: ${REF_PRO}"
+echo "[INFO] PHASING PROPORTION: ${PHASING_PCT}"
 if [ "${SNP_AF}" != "0" ]; then echo "[INFO] USER DEFINED SNP THRESHOLD: ${SNP_AF}"; fi
 if [ "${INDEL_AF}" != "0" ]; then echo "[INFO] USER DEFINED INDEL THRESHOLD: ${INDEL_AF}"; fi
 echo "[INFO] ENABLE FILEUP ONLY CALLING: ${PILEUP_ONLY}"
@@ -299,6 +312,7 @@ ${SCRIPT_PATH}/scripts/clair3.sh \
     --qual=${QUAL} \
     --var_pct_full=${PRO} \
     --ref_pct_full=${REF_PRO} \
+    --var_pct_phasing=${PHASING_PCT} \
     --snp_min_af=${SNP_AF} \
     --indel_min_af=${INDEL_AF} \
     --pileup_only=${PILEUP_ONLY} \
