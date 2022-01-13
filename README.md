@@ -4,7 +4,7 @@
   </a>
 </div>
 
-# Clair3 - Integrating pileup and full-alignment for high-performance long-read variant calling
+# Clair3 - Symphonizing pileup and full-alignment for high-performance long-read variant calling
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)  [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/clair3/README.html)
 
@@ -16,17 +16,11 @@ Email: rbluo@cs.hku.hk, zxzheng@cs.hku.hk
 
 ## Introduction
 
-Clair3 is a small variant caller for long-reads. Compare to PEPPER (r0.4), Clair3 (v0.1) shows a better SNP F1-score with ≤30-fold of ONT data (precisionFDA Truth Challenge V2), and a better Indel F1-score, while runs generally four times faster. Clair3 makes the best of both worlds of using pileup or full-alignment as input for deep-learning based long-read small variant calling. Clair3 is simple and modular for easy deployment and integration.
+Clair3 is a germline small variant caller for long-reads. Clair3 makes the best of two major method categories: pileup calling handles most variant candidates with speed, and full-alignment tackles complicated candidates to maximize precision and recall. Clair3 runs fast and has superior performance, especially at lower coverage. Clair3 is simple and modular for easy deployment and integration.
 
 Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Clair) (the 2<sup>nd</sup>) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante) (the 1<sup>st</sup>).
 
 A short preprint describing Clair3's algorithms and results is at [bioRxiv](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v1).
-
-----
-
-## We are working on ...
-
-* An ONT Guppy 5 model for production use will be released in mid January.
 
 ----
 
@@ -35,8 +29,8 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 * [Introduction](#introduction)
 * [Latest Updates](#latest-updates)
 * [Pre-trained Models](#pre-trained-models)
+  * [Guppy5 Model](docs/guppy5_20220113.md)
   * [Guppy3-4 Model](#pre-trained-models)
-  * [Guppy5 Model](docs/guppy5.md)
   * [Guppy2 Model](docs/guppy2.md)
   * [ONT-provided Models](#ont-provided-models)
 * [What's New in Clair3](#whats-new-in-clair3)
@@ -61,6 +55,8 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 ----
 
 ## Latest Updates
+
+*v0.1-r10 (Jan 13)* : 1. Added a new ONT Guppy5 model  (`r941_prom_sup_g5014`). Click [here](docs/guppy5_20220113.md) for some benchmarking results. This `sup` model is also applicable to reads called using the `hac` and `fast` mode. The old `r941_prom_sup_g506` model that was fine-tuned from the Guppy3,4 model is obsoleted. 2. Added `--var_pct_phasing` option to control the percentage of top ranked heterozygous pile-up variants used for WhatsHap phasing.
 
 *v0.1-r9 (Dec 1)* : Added the `--enable_long_indel` option to output indel variant calls >50bp ([#64](https://github.com/HKU-BAL/Clair3/issues/64)), Click [here](https://github.com/HKU-BAL/Clair3/blob/main/docs/indel_gt50_performance.md) to see more benchmarking results.
 
@@ -92,14 +88,15 @@ Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or 
 
 In a docker installation, models are in `/opt/models/`. In a bioconda installation, models are in `{CONDA_PREFIX}/bin/models/`.
 
-|          Model name          |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image | Release |   Date   | Basecaller | File                                |                             Link                             |
-| :--------------------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :-----: | :------: | :--------: | ----------------------------------- | :----------------------------------------------------------: |
-|   r941_prom_hac_g360+g422    |     ONT     |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |  Guppy3,4  | r941_prom_hac_g360+g422.tar.gz      | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422.tar.gz) |
-| r941_prom_hac_g360+g422_1235 |     ONT     |                         HG001,2,3,5                          |                                  |                              |    1    | 20210517 |  Guppy3,4  | r941_prom_hac_g360+g422_1235.tar.gz | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422_1235.tar.gz) |
-|      r941_prom_sup_g506      |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) | Yes                              |             Yes              |    1    | 20210609 |   Guppy5   | r941_prom_sup_g506.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g506.tar.gz) |
-|      r941_prom_hac_g238      |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              |    1    | 20210627 |   Guppy2   | r941_prom_hac_g238.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g238.tar.gz) |
-|             hifi             | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | hifi.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|             ilmn             |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |     NA     | ilmn.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+|           Model name           |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image | Release |   Date   |  Basecaller  | File                                |                             Link                             |
+| :----------------------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :-----: | :------: | :----------: | ----------------------------------- | :----------------------------------------------------------: |
+|      r941_prom_sup_g5014       |     ONT     |                    HG002,4,5 (Guppy5_sup)                    | Yes                              |             Yes              |    1    | 20220112 |  Guppy5 sup  | r941_prom_sup_g5014.tar.gz          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g5014.tar.gz) |
+|    r941_prom_hac_g360+g422     |     ONT     |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422.tar.gz      | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422.tar.gz) |
+|  r941_prom_hac_g360+g422_1235  |     ONT     |                         HG001,2,3,5                          |                                  |                              |    1    | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422_1235.tar.gz | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422_1235.tar.gz) |
+|       r941_prom_hac_g238       |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              |    1    | 20210627 |    Guppy2    | r941_prom_hac_g238.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g238.tar.gz) |
+| r941_prom_sup_g506 (obsoleted) |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) |                                  |                              |    1    | 20210609 |  Guppy5 sup  | r941_prom_sup_g506.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g506.tar.gz) |
+|              hifi              | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |      NA      | hifi.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|              ilmn              |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |      NA      | ilmn.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
 #### ONT-provided Models
 
@@ -262,7 +259,7 @@ pypy3 -m pip install mpmath==1.2.1
 
 # install python packages in environment
 pip3 install tensorflow==2.2.0
-pip3 tensorflow-addons==0.11.2 tables==3.6.1
+pip3 install tensorflow-addons==0.11.2 tables==3.6.1
 conda install -c anaconda pigz==2.4 -y
 conda install -c conda-forge parallel=20191122 zstd=1.4.4 -y
 conda install -c conda-forge -c bioconda samtools=1.10 -y
@@ -365,6 +362,7 @@ docker run -it hkubal/clair3:latest /opt/bin/run_clair3.sh --help
       --indel_min_af=FLOAT      Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
       --var_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.
       --ref_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.
+      --var_pct_phasing=FLOAT   EXPERIMENTAL: Specify an expected percentage of high quality 0/1 variants used in WhatsHap phasing, default: 0.8 for ont guppy5 and 0.7 for other platforms.
       --pileup_model_prefix=STR EXPERIMENTAL: Model prefix in pileup calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index. default: pileup.
       --fa_model_prefix=STR     EXPERIMENTAL: Model prefix in full-alignment calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index, default: full_alignment.
       --fast_mode               EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.
