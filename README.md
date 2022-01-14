@@ -30,9 +30,9 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 * [Latest Updates](#latest-updates)
 * [Pre-trained Models](#pre-trained-models)
   * [Guppy5 Model](docs/guppy5_20220113.md)
+  * [R10.4 with the Kit 12 chemistry (Q20) Models](#ont-provided-models)
   * [Guppy3-4 Model](#pre-trained-models)
   * [Guppy2 Model](docs/guppy2.md)
-  * [ONT-provided Models](#ont-provided-models)
 * [What's New in Clair3](#whats-new-in-clair3)
 * [Installation](#installation)
   + [Option 1. Docker pre-built image](#option-1--docker-pre-built-image)
@@ -100,7 +100,12 @@ In a docker installation, models are in `/opt/models/`. In a bioconda installati
 
 #### ONT-provided Models
 
-Additionally, ONT provides models for specific chemistries and basecallers through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers.
+Additionally, ONT provides models for specific chemistries and basecallers through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers. Avaiable model in Rerio including:
+
+|       Config       | Chemistry  | Guppy basecaller |
+| :----------------: | :-------:  | :--------------: |
+| r104_e81_sup_g5015 | R10.4 E8.1 | v5.0.15 SUP      |
+| r104_e81_hac_g5015 | R10.4 E8.1 | v5.0.15 HAC      |
 
 ----
 
