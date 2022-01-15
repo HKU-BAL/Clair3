@@ -82,7 +82,7 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 
 ---
 
-### Pre-trained Models
+## Pre-trained Models
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
@@ -98,7 +98,7 @@ In a docker installation, models are in `/opt/models/`. In a bioconda installati
 |              hifi              | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |      NA      | hifi.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
 |              ilmn              |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |      NA      | ilmn.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
-#### ONT-provided Models
+### ONT-provided Models
 
 Additionally, ONT provides models for specific chemistries and basecallers through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers. Avaiable model in Rerio including:
 
