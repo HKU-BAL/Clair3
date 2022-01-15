@@ -82,7 +82,7 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 
 ---
 
-#### Pre-trained Models
+### Pre-trained Models
 
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
