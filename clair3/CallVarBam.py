@@ -89,7 +89,7 @@ def Run(args):
 
     # skip haplotaging if --no_phasing_for_fa option is enabled
     if phased_vcf_fn is None:
-        args.need_haplotaging = False
+        args.need_haplotagging = False
 
     platform = args.platform
     if not platform or platform not in param.support_platform:
@@ -115,7 +115,7 @@ def Run(args):
 
     add_indel_length_mode = CommandOption('add_indel_length', args.add_indel_length)
     phasing_info_in_bam_mode = command_option_from(args.phasing_info_in_bam, 'phasing_info_in_bam')
-    need_haplotaging_mode = command_option_from(args.need_haplotaging, 'need_haplotaging')
+    need_haplotagging_mode = command_option_from(args.need_haplotagging, 'need_haplotagging')
     is_from_tables_mode = command_option_from(args.is_from_tables, 'is_from_tables')
     pileup_mode = command_option_from(args.pileup, 'pileup')
     gvcf_mode = CommandOption('gvcf', args.gvcf)
@@ -190,7 +190,7 @@ def Run(args):
 
     if not pileup:
         create_tensor_command_options.append(phasing_info_in_bam_mode)
-        create_tensor_command_options.append(need_haplotaging_mode)
+        create_tensor_command_options.append(need_haplotagging_mode)
         create_tensor_command_options.append(CommandOption('full_aln_regions', full_aln_regions))
         create_tensor_command_options.append(CommandOption('phased_vcf_fn', phased_vcf_fn))
     else:
@@ -420,7 +420,7 @@ def main():
                         help=SUPPRESS)
 
     ## Use Clair3's own phasing module for read level phasing when creating tensor, compared to using Whatshap, speed is faster but has higher memory footprint, default: False
-    parser.add_argument('--need_haplotaging', action='store_true',
+    parser.add_argument('--need_haplotagging', action='store_true',
                         help=SUPPRESS)
 
     ## Apply read realignment for illumina platform. Greatly boost indel performance in trade of running time, default true for illumina platform

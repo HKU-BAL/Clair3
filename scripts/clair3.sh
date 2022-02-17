@@ -220,7 +220,7 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_b
     --full_aln_regions {1} \
     --ctgName {1/.} \
     --add_indel_length \
-    --need_haplotaging \
+    --need_haplotagging \
     --phased_vcf_fn ${PHASE_VCF_PATH}/phased_{1/.}.vcf.gz  \
     --gvcf ${GVCF} \
     --enable_long_indel ${ENABLE_LONG_INDEL} \

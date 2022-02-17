@@ -616,7 +616,7 @@ def CreateTensorFullAlignment(args):
     full_aln_regions = args.full_aln_regions
     fasta_file_path = args.ref_fn
     ctg_name = args.ctgName
-    need_haplotaging = args.need_haplotaging
+    need_haplotagging = args.need_haplotagging
     samtools_execute_command = args.samtools
     bam_file_path = args.bam_fn
     chunk_id = args.chunk_id - 1 if args.chunk_id else None  # 1-base to 0-base
@@ -658,7 +658,7 @@ def CreateTensorFullAlignment(args):
         """
         If given full alignment bed regions, all candidate positions will be directly selected from each row, define as 
         'ctg start end', where 0-based center position is the candidate for full alignment calling.
-        if 'need_haplotaging' option enables, full alignment bed regions will also include nearby heterozygous snp candidates for reads
+        if 'need_haplotagging' option enables, full alignment bed regions will also include nearby heterozygous snp candidates for reads
         haplotag, which is faster than whatshap haplotag with more memory occupation.
         """
 
@@ -738,7 +738,7 @@ def CreateTensorFullAlignment(args):
         if bam_file_path == "PIPE":
             add_read_regions = False
 
-    if need_haplotaging and phased_vcf_fn and os.path.exists(phased_vcf_fn):
+    if need_haplotagging and phased_vcf_fn and os.path.exists(phased_vcf_fn):
         # if need_phasing option enables, scan the phased vcf file and store the heterozygous SNP candidates from each phase set
         unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (phased_vcf_fn)))
         for row in unzip_process.stdout:
@@ -857,7 +857,7 @@ def CreateTensorFullAlignment(args):
             read_info = Read(read_start=POS, strand=STRAND, MQ=MAPQ)
             cigartuples = get_cigar_tuple(CIGAR)
 
-            if need_haplotaging:
+            if need_haplotagging:
                 # haplotaging alignment here
                 # 20 is minMQ in whatshap haplotaging
                 if MAPQ < 20:
@@ -1141,7 +1141,7 @@ def main():
                         help=SUPPRESS)
 
     ## Use Clair3's own phasing module for read level phasing when creating tensor, compared to using Whatshap, speed is faster but has higher memory footprint, default: False
-    parser.add_argument('--need_haplotaging', action='store_true',
+    parser.add_argument('--need_haplotagging', action='store_true',
                         help=SUPPRESS)
 
     ## Apply read realignment for illumina platform. Greatly boost indel performance in trade of running time
