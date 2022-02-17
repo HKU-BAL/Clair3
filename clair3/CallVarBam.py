@@ -85,6 +85,11 @@ def Run(args):
     vcf_fn = file_path_from(args.vcf_fn)
     extend_bed = file_path_from(args.extend_bed)
     full_aln_regions = file_path_from(args.full_aln_regions)
+    phased_vcf_fn = file_path_from(args.phased_vcf_fn)
+
+    # skip haplotaging if --no_phasing_for_fa option is enabled
+    if phased_vcf_fn is None:
+        args.need_haplotaging = False
 
     platform = args.platform
     if not platform or platform not in param.support_platform:
@@ -110,7 +115,7 @@ def Run(args):
 
     add_indel_length_mode = CommandOption('add_indel_length', args.add_indel_length)
     phasing_info_in_bam_mode = command_option_from(args.phasing_info_in_bam, 'phasing_info_in_bam')
-    need_phasing_mode = command_option_from(args.need_phasing, 'need_phasing')
+    need_haplotaging_mode = command_option_from(args.need_haplotaging, 'need_haplotaging')
     is_from_tables_mode = command_option_from(args.is_from_tables, 'is_from_tables')
     pileup_mode = command_option_from(args.pileup, 'pileup')
     gvcf_mode = CommandOption('gvcf', args.gvcf)
@@ -185,8 +190,9 @@ def Run(args):
 
     if not pileup:
         create_tensor_command_options.append(phasing_info_in_bam_mode)
-        create_tensor_command_options.append(need_phasing_mode)
+        create_tensor_command_options.append(need_haplotaging_mode)
         create_tensor_command_options.append(CommandOption('full_aln_regions', full_aln_regions))
+        create_tensor_command_options.append(CommandOption('phased_vcf_fn', phased_vcf_fn))
     else:
         create_tensor_command_options.append(CommandOption('snp_min_af', snp_min_af))
         create_tensor_command_options.append(CommandOption('indel_min_af', indel_min_af))
@@ -234,7 +240,7 @@ def Run(args):
                 shlex.split(command_string_from(create_tensor_command_options)),
                 stdin=c.realign_reads.stdout)
         else:
-            
+
             c.create_tensor = subprocess_popen(
                 shlex.split(command_string_from(create_tensor_command_options)),
             )
@@ -297,6 +303,9 @@ def main():
 
     parser.add_argument('--ref_fn', type=str, default="ref.fa", required=True,
                         help="Reference fasta file input, required")
+
+    parser.add_argument('--phased_vcf_fn', type=str, default=None,
+                        help="Use heterozygous SNP variants in phased vcf file for haplotaging")
 
     parser.add_argument('--call_fn', type=str, default=None,
                         help="VCF output filename, or stdout if not set")
@@ -411,7 +420,7 @@ def main():
                         help=SUPPRESS)
 
     ## Use Clair3's own phasing module for read level phasing when creating tensor, compared to using Whatshap, speed is faster but has higher memory footprint, default: False
-    parser.add_argument('--need_phasing', action='store_true',
+    parser.add_argument('--need_haplotaging', action='store_true',
                         help=SUPPRESS)
 
     ## Apply read realignment for illumina platform. Greatly boost indel performance in trade of running time, default true for illumina platform
