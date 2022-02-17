@@ -29,7 +29,7 @@ ont_input_shape = [matrix_depth_dict['ont'], no_of_positions, channel_size]
 label_shape = [21, 3, no_of_positions, no_of_positions]
 label_size = sum(label_shape)
 label_shape_cum = list(accumulate(label_shape))
-expandReferenceRegion = 1000
+expandReferenceRegion = 20000000
 SAMTOOLS_VIEW_FILTER_FLAG = 2316
 NORMALIZE_NUM = 100
 
@@ -53,3 +53,4 @@ trainingDatasetPercentage = 0.9
 maxEpoch = 30
 OPERATION_SEED = None
 RANDOM_SEED = None
+no_phasing_data_training_proportion = 1.0
