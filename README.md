@@ -302,6 +302,13 @@ docker build -f ./Dockerfile -t hkubal/clair3:latest .
 docker run -it hkubal/clair3:latest /opt/bin/run_clair3.sh --help
 ```
 
+The conda environment has the Pypy3 interpreter installed, but one Pypy3 package `Levenshtein` is still missing. To install the package for Pypy3, after activating the conda environment, please run the following commands:
+
+```
+pypy3 -m ensurepip
+pypy3 -m pip install --no-cache-dir python-Levenshtein==0.12.2
+```
+
 ----
 
 ## Usage
