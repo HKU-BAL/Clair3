@@ -29,9 +29,9 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 * [Introduction](#introduction)
 * [Latest Updates](#latest-updates)
 * [Pre-trained Models](#pre-trained-models)
-  * [Guppy5 Model](docs/guppy5_20220113.md)
+  * [Guppy5,6 Model](docs/guppy5_20220113.md)
   * [R10.4 with the Kit 12 chemistry (Q20) Models](#ont-provided-models)
-  * [Guppy3-4 Model](#pre-trained-models)
+  * [Guppy3,4 Model](#pre-trained-models)
   * [Guppy2 Model](docs/guppy2.md)
 * [What's New in Clair3](#whats-new-in-clair3)
 * [Installation](#installation)
@@ -84,23 +84,25 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 
 ## Pre-trained Models
 
+### HKU-provided Models
+
 Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
 
 In a docker installation, models are in `/opt/models/`. In a bioconda installation, models are in `{CONDA_PREFIX}/bin/models/`.
 
-|           Model name           |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image | Release |   Date   |  Basecaller  | File                                |                             Link                             |
-| :----------------------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :-----: | :------: | :----------: | ----------------------------------- | :----------------------------------------------------------: |
-|      r941_prom_sup_g5014       |     ONT     |                    HG002,4,5 (Guppy5_sup)                    | Yes                              |             Yes              |    1    | 20220112 |  Guppy5 sup  | r941_prom_sup_g5014.tar.gz          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g5014.tar.gz) |
-|    r941_prom_hac_g360+g422     |     ONT     |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422.tar.gz      | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422.tar.gz) |
-|  r941_prom_hac_g360+g422_1235  |     ONT     |                         HG001,2,3,5                          |                                  |                              |    1    | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422_1235.tar.gz | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422_1235.tar.gz) |
-|       r941_prom_hac_g238       |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              |    1    | 20210627 |    Guppy2    | r941_prom_hac_g238.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g238.tar.gz) |
-| r941_prom_sup_g506 (obsoleted) |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) |                                  |                              |    1    | 20210609 |  Guppy5 sup  | r941_prom_sup_g506.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g506.tar.gz) |
-|              hifi              | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |      NA      | hifi.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|              ilmn              |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              |    1    | 20210517 |      NA      | ilmn.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+|           Model name           |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image |   Date   |  Basecaller  | File                                |                             Link                             |
+| :----------------------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :------: | :----------: | ----------------------------------- | :----------------------------------------------------------: |
+|      r941_prom_sup_g5014       |     ONT     |                    HG002,4,5 (Guppy5_sup)                    | Yes                              |             Yes              | 20220112 |  Guppy5 sup  | r941_prom_sup_g5014.tar.gz          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g5014.tar.gz) |
+|    r941_prom_hac_g360+g422     |     ONT     |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422.tar.gz      | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422.tar.gz) |
+|  r941_prom_hac_g360+g422_1235  |     ONT     |                         HG001,2,3,5                          |                                  |                              | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422_1235.tar.gz | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422_1235.tar.gz) |
+|       r941_prom_hac_g238       |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              | 20210627 |    Guppy2    | r941_prom_hac_g238.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g238.tar.gz) |
+| r941_prom_sup_g506 (obsoleted) |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) |                                  |                              | 20210609 |  Guppy5 sup  | r941_prom_sup_g506.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g506.tar.gz) |
+|              hifi              | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 |      NA      | hifi.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
+|              ilmn              |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 |      NA      | ilmn.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
 ### ONT-provided Models
 
-Additionally, ONT provides models for specific chemistries and basecallers through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers. Avaiable model in Rerio including:
+ONT provides models for some latest or specific chemistries and basecallers through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers. Avaiable model in Rerio including:
 
 |       Config       | Chemistry  | Guppy basecaller |
 | :----------------: | :-------:  | :--------------: |
