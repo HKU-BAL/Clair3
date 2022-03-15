@@ -10,6 +10,7 @@ deep_learning_folder = [
     "CallVarBam",
     "CallVariants",
     "Train",
+    "CallVariantsFromCffi"
 ]
 
 data_preprocess_folder = [
@@ -27,7 +28,9 @@ data_preprocess_folder = [
     'UnifyRepresentation',
     'CheckEnvs',
     'SortVcf',
-    'SelectQual'
+    'SelectQual',
+    "CreateTensorPileupFromCffi"
+    "CreateTensorFullAlignmentFromCffi",
 ]
 
 post_process_scripts_folder = [
