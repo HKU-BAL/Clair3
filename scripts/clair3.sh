@@ -8,7 +8,7 @@ ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,var_pct_phasing::,\
 snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
-no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir::,enable_phasing::,enable_long_indel:: -n 'run_clair3.sh' -- "$@"`
+no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir::,enable_phasing::,enable_long_indel::,use_gpu::,longphase_for_phasing::,longphase:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -33,6 +33,7 @@ while true; do
     --pypy ) PYPY="$2"; shift 2 ;;
     --parallel ) PARALLEL="$2"; shift 2 ;;
     --whatshap ) WHATSHAP="$2"; shift 2 ;;
+    --longphase ) LONGPHASE="$2"; shift 2 ;;
     --var_pct_full ) PRO="$2"; shift 2 ;;
     --ref_pct_full ) REF_PRO="$2"; shift 2 ;;
     --var_pct_phasing ) PHASING_PCT="$2"; shift 2 ;;
@@ -52,6 +53,8 @@ while true; do
     --remove_intermediate_dir ) RM_TMP_DIR="$2"; shift 2 ;;
     --enable_phasing ) ENABLE_PHASING="$2"; shift 2 ;;
     --enable_long_indel ) ENABLE_LONG_INDEL="$2"; shift 2 ;;
+    --use_gpu ) USE_GPU="$2"; shift 2 ;;
+    --longphase_for_phasing ) USE_LONGPHASE="$2"; shift 2 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
