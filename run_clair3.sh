@@ -51,6 +51,10 @@ print_help_messages()
     echo $'      --no_phasing_for_fa       EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.'
     echo $'      --call_snp_only           EXPERIMENTAL: Call candidates pass SNP minimum AF only, ignore Indel candidates, default: disable.'
     echo $'      --enable_long_indel       EXPERIMENTAL: Call long Indel variants(>50 bp), default: disable.'
+    echo $'      --use_gpu                 Use GPU for calling, default: disable.'
+    echo $'      --longphase_for_phasing   Use longphase for phasing, default: disable.'
+    echo $'      --longphase               Path of longphase, longphase >= 1.0 is required.'
+    echo $'      --enable_c_impl           Use C implement with cffi for pileup and full-alignment create tensor, default: disable.'
     echo $''
 }
 
@@ -66,9 +70,9 @@ NC="\\033[0m"
 
 ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
-bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,\
+bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,longphase::,\
 snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
-remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,enable_long_indel,help,version -n 'run_clair3.sh' -- "$@"`
+remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,enable_long_indel,use_gpu,longphase_for_phasing,enable_c_impl,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -83,6 +87,7 @@ PYPY="pypy3"
 PYTHON='python3'
 PARALLEL='parallel'
 WHATSHAP='whatshap'
+longphase='longphase'
 CHUNK_NUM=0
 CHUNK_SIZE=5000000
 QUAL=2
@@ -93,8 +98,8 @@ GVCF=False
 PILEUP_ONLY=False
 FAST_MODE=False
 SHOW_REF=False
-SNP_AF="0"
-INDEL_AF="0"
+SNP_AF="0.08"
+INDEL_AF="0.15"
 HAP_PRE=False
 HAP_SEN=False
 SNP_ONLY=False
@@ -103,6 +108,9 @@ NO_PHASING=False
 RM_TMP_DIR=False
 ENABLE_PHASING=False
 ENABLE_LONG_INDEL=False
+USE_GPU=False
+USE_LONGPHASE=False
+ENABLE_C_IMPL=False
 PILEUP_PREFIX="pileup"
 FA_PREFIX="full_alignment"
 
@@ -126,6 +134,7 @@ while true; do
     --pypy ) PYPY="$2"; shift 2 ;;
     --parallel ) PARALLEL="$2"; shift 2 ;;
     --whatshap ) WHATSHAP="$2"; shift 2 ;;
+    --longphase ) LONGPHASE="$2"; shift 2 ;;
     --var_pct_full ) PRO="$2"; shift 2 ;;
     --ref_pct_full ) REF_PRO="$2"; shift 2 ;;
     --var_pct_phasing ) PHASING_PCT="$2"; shift 2 ;;
@@ -145,6 +154,9 @@ while true; do
     --remove_intermediate_dir ) RM_TMP_DIR=True; shift 1 ;;
     --enable_phasing ) ENABLE_PHASING=True; shift 1 ;;
     --enable_long_indel ) ENABLE_LONG_INDEL=True; shift 1 ;;
+    --use_gpu ) USE_GPU=True; shift 1 ;;
+    --longphase_for_phasing ) USE_LONGPHASE=True; shift 1 ;;
+    --enable_c_impl ) ENABLE_C_IMPL=True; shift 1 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; exit 0 ;;
@@ -195,7 +207,7 @@ if [ "${PLATFORM}" != "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.3; fi
 
 # show default high quality hete variant proportion for whatshap phasing, 0.8 for ont guppy5 and 0.7 for others
 if [ "${PHASING_PCT}" = "0" ]; then PHASING_PCT=0.7; fi
-BASE_MODEL=$(basename ${MODEL_PATH})C
+BASE_MODEL=$(basename ${MODEL_PATH})
 if [ "${BASE_MODEL}" = "r941_prom_sup_g5014" ] || [ "${BASE_MODEL}" = "r941_prom_hac_g5014" ] || [ "${BASE_MODEL}" = "ont_guppy5" ]; then PHASING_PCT=0.8; fi
 
 # remove the last '/' character in directory input
@@ -220,6 +232,7 @@ echo "[INFO] PYTHON PATH: ${PYTHON}"
 echo "[INFO] PYPY PATH: ${PYPY}"
 echo "[INFO] PARALLEL PATH: ${PARALLEL}"
 echo "[INFO] WHATSHAP PATH: ${WHATSHAP}"
+echo "[INFO] LONGPHASE PATH: ${LONGPHASE}"
 echo "[INFO] CHUNK SIZE: ${CHUNK_SIZE}"
 if [ ${CHUNK_NUM} -gt 0 ]; then echo "[INFO] CHUNK NUM: ${CHUNK_NUM}"; fi
 echo "[INFO] FULL ALIGN PROPORTION: ${PRO}"
@@ -239,6 +252,9 @@ echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
 echo "[INFO] ENABLE REMOVING INTERMEDIATE FILES: ${RM_TMP_DIR}"
 echo "[INFO] ENABLE PHASING VCF OUTPUT: ${ENABLE_PHASING}"
 echo "[INFO] ENABLE LONG INDEL CALLING: ${ENABLE_LONG_INDEL}"
+echo "[INFO] ENABLE GPU CALLING: ${USE_GPU}"
+echo "[INFO] ENABLE LONGPHASE_FOR_PHASING: ${USE_LONGPHASE}"
+echo "[INFO] ENABLE C_IMPLEMENT: ${USE_LONGPHASE}"
 echo $''
 
 # file check
@@ -290,9 +306,11 @@ if [ -z ${FA_PREFIX} ]; then echo -e "${ERROR} Use '--fa_model_prefix=STR' inste
 if [ ! -f ${MODEL_PATH}/${PILEUP_PREFIX}.index ]; then echo -e "${ERROR} No pileup model found in provided model path and model prefix ${MODEL_PATH}/${PILEUP_PREFIX} ${NC}"; exit 1; fi
 if [ ! -f ${MODEL_PATH}/${FA_PREFIX}.index ]; then echo -e "${ERROR} No full-alignment model found in provided model path and model prefix ${MODEL_PATH}/${FA_PREFIX} ${NC}"; exit 1; fi
 
+CLAIR3_SCRIPT="clair3.sh"
+if [ "${ENABLE_C_IMPL}" == True ] && [ ! ${PLATFORM} = "ilmn" ]; then CLAIR3_SCRIPT="clair3_c_impl.sh"; fi
 
 set -x
-${SCRIPT_PATH}/scripts/clair3.sh \
+${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --bam_fn ${BAM_FILE_PATH} \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --threads ${THREADS} \
@@ -329,7 +347,10 @@ ${SCRIPT_PATH}/scripts/clair3.sh \
     --fa_model_prefix=${FA_PREFIX} \
     --remove_intermediate_dir=${RM_TMP_DIR} \
     --enable_phasing=${ENABLE_PHASING} \
-    --enable_long_indel=${ENABLE_LONG_INDEL}
+    --enable_long_indel=${ENABLE_LONG_INDEL} \
+    --use_gpu=${USE_GPU} \
+    --longphase_for_phasing=${USE_LONGPHASE} \
+    --longphase=${LONGPHASE}
 
 
 )) |& tee ${OUTPUT_FOLDER}/run_clair3.log
