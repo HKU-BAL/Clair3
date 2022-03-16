@@ -252,6 +252,6 @@ int haplotag_read(Variants_info *variants_info, Read *read, char *ref_seq, size_
  *  The return value can be freed with destroy_fa_data
  *
  */
-fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num);
+fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging);
 
 #endif

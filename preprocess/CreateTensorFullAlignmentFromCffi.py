@@ -96,7 +96,9 @@ def CreateTensorFullAlignment(args):
 
         variant_num = len(variant_list)
         Variants = libclair3.ffi.new("struct Variant *[]", variant_list)
-
+    else:
+        Variants = libclair3.ffi.new("struct Variant *[]", 1)
+        variant_num = 0
 
     # 1-index to 0-index
     candidates_list = sorted(list(set([item-1 for item in candidates_set if item >= ctg_start and item <= ctg_end])))
@@ -107,7 +109,7 @@ def CreateTensorFullAlignment(args):
     candidates = libclair3.ffi.new("size_t [{}]".format(candidate_num), candidates_list)
 
     fa_data = libclair3.lib.calculate_clair3_full_alignment(region_str, bam_file_path.encode(), fasta_file_path.encode(),
-                                                      Variants, variant_num, candidates, candidate_num)
+                                                      Variants, variant_num, candidates, candidate_num, need_haplotagging)
 
     # use np buffer to get the matrix
     matrix_depth = param.matrix_depth_dict[platform]

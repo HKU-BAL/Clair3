@@ -375,10 +375,9 @@ size_t get_overlap_candidate_num(size_t read_start, size_t read_end, size_t cand
     return overlap_num;
 }
 
-fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num)
+fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging)
 {
 
-    bool need_haplotagging = true;
     int start, end;
     char *chr = xalloc(strlen(region) + 1, sizeof(char), "chr");
     strcpy(chr, region);
