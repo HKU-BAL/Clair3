@@ -311,6 +311,15 @@ def main():
     parser.add_argument('--call_snp_only', type=str2bool, default=False,
                         help="EXPERIMENTAL: Call candidates pass snp minimum AF only, ignore Indel candidates")
 
+    parser.add_argument('--base_err', default=0.001, type=float,
+                        help='DEBUG: Estimated base error rate in gvcf option, default: %(default)f')
+
+    parser.add_argument('--gq_bin_size', default=5, type=int,
+                        help='DEBUG: Default gq bin size for merge non-variant block in gvcf option, default: %(default)d')
+
+    parser.add_argument('--bp_resolution', action='store_true',
+                        help="DEBUG: Enable bp resolution for GVCF, default: disabled")
+
     # Full-alignment create tensor options for full-alignment calling
     parser.add_argument('--phased_vcf_fn', type=str, default=None,
                         help="Use heterozygous SNP variants in phased vcf file for haplotaging")

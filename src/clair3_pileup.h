@@ -12,6 +12,8 @@ typedef struct _plp_data {
     size_t *minor;
     char **all_alt_info;
     size_t candidates_num;
+    size_t* pos_ref_count;
+    size_t* pos_total_count;
 } _plp_data;
 typedef _plp_data *plp_data;
 
@@ -83,7 +85,7 @@ plp_data create_plp_data(size_t n_cols, size_t buffer_cols, size_t feature_lengt
  *  @returns void.
  *
  */
-void destroy_plp_data(plp_data data);
+void destroy_plp_data(plp_data data, bool gvcf);
 
 /** C implement of clair3-style pileup feature data and alternative information in a given region of a bam.
  *
@@ -100,6 +102,6 @@ void destroy_plp_data(plp_data data);
  *  The return value can be freed with destroy_plp_data
  *
  */
-plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, const char * fasta_path, size_t min_depth, float min_snp_af, float min_indel_af, size_t min_mq, size_t max_indel_length, bool call_snp_only, size_t max_depth);
+plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, const char * fasta_path, size_t min_depth, float min_snp_af, float min_indel_af, size_t min_mq, size_t max_indel_length, bool call_snp_only, size_t max_depth, bool gvcf);
 
 #endif

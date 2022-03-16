@@ -22,8 +22,8 @@ channel_size = len(channel)
 
 
 def pileup_counts_clair3(
-        region, bam, fasta, min_depth, min_snp_af, min_indel_af, min_mq, call_snp_only, max_indel_length, gvcf, \
-        max_depth, region_split=100000, workers=1):
+        region, bam, fasta, min_depth, min_snp_af, min_indel_af, min_mq, call_snp_only, max_indel_length, \
+        max_depth, gvcf=False, region_split=100000, workers=1):
     """Create pileup counts feature array for region.
 
     :param region: `medaka.common.Region` object
@@ -58,9 +58,10 @@ def pileup_counts_clair3(
             bam_handle = BAMHandler(bam)
         with bam_handle.borrow() as fh:
             counts = lib.calculate_clair3_pileup(
-                region_str.encode(), fh, fasta.encode(), min_depth, min_snp_af, min_indel_af, min_mq, max_indel_length, call_snp_only, max_depth)
-        np_counts, positions, alt_info_string_list = _plp_data_to_numpy(
-            counts, featlenclair3)
+                region_str.encode(), fh, fasta.encode(), min_depth, min_snp_af, min_indel_af, min_mq, max_indel_length, call_snp_only, max_depth, gvcf)
+
+        np_counts, positions, alt_info_string_list, gvcf_output = _plp_data_to_numpy(
+            counts, featlenclair3, gvcf=gvcf)
 
         alt_info_list = []
         for alt_info in alt_info_string_list:
@@ -71,8 +72,8 @@ def pileup_counts_clair3(
             pos, depth, center_ref_base, alt = alt_info[:4]
             alt_info_list.append((int(pos), reg.ref_name + ':' + pos + ':' + center_ref_base, depth + '-' + alt))
 
-        lib.destroy_plp_data(counts)
-        return np_counts, positions, alt_info_list
+        lib.destroy_plp_data(counts, gvcf)
+        return np_counts, positions, alt_info_list, gvcf_output
 
     # we found that split into small chunk would lead to some missing truths,
     # the candidates cross two negbouring small chunks
@@ -80,8 +81,8 @@ def pileup_counts_clair3(
     regions = region.split(region_split, fixed_size=False)
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
         results = executor.map(_process_region, regions)
-        chunk_results, all_alt_info_list = __enforce_pileup_chunk_contiguity(results)
-    return chunk_results, all_alt_info_list
+        chunk_results, all_alt_info_list, gvcf_output = __enforce_pileup_chunk_contiguity(results)
+    return chunk_results, all_alt_info_list, gvcf_output
 
 
 class BAMHandler(object):
@@ -123,7 +124,7 @@ class BAMHandler(object):
         libclair3.lib.destroy_bam_fset(fset)
 
 
-def _plp_data_to_numpy(plp_data, n_rows):
+def _plp_data_to_numpy(plp_data, n_rows, gvcf=False):
     """Create numpy representation of feature data.
 
     Copy the feature matrix and alignment column names from a
@@ -145,11 +146,23 @@ def _plp_data_to_numpy(plp_data, n_rows):
     ).reshape(plp_data.n_cols, n_rows).copy()
 
     alt_info_string_list = []
+    gvcf_output = []
     candidates_num = plp_data.candidates_num
     # decode all alternative information, position-depth-reference_base-alt_info
     for i in range(candidates_num):
         alt_info_string = ffi.string(plp_data.all_alt_info[i]).decode('utf8', 'ignore').rstrip()
         alt_info_string_list.append(alt_info_string)
+
+    if gvcf:
+        gvcf_pos_ref_count = np.frombuffer(ffi.buffer(
+            plp_data.pos_ref_count, size_sizet * plp_data.buffer_cols),
+            dtype=_dtype
+        ).reshape(plp_data.buffer_cols).copy()
+        gvcf_pos_total_count = np.frombuffer(ffi.buffer(
+            plp_data.pos_total_count, size_sizet * plp_data.buffer_cols),
+            dtype=_dtype
+        ).reshape(plp_data.buffer_cols).copy()
+        gvcf_output = [gvcf_pos_ref_count, gvcf_pos_total_count]
 
     positions = np.empty(plp_data.n_cols, dtype=[
         ('major', int), ('minor', int)])
@@ -161,7 +174,7 @@ def _plp_data_to_numpy(plp_data, n_rows):
         positions['minor'],
         np.frombuffer(ffi.buffer(
             plp_data.minor, size_sizet * plp_data.n_cols), dtype=_dtype))
-    return np_counts, positions, alt_info_string_list
+    return np_counts, positions, alt_info_string_list, gvcf_output
 
 
 def __enforce_pileup_chunk_contiguity(pileups):
@@ -178,7 +191,7 @@ def __enforce_pileup_chunk_contiguity(pileups):
     all_alt_info_list = list()
     # First pass: need to check for discontinuities within chunks,
     # these show up as >1 changes in the major coordinate
-    for counts, positions, alt_info_list in pileups:
+    for counts, positions, alt_info_list, gvcf_output in pileups:
         move = np.ediff1d(positions['major'])
         gaps = np.where(move > 1)[0] + 1
         all_alt_info_list += alt_info_list
@@ -220,7 +233,7 @@ def __enforce_pileup_chunk_contiguity(pileups):
             last = positions['major'][-1]
     if len(counts_buffer) != 0:
         chunk_results.append(_finalize_chunk(counts_buffer, positions_buffer))
-    return chunk_results, all_alt_info_list
+    return chunk_results, all_alt_info_list, gvcf_output
 
 
 def CreateTensorPileup(args):
@@ -305,7 +318,14 @@ def CreateTensorPileup(args):
     confident_bed_tree = bed_tree_from(bed_file_path=confident_bed_fn, contig_name=ctg_name, bed_ctg_start=extend_start,
                                        bed_ctg_end=extend_end)
 
-    chunk_result, all_alt_info_list = pileup_counts_clair3(region,
+    if args.gvcf:
+        from preprocess.utils import variantInfoCalculator
+        nonVariantCaller = variantInfoCalculator(gvcfWritePath=args.temp_file_dir, ref_path=args.ref_fn,
+                                                 bp_resolution=args.bp_resolution, ctgName=ctg_name,sample_name='.'.join(
+                [args.sampleName, ctg_name, str(ctg_start), str(ctg_end)]), p_err=args.base_err,
+                                                 gq_bin_size=args.gq_bin_size)
+
+    chunk_result, all_alt_info_list, gvcf_output = pileup_counts_clair3(region,
                                                            bam=bam_file_path,
                                                            fasta=fasta_file_path,
                                                            min_depth=min_coverage,
@@ -345,6 +365,44 @@ def CreateTensorPileup(args):
                 all_position_info.append(pos_info)
                 all_alt_info.append(alt_info)
     np_pileup_data = np.array(np_pileup_data, dtype=np.int32)
+
+
+
+    if args.gvcf:
+
+        from shared.utils import reference_sequence_from, region_from
+        samtools_execute_command = args.samtools
+        ref_regions = []
+        reference_start, reference_end = ctg_start - param.expandReferenceRegion, ctg_end + param.expandReferenceRegion
+        reference_start = 1 if reference_start < 1 else reference_start
+        ref_regions.append(region_from(ctg_name=ctg_name, ctg_start=reference_start, ctg_end=reference_end))
+        reference_sequence = reference_sequence_from(
+            samtools_execute_command=samtools_execute_command,
+            fasta_file_path=fasta_file_path,
+            regions=ref_regions
+        )
+
+        empty_pileup_flag = True
+        for pos in range(ctg_start, ctg_end):
+            ref_count = gvcf_output[0][pos - extend_start + 1]
+            total_count = gvcf_output[1][pos - extend_start + 1]
+            reference_base = reference_sequence[pos-reference_start]
+            if (ref_count == 0 and total_count == 0):
+                cur_site_info = {'chr': ctg_name, 'pos': pos, 'ref': reference_base, 'n_total': 0, 'n_ref': 0}
+                nonVariantCaller.make_gvcf_online(cur_site_info)
+                continue
+
+            empty_pileup_flag = False
+            cur_site_info = {'chr': ctg_name, 'pos': pos, 'ref': reference_base, 'n_total': total_count,
+                             'n_ref': ref_count}
+            nonVariantCaller.make_gvcf_online(cur_site_info)
+        if len(nonVariantCaller.current_block) != 0:
+            nonVariantCaller.write_to_gvcf_batch(nonVariantCaller.current_block, nonVariantCaller.cur_min_DP,
+                                                 nonVariantCaller.cur_raw_gq)
+
+        if empty_pileup_flag:
+            nonVariantCaller.write_empty_pileup(ctg_name, ctg_start, ctg_end)
+        nonVariantCaller.close_vcf_writer()
 
     return np_pileup_data, all_position_info, all_alt_info
 

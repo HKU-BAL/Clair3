@@ -63,6 +63,8 @@ plp_data create_plp_data(size_t n_cols, size_t buffer_cols, size_t feature_lengt
     data->major = xalloc(buffer_cols, sizeof(size_t), "major");
     data->minor = xalloc(buffer_cols, sizeof(size_t), "minor");
     data->all_alt_info = NULL;
+    data->pos_ref_count = NULL;
+    data->pos_total_count = NULL;
     return data;
 }
 
@@ -95,13 +97,18 @@ void enlarge_plp_data(plp_data pileup, size_t buffer_cols, size_t feature_length
  *  @returns void.
  *
  */
-void destroy_plp_data(plp_data data) {
+void destroy_plp_data(plp_data data, bool gvcf) {
     free(data->matrix);
     free(data->major);
     free(data->minor);
     for (size_t i = 0; i < data->candidates_num; i++) {
        free(data->all_alt_info[i]);
     }
+    if (gvcf == true) {
+        free(data->pos_ref_count);
+        free(data->pos_total_count);
+    }
+
     free(data->all_alt_info);
     free(data);
 }
@@ -143,7 +150,7 @@ void destroy_plp_data(plp_data data) {
  * quality if the “R” counts and discrepancy between positions increase.
  *
  */
-plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, const char * fasta_path, size_t min_depth, float min_snp_af, float min_indel_af, size_t min_mq, size_t max_indel_length, bool call_snp_only, size_t max_depth) {
+plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, const char * fasta_path, size_t min_depth, float min_snp_af, float min_indel_af, size_t min_mq, size_t max_indel_length, bool call_snp_only, size_t max_depth, bool gvcf) {
     // extract `chr`:`start`-`end` from `region`
     //   (start is one-based and end-inclusive),
     //   hts_parse_reg below sets return value to point
@@ -201,6 +208,14 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
 
     size_t pre_pos = 0;
     size_t contiguous_flanking_num = 0;
+
+    if (gvcf == true) {
+        pileup->pos_ref_count = xalloc(buffer_cols, sizeof(size_t), "pos_ref_count");
+        pileup->pos_total_count = xalloc(buffer_cols, sizeof(size_t), "pos_total_count");
+        memset(pileup->pos_ref_count, 0, buffer_cols * sizeof(size_t));
+        memset(pileup->pos_total_count, 0, buffer_cols * sizeof(size_t));
+    }
+
     while ((ret=bam_mplp_auto(mplp, &tid, &pos, &n_plp, plp) > 0)) {
 
         size_t depth = 0;
@@ -349,6 +364,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         char major_alt_base = '\0';
         size_t forward_sum = 0;
         size_t reverse_sum = 0;
+        size_t all_alt_count = 0;
         for (size_t i = 0; i < 4; i++) {
             forward_sum += pileup->matrix[major_col + i];
             reverse_sum += pileup->matrix[major_col + i + reverse_pos_start];
@@ -359,6 +375,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
                 if (current_count > alt_count) {
                     alt_count = current_count;
                     major_alt_base = plp_bases_clair3[i];
+                    all_alt_count += alt_count;
                 }
             }
         }
@@ -433,6 +450,11 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
             }
             // update the alternative information for current candidates here
             alt_info_p[candidates_num++] = alt_info_str;
+        }
+
+        if (gvcf == true) {
+            pileup->pos_ref_count[pos-start] = ref_count;
+            pileup->pos_total_count[pos-start] = ref_count + all_alt_count + del_count + ins_count;
         }
 
         free(dels_f);
