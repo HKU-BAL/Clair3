@@ -110,6 +110,7 @@ ${PYTHON} ${CLAIR3} CheckEnvs \
     --indel_min_af ${INDEL_AF}
 readarray -t CHR < "${OUTPUT_FOLDER}/tmp/CONTIGS"
 if [ ${#CHR[@]} -eq 0 ]; then echo "[INFO] Exit in environment checking"; exit 0; fi
+# use all threads here when gpu is enabled?
 THREADS_LOW=$((${THREADS}*3/4))
 LONGPHASE_THREADS=$((${THREADS}*1/2))
 if [[ ${THREADS_LOW} < 1 ]]; then THREADS_LOW=1; fi

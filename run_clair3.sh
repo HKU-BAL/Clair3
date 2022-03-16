@@ -212,6 +212,7 @@ if [ "${BASE_MODEL}" = "r941_prom_sup_g5014" ] || [ "${BASE_MODEL}" = "r941_prom
 
 # use the default longphase binary path
 if [ "${USE_LONGPHASE}" == True ] && [ "${LONGPHASE}" == "EMPTY" ]; then LONGPHASE="${SCRIPT_PATH}/longphase"; fi
+if [ "${USE_LONGPHASE}" == True ] && [ ! -f ${LONGPHASE} ]; then echo -e "${ERROR} Cannot find LongPhase path in ${LONGPHASE}, exit!${NC}"; exit 1; fi
 
 # remove the last '/' character in directory input
 OUTPUT_FOLDER=$(echo ${OUTPUT_FOLDER%*/})
