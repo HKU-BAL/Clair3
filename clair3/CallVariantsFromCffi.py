@@ -5,8 +5,6 @@ import logging
 from time import time
 from argparse import ArgumentParser, SUPPRESS
 
-import tritonclient.grpc as tritongrpcclient
-
 from shared.utils import str2bool, log_error
 from clair3.CallVariants import OutputConfig, output_utilties_from, batch_output
 
@@ -66,6 +64,7 @@ def Run(args):
 def call_variants_from_cffi(args, output_config, output_utilities):
     use_gpu = args.use_gpu
     if use_gpu:
+        import tritonclient.grpc as tritongrpcclient
         server_url = 'localhost:8001'
         try:
             triton_client = tritongrpcclient.InferenceServerClient(
