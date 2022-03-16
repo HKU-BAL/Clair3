@@ -87,7 +87,7 @@ PYPY="pypy3"
 PYTHON='python3'
 PARALLEL='parallel'
 WHATSHAP='whatshap'
-longphase='longphase'
+longphase='EMPTY'
 CHUNK_NUM=0
 CHUNK_SIZE=5000000
 QUAL=2
@@ -209,6 +209,9 @@ if [ "${PLATFORM}" != "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.3; fi
 if [ "${PHASING_PCT}" = "0" ]; then PHASING_PCT=0.7; fi
 BASE_MODEL=$(basename ${MODEL_PATH})
 if [ "${BASE_MODEL}" = "r941_prom_sup_g5014" ] || [ "${BASE_MODEL}" = "r941_prom_hac_g5014" ] || [ "${BASE_MODEL}" = "ont_guppy5" ]; then PHASING_PCT=0.8; fi
+
+# use the default longphase binary path
+if [ "${USE_LONGPHASE}" == True ] && [ "${LONGPHASE}" == "EMPTY" ]; then LONGPHASE="${SCRIPT_PATH}/longphase"; fi
 
 # remove the last '/' character in directory input
 OUTPUT_FOLDER=$(echo ${OUTPUT_FOLDER%*/})
