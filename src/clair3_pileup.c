@@ -21,18 +21,6 @@
 #define bam_nt16_table seq_nt16_table
 
 
-size_t base2_index(char c) {
-    if (c == 'A') return 0;
-    else if (c == 'C') return 1;
-    else if (c == 'G') return 2;
-    else if (c == 'T') return 3;
-    else if (c == 'a') return 9;
-    else if (c == 'c') return 10;
-    else if (c == 'g') return 11;
-    else if (c == 't') return 12;
-    else return 0;
-}
-
 /** Constructs a pileup data structure.
  *
  *  @param n_cols number of pileup columns.
@@ -359,7 +347,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         kh_counter_destroy(ins_counts_r);
         int offset = pos - ref_start;
         char ref_base = toupper(ref_seq[offset]);
-        int ref_offset_forward = base2_index(ref_base);
+        int ref_offset_forward = base2index[ref_base - 'A'];
         int ref_offset_reverse = ref_offset_forward + reverse_pos_start;
         char major_alt_base = '\0';
         size_t forward_sum = 0;

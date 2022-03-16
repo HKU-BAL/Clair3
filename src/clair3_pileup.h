@@ -33,6 +33,14 @@ static const int num2countbase[32] = {
 };
 
 
+static const int base2index[32] = {
+    0, 0, 1, 0, 0, 0, 2, 0, // abcdefgh
+    0, 0, 0, 0, 0, 0, 0, 0, // ijklmnop
+    0, 0, 0, 3, 0, 0, 0, 0, // qrstuvwx
+    0, 0, 0, 0, 0, 0, 0, 0, // vz
+};
+
+
 // convert 16bit IUPAC (+16 for strand) to plp_bases clair3 index
 //  first i: all insertions
 // second i: most common insertion
