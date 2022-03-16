@@ -276,6 +276,10 @@ conda install -c conda-forge -c bioconda whatshap=1.0 -y
 git clone https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 
+# compile samtools, longphase and cffi library for c implement
+# after building, longphase binary is in `Clair3` folder
+python3 build.py
+
 # download pre-trained models
 mkdir models
 wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz 
@@ -291,6 +295,8 @@ MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
   --model_path=`pwd`"/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR}               ## output path prefix
 ```
+
+
 
 ### Option 5. Docker Dockerfile
 
