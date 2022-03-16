@@ -28,10 +28,6 @@ def CreateTensorFullAlignment(args):
     platform = args.platform
     phased_vcf_fn = args.phased_vcf_fn
 
-    vcf_fn = file_path_from(args.vcf_fn)
-    is_known_vcf_file_provided = vcf_fn is not None
-    chunk_id = args.chunk_id - 1 if args.chunk_id else None  # 1-base to 0-base
-    chunk_num = args.chunk_num
     extend_bed = file_path_from(args.extend_bed)
     is_extend_bed_file_given = extend_bed is not None
     confident_bed_fn = file_path_from(args.bed_fn)
@@ -73,10 +69,6 @@ def CreateTensorFullAlignment(args):
 
         candidate_file_path_output.close()
         candidate_file_path_process.wait()
-
-    if is_known_vcf_file_provided:
-        known_variants_list = vcf_candidates_from(vcf_fn=vcf_fn, contig_name=ctg_name)
-        candidates_set = set(known_variants_list)
 
     variant_list = []
     if need_haplotagging and phased_vcf_fn and os.path.exists(phased_vcf_fn):
