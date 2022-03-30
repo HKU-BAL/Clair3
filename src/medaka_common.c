@@ -7,6 +7,13 @@
 #include "medaka_common.h"
 
 
+char upper_base(char c) {
+    if (c >= 'a' && c <= 'z')
+        return c - 32;
+
+    return c;
+}
+
 /** Allocates zero-initialised memory with a message on failure.
  *
  *  @param num number of elements to allocate.

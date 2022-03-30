@@ -3,7 +3,7 @@
 
 #include "medaka_bamiter.h"
 #include "medaka_common.h"
-
+#include <stdlib.h>
 // iterator for reading bam
 int read_bam(void *data, bam1_t *b) {
     mplp_data *aux = (mplp_data*) data;
@@ -57,7 +57,7 @@ bam_fset* create_bam_fset(const char* fname) {
     if (fset->hdr == 0 || fset->idx == 0 || fset->fp == 0) {
         destroy_bam_fset(fset);
         fprintf(stderr, "Failed to read .bam file '%s'.", fname);
-        exit(1);
+        return fset;
     }
     return fset;
 }

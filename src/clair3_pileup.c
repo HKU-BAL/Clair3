@@ -346,7 +346,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
 
         kh_counter_destroy(ins_counts_r);
         int offset = pos - ref_start;
-        char ref_base = toupper(ref_seq[offset]);
+        char ref_base = upper_base(ref_seq[offset]);
         int ref_offset_forward = base2index[ref_base - 'A'];
         int ref_offset_reverse = ref_offset_forward + reverse_pos_start;
         char major_alt_base = '\0';

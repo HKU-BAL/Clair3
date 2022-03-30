@@ -722,7 +722,7 @@ fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path
                     continue;
 
                 int8_t alt_v = 0;
-                char ref_base = toupper(ref_seq[cp - ref_start]);
+                char ref_base = upper_base(ref_seq[cp - ref_start]);
                 int8_t ref_v = num2countbase_fa[ref_base - 'A'];
                 int8_t bq_v = read.pos_info[offset].bq;
 
@@ -821,7 +821,7 @@ fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path
         // store the alternative information into string
         size_t max_alt_length = 64;
         char *alt_info_str = calloc(max_alt_length, sizeof(char));
-        char center_ref_base = toupper(ref_seq[candidate - ref_start]);
+        char center_ref_base = upper_base(ref_seq[candidate - ref_start]);
 
         sprintf(alt_info_str, "%i-%i-%c-", candidate + 1, candidate_depth, center_ref_base);
         for (size_t j = 0; j < 4; j++)
