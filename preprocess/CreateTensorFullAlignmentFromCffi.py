@@ -185,7 +185,7 @@ def main():
                         help="Path to the 'samtools', samtools version >= 1.10 is required. default: %(default)s")
 
     # options for advanced users
-    parser.add_argument('--minCoverage', type=float, default=param.min_coverage,
+    parser.add_argument('--minCoverage', type=int, default=param.min_coverage,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
     parser.add_argument('--minMQ', type=int, default=param.min_mq,

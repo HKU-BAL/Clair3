@@ -494,7 +494,7 @@ def main():
     parser.add_argument('--fast_mode', type=str2bool, default=False,
                         help="EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: %(default)s")
 
-    parser.add_argument('--minCoverage', type=float, default=2,
+    parser.add_argument('--minCoverage', type=int, default=2,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
     parser.add_argument('--minMQ', type=int, default=param.min_mq,

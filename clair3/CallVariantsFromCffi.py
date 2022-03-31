@@ -292,7 +292,7 @@ def main():
     parser.add_argument('--vcf_fn', type=str, default=None,
                         help="Candidate sites VCF file input, if provided, variants will only be called at the sites in the VCF file,  default: %(default)s")
 
-    parser.add_argument('--minCoverage', type=float, default=2,
+    parser.add_argument('--minCoverage', type=int, default=2,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
     parser.add_argument('--minMQ', type=int, default=5,
