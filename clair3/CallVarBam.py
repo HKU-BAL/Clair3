@@ -9,7 +9,7 @@ from os.path import dirname
 from time import sleep
 from argparse import ArgumentParser, SUPPRESS
 import logging
-import platform
+from platform import machine, system
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -131,7 +131,7 @@ def Run(args):
         chunk_id = CommandOption('chunk_id', args.chunk_id)
         chunk_num = CommandOption('chunk_num', args.chunk_num)
 
-    if platform.machine() in {"aarch64", "arm64"} or platform.system() == "Darwin":
+    if machine() in {"aarch64", "arm64"} or system() == "Darwin":
         taskSet = ""
     else:
         sched_getaffinity_list = list(os.sched_getaffinity(0))
