@@ -1,7 +1,6 @@
 import sys
 import os
 import math
-import tables
 import tensorflow as tf
 import numpy as np
 import logging
@@ -1529,6 +1528,7 @@ def call_variants(args, output_config, output_utilities):
         if full_alignment_mode and total == 0:
             logging.info(log_error("[ERROR] No full-alignment output for file {}/{}".format(args.ctgName, args.call_fn)))
     else:
+        import tables
         dataset = tables.open_file(args.tensor_fn, 'r').root
         batch_size = param.predictBatchSize
         dataset_size = len(dataset.label)
@@ -1712,6 +1712,7 @@ def predict(args, output_config, output_utilities):
         logging.info("Total process positions: {}".format(total))
 
     else:
+        import tables
         if not os.path.exists(args.tensor_fn):
             logging.info("skip {}, not existing chunk_id".format(args.tensor_fn))
             return

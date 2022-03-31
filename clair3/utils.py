@@ -3,7 +3,6 @@ import gc
 import copy
 import shlex
 import os
-import tables
 import numpy as np
 from functools import partial
 
@@ -11,7 +10,6 @@ from clair3.task.main import *
 from shared.interval_tree import bed_tree_from, is_region_in
 from shared.utils import subprocess_popen, IUPAC_base_to_ACGT_base_dict as BASE2BASE, IUPAC_base_to_num_dict as BASE2NUM
 
-FILTERS = tables.Filters(complib='blosc:lz4hc', complevel=5)
 shuffle_bin_size = 50000
 PREFIX_CHAR_STR = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -389,6 +387,8 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
         import shared.param_f as param
         float_type = 'int8'
 
+    import tables
+    FILTERS = tables.Filters(complib='blosc:lz4hc', complevel=5)
     tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
 
     subprocess_list = []
