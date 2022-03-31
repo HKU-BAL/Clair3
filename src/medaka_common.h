@@ -14,7 +14,7 @@
 static inline int max ( int a, int b ) { return a > b ? a : b; }
 static inline int min ( int a, int b ) { return a < b ? a : b; }
 
-
+char upper_base(char c);
 /** Allocates zero-initialised memory with a message on failure.
  *
  *  @param num number of elements to allocate.
