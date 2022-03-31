@@ -206,7 +206,10 @@ def CheckEnvs(args):
     bam_fn = file_path_from(args.bam_fn, exit_on_not_found=True)
     ref_fn = file_path_from(args.ref_fn, exit_on_not_found=True)
     fai_fn = file_path_from(args.ref_fn, suffix=".fai", exit_on_not_found=True, sep='.')
-    bai_fn = file_path_from(args.bam_fn, suffix=".bai", exit_on_not_found=True, sep='.')
+    bai_fn = file_path_from(args.bam_fn, suffix=".bai", sep='.')
+    csi_fn = file_path_from(args.bam_fn, suffix=".csi", sep='.')
+    if bai_fn is None and csi_fn is None:
+        sys.exit(log_error("[ERROR] Neither Bam index file {} or {} not found".format(file_name + '.bai', file_name + '.csi')))
     bed_fn = file_path_from(args.bed_fn)
     vcf_fn = file_path_from(args.vcf_fn)
     tree = bed_tree_from(bed_file_path=bed_fn)
