@@ -180,6 +180,8 @@ def Run(args):
         CommandOption('bed_fn', bed_fn),
         CommandOption('extend_bed', extend_bed),
         CommandOption('sampleName', args.sampleName),
+        CommandOption('minCoverage', args.minCoverage),
+        CommandOption('minMQ', args.minMQ),
         ctgStart,
         ctgEnd,
         chunk_id,
