@@ -309,6 +309,7 @@ def CreateTensorPileup(args):
     is_ctg_name_given = ctg_name is not None
     is_ctg_range_given = is_ctg_name_given and ctg_start is not None and ctg_end is not None
     if is_ctg_range_given:
+        ctg_start = max(1, ctg_start)
         extend_start = max(1, ctg_start - no_of_positions)
         extend_end = ctg_end + no_of_positions
 
@@ -367,7 +368,6 @@ def CreateTensorPileup(args):
     np_pileup_data = np.array(np_pileup_data, dtype=np.int32)
 
 
-
     if args.gvcf:
 
         from shared.utils import reference_sequence_from, region_from
@@ -384,8 +384,8 @@ def CreateTensorPileup(args):
 
         empty_pileup_flag = True
         for pos in range(ctg_start, ctg_end):
-            ref_count = gvcf_output[0][pos - extend_start + 1]
-            total_count = gvcf_output[1][pos - extend_start + 1]
+            ref_count = gvcf_output[0][pos - extend_start]
+            total_count = gvcf_output[1][pos - extend_start]
             reference_base = reference_sequence[pos-reference_start]
             if (ref_count == 0 and total_count == 0):
                 cur_site_info = {'chr': ctg_name, 'pos': pos, 'ref': reference_base, 'n_total': 0, 'n_ref': 0}
