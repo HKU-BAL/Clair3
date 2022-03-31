@@ -85,6 +85,7 @@ export OPENBLAS_NUM_THREADS=1
 export GOTO_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
+echo $''
 echo "[INFO] Check environment variables"
 ${PYTHON} ${CLAIR3} CheckEnvs \
     --bam_fn ${BAM_FILE_PATH} \
@@ -108,9 +109,16 @@ ${PYTHON} ${CLAIR3} CheckEnvs \
     --ref_pct_full ${REF_PRO} \
     --snp_min_af ${SNP_AF} \
     --indel_min_af ${INDEL_AF}
-readarray -t CHR < "${OUTPUT_FOLDER}/tmp/CONTIGS"
+
+if [ "$(uname)" = "Darwin" ];
+then
+    mapfile -t CHR < "${OUTPUT_FOLDER}/tmp/CONTIGS"
+else
+    readarray -t CHR < "${OUTPUT_FOLDER}/tmp/CONTIGS"
+fi
+
 if [ ${#CHR[@]} -eq 0 ]; then echo "[INFO] Exit in environment checking"; exit 0; fi
-# use all threads here when gpu is enabled?
+
 THREADS_LOW=$((${THREADS}*3/4))
 LONGPHASE_THREADS=$((${THREADS}*1/2))
 if [[ ${THREADS_LOW} < 1 ]]; then THREADS_LOW=1; fi

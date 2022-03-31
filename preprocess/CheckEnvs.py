@@ -3,6 +3,7 @@ import sys
 import argparse
 import shlex
 import subprocess
+import platform
 
 from collections import defaultdict
 from argparse import SUPPRESS
@@ -54,6 +55,9 @@ def check_python_path():
 def check_tools_version(tool_version, required_tool_version):
     for tool, version in tool_version.items():
         required_version = required_tool_version[tool]
+        # whatshap cannot be installed in Mac arm64 system
+        if platform.system() == "Darwin" and tool == 'whatshap':
+            continue
         if version is None:
             print(log_error("[ERROR] {} not found, please check you are in clair3 virtual environment".format(tool)))
             check_python_path()
@@ -295,18 +299,6 @@ def CheckEnvs(args):
     DEFAULT_CHUNK_SIZE = args.chunk_size
     contig_length_list = []
     contig_chunk_num = {}
-
-    threads = args.threads
-    sched_getaffinity_list = list(os.sched_getaffinity(0))
-    numCpus = len(sched_getaffinity_list)
-
-    if threads > numCpus:
-        print(log_warning(
-            '[WARNING] Current maximum threads {} is larger than support cpu count {}, You may set a smaller parallel threads by setting --threads=$ for better parallelism.'.format(
-                threads, numCpus)))
-
-    ## for better parallelism for create tensor and call variants, we over commit the overall threads/4 for 3 times, which is 0.75 * overall threads.
-    threads_over_commit = max(4, int(threads * 0.75))
 
     with open(fai_fn, 'r') as fai_fp:
         for row in fai_fp:
