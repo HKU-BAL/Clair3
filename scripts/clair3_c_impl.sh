@@ -127,6 +127,7 @@ THREADS_LOW=$((${THREADS}*3/4))
 LONGPHASE_THREADS=$((${THREADS}*1/2))
 if [[ ${THREADS_LOW} < 1 ]]; then THREADS_LOW=1; fi
 if [[ ${LONGPHASE_THREADS} < 1 ]]; then LONGPHASE_THREADS=1; fi
+if [ "${PLATFORM}" = "ont" ]; then LP_PLATFORM="ont"; else LP_PLATFORM="pb"; fi
 
 cd ${OUTPUT_FOLDER}
 # Pileup calling
@@ -204,7 +205,7 @@ else
             -r ${REFERENCE_FILE_PATH} \
             -t ${LONGPHASE_THREADS} \
             -o ${PHASE_VCF_PATH}/phased_{1} \
-            --ont" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
+            --${LP_PLATFORM}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
         ${PARALLEL} -j${THREADS} bgzip -f ${PHASE_VCF_PATH}/phased_{}.vcf ::: ${CHR[@]}
     else
         echo "[INFO] 3/7 Phase VCF file using Whatshap"

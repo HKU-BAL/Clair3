@@ -126,6 +126,8 @@ if [ ${#CHR[@]} -eq 0 ]; then echo "[INFO] Exit in environment checking"; exit 0
 THREADS_LOW=$((${THREADS}*3/4))
 LONGPHASE_THREADS=$((${THREADS}*1/2))
 if [[ ${THREADS_LOW} < 1 ]]; then THREADS_LOW=1; fi
+if [[ ${LONGPHASE_THREADS} < 1 ]]; then LONGPHASE_THREADS=1; fi
+if [ "${PLATFORM}" = "ont" ]; then LP_PLATFORM="ont"; else LP_PLATFORM="pb"; fi
 
 cd ${OUTPUT_FOLDER}
 # Pileup calling
