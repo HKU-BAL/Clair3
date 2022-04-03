@@ -50,6 +50,7 @@ print_help_messages()
     echo $'      --fa_model_prefix=STR     EXPERIMENTAL: Model prefix in full-alignment calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index, default: full_alignment.'
     echo $'      --min_mq=INT              EXPERIMENTAL: If set, reads with mapping quality with <$min_mq are filtered, default: 5.'
     echo $'      --min_coverage=INT        EXPERIMENTAL: Minimum coverage required to call a variant, default: 2.'
+    echo $'      --min_contig_size=INT     EXPERIMENTAL: If set, contigs with contig size<=$min_contig_size are filtered, default: 0.'
     echo $'      --fast_mode               EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.'
     echo $'      --haploid_precise         EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.'
     echo $'      --haploid_sensitive       EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.'
@@ -72,7 +73,7 @@ NC="\\033[0m"
 ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,longphase::,\
-min_mq::,min_coverage::,snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
+min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
 remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,enable_long_indel,use_gpu,longphase_for_phasing,disable_c_impl,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
@@ -94,6 +95,7 @@ CHUNK_SIZE=5000000
 QUAL=2
 MIN_MQ=5
 MIN_COV=2
+MIN_CONTIG_SIZE=0
 PHASING_PCT="0"
 PRO="0"
 REF_PRO="0"
@@ -101,8 +103,8 @@ GVCF=False
 PILEUP_ONLY=False
 FAST_MODE=False
 SHOW_REF=False
-SNP_AF="0.08"
-INDEL_AF="0.15"
+SNP_AF="0"
+INDEL_AF="0"
 HAP_PRE=False
 HAP_SEN=False
 SNP_ONLY=False
@@ -210,6 +212,11 @@ if [ "${PLATFORM}" != "ont" ] && [ "${REF_PRO}" = "0" ]; then REF_PRO=0.3; fi
 if [ "${PLATFORM}" = "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.7; fi
 if [ "${PLATFORM}" != "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.3; fi
 
+# set default af for ilmn and hifi and ont
+if [ "${SNP_AF}" = "0" ]; then SNP_AF=0.08; fi
+if [ "${PLATFORM}" = "ont" ] && [ "${INDEL_AF}" = "0" ]; then INDEL_AF=0.15; fi
+if [ "${PLATFORM}" != "ont" ] && [ "${INDEL_AF}" = "0" ]; then INDEL_AF=0.08; fi
+
 # show default high quality hete variant proportion for whatshap phasing, 0.8 for ont guppy5 and 0.7 for others
 if [ "${PHASING_PCT}" = "0" ]; then PHASING_PCT=0.7; fi
 BASE_MODEL=$(basename ${MODEL_PATH})
@@ -245,13 +252,14 @@ echo "[INFO] WHATSHAP PATH: ${WHATSHAP}"
 echo "[INFO] LONGPHASE PATH: ${LONGPHASE}"
 echo "[INFO] CHUNK SIZE: ${CHUNK_SIZE}"
 if [ ${CHUNK_NUM} -gt 0 ]; then echo "[INFO] CHUNK NUM: ${CHUNK_NUM}"; fi
+if [ ${MIN_CONTIG_SIZE} -gt 0 ]; then echo "[INFO] MIN CONTIG SIZE: ${CHUNK_NUM}"; fi
 echo "[INFO] FULL ALIGN PROPORTION: ${PRO}"
 echo "[INFO] FULL ALIGN REFERENCE PROPORTION: ${REF_PRO}"
 echo "[INFO] PHASING PROPORTION: ${PHASING_PCT}"
 echo "[INFO] MINIMUM MQ: ${MIN_MQ}"
 echo "[INFO] MINIMUM COVERAGE: ${MIN_COV}"
-if [ "${SNP_AF}" != "0" ]; then echo "[INFO] USER DEFINED SNP THRESHOLD: ${SNP_AF}"; fi
-if [ "${INDEL_AF}" != "0" ]; then echo "[INFO] USER DEFINED INDEL THRESHOLD: ${INDEL_AF}"; fi
+echo "[INFO] SNP AF THRESHOLD: ${SNP_AF}"
+echo "[INFO] INDEL AF THRESHOLD: ${INDEL_AF}"
 echo "[INFO] ENABLE FILEUP ONLY CALLING: ${PILEUP_ONLY}"
 echo "[INFO] ENABLE FAST MODE CALLING: ${FAST_MODE}"
 echo "[INFO] ENABLE CALLING SNP CANDIDATES ONLY: ${SNP_ONLY}"
@@ -290,10 +298,6 @@ if [ ! -z ${MAX_ULIMIT_THREADS} ]; then PER_ULIMIT_THREADS=$((${MAX_ULIMIT_THREA
 if [[ ${PER_ULIMIT_THREADS} < 1 ]]; then PER_ULIMIT_THREADS=1; fi
 if [ "${MAX_ULIMIT_THREADS}" != "unlimited" ] && [[ ${THREADS} -gt ${PER_ULIMIT_THREADS} ]]; then echo -e "${WARNING} Threads setting exceeds maximum ulimit threads ${THREADS} * 30 > ${MAX_ULIMIT_THREADS} (ulimit -u), set threads=${PER_ULIMIT_THREADS}${NC}"; THREADS=${PER_ULIMIT_THREADS}; fi
 
-# min mapping quality and min coverage detection
-if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( ${THREADS} <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
-if [[ ! ${MIN_MQ} =~ ^[\-0-9]+$ ]] || (( ${MIN_MQ} < 5)); then echo -e "${WARNING} Invalid minimum mapping quality input --min_mq>=5 ${NC}"; MIN_MQ=5; fi
-if [[ ! ${MIN_COV} =~ ^[\-0-9]+$ ]] || (( ${MIN_COV} < 2)); then echo -e "${WARNING} Invalid minimum coverage input --min_coverage>=2 ${NC}"; MIN_COV=2; fi
 
 # platform check
 if [ ! ${PLATFORM} = "ont" ] && [ ! ${PLATFORM} = "hifi" ] && [ ! ${PLATFORM} = "ilmn" ]; then echo -e "${ERROR} Invalid platform input, optional: {ont, hifi, ilmn}${NC}"; exit 1; fi
@@ -319,14 +323,21 @@ if [ -z ${PILEUP_PREFIX} ]; then echo -e "${ERROR} Use '--pileup_model_prefix=ST
 if [ -z ${FA_PREFIX} ]; then echo -e "${ERROR} Use '--fa_model_prefix=STR' instead of '--fa_model_prefix STR' for optional parameters${NC}"; exit 1 ; fi
 if [ -z ${MIN_MQ} ]; then echo -e "${ERROR} Use '--min_mq=INT' instead of '--min_mq INT' for optional parameters${NC}"; exit 1 ; fi
 if [ -z ${MIN_COV} ]; then echo -e "${ERROR} Use '--min_coverage=INT' instead of '--min_coverage INT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${MIN_CONTIG_SIZE} ]; then echo -e "${ERROR} Use '--min_contig_size=INT' instead of '--min_contig_size INT' for optional parameters${NC}"; exit 1 ; fi
 if [ -z ${LONGPHASE} ]; then echo -e "${ERROR} Use '--longphase=STR' instead of '--longphase STR' for optional parameters${NC}"; exit 1 ; fi
+
+# min mapping quality, min coverage and min contig size detection
+if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( ${THREADS} <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
+if [[ ! ${MIN_MQ} =~ ^[\-0-9]+$ ]] || (( ${MIN_MQ} < 5)); then echo -e "${WARNING} Invalid minimum mapping quality input --min_mq>=5 ${NC}"; MIN_MQ=5; fi
+if [[ ! ${MIN_COV} =~ ^[\-0-9]+$ ]] || (( ${MIN_COV} < 2)); then echo -e "${WARNING} Invalid minimum coverage input --min_coverage>=2 ${NC}"; MIN_COV=2; fi
+if [[ ! ${MIN_CONTIG_SIZE} =~ ^[\-0-9]+$ ]] || (( ${MIN_CONTIG_SIZE} < 0)); then echo -e "${WARNING} Invalid minimum contig size --min_contig_size>=0 ${NC}"; MIN_CONTIG_SIZE=0; fi
 
 # model prefix detection
 if [ ! -f ${MODEL_PATH}/${PILEUP_PREFIX}.index ]; then echo -e "${ERROR} No pileup model found in provided model path and model prefix ${MODEL_PATH}/${PILEUP_PREFIX} ${NC}"; exit 1; fi
 if [ ! -f ${MODEL_PATH}/${FA_PREFIX}.index ]; then echo -e "${ERROR} No full-alignment model found in provided model path and model prefix ${MODEL_PATH}/${FA_PREFIX} ${NC}"; exit 1; fi
 
 CLAIR3_SCRIPT="clair3.sh"
-if [ "${ENABLE_C_IMPL}" == True ] && [ ! ${PLATFORM} = "ilmn" ]; then CLAIR3_SCRIPT="clair3_c_impl.sh"; fi
+if [ "${ENABLE_C_IMPL}" == True ]; then CLAIR3_SCRIPT="clair3_c_impl.sh"; fi
 
 set -x
 ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
@@ -355,6 +366,7 @@ ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --indel_min_af=${INDEL_AF} \
     --min_mq=${MIN_MQ} \
     --min_coverage=${MIN_COV} \
+    --min_contig_size=${MIN_CONTIG_SIZE} \
     --pileup_only=${PILEUP_ONLY} \
     --gvcf=${GVCF} \
     --fast_mode=${FAST_MODE} \

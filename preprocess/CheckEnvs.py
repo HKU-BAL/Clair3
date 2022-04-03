@@ -242,6 +242,7 @@ def CheckEnvs(args):
     ref_pct_full = args.ref_pct_full
     snp_min_af = args.snp_min_af
     indel_min_af = args.indel_min_af
+    min_contig_size = args.min_contig_size
     sample_name = args.sampleName
     contig_name_list = os.path.join(tmp_file_path, 'CONTIGS')
     chunk_list = os.path.join(tmp_file_path, 'CHUNK_LIST')
@@ -319,6 +320,12 @@ def CheckEnvs(args):
             if is_known_vcf_file_provided and contig_name not in contig_set:
                 continue
 
+            if min_contig_size > 0 and contig_length < min_contig_size:
+                print(log_warning(
+                    "[WARNING] {} contig length {} is smaller than minimum contig size {}, will skip it!".format(contig_name, contig_length, min_contig_size)))
+                if contig_name in contig_set:
+                    contig_set.remove(contig_name)
+                continue
             contig_set.add(contig_name)
             contig_length_list.append(contig_length)
             chunk_num = int(
@@ -460,6 +467,9 @@ def main():
                         help="Minimum SNP allele frequency for a site to be considered as a candidate site, default: %(default)f")
 
     parser.add_argument('--indel_min_af', type=float, default=0.08,
+                        help="Minimum Indel allele frequency for a site to be considered as a candidate site, default: %(default)f")
+
+    parser.add_argument('--min_contig_size', type=int, default=0,
                         help="Minimum Indel allele frequency for a site to be considered as a candidate site, default: %(default)f")
 
     # options for internal process control

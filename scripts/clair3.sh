@@ -7,7 +7,7 @@ set -e
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,var_pct_phasing::,\
-min_mq::,min_coverage::,snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
+min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
 no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir::,enable_phasing::,enable_long_indel::,use_gpu::,longphase_for_phasing::,longphase:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
@@ -46,6 +46,7 @@ while true; do
     --indel_min_af ) INDEL_AF="$2"; shift 2 ;;
     --min_mq ) MIN_MQ="$2"; shift 2 ;;
     --min_coverage ) MIN_COV="$2"; shift 2 ;;
+    --min_contig_size ) MIN_CONTIG_SIZE="$2"; shift 2 ;;
     --pileup_model_prefix ) PILEUP_PREFIX="$2"; shift 2 ;;
     --fa_model_prefix ) FA_PREFIX="$2"; shift 2 ;;
     --haploid_precise ) HAP_PRE="$2"; shift 2 ;;
@@ -110,7 +111,8 @@ ${PYTHON} ${CLAIR3} CheckEnvs \
     --var_pct_full ${PRO} \
     --ref_pct_full ${REF_PRO} \
     --snp_min_af ${SNP_AF} \
-    --indel_min_af ${INDEL_AF}
+    --indel_min_af ${INDEL_AF} \
+    --min_contig_size ${MIN_CONTIG_SIZE}
 
 if [ "$(uname)" = "Darwin" ];
 then
