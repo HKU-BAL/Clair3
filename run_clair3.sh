@@ -147,6 +147,7 @@ while true; do
     --indel_min_af ) INDEL_AF="$2"; shift 2 ;;
     --min_mq ) MIN_MQ="$2"; shift 2 ;;
     --min_coverage ) MIN_COV="$2"; shift 2 ;;
+    --min_contig_size ) MIN_CONTIG_SIZE="$2"; shift 2 ;;
     --pileup_model_prefix ) PILEUP_PREFIX="$2"; shift 2 ;;
     --fa_model_prefix ) FA_PREFIX="$2"; shift 2 ;;
     --gvcf ) GVCF=True; shift 1 ;;
