@@ -15,7 +15,6 @@
 #include "medaka_common.h"
 #include "medaka_khcounter.h"
 #include "clair3_full_alignment.h"
-#include "zlib.h"
 #include "levenshtein.h"
 
 typedef struct Pos_alt_info
