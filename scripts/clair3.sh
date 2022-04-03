@@ -120,7 +120,9 @@ else
 fi
 
 if [ ${#CHR[@]} -eq 0 ]; then echo "[INFO] Exit in environment checking"; exit 0; fi
+
 THREADS_LOW=$((${THREADS}*3/4))
+LONGPHASE_THREADS=$((${THREADS}*1/2))
 if [[ ${THREADS_LOW} < 1 ]]; then THREADS_LOW=1; fi
 
 cd ${OUTPUT_FOLDER}
@@ -191,29 +193,32 @@ else
         --ctgName {1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} |& tee ${LOG_PATH}/2_select_hetero_snp.log
 
     echo $''
-    echo "[INFO] 3/7 Phase VCF file using Whatshap"
-    time ${PARALLEL}  --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_3_phase.log -j${THREADS} \
-    "${WHATSHAP} phase \
-        --output ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
-        --reference ${REFERENCE_FILE_PATH} \
-        --chromosome {1} \
-        --distrust-genotypes \
-        --ignore-read-groups \
-        ${PHASE_VCF_PATH}/{1}.vcf \
-        ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
+    if [ ${USE_LONGPHASE} == True ]
+    then
+        echo "[INFO] 3/7 Phase VCF file using LongPhase"
+        time ${PARALLEL}  --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_3_phase.log -j${THREADS} \
+        "${LONGPHASE} phase\
+            -s  ${PHASE_VCF_PATH}/{1}.vcf \
+            -b ${BAM_FILE_PATH} \
+            -r ${REFERENCE_FILE_PATH} \
+            -t ${LONGPHASE_THREADS} \
+            -o ${PHASE_VCF_PATH}/phased_{1} \
+            --${LP_PLATFORM}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
+        ${PARALLEL} -j${THREADS} bgzip -f ${PHASE_VCF_PATH}/phased_{}.vcf ::: ${CHR[@]}
+    else
+        echo "[INFO] 3/7 Phase VCF file using Whatshap"
+        time ${PARALLEL}  --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_3_phase.log -j${THREADS} \
+        "${WHATSHAP} phase \
+            --output ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
+            --reference ${REFERENCE_FILE_PATH} \
+            --chromosome {1} \
+            --distrust-genotypes \
+            --ignore-read-groups \
+            ${PHASE_VCF_PATH}/{1}.vcf \
+            ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
+    fi
     ${PARALLEL} -j${THREADS} tabix -f -p vcf ${PHASE_VCF_PATH}/phased_{}.vcf.gz ::: ${CHR[@]}
 
-    echo $''
-    echo "[INFO] 4/7 Haplotag input BAM file using Whatshap"
-    time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_4_haplotag.log -j${THREADS} \
-    "${WHATSHAP} haplotag \
-        --output ${PHASE_BAM_PATH}/{1}.bam \
-        --reference ${REFERENCE_FILE_PATH} \
-        --ignore-read-groups \
-        --regions {1} \
-        ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
-        ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/4_haplotag.log
-    ${PARALLEL} -j${THREADS} ${SAMTOOLS} index -@12 ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
 fi
 
 # Full alignment calling
