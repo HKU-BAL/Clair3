@@ -56,6 +56,8 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 
 ## Latest Updates
 
+*v0.1-r11 (Apr 4)* : 1. Variant calling ~2.5x faster than `v0.1-r10` tested with ONT Q20 data, with feature generation in both pileup and full-alignment now implemented in C (co-contributors @[cjw85](https://github.com/cjw85), @[ftostevin-ont](https://github.com/ftostevin-ont), @[EpiSlim](https://github.com/EpiSlim)). 2. Added the lightning-fast [longphase](https://github.com/twolinin/longphase) as an option for phasing. Enable using `longphase` with option `--longphase_for_phasing`. New option disabled by default to align with the default behavior of the previous versions, but we recommend enable when calling human variants with ≥20x long-reads). 3. Added `--min_coverage` and `--min_mq` options ([#83](https://github.com/HKU-BAL/Clair3/issues/83)). 4. Added `--min_contig_size` option to skip calling variants in short contigs when using genome assembly as input. 4. Reads haplotagging after phasing before full-alignment calling now integrated into full-alignment calling to avoid generating an intermediate BAM file. 5. Supported .`csi` BAM index for large references ([#90](https://github.com/HKU-BAL/Clair3/issues/90)). For more speedup details, please check [Notes on r11](docs/v0.1_r11_speedup.md).
+
 *v0.1-r10 (Jan 13)* : 1. Added a new ONT Guppy5 model  (`r941_prom_sup_g5014`). Click [here](docs/guppy5_20220113.md) for some benchmarking results. This `sup` model is also applicable to reads called using the `hac` and `fast` mode. The old `r941_prom_sup_g506` model that was fine-tuned from the Guppy3,4 model is obsoleted. 2. Added `--var_pct_phasing` option to control the percentage of top ranked heterozygous pile-up variants used for WhatsHap phasing.
 
 *v0.1-r9 (Dec 1)* : Added the `--enable_long_indel` option to output indel variant calls >50bp ([#64](https://github.com/HKU-BAL/Clair3/issues/64)), Click [here](https://github.com/HKU-BAL/Clair3/blob/main/docs/indel_gt50_performance.md) to see more benchmarking results.
@@ -267,18 +269,19 @@ pypy3 -m pip install mpmath==1.2.1
 # install python packages in environment
 pip3 install tensorflow==2.2.0
 pip3 install tensorflow-addons==0.11.2 tables==3.6.1
-conda install -c anaconda pigz==2.4 -y
+conda install -c anaconda pigz==2.4 cffi==1.14.4 -y
 conda install -c conda-forge parallel=20191122 zstd=1.4.4 -y
 conda install -c conda-forge -c bioconda samtools=1.10 -y
 conda install -c conda-forge -c bioconda whatshap=1.0 -y
-
+conda install -c conda-forge xz zlib bzip2 automake curl -y
+    
 # clone Clair3
 git clone https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 
 # compile samtools, longphase and cffi library for c implement
 # after building, longphase binary is in `Clair3` folder
-python3 build.py
+source activate clair3 && make PREFIX=${CONDA_PREFIX}
 
 # download pre-trained models
 mkdir models
@@ -364,12 +367,15 @@ docker run -it hkubal/clair3:latest /opt/bin/run_clair3.sh --help
       --pypy=STR                Path of pypy3, pypy3 >= 3.6 is required.
       --parallel=STR            Path of parallel, parallel >= 20191122 is required.
       --whatshap=STR            Path of whatshap, whatshap >= 1.0 is required.
+      --longphase=STR           Path of longphase, longphase >= 1.0 is required.
       --chunk_size=INT          The size of each chuck for parallel processing, default: 5Mbp.
       --pileup_only             Use the pileup model only when calling, default: disable.
       --print_ref_calls         Show reference calls (0/0) in vcf file, default: disable.
       --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
       --gvcf                    Enable GVCF output, default: disable.
       --enable_phasing          Output phased variants using whatshap, default: disable.
+      --longphase_for_phasing   Use longphase for phasing, default: enable.
+      --disable_c_impl          Disable C implement with cffi for pileup and full-alignment create tensor, default: enable.
       --remove_intermediate_dir Remove intermediate directory, including intermediate phased BAM, pileup and full-alignment results. default: disable.
       --snp_min_af=FLOAT        Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.
       --indel_min_af=FLOAT      Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
@@ -378,6 +384,9 @@ docker run -it hkubal/clair3:latest /opt/bin/run_clair3.sh --help
       --var_pct_phasing=FLOAT   EXPERIMENTAL: Specify an expected percentage of high quality 0/1 variants used in WhatsHap phasing, default: 0.8 for ont guppy5 and 0.7 for other platforms.
       --pileup_model_prefix=STR EXPERIMENTAL: Model prefix in pileup calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index. default: pileup.
       --fa_model_prefix=STR     EXPERIMENTAL: Model prefix in full-alignment calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index, default: full_alignment.
+      --min_mq=INT              EXPERIMENTAL: If set, reads with mapping quality with <$min_mq are filtered, default: 5.
+      --min_coverage=INT        EXPERIMENTAL: Minimum coverage required to call a variant, default: 2.
+      --min_contig_size=INT     EXPERIMENTAL: If set, contigs with contig size<$min_contig_size are filtered, default: 0.
       --fast_mode               EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.
       --haploid_precise         EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.
       --haploid_sensitive       EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.
