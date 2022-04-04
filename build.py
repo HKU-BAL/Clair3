@@ -6,11 +6,19 @@ from cffi import FFI
 
 samver = "1.10"
 file_directory = os.path.dirname(os.path.realpath(__file__))
-htslib_dir=os.path.join(file_directory, 'samtools-{}'.format(samver), 'htslib-{}'.format(samver))
+htslib_dir = os.path.join(file_directory, 'samtools-{}'.format(samver), 'htslib-{}'.format(samver))
 
-libraries=['m', 'z', 'lzma', 'bz2', 'pthread', 'curl', 'crypto']
-library_dirs=[htslib_dir]
-src_dir=os.path.join(file_directory, 'src')
+libraries = ['m', 'z', 'lzma', 'bz2', 'pthread', 'curl', 'crypto', 'deflate']
+
+try:
+    conda_path = os.environ['CONDA_PREFIX']
+    extra_link_args = ['-Wl,-rpath={}/lib'.format(conda_path)]
+except:
+    print("[WARNING] Conda prefix not found, please activate clair3 conda environment first!")
+    extra_link_args = []
+
+library_dirs = [htslib_dir]
+src_dir = os.path.join(file_directory, 'src')
 
 extra_compile_args = ['-std=c99', '-O3']
 if platform.machine() in {"aarch64", "arm64"}:
@@ -45,6 +53,7 @@ ffibuilder.set_source("libclair3",
             'clair3_pileup.c',
             'clair3_full_alignment.c')],
     extra_compile_args=extra_compile_args,
+    extra_link_args=extra_link_args,
     extra_objects=['libhts.a']
 )
 
