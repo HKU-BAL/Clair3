@@ -1,8 +1,8 @@
 #!/bin/bash
 SCRIPT_NAME=$(basename "$0")
-SCRIPT_PATH=`dirname "$0"`
-VERSION='v0.1-r10'
-Usage="Usage: ./${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
+SCRIPT_PATH=$(dirname $(readlink -f "$0"))
+VERSION='v0.1-r11'
+Usage="Usage: ${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
 set -e
 #./run_clair3.sh -b tmp.bam -f ref.fasta -t 32 -o tmp -p ont -m model_path
@@ -31,12 +31,15 @@ print_help_messages()
     echo $'      --pypy=STR                Path of pypy3, pypy3 >= 3.6 is required.'
     echo $'      --parallel=STR            Path of parallel, parallel >= 20191122 is required.'
     echo $'      --whatshap=STR            Path of whatshap, whatshap >= 1.0 is required.'
+    echo $'      --longphase=STR           Path of longphase, longphase >= 1.0 is required.'
     echo $'      --chunk_size=INT          The size of each chuck for parallel processing, default: 5000000.'
     echo $'      --pileup_only             Use the pileup model only when calling, default: disable.'
     echo $'      --print_ref_calls         Show reference calls (0/0) in VCF file, default: disable.'
     echo $'      --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.'
     echo $'      --gvcf                    Enable GVCF output, default: disable.'
     echo $'      --enable_phasing          Output phased variants using whatshap, default: disable.'
+    echo $'      --longphase_for_phasing   Use longphase for phasing, default: enable.'
+    echo $'      --disable_c_impl          Disable C implement with cffi for pileup and full-alignment create tensor, default: enable.'
     echo $'      --remove_intermediate_dir Remove intermediate directory, including intermediate phased BAM, pileup and full-alignment results. default: disable.'
     echo $'      --snp_min_af=FLOAT        Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
     echo $'      --indel_min_af=FLOAT      Minimum Indel AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.'
@@ -45,6 +48,9 @@ print_help_messages()
     echo $'      --var_pct_phasing=FLOAT   EXPERIMENTAL: Specify an expected percentage of high quality 0/1 variants used in WhatsHap phasing, default: 0.8 for ont guppy5 and 0.7 for other platforms.'
     echo $'      --pileup_model_prefix=STR EXPERIMENTAL: Model prefix in pileup calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index. default: pileup.'
     echo $'      --fa_model_prefix=STR     EXPERIMENTAL: Model prefix in full-alignment calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index, default: full_alignment.'
+    echo $'      --min_mq=INT              EXPERIMENTAL: If set, reads with mapping quality with <$min_mq are filtered, default: 5.'
+    echo $'      --min_coverage=INT        EXPERIMENTAL: Minimum coverage required to call a variant, default: 2.'
+    echo $'      --min_contig_size=INT     EXPERIMENTAL: If set, contigs with contig size<$min_contig_size are filtered, default: 0.'
     echo $'      --fast_mode               EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.'
     echo $'      --haploid_precise         EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.'
     echo $'      --haploid_sensitive       EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.'
@@ -66,9 +72,9 @@ NC="\\033[0m"
 
 ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
-bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,\
-snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
-remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,enable_long_indel,help,version -n 'run_clair3.sh' -- "$@"`
+bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,longphase::,\
+min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
+remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,enable_long_indel,use_gpu,longphase_for_phasing,disable_c_impl,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -83,9 +89,13 @@ PYPY="pypy3"
 PYTHON='python3'
 PARALLEL='parallel'
 WHATSHAP='whatshap'
+LONGPHASE='EMPTY'
 CHUNK_NUM=0
 CHUNK_SIZE=5000000
 QUAL=2
+MIN_MQ=5
+MIN_COV=2
+MIN_CONTIG_SIZE=0
 PHASING_PCT="0"
 PRO="0"
 REF_PRO="0"
@@ -103,6 +113,9 @@ NO_PHASING=False
 RM_TMP_DIR=False
 ENABLE_PHASING=False
 ENABLE_LONG_INDEL=False
+USE_GPU=False
+USE_LONGPHASE=False
+ENABLE_C_IMPL=True
 PILEUP_PREFIX="pileup"
 FA_PREFIX="full_alignment"
 
@@ -126,11 +139,15 @@ while true; do
     --pypy ) PYPY="$2"; shift 2 ;;
     --parallel ) PARALLEL="$2"; shift 2 ;;
     --whatshap ) WHATSHAP="$2"; shift 2 ;;
+    --longphase ) LONGPHASE="$2"; shift 2 ;;
     --var_pct_full ) PRO="$2"; shift 2 ;;
     --ref_pct_full ) REF_PRO="$2"; shift 2 ;;
     --var_pct_phasing ) PHASING_PCT="$2"; shift 2 ;;
     --snp_min_af ) SNP_AF="$2"; shift 2 ;;
     --indel_min_af ) INDEL_AF="$2"; shift 2 ;;
+    --min_mq ) MIN_MQ="$2"; shift 2 ;;
+    --min_coverage ) MIN_COV="$2"; shift 2 ;;
+    --min_contig_size ) MIN_CONTIG_SIZE="$2"; shift 2 ;;
     --pileup_model_prefix ) PILEUP_PREFIX="$2"; shift 2 ;;
     --fa_model_prefix ) FA_PREFIX="$2"; shift 2 ;;
     --gvcf ) GVCF=True; shift 1 ;;
@@ -145,6 +162,9 @@ while true; do
     --remove_intermediate_dir ) RM_TMP_DIR=True; shift 1 ;;
     --enable_phasing ) ENABLE_PHASING=True; shift 1 ;;
     --enable_long_indel ) ENABLE_LONG_INDEL=True; shift 1 ;;
+    --use_gpu ) USE_GPU=True; shift 1 ;;
+    --longphase_for_phasing ) USE_LONGPHASE=True; shift 1 ;;
+    --disable_c_impl ) ENABLE_C_IMPL=False; shift 1 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; exit 0 ;;
@@ -193,10 +213,20 @@ if [ "${PLATFORM}" != "ont" ] && [ "${REF_PRO}" = "0" ]; then REF_PRO=0.3; fi
 if [ "${PLATFORM}" = "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.7; fi
 if [ "${PLATFORM}" != "ont" ] && [ "${PRO}" = "0" ]; then PRO=0.3; fi
 
+# set default af for ilmn and hifi and ont
+if [ "${SNP_AF}" = "0" ]; then SNP_AF=0.08; fi
+if [ "${PLATFORM}" = "ont" ] && [ "${INDEL_AF}" = "0" ]; then INDEL_AF=0.15; fi
+if [ "${PLATFORM}" != "ont" ] && [ "${INDEL_AF}" = "0" ]; then INDEL_AF=0.08; fi
+
 # show default high quality hete variant proportion for whatshap phasing, 0.8 for ont guppy5 and 0.7 for others
 if [ "${PHASING_PCT}" = "0" ]; then PHASING_PCT=0.7; fi
 BASE_MODEL=$(basename ${MODEL_PATH})
 if [ "${BASE_MODEL}" = "r941_prom_sup_g5014" ] || [ "${BASE_MODEL}" = "r941_prom_hac_g5014" ] || [ "${BASE_MODEL}" = "ont_guppy5" ]; then PHASING_PCT=0.8; fi
+
+# use the default longphase binary path
+if [ "$(uname)" = "Darwin" ] && [ "${NO_PHASING}" == False ];  then echo -e "${WARNING} Mac arm64 system only support longphase for phasing, will enable it! ${NC}"; USE_LONGPHASE=True; fi
+if [ "${USE_LONGPHASE}" == True ] && [ "${LONGPHASE}" == "EMPTY" ]; then LONGPHASE="${SCRIPT_PATH}/longphase"; fi
+if [ "${USE_LONGPHASE}" == True ] && [ ! -f ${LONGPHASE} ]; then echo -e "${ERROR} Cannot find LongPhase path in ${LONGPHASE}, exit!${NC}"; exit 1; fi
 
 # remove the last '/' character in directory input
 OUTPUT_FOLDER=$(echo ${OUTPUT_FOLDER%*/})
@@ -220,13 +250,17 @@ echo "[INFO] PYTHON PATH: ${PYTHON}"
 echo "[INFO] PYPY PATH: ${PYPY}"
 echo "[INFO] PARALLEL PATH: ${PARALLEL}"
 echo "[INFO] WHATSHAP PATH: ${WHATSHAP}"
+echo "[INFO] LONGPHASE PATH: ${LONGPHASE}"
 echo "[INFO] CHUNK SIZE: ${CHUNK_SIZE}"
 if [ ${CHUNK_NUM} -gt 0 ]; then echo "[INFO] CHUNK NUM: ${CHUNK_NUM}"; fi
+if [ ${MIN_CONTIG_SIZE} -gt 0 ]; then echo "[INFO] MIN CONTIG SIZE: ${CHUNK_NUM}"; fi
 echo "[INFO] FULL ALIGN PROPORTION: ${PRO}"
 echo "[INFO] FULL ALIGN REFERENCE PROPORTION: ${REF_PRO}"
 echo "[INFO] PHASING PROPORTION: ${PHASING_PCT}"
-if [ "${SNP_AF}" != "0" ]; then echo "[INFO] USER DEFINED SNP THRESHOLD: ${SNP_AF}"; fi
-if [ "${INDEL_AF}" != "0" ]; then echo "[INFO] USER DEFINED INDEL THRESHOLD: ${INDEL_AF}"; fi
+echo "[INFO] MINIMUM MQ: ${MIN_MQ}"
+echo "[INFO] MINIMUM COVERAGE: ${MIN_COV}"
+echo "[INFO] SNP AF THRESHOLD: ${SNP_AF}"
+echo "[INFO] INDEL AF THRESHOLD: ${INDEL_AF}"
 echo "[INFO] ENABLE FILEUP ONLY CALLING: ${PILEUP_ONLY}"
 echo "[INFO] ENABLE FAST MODE CALLING: ${FAST_MODE}"
 echo "[INFO] ENABLE CALLING SNP CANDIDATES ONLY: ${SNP_ONLY}"
@@ -239,11 +273,13 @@ echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
 echo "[INFO] ENABLE REMOVING INTERMEDIATE FILES: ${RM_TMP_DIR}"
 echo "[INFO] ENABLE PHASING VCF OUTPUT: ${ENABLE_PHASING}"
 echo "[INFO] ENABLE LONG INDEL CALLING: ${ENABLE_LONG_INDEL}"
+echo "[INFO] ENABLE LONGPHASE_FOR_PHASING: ${USE_LONGPHASE}"
+echo "[INFO] ENABLE C_IMPLEMENT: ${ENABLE_C_IMPL}"
 echo $''
 
 # file check
 if [ ! -f ${BAM_FILE_PATH} ]; then echo -e "${ERROR} BAM file ${BAM_FILE_PATH} not found${NC}"; exit 1; fi
-if [ ! -f ${BAM_FILE_PATH}.bai ] && [ ! -f ${BAM_FILE_PATH%.*}.bai ]; then echo -e "${ERROR} BAM index bai file not found, please use 'samtools index \$BAM' first${NC}"; exit 1; fi
+if [ ! -f ${BAM_FILE_PATH}.bai ] && [ ! -f ${BAM_FILE_PATH%.*}.bai ] && [ ! -f ${BAM_FILE_PATH}.csi ] && [ ! -f ${BAM_FILE_PATH%.*}.csi ]; then echo -e "${ERROR} BAM index bai file not found, please use 'samtools index \$BAM' first${NC}"; exit 1; fi
 if [ ! -f ${REFERENCE_FILE_PATH} ]; then echo -e "${ERROR} Reference file ${REFERENCE_FILE_PATH} not found${NC}"; exit 1; fi
 if [ ! -f ${REFERENCE_FILE_PATH}.fai ] && [ ! -f ${REFERENCE_FILE_PATH%.*}.fai ]; then echo -e "${ERROR} Reference index fai file not found, please use 'samtools faidx \$REF' first${NC}"; exit 1; fi
 
@@ -253,7 +289,7 @@ if [ ! -d ${MODEL_PATH} ] && [ -z ${CONDA_PREFIX} ]; then echo -e "${ERROR} Cond
 if [ ! -d ${MODEL_PATH} ]; then echo -e "${ERROR} Model path not found${NC}"; exit 1; fi
 
 # max threads detection
-MAX_THREADS=$(nproc)
+if [ "$(uname)" = "Darwin" ]; then MAX_THREADS=$(sysctl -n hw.logicalcpu); else MAX_THREADS=$(nproc); fi
 if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( ${THREADS} <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
 if [[ ${THREADS} -gt ${MAX_THREADS} ]]; then echo -e "${WARNING} Threads setting exceeds maximum available threads ${MAX_THREADS}, set threads=${MAX_THREADS}${NC}"; THREADS=${MAX_THREADS}; fi
 
@@ -262,6 +298,7 @@ MAX_ULIMIT_THREADS=`ulimit -u`
 if [ ! -z ${MAX_ULIMIT_THREADS} ]; then PER_ULIMIT_THREADS=$((${MAX_ULIMIT_THREADS}/30)); else MAX_ULIMIT_THREADS="unlimited"; PER_ULIMIT_THREADS=${THREADS}; fi
 if [[ ${PER_ULIMIT_THREADS} < 1 ]]; then PER_ULIMIT_THREADS=1; fi
 if [ "${MAX_ULIMIT_THREADS}" != "unlimited" ] && [[ ${THREADS} -gt ${PER_ULIMIT_THREADS} ]]; then echo -e "${WARNING} Threads setting exceeds maximum ulimit threads ${THREADS} * 30 > ${MAX_ULIMIT_THREADS} (ulimit -u), set threads=${PER_ULIMIT_THREADS}${NC}"; THREADS=${PER_ULIMIT_THREADS}; fi
+
 
 # platform check
 if [ ! ${PLATFORM} = "ont" ] && [ ! ${PLATFORM} = "hifi" ] && [ ! ${PLATFORM} = "ilmn" ]; then echo -e "${ERROR} Invalid platform input, optional: {ont, hifi, ilmn}${NC}"; exit 1; fi
@@ -285,14 +322,26 @@ if [ -z ${REF_PRO} ]; then echo -e "${ERROR} Use '--ref_pct_full=FLOAT' instead 
 if [ -z ${PHASING_PCT} ]; then echo -e "${ERROR} Use '--var_pct_phasing=FLOAT' instead of '--var_pct_phasing FLOAT' for optional parameters${NC}"; exit 1 ; fi
 if [ -z ${PILEUP_PREFIX} ]; then echo -e "${ERROR} Use '--pileup_model_prefix=STR' instead of '--pileup_model_prefix STR' for optional parameters${NC}"; exit 1 ; fi
 if [ -z ${FA_PREFIX} ]; then echo -e "${ERROR} Use '--fa_model_prefix=STR' instead of '--fa_model_prefix STR' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${MIN_MQ} ]; then echo -e "${ERROR} Use '--min_mq=INT' instead of '--min_mq INT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${MIN_COV} ]; then echo -e "${ERROR} Use '--min_coverage=INT' instead of '--min_coverage INT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${MIN_CONTIG_SIZE} ]; then echo -e "${ERROR} Use '--min_contig_size=INT' instead of '--min_contig_size INT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${LONGPHASE} ]; then echo -e "${ERROR} Use '--longphase=STR' instead of '--longphase STR' for optional parameters${NC}"; exit 1 ; fi
+
+# min mapping quality, min coverage and min contig size detection
+if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( ${THREADS} <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
+if [[ ! ${MIN_MQ} =~ ^[\-0-9]+$ ]] || (( ${MIN_MQ} < 5)); then echo -e "${WARNING} Invalid minimum mapping quality input --min_mq>=5 ${NC}"; MIN_MQ=5; fi
+if [[ ! ${MIN_COV} =~ ^[\-0-9]+$ ]] || (( ${MIN_COV} < 2)); then echo -e "${WARNING} Invalid minimum coverage input --min_coverage>=2 ${NC}"; MIN_COV=2; fi
+if [[ ! ${MIN_CONTIG_SIZE} =~ ^[\-0-9]+$ ]] || (( ${MIN_CONTIG_SIZE} < 0)); then echo -e "${WARNING} Invalid minimum contig size --min_contig_size>=0 ${NC}"; MIN_CONTIG_SIZE=0; fi
 
 # model prefix detection
 if [ ! -f ${MODEL_PATH}/${PILEUP_PREFIX}.index ]; then echo -e "${ERROR} No pileup model found in provided model path and model prefix ${MODEL_PATH}/${PILEUP_PREFIX} ${NC}"; exit 1; fi
 if [ ! -f ${MODEL_PATH}/${FA_PREFIX}.index ]; then echo -e "${ERROR} No full-alignment model found in provided model path and model prefix ${MODEL_PATH}/${FA_PREFIX} ${NC}"; exit 1; fi
 
+CLAIR3_SCRIPT="clair3.sh"
+if [ "${ENABLE_C_IMPL}" == True ]; then CLAIR3_SCRIPT="clair3_c_impl.sh"; fi
 
 set -x
-${SCRIPT_PATH}/scripts/clair3.sh \
+${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --bam_fn ${BAM_FILE_PATH} \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --threads ${THREADS} \
@@ -316,6 +365,9 @@ ${SCRIPT_PATH}/scripts/clair3.sh \
     --var_pct_phasing=${PHASING_PCT} \
     --snp_min_af=${SNP_AF} \
     --indel_min_af=${INDEL_AF} \
+    --min_mq=${MIN_MQ} \
+    --min_coverage=${MIN_COV} \
+    --min_contig_size=${MIN_CONTIG_SIZE} \
     --pileup_only=${PILEUP_ONLY} \
     --gvcf=${GVCF} \
     --fast_mode=${FAST_MODE} \
@@ -329,7 +381,10 @@ ${SCRIPT_PATH}/scripts/clair3.sh \
     --fa_model_prefix=${FA_PREFIX} \
     --remove_intermediate_dir=${RM_TMP_DIR} \
     --enable_phasing=${ENABLE_PHASING} \
-    --enable_long_indel=${ENABLE_LONG_INDEL}
+    --enable_long_indel=${ENABLE_LONG_INDEL} \
+    --use_gpu=${USE_GPU} \
+    --longphase_for_phasing=${USE_LONGPHASE} \
+    --longphase=${LONGPHASE}
 
 
 )) |& tee ${OUTPUT_FOLDER}/run_clair3.log

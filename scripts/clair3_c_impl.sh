@@ -132,10 +132,9 @@ if [ "${PLATFORM}" = "ont" ]; then LP_PLATFORM="ont"; else LP_PLATFORM="pb"; fi
 cd ${OUTPUT_FOLDER}
 # Pileup calling
 #-----------------------------------------------------------------------------------------------------------------------
-export CUDA_VISIBLE_DEVICES=""
 echo "[INFO] 1/7 Call variants using pileup model"
 time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_call_var_bam_pileup.log -j ${THREADS_LOW} \
-"${PYTHON} ${CLAIR3} CallVarBam \
+"${PYTHON} ${CLAIR3} CallVariantsFromCffi \
     --chkpnt_fn ${PILEUP_CHECKPOINT_PATH} \
     --bam_fn ${BAM_FILE_PATH} \
     --call_fn ${PILEUP_VCF_PATH}/pileup_{1}_{2}.vcf \
@@ -156,11 +155,10 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
     --call_snp_only ${SNP_ONLY} \
     --gvcf ${GVCF} \
     --enable_long_indel ${ENABLE_LONG_INDEL} \
-    --python ${PYTHON} \
-    --pypy ${PYPY} \
     --samtools ${SAMTOOLS} \
     --temp_file_dir ${GVCF_TMP_PATH} \
-    --pileup" :::: ${OUTPUT_FOLDER}/tmp/CHUNK_LIST |& tee ${LOG_PATH}/1_call_var_bam_pileup.log
+    --pileup \
+    --use_gpu ${USE_GPU}" :::: ${OUTPUT_FOLDER}/tmp/CHUNK_LIST |& tee ${LOG_PATH}/1_call_var_bam_pileup.log
 
 ${PYPY} ${CLAIR3} SortVcf \
     --input_dir ${PILEUP_VCF_PATH} \
@@ -245,9 +243,9 @@ echo $''
 echo "[INFO] 6/7 Call low-quality variants using full-alignment model"
 cat ${CANDIDATE_BED_PATH}/FULL_ALN_FILE_* > ${CANDIDATE_BED_PATH}/FULL_ALN_FILES
 time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log -j ${THREADS_LOW} \
-"${PYTHON} ${CLAIR3} CallVarBam \
+"${PYTHON} ${CLAIR3} CallVariantsFromCffi \
     --chkpnt_fn ${FULL_ALIGNMENT_CHECKPOINT_PATH} \
-    --bam_fn ${PHASE_BAM_PATH}/{1/.}.bam \
+    --bam_fn ${BAM_FILE_PATH} \
     --call_fn ${FULL_ALIGNMENT_OUTPUT_PATH}/full_alignment_{1/}.vcf \
     --sampleName ${SAMPLE} \
     --vcf_fn ${VCF_FILE_PATH} \
@@ -255,14 +253,14 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_b
     --full_aln_regions {1} \
     --ctgName {1/.} \
     --add_indel_length \
-    --phasing_info_in_bam \
-    --gvcf ${GVCF} \
+    --no_phasing_for_fa ${NO_PHASING} \
     --minMQ ${MIN_MQ} \
     --minCoverage ${MIN_COV} \
+    --phased_vcf_fn ${PHASE_VCF_PATH}/phased_{/.}.vcf.gz \
+    --gvcf ${GVCF} \
     --enable_long_indel ${ENABLE_LONG_INDEL} \
-    --python ${PYTHON} \
-    --pypy ${PYPY} \
     --samtools ${SAMTOOLS} \
+    --use_gpu ${USE_GPU} \
     --platform ${PLATFORM}" :::: ${CANDIDATE_BED_PATH}/FULL_ALN_FILES |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
 
 ${PYPY} ${CLAIR3} SortVcf \

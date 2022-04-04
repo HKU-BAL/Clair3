@@ -3,6 +3,7 @@ import sys
 import argparse
 import shlex
 import subprocess
+import platform
 
 from collections import defaultdict
 from argparse import SUPPRESS
@@ -54,6 +55,9 @@ def check_python_path():
 def check_tools_version(tool_version, required_tool_version):
     for tool, version in tool_version.items():
         required_version = required_tool_version[tool]
+        # whatshap cannot be installed in Mac arm64 system
+        if platform.system() == "Darwin" and tool == 'whatshap':
+            continue
         if version is None:
             print(log_error("[ERROR] {} not found, please check you are in clair3 virtual environment".format(tool)))
             check_python_path()
@@ -202,7 +206,10 @@ def CheckEnvs(args):
     bam_fn = file_path_from(args.bam_fn, exit_on_not_found=True)
     ref_fn = file_path_from(args.ref_fn, exit_on_not_found=True)
     fai_fn = file_path_from(args.ref_fn, suffix=".fai", exit_on_not_found=True, sep='.')
-    bai_fn = file_path_from(args.bam_fn, suffix=".bai", exit_on_not_found=True, sep='.')
+    bai_fn = file_path_from(args.bam_fn, suffix=".bai", sep='.')
+    csi_fn = file_path_from(args.bam_fn, suffix=".csi", sep='.')
+    if bai_fn is None and csi_fn is None:
+        sys.exit(log_error("[ERROR] Neither Bam index file {} or {} not found".format(file_name + '.bai', file_name + '.csi')))
     bed_fn = file_path_from(args.bed_fn)
     vcf_fn = file_path_from(args.vcf_fn)
     tree = bed_tree_from(bed_file_path=bed_fn)
@@ -235,6 +242,7 @@ def CheckEnvs(args):
     ref_pct_full = args.ref_pct_full
     snp_min_af = args.snp_min_af
     indel_min_af = args.indel_min_af
+    min_contig_size = args.min_contig_size
     sample_name = args.sampleName
     contig_name_list = os.path.join(tmp_file_path, 'CONTIGS')
     chunk_list = os.path.join(tmp_file_path, 'CHUNK_LIST')
@@ -296,18 +304,6 @@ def CheckEnvs(args):
     contig_length_list = []
     contig_chunk_num = {}
 
-    threads = args.threads
-    sched_getaffinity_list = list(os.sched_getaffinity(0))
-    numCpus = len(sched_getaffinity_list)
-
-    if threads > numCpus:
-        print(log_warning(
-            '[WARNING] Current maximum threads {} is larger than support cpu count {}, You may set a smaller parallel threads by setting --threads=$ for better parallelism.'.format(
-                threads, numCpus)))
-
-    ## for better parallelism for create tensor and call variants, we over commit the overall threads/4 for 3 times, which is 0.75 * overall threads.
-    threads_over_commit = max(4, int(threads * 0.75))
-
     with open(fai_fn, 'r') as fai_fp:
         for row in fai_fp:
             columns = row.strip().split("\t")
@@ -324,6 +320,12 @@ def CheckEnvs(args):
             if is_known_vcf_file_provided and contig_name not in contig_set:
                 continue
 
+            if min_contig_size > 0 and contig_length < min_contig_size:
+                print(log_warning(
+                    "[WARNING] {} contig length {} is smaller than minimum contig size {}, will skip it!".format(contig_name, contig_length, min_contig_size)))
+                if contig_name in contig_set:
+                    contig_set.remove(contig_name)
+                continue
             contig_set.add(contig_name)
             contig_length_list.append(contig_length)
             chunk_num = int(
@@ -465,6 +467,9 @@ def main():
                         help="Minimum SNP allele frequency for a site to be considered as a candidate site, default: %(default)f")
 
     parser.add_argument('--indel_min_af', type=float, default=0.08,
+                        help="Minimum Indel allele frequency for a site to be considered as a candidate site, default: %(default)f")
+
+    parser.add_argument('--min_contig_size', type=int, default=0,
                         help="Minimum Indel allele frequency for a site to be considered as a candidate site, default: %(default)f")
 
     # options for internal process control

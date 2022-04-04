@@ -9,6 +9,7 @@ from os.path import dirname
 from time import sleep
 from argparse import ArgumentParser, SUPPRESS
 import logging
+from platform import machine, system
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -130,20 +131,23 @@ def Run(args):
         chunk_id = CommandOption('chunk_id', args.chunk_id)
         chunk_num = CommandOption('chunk_num', args.chunk_num)
 
-    sched_getaffinity_list = list(os.sched_getaffinity(0))
-    maxCpus = len(sched_getaffinity_list)
-    if args.tensorflow_threads is None:
-        numCpus = maxCpus
-    else:
-        numCpus = args.tensorflow_threads if args.tensorflow_threads < maxCpus else maxCpus
-
-    _cpuSet = ",".join(str(x) for x in random.sample(sched_getaffinity_list, numCpus))
-
-    taskSet = "taskset -c %s" % (_cpuSet)
-    try:
-        subprocess.check_output("which %s" % ("taskset"), shell=True)
-    except:
+    if machine() in {"aarch64", "arm64"} or system() == "Darwin":
         taskSet = ""
+    else:
+        sched_getaffinity_list = list(os.sched_getaffinity(0))
+        maxCpus = len(sched_getaffinity_list)
+        if args.tensorflow_threads is None:
+            numCpus = maxCpus
+        else:
+            numCpus = args.tensorflow_threads if args.tensorflow_threads < maxCpus else maxCpus
+
+        _cpuSet = ",".join(str(x) for x in random.sample(sched_getaffinity_list, numCpus))
+
+        taskSet = "taskset -c %s" % (_cpuSet)
+        try:
+            subprocess.check_output("which %s" % ("taskset"), shell=True)
+        except:
+            taskSet = ""
 
     if need_realignment:
         realign_reads_command_options = [
@@ -176,6 +180,8 @@ def Run(args):
         CommandOption('bed_fn', bed_fn),
         CommandOption('extend_bed', extend_bed),
         CommandOption('sampleName', args.sampleName),
+        CommandOption('minCoverage', args.minCoverage),
+        CommandOption('minMQ', args.minMQ),
         ctgStart,
         ctgEnd,
         chunk_id,
@@ -347,7 +353,7 @@ def main():
     parser.add_argument('--fast_mode', type=str2bool, default=False,
                         help="EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: %(default)s")
 
-    parser.add_argument('--minCoverage', type=float, default=param.min_coverage,
+    parser.add_argument('--minCoverage', type=int, default=param.min_coverage,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
     parser.add_argument('--minMQ', type=int, default=param.min_mq,

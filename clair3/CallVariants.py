@@ -1,7 +1,6 @@
 import sys
 import os
 import math
-import tables
 import tensorflow as tf
 import numpy as np
 import logging
@@ -17,6 +16,7 @@ from clair3.task.gt21 import (
     HETERO_SNP_GT21, HETERO_SNP_LABELS, GT21_LABELS, partial_label_from, mix_two_partial_labels
 )
 import clair3.utils as utils
+import shared.param_p as param
 from clair3.task.genotype import Genotype, genotype_string_from, genotype_enum_from, genotype_enum_for_task
 from shared.utils import IUPAC_base_to_ACGT_base_dict as BASE2ACGT, BASIC_BASES, str2bool, file_path_from, log_error, log_warning
 from clair3.task.variant_length import VariantLength
@@ -1114,7 +1114,8 @@ def output_with(
     chromosome, position, reference_sequence = chr_pos_seq.rstrip().split(':')
     position = int(position)
 
-    tensor_position_center = param.flankingBaseNum
+    # only store the centered reference base for C implment for efficiency
+    tensor_position_center = param.flankingBaseNum if len(reference_sequence) > 1 else 0
     information_string = "P" if output_config.pileup else 'F'
 
     if type(alt_info) == np.memmap:
@@ -1527,6 +1528,7 @@ def call_variants(args, output_config, output_utilities):
         if full_alignment_mode and total == 0:
             logging.info(log_error("[ERROR] No full-alignment output for file {}/{}".format(args.ctgName, args.call_fn)))
     else:
+        import tables
         dataset = tables.open_file(args.tensor_fn, 'r').root
         batch_size = param.predictBatchSize
         dataset_size = len(dataset.label)
@@ -1710,6 +1712,7 @@ def predict(args, output_config, output_utilities):
         logging.info("Total process positions: {}".format(total))
 
     else:
+        import tables
         if not os.path.exists(args.tensor_fn):
             logging.info("skip {}, not existing chunk_id".format(args.tensor_fn))
             return
