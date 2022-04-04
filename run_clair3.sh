@@ -1,8 +1,8 @@
 #!/bin/bash
 SCRIPT_NAME=$(basename "$0")
-SCRIPT_PATH=`dirname "$0"`
+SCRIPT_PATH=$(dirname $(readlink -f "$0"))
 VERSION='v0.1-r11'
-Usage="Usage: ./${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
+Usage="Usage: ${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
 set -e
 #./run_clair3.sh -b tmp.bam -f ref.fasta -t 32 -o tmp -p ont -m model_path
@@ -50,7 +50,7 @@ print_help_messages()
     echo $'      --fa_model_prefix=STR     EXPERIMENTAL: Model prefix in full-alignment calling, including $prefix.data-00000-of-00002, $prefix.data-00001-of-00002 $prefix.index, default: full_alignment.'
     echo $'      --min_mq=INT              EXPERIMENTAL: If set, reads with mapping quality with <$min_mq are filtered, default: 5.'
     echo $'      --min_coverage=INT        EXPERIMENTAL: Minimum coverage required to call a variant, default: 2.'
-    echo $'      --min_contig_size=INT     EXPERIMENTAL: If set, contigs with contig size<=$min_contig_size are filtered, default: 0.'
+    echo $'      --min_contig_size=INT     EXPERIMENTAL: If set, contigs with contig size<$min_contig_size are filtered, default: 0.'
     echo $'      --fast_mode               EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.'
     echo $'      --haploid_precise         EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant, default: disable.'
     echo $'      --haploid_sensitive       EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.'
