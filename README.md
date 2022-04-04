@@ -58,7 +58,7 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 
 *v0.1-r11 (Apr 4)* : 1. Variant calling ~2.5x faster than `v0.1-r10` tested with ONT Q20 data, with feature generation in both pileup and full-alignment now implemented in C (co-contributors @[cjw85](https://github.com/cjw85), @[ftostevin-ont](https://github.com/ftostevin-ont), @[EpiSlim](https://github.com/EpiSlim)). 2. Added the lightning-fast [longphase](https://github.com/twolinin/longphase) as an option for phasing. Enable using `longphase` with option `--longphase_for_phasing`. New option disabled by default to align with the default behavior of the previous versions, but we recommend enable when calling human variants with ≥20x long-reads). 3. Added `--min_coverage` and `--min_mq` options ([#83](https://github.com/HKU-BAL/Clair3/issues/83)). 4. Added `--min_contig_size` option to skip calling variants in short contigs when using genome assembly as input. 4. Reads haplotagging after phasing before full-alignment calling now integrated into full-alignment calling to avoid generating an intermediate BAM file. 5. Supported .`csi` BAM index for large references ([#90](https://github.com/HKU-BAL/Clair3/issues/90)). For more speedup details, please check [Notes on r11](docs/v0.1_r11_speedup.md).
 
-*v0.1-r10 (Jan 13)* : 1. Added a new ONT Guppy5 model  (`r941_prom_sup_g5014`). Click [here](docs/guppy5_20220113.md) for some benchmarking results. This `sup` model is also applicable to reads called using the `hac` and `fast` mode. The old `r941_prom_sup_g506` model that was fine-tuned from the Guppy3,4 model is obsoleted. 2. Added `--var_pct_phasing` option to control the percentage of top ranked heterozygous pile-up variants used for WhatsHap phasing.
+*v0.1-r10 (Jan 13, 2022)* : 1. Added a new ONT Guppy5 model  (`r941_prom_sup_g5014`). Click [here](docs/guppy5_20220113.md) for some benchmarking results. This `sup` model is also applicable to reads called using the `hac` and `fast` mode. The old `r941_prom_sup_g506` model that was fine-tuned from the Guppy3,4 model is obsoleted. 2. Added `--var_pct_phasing` option to control the percentage of top ranked heterozygous pile-up variants used for WhatsHap phasing.
 
 *v0.1-r9 (Dec 1)* : Added the `--enable_long_indel` option to output indel variant calls >50bp ([#64](https://github.com/HKU-BAL/Clair3/issues/64)), Click [here](https://github.com/HKU-BAL/Clair3/blob/main/docs/indel_gt50_performance.md) to see more benchmarking results.
 
@@ -80,7 +80,7 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 
 *v0.1-r1 (May 18)* : 1. Support relative path in Conda, but Docker and Singularity still require absolute path ([#5](https://github.com/HKU-BAL/Clair3/issues/5)). 2. Fix `taskset` CPU-core visibility and provide a Singularity image ([#6](https://github.com/HKU-BAL/Clair3/issues/6)).
 
-*v0.1 (May 17)*: Initial release.
+*v0.1 (May 17, 2021)*: Initial release.
 
 ---
 
