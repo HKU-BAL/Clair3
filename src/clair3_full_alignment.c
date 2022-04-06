@@ -58,7 +58,7 @@ void destroy_fa_data(fa_data data)
     free(data);
 }
 
-void sort_read_name_by_haplotype(HAP *read_hap_array, int *matrix_read_index_array, size_t n)
+void sort_read_name_by_haplotype(HAP *read_hap_array, int *matrix_read_index_array, size_t matrix_depth, size_t n)
 {
 
     size_t read_num = min(n, matrix_depth);
@@ -374,7 +374,8 @@ size_t get_overlap_candidate_num(size_t read_start, size_t read_end, size_t cand
     return overlap_num;
 }
 
-fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging)
+fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging, \
+size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
 {
 
     int start, end;
@@ -689,7 +690,7 @@ fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path
             read_hap_array[overlap_read_num++].haplotype = read.haplotype;
         }
 
-        sort_read_name_by_haplotype(&read_hap_array, &matrix_read_index_array, overlap_read_num);
+        sort_read_name_by_haplotype(&read_hap_array, &matrix_read_index_array, matrix_depth, overlap_read_num);
 
         // loop each overlapped read of a candidate
         for (size_t d = 0; d < matrix_depth; d++)
@@ -834,7 +835,7 @@ fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path
             {
                 char *key = kh_key(pos_alt_info[i].ins_counter, k);
                 int val = kh_val(pos_alt_info[i].ins_counter, k);
-                if (strlen(key) <= MAX_INDEL_LENGTH)
+                if (strlen(key) <= max_indel_length)
                 {
                     if (strlen(alt_info_str) + strlen(key) + 32 >= max_alt_length)
                     {
@@ -853,7 +854,7 @@ fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path
             {
                 int key = kh_key(pos_alt_info[i].del_counter, k);
                 int val = kh_val(pos_alt_info[i].del_counter, k);
-                if (key <= MAX_INDEL_LENGTH)
+                if (key <= max_indel_length)
                 {
                     if (strlen(alt_info_str) + key + 32 >= max_alt_length)
                     {

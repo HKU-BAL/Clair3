@@ -20,10 +20,7 @@ static const size_t expand_reference_region = 2000000;
 static const size_t flanking_base_num = 16;
 static const size_t no_of_positions = 33;
 static const size_t channel_size = 8;
-static const size_t matrix_depth = 89;
-static const size_t min_coverage = 2;
 static const size_t min_bq = 0;
-static const size_t min_mq = 5;
 static const size_t SAMTOOLS_VIEW_FILTER_FLAG = 2316;
 static const size_t MAX_READ_COUNT = 1000;
 static const size_t MAX_INDEL_LENGTH = 50;
@@ -196,7 +193,7 @@ void destroy_fa_data(fa_data data);
  *  @returns void.
  *
  */
-void sort_read_name_by_haplotype(HAP *read_hap_array, int *matrix_read_index_array, size_t n);
+void sort_read_name_by_haplotype(HAP *read_hap_array, int *matrix_read_index_array, size_t matrix_depth, size_t n);
 
 /** get all overlapped flanking candidates number and start position based on read start and read end
  *
@@ -252,6 +249,6 @@ int haplotag_read(Variants_info *variants_info, Read *read, char *ref_seq, size_
  *  The return value can be freed with destroy_fa_data
  *
  */
-fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging);
+fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging, size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length);
 
 #endif

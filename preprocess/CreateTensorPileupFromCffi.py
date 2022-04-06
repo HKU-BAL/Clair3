@@ -264,7 +264,7 @@ def CreateTensorPileup(args):
     is_extend_bed_file_given = extend_bed is not None
     fast_mode = args.fast_mode
     call_snp_only = args.call_snp_only
-    # enable_long_indel = args.enable_long_indel
+    enable_long_indel = args.enable_long_indel
     # 1-based regions [start, end] (start and end inclusive)
     tree, bed_start, bed_end = bed_tree_from(bed_file_path=extend_bed,
                                              contig_name=ctg_name,
@@ -275,7 +275,7 @@ def CreateTensorPileup(args):
     fast_mode = platform == 'ont' and fast_mode
     minimum_snp_af_for_candidate = max(minimum_snp_af_for_candidate, param.min_af_dict[platform]) if fast_mode else minimum_snp_af_for_candidate
     min_coverage = max(min_coverage, 4) if fast_mode else min_coverage
-    max_indel_length = param.maximum_variant_length_that_need_infer #if not enable_long_indel else param.maximum_variant_length_that_need_infer_include_long_indel
+    max_indel_length = param.maximum_variant_length_that_need_infer if not enable_long_indel else param.maximum_variant_length_that_need_infer_include_long_indel
 
     if not is_confident_bed_file_given and chunk_id is not None:
         contig_length = 0
