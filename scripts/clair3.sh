@@ -223,6 +223,17 @@ else
     fi
     ${PARALLEL} -j${THREADS} tabix -f -p vcf ${PHASE_VCF_PATH}/phased_{}.vcf.gz ::: ${CHR[@]}
 
+    echo $''
+    echo "[INFO] 4/7 Haplotag input BAM file using Whatshap"
+    time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_4_haplotag.log -j${THREADS} \
+    "${WHATSHAP} haplotag \
+        --output ${PHASE_BAM_PATH}/{1}.bam \
+        --reference ${REFERENCE_FILE_PATH} \
+        --ignore-read-groups \
+        --regions {1} \
+        ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
+        ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/4_haplotag.log
+    ${PARALLEL} -j${THREADS} ${SAMTOOLS} index -@12 ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
 fi
 
 # Full alignment calling
