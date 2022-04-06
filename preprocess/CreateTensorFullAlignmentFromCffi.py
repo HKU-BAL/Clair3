@@ -27,7 +27,9 @@ def CreateTensorFullAlignment(args):
     extend_bp = param.extend_bp
     platform = args.platform
     phased_vcf_fn = args.phased_vcf_fn
-
+    min_mapping_quality = args.minMQ
+    min_base_quality = args.minBQ
+    enable_long_indel = args.enable_long_indel
     extend_bed = file_path_from(args.extend_bed)
     is_extend_bed_file_given = extend_bed is not None
     confident_bed_fn = file_path_from(args.bed_fn)
@@ -36,6 +38,8 @@ def CreateTensorFullAlignment(args):
     # we would't haplotag reads if --no_phasing_for_fa option is enabled
     need_haplotagging = args.no_phasing_for_fa is not True
     candidates_set = set()
+    matrix_depth = param.matrix_depth_dict[platform]
+    max_indel_length = param.maximum_variant_length_that_need_infer if not enable_long_indel else param.maximum_variant_length_that_need_infer_include_long_indel
 
     if full_aln_regions:
 
@@ -58,8 +62,6 @@ def CreateTensorFullAlignment(args):
             ctg_start = min(position, ctg_start)
             ctg_end = max(end, ctg_end)
 
-            if platform == "ilmn":
-                continue
             if len(row) > 3:  # hete snp positions
                 center_pos = position + extend_bp + 1
                 ref_base, alt_base, genotype, phase_set = row[3].split('-')
@@ -109,7 +111,8 @@ def CreateTensorFullAlignment(args):
     candidates = libclair3.ffi.new("size_t [{}]".format(candidate_num), candidates_list)
 
     fa_data = libclair3.lib.calculate_clair3_full_alignment(region_str, bam_file_path.encode(), fasta_file_path.encode(),
-                                                      Variants, variant_num, candidates, candidate_num, need_haplotagging)
+                                                      Variants, variant_num, candidates, candidate_num, need_haplotagging,
+                                                            min_mapping_quality, min_base_quality, matrix_depth, max_indel_length)
 
     # use np buffer to get the matrix
     matrix_depth = param.matrix_depth_dict[platform]

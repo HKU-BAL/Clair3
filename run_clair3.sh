@@ -225,8 +225,10 @@ if [ "${BASE_MODEL}" = "r941_prom_sup_g5014" ] || [ "${BASE_MODEL}" = "r941_prom
 
 # use the default longphase binary path
 if [ "$(uname)" = "Darwin" ] && [ "${NO_PHASING}" == False ];  then echo -e "${WARNING} Mac arm64 system only support longphase for phasing, will enable it! ${NC}"; USE_LONGPHASE=True; fi
+if [ "$(uname)" = "Darwin" ] && [ "${PLATFORM}" = "ilmn" ] && [ "${NO_PHASING}" == False ];  then echo -e "${WARNING} Illumina platform do not support phasing in Mac arm64, will disable phasing it! ${NC}"; NO_PHASING=True; USE_LONGPHASE=False; fi
 if [ "${USE_LONGPHASE}" == True ] && [ "${LONGPHASE}" == "EMPTY" ]; then LONGPHASE="${SCRIPT_PATH}/longphase"; fi
 if [ "${USE_LONGPHASE}" == True ] && [ ! -f ${LONGPHASE} ]; then echo -e "${ERROR} Cannot find LongPhase path in ${LONGPHASE}, exit!${NC}"; exit 1; fi
+if [ "${USE_LONGPHASE}" == True ] && [ "${PLATFORM}" = "ilmn" ]; then echo -e "${WARNING} Illumina platform do not support longphase phasing, will enable whatshap phasing! ${NC}";  USE_LONGPHASE=False; fi
 
 # remove the last '/' character in directory input
 OUTPUT_FOLDER=$(echo ${OUTPUT_FOLDER%*/})
@@ -338,6 +340,7 @@ if [ ! -f ${MODEL_PATH}/${PILEUP_PREFIX}.index ]; then echo -e "${ERROR} No pile
 if [ ! -f ${MODEL_PATH}/${FA_PREFIX}.index ]; then echo -e "${ERROR} No full-alignment model found in provided model path and model prefix ${MODEL_PATH}/${FA_PREFIX} ${NC}"; exit 1; fi
 
 CLAIR3_SCRIPT="clair3.sh"
+if [ "${ENABLE_C_IMPL}" == True ] && [ "${PLATFORM}" = "ilmn" ]; then echo -e "${WARNING} Illumina platform will disable C implement to support short read realignment process! ${NC}";  ENABLE_C_IMPL=False; fi
 if [ "${ENABLE_C_IMPL}" == True ]; then CLAIR3_SCRIPT="clair3_c_impl.sh"; fi
 
 set -x
