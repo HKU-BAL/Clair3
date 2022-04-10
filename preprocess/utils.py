@@ -40,9 +40,6 @@ class compressReaderWriter(object):
     def read_input(self):
         if self.compress:
             self.read_proc = subprocess_popen(shlex.split("{} {}".format(LZ4_DECOMPRESS, self.input_path)), stderr=subprocess.DEVNULL)
-            a = subprocess_popen(shlex.split("{} {}".format(LZ4_DECOMPRESS, self.input_path)), stderr=subprocess.DEVNULL)
-            streamdata = a.communicate()[0]
-            rc = a.returncode
             self.reader = self.read_proc.stdout
         else:
             self.reader = open(self.input_path, 'r')
