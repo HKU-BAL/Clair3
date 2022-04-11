@@ -394,7 +394,6 @@ def CreateTensorPileup(args):
             ref_count = gvcf_output[0][pos - extend_start + offset]
             total_count = gvcf_output[1][pos - extend_start + offset]
             if pos -reference_start >= len(reference_sequence):
-                print(pos, reference_start, reference_end, len(reference_sequence))
                 continue
             reference_base = reference_sequence[pos-reference_start]
             if (ref_count == 0 and total_count == 0):
