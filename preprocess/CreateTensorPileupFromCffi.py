@@ -382,9 +382,15 @@ def CreateTensorPileup(args):
             regions=ref_regions
         )
 
-        empty_pileup_flag = True
+        offset = 0 if ctg_start == 1 else 1
+        empty_pileup_flag = False
+        start = ctg_start - extend_start + offset
+        end = ctg_end + 1 - extend_start + offset
+        if sum(gvcf_output[1][start:end]) == 0:
+            empty_pileup_flag = True
         for pos in range(ctg_start, ctg_end + 1):
-            offset = 0 if ctg_start == 1 else 1 
+            if empty_pileup_flag:
+                break
             ref_count = gvcf_output[0][pos - extend_start + offset]
             total_count = gvcf_output[1][pos - extend_start + offset]
             if pos -reference_start >= len(reference_sequence):
@@ -396,7 +402,6 @@ def CreateTensorPileup(args):
                 nonVariantCaller.make_gvcf_online(cur_site_info)
                 continue
 
-            empty_pileup_flag = False
             cur_site_info = {'chr': ctg_name, 'pos': pos, 'ref': reference_base, 'n_total': total_count,
                              'n_ref': ref_count}
             nonVariantCaller.make_gvcf_online(cur_site_info)
