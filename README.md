@@ -56,7 +56,7 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 
 ## Latest Updates
 
-*v0.1-r11 minor 2 (Apr 16)* : 1. fixed a bug in GVCF output that might miss non-variant positions when chunk start and chunk_end overlaps in different chunks.
+*v0.1-r11 minor 2 (Apr 16)* : 1. fixed a bug in GVCF output that might miss non-variant positions when the chunk start and the chunk end overlaps in different chunks.
 
 *v0.1-r11 minor 1 (Apr 11)* : 1. fixed a bug in GVCF output that consumes too much memory for caching, now GVCF output mode takes amount of memory similar to VCF ([#88](https://github.com/HKU-BAL/Clair3/issues/88)).
 
