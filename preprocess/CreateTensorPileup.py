@@ -336,7 +336,7 @@ def CreateTensorPileup(args):
             if not valid_reference_flag:
                 nonVariantCaller.make_gvcf_online({}, push_current=True)
             if ctg_start != None and ctg_end != None:
-                within_flag = pos >= ctg_start and pos <= ctg_end
+                within_flag = pos >= ctg_start and pos < ctg_end
             elif ctg_start != None and ctg_end == None:
                 within_flag = pos >= ctg_start
             elif ctg_start == None and ctg_end != None:

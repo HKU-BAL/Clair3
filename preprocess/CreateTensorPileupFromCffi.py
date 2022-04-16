@@ -388,7 +388,7 @@ def CreateTensorPileup(args):
         end = ctg_end + 1 - extend_start + offset
         if sum(gvcf_output[1][start:end]) == 0:
             empty_pileup_flag = True
-        for pos in range(ctg_start, ctg_end + 1):
+        for pos in range(ctg_start, ctg_end):
             if empty_pileup_flag:
                 break
             ref_count = gvcf_output[0][pos - extend_start + offset]

@@ -685,7 +685,7 @@ def CreateTensorFullAlignment(args):
             raw_base_quality = columns[5]
             read_name_list = columns[6].split(',')
             raw_mapping_quality = columns[7]
-            reference_base = evc_base_from(reference_sequence[pos - reference_start].upper())  # ev
+            reference_base = reference_sequence[pos - reference_start].upper()
             base_list, depth, pass_af, af = decode_pileup_bases(pileup_bases=pileup_bases,
                                                                 reference_base=reference_base,
                                                                 minimum_af_for_candidate=minimum_af_for_candidate,
