@@ -5,6 +5,7 @@ from argparse import ArgumentParser, SUPPRESS
 import tables
 
 import clair3.utils as utils
+FILTERS = tables.Filters(complib='blosc:lz4hc', complevel=5)
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 
@@ -29,12 +30,12 @@ def Run(args):
     int_atom = tables.Atom.from_dtype(np.dtype(float_type))
     string_atom = tables.StringAtom(itemsize=param.no_of_positions + 50)
     long_string_atom = tables.StringAtom(itemsize=5000)  # max alt_info length
-    table_file = tables.open_file(out_fn, mode='w', filters=utils.FILTERS)
+    table_file = tables.open_file(out_fn, mode='w', filters=FILTERS)
     table_file.create_earray(where='/', name='position_matrix', atom=int_atom, shape=[0] + tensor_shape,
-                             filters=utils.FILTERS)
-    table_file.create_earray(where='/', name='position', atom=string_atom, shape=(0, 1), filters=utils.FILTERS)
-    table_file.create_earray(where='/', name='label', atom=int_atom, shape=(0, param.label_size), filters=utils.FILTERS)
-    table_file.create_earray(where='/', name='alt_info', atom=long_string_atom, shape=(0, 1), filters=utils.FILTERS)
+                             filters=FILTERS)
+    table_file.create_earray(where='/', name='position', atom=string_atom, shape=(0, 1), filters=FILTERS)
+    table_file.create_earray(where='/', name='label', atom=int_atom, shape=(0, param.label_size), filters=FILTERS)
+    table_file.create_earray(where='/', name='alt_info', atom=long_string_atom, shape=(0, 1), filters=FILTERS)
 
     table_dict = utils.update_table_dict()
     total_compressed = 0
