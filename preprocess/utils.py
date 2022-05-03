@@ -79,7 +79,8 @@ class gvcfGenerator(object):
         self.samtools = samtools
         pass
 
-    def readCalls(self, callPath, callType='variant', ctgName=None, ctgStart=None, ctgEnd=None, add_header=False, writer=None):
+    def readCalls(self, callPath, callType='variant', ctgName=None, ctgStart=None, ctgEnd=None, add_header=False, \
+                  writer=None, haploid_calling=False):
 
         CR = compressReaderWriter(input_path=callPath, compress=COMPRESS_GVCF)
         reader = CR.read_input()
@@ -101,6 +102,12 @@ class gvcfGenerator(object):
                 if ((ctgName and cur_non_variant_chr == ctgName) or (not ctgName)):
                     if ((ctgStart and cur_non_variant_start >= ctgStart) or (not ctgStart)):
                         if ((ctgEnd and cur_non_variant_end <= ctgEnd) or (not ctgEnd)):
+                            if haploid_calling:
+                                columns = line.rstrip('\n').split('\t')
+                                info = columns[-1].split(':')
+                                info[0] = info[0].replace('0/0', '0').replace('./.', '.')
+                                columns[-1] = ':'.join(info)
+                                line = '\t'.join(columns)
                             yield line.strip('\n'), cur_non_variant_start, cur_non_variant_end, 'original'
             else:
                 # for variant calls, return "pos"
@@ -179,7 +186,7 @@ class gvcfGenerator(object):
         else:
             print(curNonVarCall, file=save_writer)
     def mergeCalls(self, variantCallPath, nonVarCallPath, savePath, sampleName, ctgName=None, ctgStart=None,
-                   ctgEnd=None):
+                   ctgEnd=None, haploid_calling=False):
 
         '''
         merge calls between variant and non-variant
@@ -193,7 +200,7 @@ class gvcfGenerator(object):
         save_writer = CW.write_output()
 
         varCallGenerator = self.readCalls(variantCallPath, 'variant', ctgName, ctgStart, ctgEnd)
-        nonVarCallGenerator = self.readCalls(nonVarCallPath, 'non-variant', ctgName, ctgStart, ctgEnd, add_header=True, writer=save_writer)
+        nonVarCallGenerator = self.readCalls(nonVarCallPath, 'non-variant', ctgName, ctgStart, ctgEnd, add_header=True, writer=save_writer, haploid_calling=haploid_calling)
         hasVar = True
         # in case of empty file
         try:

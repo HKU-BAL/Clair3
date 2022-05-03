@@ -265,14 +265,15 @@ def mergeNonVariant(args):
     gvcf_generator = gvcfGenerator(ref_path=args.ref_fn, samtools=args.samtools)
     raw_gvcf_path = args.non_var_gvcf_fn
     raw_vcf_path = args.output_fn
-    
+
+    haploid_calling = args.haploid_precise or args.haploid_sensitive
     if (args.gvcf_fn == None):
         save_path = args.call_fn.split('.')[0] + '.g.vcf'
     else:
         save_path = args.gvcf_fn
         logging.info("[INFO] Merge variants and non-variants to GVCF")
         gvcf_generator.mergeCalls(raw_vcf_path, raw_gvcf_path, save_path, args.sampleName, args.ctgName, args.ctgStart,
-                                  args.ctgEnd)
+                                  args.ctgEnd, haploid_calling)
     pass
 
 
