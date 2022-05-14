@@ -674,6 +674,11 @@ def CreateTensorFullAlignment(args):
         for row in samtools_mpileup_process.stdout:  # chr position N depth seq BQ read_name mapping_quality phasing_info
             columns = row.strip().split('\t')
             pos = int(columns[1])
+
+            #https://github.com/HKU-BAL/Clair3/issues/105 skip realigned position out of reference sequence for illumina platform
+            if platform == 'ilmn' and (pos < reference_start + flanking_base_num or pos > reference_end - flanking_base_num + 1):
+                continue
+
             # pos that near bed region should include some indel cover in bed
             pass_extend_bed = not is_extend_bed_file_given or is_region_in(extend_bed_tree,
                                                                                      ctg_name, pos - 1,
