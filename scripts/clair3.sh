@@ -254,6 +254,7 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_5_select_can
 
 echo $''
 echo "[INFO] 6/7 Call low-quality variants using full-alignment model"
+if [ "$( ls ${CANDIDATE_BED_PATH}/FULL_ALN_FILE_* | wc -l )" -eq 0 ]; then echo "[INFO] No Candidate found! Exit in selecting full-alignment candidates"; exit 0; fi
 cat ${CANDIDATE_BED_PATH}/FULL_ALN_FILE_* > ${CANDIDATE_BED_PATH}/FULL_ALN_FILES
 time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log -j ${THREADS_LOW} \
 "${PYTHON} ${CLAIR3} CallVarBam \
