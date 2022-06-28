@@ -274,6 +274,7 @@ def output_utilties_from(
             ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
             ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Read depth for each allele">
             ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
+            ##FORMAT=<ID=QD,Number=1,Type=Float,Description="Phred-scaled QUAL score normalized by allele depth">
             ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">"""
                       ))
 
@@ -1345,7 +1346,13 @@ def output_with(
                 PLs
             ))
         else:
-            output_utilities.output("%s\t%d\t.\t%s\t%s\t%.2f\t%s\t%s\tGT:GQ:DP:AF\t%s:%d:%d:%.4f" % (
+            # allele depth
+            ad_alt = ',' + ','.join([str(item) for item in alt_list_count])
+            allele_depth = str(ref_count) + (ad_alt if len(alt_list_count) else "")
+
+            QD = (quality_score / float(read_depth)) if read_depth > 0 else 0.0
+
+            output_utilities.output("%s\t%d\t.\t%s\t%s\t%.2f\t%s\t%s\tGT:GQ:DP:AD:AF:QD\t%s:%d:%d:%s:%.4f:%.4f" % (
                 chromosome,
                 position,
                 reference_base,
@@ -1356,7 +1363,9 @@ def output_with(
                 genotype_string,
                 quality_score,
                 read_depth,
-                allele_frequency
+                allele_depth,
+                allele_frequency,
+                QD
             ))
 
 
