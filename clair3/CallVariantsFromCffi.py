@@ -131,6 +131,14 @@ def call_variants_from_cffi(args, output_config, output_utilities):
 
     for (X, position, alt_info_list) in tensor_generator:
             total += len(X)
+            if args.pileup:
+                for alt_idx, alt_info in enumerate(alt_info_list):
+                    depth = int(alt_info.split('-', maxsplit=1)[0])
+                    max_depth = param.max_depth_dict[args.platform]
+                    # for extreme high coverage data, make sure we could have a truncated coverage
+                    if depth > 0 and depth > max_depth * 1.5:
+                        scale_factor = depth / max_depth
+                        X[alt_idx] = X[alt_idx] / scale_factor
 
             if use_gpu:
                 inputs = []; outputs = []
