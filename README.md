@@ -55,6 +55,8 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 
 ## Latest Updates
 
+*v0.1-r12 (Aug 19)* : 1. CRAM input is supported ([#117](https://github.com/HKU-BAL/Clair3/issues/117)). 2. Bumped up dependencies' version to "Python 3.9" ([#96](https://github.com/HKU-BAL/Clair3/issues/96)), "TensorFlow 2.8", "Samtools 1.15.1", "WhatsHap 1.4". 3. VCF DP tag now shows raw coverage for both pileup and full-alignment calls (before r12, sub-sampled coverage was shown for pileup calls if average DP > 144, [#128](https://github.com/HKU-BAL/Clair3/issues/128)). 4. Fixed Illumina representation unification out-of-range error in training ([#110](https://github.com/HKU-BAL/Clair3/issues/110)).
+
 *v0.1-r11 minor 2 (Apr 16)* : 1. fixed a bug in GVCF output that occasionally caused missing of non-variant positions at chunk boundaries. 2. fixed a bug in GVCF output that consumes too much memory for caching, now GVCF output mode takes amount of memory similar to VCF ([#88](https://github.com/HKU-BAL/Clair3/issues/88)). **The minor patches are in the source code and included in all the latest installation options versioned r11.**
 
 *v0.1-r11 (Apr 4)* : 1. Variant calling ~2.5x faster than `v0.1-r10` tested with ONT Q20 data, with feature generation in both pileup and full-alignment now implemented in C (co-contributors @[cjw85](https://github.com/cjw85), @[ftostevin-ont](https://github.com/ftostevin-ont), @[EpiSlim](https://github.com/EpiSlim)). 2. Added the lightning-fast [longphase](https://github.com/twolinin/longphase) as an option for phasing. Enable using `longphase` with option `--longphase_for_phasing`. New option disabled by default to align with the default behavior of the previous versions, but we recommend enable when calling human variants with ≥20x long-reads). 3. Added `--min_coverage` and `--min_mq` options ([#83](https://github.com/HKU-BAL/Clair3/issues/83)). 4. Added `--min_contig_size` option to skip calling variants in short contigs when using genome assembly as input. 4. Reads haplotagging after phasing before full-alignment calling now integrated into full-alignment calling to avoid generating an intermediate BAM file. 5. Supported .`csi` BAM index for large references ([#90](https://github.com/HKU-BAL/Clair3/issues/90)). For more speedup details, please check [Notes on r11](docs/v0.1_r11_speedup.md).
@@ -223,7 +225,7 @@ conda config --add channels conda-forge
 
 # create conda environment named "clair3"
 # replace clair3 by clair3-illumina for using illumina data
-conda create -n clair3 -c bioconda clair3 python=3.6.10 -y
+conda create -n clair3 -c bioconda clair3 python=3.9.0 -y
 conda activate clair3
 
 # run clair3 like this afterward
@@ -262,7 +264,7 @@ OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ./output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 
 # create and activate an environment named clair3
-conda create -n clair3 python=3.6.10 -y
+conda create -n clair3 python=3.9.0 -y
 source activate clair3
 
 # install pypy and packages in the environemnt
@@ -271,14 +273,16 @@ pypy3 -m ensurepip
 pypy3 -m pip install mpmath==1.2.1
 
 # install python packages in environment
-pip3 install tensorflow==2.2.0
-pip3 install tensorflow-addons==0.11.2 tables==3.6.1
-conda install -c anaconda pigz==2.4 cffi==1.14.4 -y
-conda install -c conda-forge parallel=20191122 zstd=1.4.4 -y
-conda install -c conda-forge -c bioconda samtools=1.10 -y
-conda install -c conda-forge -c bioconda whatshap=1.0 -y
+conda install -c conda-forge tensorflow-cpu==2.8.0 -y
+conda install -c conda-forge pytables -y
+conda install -c anaconda pigz cffi==1.14.4 -y
+conda install -c conda-forge parallel=20191122 zstd -y
+conda install -c conda-forge -c bioconda samtools=1.15.1 -y
+conda install -c conda-forge -c bioconda whatshap=1.4 -y
 conda install -c conda-forge xz zlib bzip2 automake curl -y
-    
+# tensorflow-addons is required in training
+pip install tensorflow-addons
+
 # clone Clair3
 git clone https://github.com/HKU-BAL/Clair3.git
 cd Clair3
