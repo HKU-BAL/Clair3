@@ -160,7 +160,7 @@ def get_tensor_info(base_info, bq, ref_base, read_mq):
         base_upper = evc_base_from(base_upper)
         ALT_BASE = ACGT_NUM[base_upper]
 
-    REF_BASE = ACGT_NUM[ref_base]
+    REF_BASE = ACGT_NUM[ref_base if ref_base.upper() in "ACGT" else 'A']
     if len(indel) and indel[0] in '+-':
         if indel[0] == "+":
             ins_base = indel[1:].upper()
@@ -689,8 +689,11 @@ def CreateTensorFullAlignment(args):
                 continue
             pileup_bases = columns[4]
             raw_base_quality = columns[5]
-            read_name_list = columns[6].split(',')
-            raw_mapping_quality = columns[7]
+            # samtools change mapping quality and read name order in v1.15.1
+            mq_index = 6 if len(columns[6]) <= len(columns[7]) else 7
+            rn_index = 7 if mq_index == 6 else 6
+            raw_mapping_quality = columns[mq_index]
+            read_name_list = columns[rn_index].split(',')
             reference_base = reference_sequence[pos - reference_start].upper()
             base_list, depth, pass_af, af = decode_pileup_bases(pileup_bases=pileup_bases,
                                                                 reference_base=reference_base,

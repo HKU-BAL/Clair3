@@ -256,6 +256,7 @@ def CreateTensorPileup(args):
     if is_ctg_range_given:
         extend_start = ctg_start - no_of_positions
         extend_end = ctg_end + no_of_positions
+        extend_start = max(1, extend_start)
         reads_regions.append(region_from(ctg_name=ctg_name, ctg_start=extend_start, ctg_end=extend_end))
         reference_start, reference_end = ctg_start - param.expandReferenceRegion, ctg_end + param.expandReferenceRegion
         reference_start = 1 if reference_start < 1 else reference_start
@@ -502,7 +503,7 @@ def main():
     parser.add_argument('--minBQ', type=int, default=param.min_bq,
                         help="EXPERIMENTAL: If set, bases with base quality with <$minBQ are filtered, default: %(default)d")
 
-    parser.add_argument('--max_depth', type=int, default=param.max_depth,
+    parser.add_argument('--max_depth', type=int, default=None,
                         help="EXPERIMENTAL: Maximum pileup depth to be processed. default: %(default)s")
 
     parser.add_argument('--call_snp_only', type=str2bool, default=False,
