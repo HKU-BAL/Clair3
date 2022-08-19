@@ -280,11 +280,10 @@ def CreateTensorPileup(args):
     # samtools mpileup options
     # reverse-del: deletion in forward/reverse strand were marked as '*'/'#'
     min_base_quality = 0 if args.gvcf else min_base_quality
-    max_depth = param.max_depth_dict[args.platform] if args.platform else args.max_depth
     mq_option = ' --min-MQ {}'.format(min_mapping_quality)
     bq_option = ' --min-BQ {}'.format(min_base_quality)
     flags_option = ' --excl-flags {}'.format(param.SAMTOOLS_VIEW_FILTER_FLAG)
-    max_depth_option = ' --max-depth {}'.format(max_depth)
+    max_depth_option = ' --max-depth {}'.format(args.max_depth) if args.max_depth is not None else " "
     bed_option = ' -l {}'.format(extend_bed) if is_extend_bed_file_given else ""
     gvcf_option = ' -a' if args.gvcf else ""
     samtools_mpileup_process = subprocess_popen(

@@ -600,6 +600,7 @@ def CreateTensorFullAlignment(args):
     extend_start, extend_end = None, None
     if is_ctg_range_given:
         extend_start = ctg_start - (phasing_window_size if need_phasing else no_of_positions)
+        extend_start = max(1, extend_start)
         extend_end = ctg_end + (phasing_window_size if need_phasing else no_of_positions)
         reads_regions.append(region_from(ctg_name=ctg_name, ctg_start=extend_start, ctg_end=extend_end))
         reference_start, reference_end = ctg_start - param.expandReferenceRegion, ctg_end + param.expandReferenceRegion
@@ -626,7 +627,7 @@ def CreateTensorFullAlignment(args):
         extend_bed) if is_extend_bed_file_given and (platform != 'ilmn' or (platform == 'ilmn' and unify_repre)) else ""
     bed_option = ' -l {}'.format(full_aln_regions) if is_full_aln_regions_given and (platform != 'ilmn' or (platform == 'ilmn' and unify_repre)) else bed_option
     flags_option = ' --excl-flags {}'.format(param.SAMTOOLS_VIEW_FILTER_FLAG)
-    max_depth_option = ' --max-depth {}'.format(args.max_depth) if args.max_depth > 0 else ""
+    max_depth_option = ' --max-depth {}'.format(args.max_depth) if args.max_depth is not None else " "
     reads_regions_option = ' -r {}'.format(" ".join(reads_regions)) if add_read_regions else ""
     # print (add_read_regions, ctg_start, ctg_end, reference_start)
     stdin = None if bam_file_path != "PIPE" else sys.stdin
@@ -923,7 +924,7 @@ def main():
     parser.add_argument('--minBQ', type=int, default=param.min_bq,
                         help="EXPERIMENTAL: If set, bases with base quality with <$minBQ are filtered, default: %(default)d")
 
-    parser.add_argument('--max_depth', type=int, default=param.max_depth,
+    parser.add_argument('--max_depth', type=int, default=None,
                         help="EXPERIMENTAL: Maximum full alignment depth to be processed. default: %(default)s")
 
     # options for debug purpose
