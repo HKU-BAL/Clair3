@@ -259,7 +259,7 @@ def CheckEnvs(args):
         'python': LooseVersion(sys.version.split()[0]),
         'pypy': check_version(tool=pypy, pos=0, is_pypy=True),
         'samtools': check_version(tool=samtools, pos=1),
-        'whatshap': check_version(tool=whatshap, pos=1),
+        'whatshap': check_version(tool=whatshap, pos=0),
         'parallel': check_version(tool=parallel, pos=2),
     }
     check_tools_version(tool_version, required_tool_version)
