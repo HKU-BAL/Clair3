@@ -55,7 +55,7 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 
 ## Latest Updates
 
-*v0.1-r12 (Aug 19)* : 1. CRAM input is supported ([#117](https://github.com/HKU-BAL/Clair3/issues/117)). 2. Bumped up dependencies' version to "Python 3.9" ([#96](https://github.com/HKU-BAL/Clair3/issues/96)), "TensorFlow 2.8", "Samtools 1.15.1", "WhatsHap 1.4". 3. VCF DP tag now shows raw coverage for both pileup and full-alignment calls (before r12, sub-sampled coverage was shown for pileup calls if average DP > 144, [#128](https://github.com/HKU-BAL/Clair3/issues/128)). 4. Fixed Illumina representation unification out-of-range error in training ([#110](https://github.com/HKU-BAL/Clair3/issues/110)).
+*v0.1-r12 (Aug 19)* : 1. CRAM input is supported ([#117](https://github.com/HKU-BAL/Clair3/issues/117)). 2. Bumped up dependencies' version to "Python 3.9" ([#96](https://github.com/HKU-BAL/Clair3/issues/96)), "TensorFlow 2.8", "Samtools 1.15.1", "WhatsHap 1.4". 3. VCF DP tag now shows raw coverage for both pileup and full-alignment calls (before r12, sub-sampled coverage was shown for pileup calls if average DP > 144, ([#128](https://github.com/HKU-BAL/Clair3/issues/128)). 4. Fixed Illumina representation unification out-of-range error in training ([#110](https://github.com/HKU-BAL/Clair3/issues/110)).
 
 *v0.1-r11 minor 2 (Apr 16)* : 1. fixed a bug in GVCF output that occasionally caused missing of non-variant positions at chunk boundaries. 2. fixed a bug in GVCF output that consumes too much memory for caching, now GVCF output mode takes amount of memory similar to VCF ([#88](https://github.com/HKU-BAL/Clair3/issues/88)). **The minor patches are in the source code and included in all the latest installation options versioned r11.**
 
