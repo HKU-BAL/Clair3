@@ -160,7 +160,7 @@ def get_tensor_info(base_info, bq, ref_base, read_mq):
         base_upper = evc_base_from(base_upper)
         ALT_BASE = ACGT_NUM[base_upper]
 
-    REF_BASE = ACGT_NUM[ref_base]
+    REF_BASE = ACGT_NUM[ref_base if ref_base.upper() in "ACGT" else 'A']
     if len(indel) and indel[0] in '+-':
         if indel[0] == "+":
             ins_base = indel[1:].upper()
@@ -600,6 +600,7 @@ def CreateTensorFullAlignment(args):
     extend_start, extend_end = None, None
     if is_ctg_range_given:
         extend_start = ctg_start - (phasing_window_size if need_phasing else no_of_positions)
+        extend_start = max(1, extend_start)
         extend_end = ctg_end + (phasing_window_size if need_phasing else no_of_positions)
         reads_regions.append(region_from(ctg_name=ctg_name, ctg_start=extend_start, ctg_end=extend_end))
         reference_start, reference_end = ctg_start - param.expandReferenceRegion, ctg_end + param.expandReferenceRegion
@@ -626,7 +627,7 @@ def CreateTensorFullAlignment(args):
         extend_bed) if is_extend_bed_file_given and (platform != 'ilmn' or (platform == 'ilmn' and unify_repre)) else ""
     bed_option = ' -l {}'.format(full_aln_regions) if is_full_aln_regions_given and (platform != 'ilmn' or (platform == 'ilmn' and unify_repre)) else bed_option
     flags_option = ' --excl-flags {}'.format(param.SAMTOOLS_VIEW_FILTER_FLAG)
-    max_depth_option = ' --max-depth {}'.format(args.max_depth) if args.max_depth > 0 else ""
+    max_depth_option = ' --max-depth {}'.format(args.max_depth) if args.max_depth is not None else " "
     reads_regions_option = ' -r {}'.format(" ".join(reads_regions)) if add_read_regions else ""
     # print (add_read_regions, ctg_start, ctg_end, reference_start)
     stdin = None if bam_file_path != "PIPE" else sys.stdin
@@ -688,8 +689,11 @@ def CreateTensorFullAlignment(args):
                 continue
             pileup_bases = columns[4]
             raw_base_quality = columns[5]
-            read_name_list = columns[6].split(',')
-            raw_mapping_quality = columns[7]
+            # samtools change mapping quality and read name order in v1.15.1
+            mq_index = 6 if len(columns[6]) <= len(columns[7]) else 7
+            rn_index = 7 if mq_index == 6 else 6
+            raw_mapping_quality = columns[mq_index]
+            read_name_list = columns[rn_index].split(',')
             reference_base = reference_sequence[pos - reference_start].upper()
             base_list, depth, pass_af, af = decode_pileup_bases(pileup_bases=pileup_bases,
                                                                 reference_base=reference_base,
@@ -923,7 +927,7 @@ def main():
     parser.add_argument('--minBQ', type=int, default=param.min_bq,
                         help="EXPERIMENTAL: If set, bases with base quality with <$minBQ are filtered, default: %(default)d")
 
-    parser.add_argument('--max_depth', type=int, default=param.max_depth,
+    parser.add_argument('--max_depth', type=int, default=None,
                         help="EXPERIMENTAL: Maximum full alignment depth to be processed. default: %(default)s")
 
     # options for debug purpose

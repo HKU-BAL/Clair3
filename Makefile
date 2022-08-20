@@ -6,7 +6,7 @@ PYTHON ?= python3
 all : libhts.a longphase libclair3.so
 clean : clean_htslib clean_longphase clean_libclair3
 
-SAMVER	=	1.10
+SAMVER	=	1.15.1
 LPVER	=	1.0
 GCC	?=	gcc
 GXX	?=	g++

@@ -208,8 +208,10 @@ def CheckEnvs(args):
     fai_fn = file_path_from(args.ref_fn, suffix=".fai", exit_on_not_found=True, sep='.')
     bai_fn = file_path_from(args.bam_fn, suffix=".bai", sep='.')
     csi_fn = file_path_from(args.bam_fn, suffix=".csi", sep='.')
-    if bai_fn is None and csi_fn is None:
-        sys.exit(log_error("[ERROR] Neither Bam index file {} or {} not found".format(file_name + '.bai', file_name + '.csi')))
+    crai_fn = file_path_from(args.bam_fn, suffix=".crai", sep='.')
+    if bai_fn is None and csi_fn is None and crai_fn is None:
+        sys.exit(log_error("[ERROR] Neither Bam index file {} or {} or  found".format(args.bam_fn + '.bai',
+                            args.bam_fn + '.csi', args.bam_fn + '.crai')))
     bed_fn = file_path_from(args.bed_fn)
     vcf_fn = file_path_from(args.vcf_fn)
     tree = bed_tree_from(bed_file_path=bed_fn)
@@ -259,7 +261,7 @@ def CheckEnvs(args):
         'python': LooseVersion(sys.version.split()[0]),
         'pypy': check_version(tool=pypy, pos=0, is_pypy=True),
         'samtools': check_version(tool=samtools, pos=1),
-        'whatshap': check_version(tool=whatshap, pos=1),
+        'whatshap': check_version(tool=whatshap, pos=0),
         'parallel': check_version(tool=parallel, pos=2),
     }
     check_tools_version(tool_version, required_tool_version)
