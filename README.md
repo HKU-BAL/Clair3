@@ -273,7 +273,7 @@ pypy3 -m ensurepip
 pypy3 -m pip install mpmath==1.2.1
 
 # install python packages in environment
-conda install -c conda-forge tensorflow-cpu==2.8.0 -y
+conda install -c conda-forge tensorflow==2.8.0 -y
 conda install -c conda-forge pytables -y
 conda install -c anaconda pigz cffi==1.14.4 -y
 conda install -c conda-forge parallel=20191122 zstd -y
