@@ -246,7 +246,7 @@ def SelectCandidates(args):
 
                 if platform == 'ilmn':
                     region_size = param.split_region_size
-                    split_output = [(item // region_size * region_size - param.no_of_positions,
+                    split_output = [(max(item // region_size * region_size - param.no_of_positions, 1),
                                      item // region_size * region_size + region_size + param.no_of_positions) for item
                                     in split_output]
                 else:
