@@ -111,11 +111,14 @@ ONT provides models for some latest or specific chemistries and basecallers thro
 
 |       Config       | Chemistry  | Guppy basecaller |
 | :----------------: | :-------:  | :--------------: |
-| r104_e81_sup_g5015 | R10.4 E8.1 | v5.0.15 SUP      |
-| r104_e81_hac_g5015 | R10.4 E8.1 | v5.0.15 HAC      |
-| r1041_e82_400bps_sup_g615 | R10.4.1 E8.2 | v6.1.5 SUP      |
-| r1041_e82_400bps_hac_g615 | R10.4.1 E8.2 | v6.1.5 HAC      |
-| r1041_e82_400bps_fast_g615 | R10.4.1 E8.2 | v6.1.5 FAST      |
+| r1041_e82_400bps_sup_g615  | R10.4.1 E8.2 | v6.1.5 SUP |
+| r1041_e82_400bps_hac_g632  | R10.4.1 E8.2 | v6.3.2 HAC |
+| r1041_e82_400bps_fast_g632 | R10.4.1 E8.2 | v6.3.2 FAST |
+| r1041_e82_260bps_sup_g632  | R10.4.1 E8.2 | v6.3.2 SUP |
+| r1041_e82_260bps_hac_g632  | R10.4.1 E8.2 | v6.3.2 HAC |
+| r1041_e82_260bps_fast_g632 | R10.4.1 E8.2 | v6.3.2 FAST |
+| r104_e81_sup_g5015         | R10.4 E8.1   | v5.0.15 SUP |
+| r104_e81_hac_g5015         | R10.4 E8.1   | v5.0.15 HAC |
 
 ----
 
