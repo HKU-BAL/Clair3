@@ -97,11 +97,11 @@ In a docker installation, models are in `/opt/models/`. In a bioconda installati
 
 |           Model name           |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image |   Date   |  Basecaller  | File                                |                             Link                             |
 | :----------------------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :------: | :----------: | ----------------------------------- | :----------------------------------------------------------: |
-|      r941_prom_sup_g5014       |     ONT     |                    HG002,4,5 (Guppy5_sup)                    | Yes                              |             Yes              | 20220112 |  Guppy5 sup  | r941_prom_sup_g5014.tar.gz          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g5014.tar.gz) |
-|    r941_prom_hac_g360+g422     |     ONT     |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422.tar.gz      | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422.tar.gz) |
-|  r941_prom_hac_g360+g422_1235  |     ONT     |                         HG001,2,3,5                          |                                  |                              | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422_1235.tar.gz | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422_1235.tar.gz) |
-|       r941_prom_hac_g238       |     ONT     |                         HG001,2,3,4                          |                                  |             Yes              | 20210627 |    Guppy2    | r941_prom_hac_g238.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g238.tar.gz) |
-| ~~r941_prom_sup_g506~~ |     ONT     | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) |                                  |                              | 20210609 |  Guppy5 sup  | r941_prom_sup_g506.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g506.tar.gz) |
+|      r941_prom_sup_g5014       |     ONT r9.4.1     |                    HG002,4,5 (Guppy5_sup)                    | Yes                              |             Yes              | 20220112 |  Guppy5 sup/hac/fast  | r941_prom_sup_g5014.tar.gz          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g5014.tar.gz) |
+|    r941_prom_hac_g360+g422     |     ONT r9.4.1    |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422.tar.gz      | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422.tar.gz) |
+|  r941_prom_hac_g360+g422_1235  |     ONT r9.4.1    |                         HG001,2,3,5                          |                                  |                              | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422_1235.tar.gz | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422_1235.tar.gz) |
+|       r941_prom_hac_g238       |     ONT r9.4.1    |                         HG001,2,3,4                          |                                  |             Yes              | 20210627 |    Guppy2    | r941_prom_hac_g238.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g238.tar.gz) |
+| ~~r941_prom_sup_g506~~ |     ONT r9.4.1    | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) |                                  |                              | 20210609 |  Guppy5 sup  | r941_prom_sup_g506.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g506.tar.gz) |
 |              hifi              | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 |      NA      | hifi.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
 |              ilmn              |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 |      NA      | ilmn.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
 
@@ -111,11 +111,14 @@ ONT provides models for some latest or specific chemistries and basecallers thro
 
 |       Config       | Chemistry  | Guppy basecaller |
 | :----------------: | :-------:  | :--------------: |
-| r104_e81_sup_g5015 | R10.4 E8.1 | v5.0.15 SUP      |
-| r104_e81_hac_g5015 | R10.4 E8.1 | v5.0.15 HAC      |
-| r1041_e82_400bps_sup_g615 | R10.4.1 E8.2 | v6.1.5 SUP      |
-| r1041_e82_400bps_hac_g615 | R10.4.1 E8.2 | v6.1.5 HAC      |
-| r1041_e82_400bps_fast_g615 | R10.4.1 E8.2 | v6.1.5 FAST      |
+| r1041_e82_400bps_sup_g615  | R10.4.1 E8.2 | v6.1.5 SUP |
+| r1041_e82_400bps_hac_g632  | R10.4.1 E8.2 | v6.3.2 HAC |
+| r1041_e82_400bps_fast_g632 | R10.4.1 E8.2 | v6.3.2 FAST |
+| r1041_e82_260bps_sup_g632  | R10.4.1 E8.2 | v6.3.2 SUP |
+| r1041_e82_260bps_hac_g632  | R10.4.1 E8.2 | v6.3.2 HAC |
+| r1041_e82_260bps_fast_g632 | R10.4.1 E8.2 | v6.3.2 FAST |
+| r104_e81_sup_g5015         | R10.4 E8.1   | v5.0.15 SUP |
+| r104_e81_hac_g5015         | R10.4 E8.1   | v5.0.15 HAC |
 
 ----
 
