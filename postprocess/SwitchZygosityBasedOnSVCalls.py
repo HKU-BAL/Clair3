@@ -83,7 +83,7 @@ class Position(object):
 
 
 class VcfWriter(object):
-    def __init__(self, vcf_fn, ctg_name=None, ref_fn=None, sample_name="SAMPLE", show_ref_calls=False):
+    def __init__(self, vcf_fn, ctg_name=None, sample_name="SAMPLE", show_ref_calls=False):
         self.vcf_fn = vcf_fn
         self.show_ref_calls = show_ref_calls
 
@@ -94,7 +94,6 @@ class VcfWriter(object):
             return_code = run("mkdir -p {}".format(vcf_folder), shell=True)
 
         self.vcf_writer = open(self.vcf_fn, 'w')
-        self.ref_fn = ref_fn
         self.ctg_name = ctg_name
         self.sample_name = sample_name
 
@@ -266,7 +265,9 @@ def get_base_list(columns):
     return upper_base_counter, base_list
 
 
-def update_header(header):
+def update_header(header, use_sv_qual=True):
+    if use_sv_qual is False:
+        return header
     header = header.rstrip().split("\n")
     header.insert(-1,
                   '##INFO=<ID=SVBASEDHET,Number=0,Type=Flag,Description="Short variant zygosity switched from HOM to HET given an overlapping HET SV">')
@@ -364,7 +365,7 @@ def Run(args):
             if result[0] is False:
                 switch_pos_set.add(result[1])
 
-    vcf_writer.vcf_writer.write(update_header(input_vcf_reader.header))
+    vcf_writer.vcf_writer.write(update_header(input_vcf_reader.header, use_sv_qual=use_sv_qual))
     for key in input_variant_dict.keys():
         pos = key if ctg_name is not None else key[1]
         contig = ctg_name if ctg_name is not None else key[0]
@@ -398,9 +399,6 @@ def main():
 
     parser.add_argument('--bam_fn', type=str, default=None,
                         help="Sorted BAM file input, required")
-
-    parser.add_argument('--ref_fn', type=str, default=None,
-                        help="Reference fasta file input")
 
     parser.add_argument('--ctg_name', type=str, default=None,
                         help="The name of sequence to be processed")
