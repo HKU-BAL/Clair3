@@ -3,6 +3,7 @@ from importlib import import_module
 from shared.param_p import REPO_NAME
 
 DATA_PREP_SCRIPTS_FOLDER="preprocess"
+VCF_POST_SCRIPTS_FOLDER="postprocess"
 DEEP_LEARNING_FOLDER="clair3"
 POST_PROCESS_SCRIPTS_FOLDER="clair3.metrics"
 
@@ -37,6 +38,11 @@ post_process_scripts_folder = [
     'GetOverallMetrics',
 ]
 
+vcf_post_process_scripts_folder = [
+    'SwitchZygosityBasedOnSVCalls'
+]
+
+
 def directory_for(submodule_name):
     if submodule_name in deep_learning_folder:
         return DEEP_LEARNING_FOLDER
@@ -44,6 +50,8 @@ def directory_for(submodule_name):
         return DATA_PREP_SCRIPTS_FOLDER
     if submodule_name in post_process_scripts_folder:
         return POST_PROCESS_SCRIPTS_FOLDER
+    if submodule_name in vcf_post_process_scripts_folder:
+        return VCF_POST_SCRIPTS_FOLDER
     return ""
 
 
@@ -60,6 +68,7 @@ def print_help_messages():
             "\n".join("          - %s" % submodule_name for submodule_name in data_preprocess_folder),
             "\n".join("          - %s" % submodule_name for submodule_name in deep_learning_folder),
             "\n".join("          - %s" % submodule_name for submodule_name in post_process_scripts_folder),
+            "\n".join("          - %s" % submodule_name for submodule_name in vcf_post_process_scripts_folder),
         )
     ))
 
@@ -73,7 +82,8 @@ def main():
     if (
         submodule_name not in deep_learning_folder and
         submodule_name not in data_preprocess_folder and
-        submodule_name not in post_process_scripts_folder
+        submodule_name not in post_process_scripts_folder and
+        submodule_name not in vcf_post_process_scripts_folder
     ):
         sys.exit("[ERROR] Submodule %s not found." % (submodule_name))
 
