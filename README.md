@@ -41,6 +41,8 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
   + [Option 5. Docker Dockerfile](#option-5-docker-dockerfile)
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
+* [Postprocessing scripts](#postprocessing-scripts)
+  + [SwitchZygosityBasedOnSVCalls module](#switchzygositybasedonsvcalls-module)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
 * [Training Data](docs/training_data.md)
 * [VCF/GVCF Output Formats](#vcfgvcf-output-formats)
@@ -510,6 +512,25 @@ docker run -it \
   --include_all_ctgs \                 ## call variants on all contigs in the reference fasta
   --haploid_precise                    ## optional(enable --haploid_precise or --haploid_sensitive) for haploid calling
 ```
+
+----
+
+## Postprocessing scripts
+
+### `SwitchZygosityBasedOnSVCalls` module
+The module takes a Clair3 VCF and a Sniffle2 VCF as inputs. It switches the zygosity from homozygous to heterozygous of a Clair3 called SNP that matches the following two criteria: 1) AF<=0.7, and 2) the flanking 16bp of the SNP is inside one or more SV deletions given in the Sniffle2 VCF. The usage is as follows.
+
+```
+pypy3 ${CLAIR3_PATH}/clair3.py SwitchZygosityBasedOnSVCalls
+      --bam_fn input.bam
+      --clair3_vcf_input clair3_input.vcf.gz
+      --sv_vcf_input sniffle2.vcf.gz
+      --vcf_output output.vcf
+      --threads 8
+
+```
+
+This postprocessing script was inspired by Philipp Rescheneder from ONT. There are heterozygous SNPs that overlap large deletion, and some of these SNPs are clinically significant. Clair3 doesn't call structural variants and might incorrectly output these SNPs as homozygous SNP but with relatively low AF and QUAL. Given a Sniffle2 SV VCF, the script relabels these SNPs as heterozygous, and adds two INFO tags: 1) SVBASEDHET flag, and 2) ORG_CLAIR3_SCORE that shows the original Clair3 QUAL score. The new QUAL of an SNP that switched zygosity will be the top QUAL of the deletions that overlapped the SNP. 
 
 ----
 
