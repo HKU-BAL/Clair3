@@ -272,7 +272,7 @@ def update_header(header, use_sv_qual=True):
     header.insert(-1,
                   '##INFO=<ID=SVBASEDHET,Number=0,Type=Flag,Description="Short variant zygosity switched from HOM to HET given an overlapping HET SV">')
     header.insert(-1,
-                  '##INFO=<ID=ORG_CLAIR3_SCORE,Number=1,Type=Float,Description=“The original Clair3 quality score">')
+                  '##INFO=<ID=ORG_CLAIR3_SCORE,Number=1,Type=Float,Description="The original Clair3 quality score">')
     return '\n'.join(header) + '\n'
 
 
