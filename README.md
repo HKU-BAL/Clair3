@@ -41,6 +41,8 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
   + [Option 5. Docker Dockerfile](#option-5-docker-dockerfile)
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
+* [Postprocessing scripts](#postprocessing-scripts)
+  + [SwitchZygosityBasedOnSVCalls module](#switchzygositybasedonsvcalls-module)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
 * [Training Data](docs/training_data.md)
 * [VCF/GVCF Output Formats](#vcfgvcf-output-formats)
@@ -55,9 +57,9 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
 
 ## Latest Updates
 
-*v0.1-r12 (Aug 19)* : 1. CRAM input is supported ([#117](https://github.com/HKU-BAL/Clair3/issues/117)). 2. Bumped up dependencies' version to "Python 3.9" ([#96](https://github.com/HKU-BAL/Clair3/issues/96)), "TensorFlow 2.8", "Samtools 1.15.1", "WhatsHap 1.4". 3. VCF DP tag now shows raw coverage for both pileup and full-alignment calls (before r12, sub-sampled coverage was shown for pileup calls if average DP > 144, ([#128](https://github.com/HKU-BAL/Clair3/issues/128)). 4. Fixed Illumina representation unification out-of-range error in training ([#110](https://github.com/HKU-BAL/Clair3/issues/110)).
+*v0.1-r12 (Aug 19)* : 1. CRAM input is supported ([#117](https://github.com/HKU-BAL/Clair3/issues/117)). 2. Bumped up dependencies' version to "Python 3.9" ([#96](https://github.com/HKU-BAL/Clair3/issues/96)), "TensorFlow 2.8", "Samtools 1.15.1", "WhatsHap 1.4". 3. VCF DP tag now shows raw coverage for both pileup and full-alignment calls (before r12, sub-sampled coverage was shown for pileup calls if average DP > 144, ([#128](https://github.com/HKU-BAL/Clair3/issues/128)). 4. Fixed Illumina representation unification out-of-range error in training ([#110](https://github.com/HKU-BAL/Clair3/issues/110)). 5. Updated package longphase from v1.0 to v1.3 (on Sept 27th, included in all installation options labeled v0.1-r12).
 
-*v0.1-r11 minor 2 (Apr 16)* : 1. fixed a bug in GVCF output that occasionally caused missing of non-variant positions at chunk boundaries. 2. fixed a bug in GVCF output that consumes too much memory for caching, now GVCF output mode takes amount of memory similar to VCF ([#88](https://github.com/HKU-BAL/Clair3/issues/88)). **The minor patches are in the source code and included in all the latest installation options versioned r11.**
+*v0.1-r11 minor 2 (Apr 16)* : 1. fixed a bug in GVCF output that occasionally caused missing of non-variant positions at chunk boundaries. 2. fixed a bug in GVCF output that consumes too much memory for caching, now GVCF output mode takes amount of memory similar to VCF ([#88](https://github.com/HKU-BAL/Clair3/issues/88)).
 
 *v0.1-r11 (Apr 4)* : 1. Variant calling ~2.5x faster than `v0.1-r10` tested with ONT Q20 data, with feature generation in both pileup and full-alignment now implemented in C (co-contributors @[cjw85](https://github.com/cjw85), @[ftostevin-ont](https://github.com/ftostevin-ont), @[EpiSlim](https://github.com/EpiSlim)). 2. Added the lightning-fast [longphase](https://github.com/twolinin/longphase) as an option for phasing. Enable using `longphase` with option `--longphase_for_phasing`. New option disabled by default to align with the default behavior of the previous versions, but we recommend enable when calling human variants with ≥20x long-reads). 3. Added `--min_coverage` and `--min_mq` options ([#83](https://github.com/HKU-BAL/Clair3/issues/83)). 4. Added `--min_contig_size` option to skip calling variants in short contigs when using genome assembly as input. 4. Reads haplotagging after phasing before full-alignment calling now integrated into full-alignment calling to avoid generating an intermediate BAM file. 5. Supported .`csi` BAM index for large references ([#90](https://github.com/HKU-BAL/Clair3/issues/90)). For more speedup details, please check [Notes on r11](docs/v0.1_r11_speedup.md).
 
@@ -510,6 +512,25 @@ docker run -it \
   --include_all_ctgs \                 ## call variants on all contigs in the reference fasta
   --haploid_precise                    ## optional(enable --haploid_precise or --haploid_sensitive) for haploid calling
 ```
+
+----
+
+## Postprocessing scripts
+
+### `SwitchZygosityBasedOnSVCalls` module
+The module takes a Clair3 VCF and a Sniffle2 VCF as inputs. It switches the zygosity from homozygous to heterozygous of a Clair3 called SNP that matches the following two criteria: 1) AF<=0.7, and 2) the flanking 16bp of the SNP is inside one or more SV deletions given in the Sniffle2 VCF. The usage is as follows.
+
+```
+pypy3 ${CLAIR3_PATH}/clair3.py SwitchZygosityBasedOnSVCalls
+      --bam_fn input.bam
+      --clair3_vcf_input clair3_input.vcf.gz
+      --sv_vcf_input sniffle2.vcf.gz
+      --vcf_output output.vcf
+      --threads 8
+
+```
+
+This postprocessing script was inspired by Philipp Rescheneder from ONT. There are heterozygous SNPs that overlap large deletion, and some of these SNPs are clinically significant. Clair3 doesn't call structural variants and might incorrectly output these SNPs as homozygous SNP but with relatively low AF and QUAL. Given a Sniffle2 SV VCF, the script relabels these SNPs as heterozygous, and adds two INFO tags: 1) SVBASEDHET flag, and 2) ORG_CLAIR3_SCORE that shows the original Clair3 QUAL score. The new QUAL of an SNP that switched zygosity will be the top QUAL of the deletions that overlapped the SNP. 
 
 ----
 
