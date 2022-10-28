@@ -137,7 +137,7 @@ def genotype_vcf(args):
                 gt_index = info_column.split(':').index("GT")
                 last_columns = columns[-1].split(':')
                 last_columns[gt_index] = './.'
-                columns[6] = "RefCall" # FILTER to RefCall
+                columns[6] = "." # FILTER to .
                 columns[3] = columns[3][0] # Only keep the reference base for REF
                 columns[4] = '.' # ALT to 0
                 columns[-1] = ':'.join(last_columns)
