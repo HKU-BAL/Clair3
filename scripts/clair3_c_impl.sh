@@ -347,7 +347,7 @@ fi
 
 if [ "${VCF_FILE_PATH}" != "EMPTY" ]; then
     echo "[INFO] Double check re-genotyping variants"
-    ${PYPY} ${CLAIR3} GenotypeVcf \
+    ${PYPY} ${CLAIR3} AddBackMissingVariantsInGenotyping \
         --vcf_fn ${VCF_FILE_PATH} \
         --clair3_input_vcf_fn ${OUTPUT_FOLDER}/merge_output.vcf.gz \
         --output_fn ${OUTPUT_FOLDER}/merge_output.vcf

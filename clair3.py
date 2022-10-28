@@ -40,7 +40,7 @@ post_process_scripts_folder = [
 
 vcf_post_process_scripts_folder = [
     'SwitchZygosityBasedOnSVCalls',
-    'GenotypeVcf'
+    'AddBackMissingVariantsInGenotyping'
 ]
 
 
