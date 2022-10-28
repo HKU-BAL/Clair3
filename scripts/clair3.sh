@@ -358,6 +358,14 @@ then
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 fi
 
+if [ "${VCF_FILE_PATH}" != "EMPTY" ]; then
+    echo "[INFO] Double check re-genotyping variants"
+    ${PYPY} ${CLAIR3} GenotypeVcf \
+        --vcf_fn ${VCF_FILE_PATH} \
+        --clair3_input_vcf_fn ${OUTPUT_FOLDER}/merge_output.vcf.gz \
+        --output_fn ${OUTPUT_FOLDER}/merge_output.vcf
+fi
+
 if [ ${RM_TMP_DIR} == True ]; then echo "[INFO] Removing intermediate files in ${OUTPUT_FOLDER}/tmp"; rm -rf ${OUTPUT_FOLDER}/tmp; fi
 
 echo $''
