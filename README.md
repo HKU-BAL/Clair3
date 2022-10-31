@@ -39,6 +39,7 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
   + [Option 3. Bioconda](#option-3--bioconda)
   + [Option 4. Build an anaconda virtual environment](#option-4-build-an-anaconda-virtual-environment)
   + [Option 5. Docker Dockerfile](#option-5-docker-dockerfile)
+* [Variant calling using GPU](#variant-calling-using-gpu)
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
 * [Postprocessing scripts](#postprocessing-scripts)
@@ -135,6 +136,60 @@ ONT provides models for some latest or specific chemistries and basecallers thro
 * **GVCF Support.**  Clair3 can output GVCF using the ```--gvcf``` option, enabling downstream joint-sample genotyping and cohort merging. 
 
 ----
+
+### Variant calling using GPU
+
+**Pull NVIDIA Triton server pre-built image:**
+
+```
+docker pull nvcr.io/nvidia/tritonserver:21.09-py3
+```
+
+**Download pre-trained models [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_triton_model.zip):  **
+
+```bash
+# download pre-trained models for Triton serving
+mkdir models
+wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_triton_model.zip
+tar -zxvf clair3_triton_model.tar.gz -C ./models
+```
+
+**Serving the NVIDIA Triton server  with selected model:**
+
+```bash
+MODEL_PATH=`pwd`/models
+MODEL_NAME="r941_prom_sup_g5014"
+
+docker run --rm -it \
+    --gpus all \
+	--net host \
+	--ipc "host" \
+	--name clair3_triton_server \
+	-v ${MODEL_PATH}:/triton_model_repository \
+	--user $(id -u):$(id -g) \
+	-e CUDA_VISIBLE_DEVICES="0" \
+	nvcr.io/nvidia/tritonserver:21.09-py3 \
+	/opt/tritonserver/bin/tritonserver \
+	--model-store /triton_model_repository/${MODEL_NAME} \
+	--log-info=true \
+	--exit-on-error=false
+```
+
+**Run Clair3 with `--gpu` option enabled:**
+
+```bash
+./run_clair3.sh \
+    --bam_fn=${BAM} \
+    --ref_fn=${REF} \
+    --threads=${THREADS} \
+    --use_gpu \                      ## enable gpu option
+    --platform="ont" \               ## options: {ont,hifi,ilmn}
+    --model_path=${MODEL_PREFIX} \   ## absolute model path prefix
+    --output=${OUTPUT_DIR}           ## absolute output path prefix
+## pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
+## full-alignment output file: ${OUTPUT_DIR}/full_alignment.vcf.gz
+## Clair3 final output file: ${OUTPUT_DIR}/merge_output.vcf.gz
+```
 
 ## Quick Demo
 
