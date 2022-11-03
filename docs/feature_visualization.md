@@ -90,7 +90,7 @@ ${PYTHON} ${CLAIR3} VisualizeFeature \
     --output_dir ${OUTPUT_PATH}
 ```
 
-Check the feature maps and tensor figure in `${OUTPUT_PATH}/guided_backpropagation_feature_maps.png` and `${OUTPUT_PATH}/tensor.png`.
+Check the feature maps and tensor figures in `${OUTPUT_PATH}/guided_backpropagation_feature_maps.png` and `${OUTPUT_PATH}/tensor.png`.
 
-Here is a [jupyter notebook](http://www.bio8.cs.hku.hk/clair3/scripts_answering_reviewers_comments/rex_feature_visualization/) visualization example for in four categories, SNP, Insertion, Deletion, and Non-variant site of ONT data.
+Here is a [jupyter notebook](http://www.bio8.cs.hku.hk/clair3/scripts_answering_reviewers_comments/feature_visualization) visualization example for in four categories, SNP, Insertion, Deletion, and Non-variant site of ONT data.
 
