@@ -92,5 +92,5 @@ ${PYTHON} ${CLAIR3} VisualizeFeature \
 
 Check the feature maps and tensor figures in `${OUTPUT_PATH}/guided_backpropagation_feature_maps.png` and `${OUTPUT_PATH}/tensor.png`.
 
-Here is a [jupyter notebook](http://www.bio8.cs.hku.hk/clair3/scripts_answering_reviewers_comments/feature_visualization) visualization example for in four categories, SNP, Insertion, Deletion, and Non-variant site of ONT data.
+Here is a [jupyter notebook](https://github.com/HKU-BAL/Clair3/tree/feature_visualization/docs/feature_visualization.ipynb) visualization example for in four categories, SNP, Insertion, Deletion, and Non-variant site of ONT data.
 
