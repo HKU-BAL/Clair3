@@ -39,6 +39,7 @@ A short preprint describing Clair3's algorithms and results is at [bioRxiv](http
   + [Option 3. Bioconda](#option-3--bioconda)
   + [Option 4. Build an anaconda virtual environment](#option-4-build-an-anaconda-virtual-environment)
   + [Option 5. Docker Dockerfile](#option-5-docker-dockerfile)
+  + [Run Clair3 with Apple Silicon](#run-clair3-with-apple-silicon)
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
 * [Postprocessing scripts](#postprocessing-scripts)
@@ -330,6 +331,11 @@ docker build -f ./Dockerfile -t hkubal/clair3:latest .
 # run clair3 docker image like option 1
 docker run -it hkubal/clair3:latest /opt/bin/run_clair3.sh --help
 ```
+
+
+### Run Clair3 with Apple Silicon
+
+Instructions are given as an answer to issue [#149](https://github.com/HKU-BAL/Clair3/issues/149).
 
 ----
 
