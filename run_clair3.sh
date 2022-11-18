@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH=$(dirname $(readlink -f "$0"))
 VERSION='v0.1-r12'
@@ -224,8 +224,6 @@ BASE_MODEL=$(basename ${MODEL_PATH})
 if [ "${BASE_MODEL}" = "r941_prom_sup_g5014" ] || [ "${BASE_MODEL}" = "r941_prom_hac_g5014" ] || [ "${BASE_MODEL}" = "ont_guppy5" ]; then PHASING_PCT=0.8; fi
 
 # use the default longphase binary path
-if [ "$(uname)" = "Darwin" ] && [ "${NO_PHASING}" == False ];  then echo -e "${WARNING} Mac arm64 system only support longphase for phasing, will enable it! ${NC}"; USE_LONGPHASE=True; fi
-if [ "$(uname)" = "Darwin" ] && [ "${PLATFORM}" = "ilmn" ] && [ "${NO_PHASING}" == False ];  then echo -e "${WARNING} Illumina platform do not support phasing in Mac arm64, will disable phasing it! ${NC}"; NO_PHASING=True; USE_LONGPHASE=False; fi
 if [ "${USE_LONGPHASE}" == True ] && [ "${LONGPHASE}" == "EMPTY" ]; then LONGPHASE="${SCRIPT_PATH}/longphase"; fi
 if [ "${USE_LONGPHASE}" == True ] && [ ! -f ${LONGPHASE} ]; then echo -e "${ERROR} Cannot find LongPhase path in ${LONGPHASE}, exit!${NC}"; exit 1; fi
 if [ "${USE_LONGPHASE}" == True ] && [ "${PLATFORM}" = "ilmn" ]; then echo -e "${WARNING} Illumina platform do not support longphase phasing, will enable whatshap phasing! ${NC}";  USE_LONGPHASE=False; fi
@@ -345,7 +343,7 @@ if [ "${ENABLE_C_IMPL}" == True ] && [ "${PLATFORM}" = "ilmn" ]; then echo -e "$
 if [ "${ENABLE_C_IMPL}" == True ]; then CLAIR3_SCRIPT="clair3_c_impl.sh"; fi
 
 set -x
-${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
+${SHELL} ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --bam_fn ${BAM_FILE_PATH} \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --threads ${THREADS} \
@@ -391,4 +389,4 @@ ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --longphase=${LONGPHASE}
 
 
-)) |& tee ${OUTPUT_FOLDER}/run_clair3.log
+)) 2>&1 | tee ${OUTPUT_FOLDER}/run_clair3.log
