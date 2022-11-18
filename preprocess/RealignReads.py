@@ -381,7 +381,7 @@ def reads_realignment(args):
         extend_end = ctg_end + max_window_size
         extend_start = max(1, extend_start)
         reads_regions.append(region_from(ctg_name=ctg_name, ctg_start=extend_start, ctg_end=extend_end))
-        reference_start, reference_end = ctg_start - param.expandReferenceRegion, ctg_end + param.expandReferenceRegion
+        reference_start, reference_end = ctg_start - 5 * param.expandReferenceRegion, ctg_end + 5 * param.expandReferenceRegion
         reference_start = 1 if reference_start < 1 else reference_start
         ref_regions.append(region_from(ctg_name=ctg_name, ctg_start=reference_start, ctg_end=reference_end))
     elif is_ctg_name_given:
