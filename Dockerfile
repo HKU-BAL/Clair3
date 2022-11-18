@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM continuumio/miniconda3:latest
 
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PATH=/opt/bin:/opt/conda/bin:$PATH
 
@@ -16,13 +16,10 @@ RUN apt-get update --fix-missing && \
 WORKDIR /opt/bin
 
 # install anaconda
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
-    bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda && \
-    rm Miniconda3-latest-Linux-x86_64.sh && \
-    conda config --add channels defaults && \
-    conda config --add channels bioconda && \
-    conda config --add channels conda-forge && \
-    conda create -n clair3 python=3.9.0 -y
+RUN  conda config --add channels defaults && \
+conda config --add channels bioconda && \
+conda config --add channels conda-forge && \
+conda create -n clair3 python=3.9.0 -y
 
 ENV PATH /opt/conda/envs/clair3/bin:$PATH
 ENV CONDA_DEFAULT_ENV clair3
