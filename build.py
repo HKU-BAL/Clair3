@@ -53,7 +53,7 @@ ffibuilder.set_source("libclair3",
             'clair3_full_alignment.c')],
     extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
-    extra_objects=['libhts.a']
+    extra_objects=[os.path.join(htslib_dir, 'libhts.a')]
 )
 
 cdef = [
