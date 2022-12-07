@@ -137,10 +137,13 @@ def genotype_vcf(args):
                 gt_index = info_column.split(':').index("GT")
                 last_columns = columns[-1].split(':')
                 last_columns[gt_index] = './.'
-                columns[6] = "." # FILTER to .
                 columns[3] = columns[3][0] # Only keep the reference base for REF
                 columns[4] = '.' # ALT to 0
-                columns[-1] = ':'.join(last_columns)
+                columns[5] = "." # QUAL to .
+                columns[6] = "." # FILTER to .
+                columns[7] = "." # INFO to .
+                columns[8] = "GT" # keep GT tag only
+                columns[9] = './.'
                 row_str = '\t'.join(columns) + '\n'
         else:
             row_str = clair3_variant_dict[k].row_str
