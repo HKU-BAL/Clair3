@@ -133,11 +133,9 @@ def genotype_vcf(args):
             count += 1
             if switch_genotype:
                 columns = row_str.rstrip().split('\t')
-                info_column = columns[-2]
-                gt_index = info_column.split(':').index("GT")
-                last_columns = columns[-1].split(':')
-                last_columns[gt_index] = './.'
-                columns[3] = columns[3][0] # Only keep the reference base for REF
+                if len(columns) < 10:
+                    columns += ['.'] * (10 - len(columns))
+                columns[3] = columns[3][0] if len(columns[3]) > 0 else '.' # Only keep the reference base for REF
                 columns[4] = '.' # ALT to 0
                 columns[5] = "." # QUAL to .
                 columns[6] = "." # FILTER to .
