@@ -19,7 +19,7 @@ Clair3 is a germline small variant caller for long-reads. Clair3 makes the best 
 
 Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Clair) (the 2<sup>nd</sup>) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante) (the 1<sup>st</sup>).
 
-A short preprint describing Clair3's algorithms and results is at [bioRxiv](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v1).
+Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), and available as a preprint at [bioRxiv](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v2).
 
 ----
 
