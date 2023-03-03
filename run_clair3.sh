@@ -247,9 +247,9 @@ BASE_MODEL=$(basename ${MODEL_PATH})
 if [ "${BASE_MODEL}" = "r941_prom_sup_g5014" ] || [ "${BASE_MODEL}" = "r941_prom_hac_g5014" ] || [ "${BASE_MODEL}" = "ont_guppy5" ]; then PHASING_PCT=0.8; fi
 
 # use the default longphase binary path
-if [ "${USE_LONGPHASE}" == True ] && [ "${LONGPHASE}" == "EMPTY" ]; then LONGPHASE="${SCRIPT_PATH}/longphase"; fi
-if [ "${USE_LONGPHASE}" == True ] && [ ! -f ${LONGPHASE} ]; then echo -e "${ERROR} Cannot find LongPhase path in ${LONGPHASE}, exit!${NC}"; exit 1; fi
-if [ "${USE_LONGPHASE}" == True ] && [ "${PLATFORM}" = "ilmn" ]; then echo -e "${WARNING} Illumina platform do not support longphase phasing, will enable whatshap phasing! ${NC}";  USE_LONGPHASE=False; fi
+if ([ "${USE_LONGPHASE}" == True ] || [ "${FINAL_LP_PHASING}" == True ]) && [ "${LONGPHASE}" == "EMPTY" ]; then LONGPHASE="${SCRIPT_PATH}/longphase"; fi
+if ([ "${USE_LONGPHASE}" == True ] || [ "${FINAL_LP_PHASING}" == True ]) && [ ! -f ${LONGPHASE} ]; then echo -e "${ERROR} Cannot find LongPhase path in ${LONGPHASE}, exit!${NC}"; exit 1; fi
+if ([ "${USE_LONGPHASE}" == True ] || [ "${FINAL_LP_PHASING}" == True ]) && [ "${PLATFORM}" = "ilmn" ]; then echo -e "${WARNING} Illumina platform do not support longphase phasing, will enable whatshap phasing! ${NC}";  USE_LONGPHASE=False; fi
 
 if [ "${FINAL_WH_HAPLOTAG}" == True ] && [ "${FINAL_WH_PHASING}" == False ] && [ "${FINAL_LP_PHASING}" == False ]; then FINAL_WH_PHASING=True; fi
 
@@ -296,7 +296,7 @@ echo "[INFO] ENABLE HAPLOID SENSITIVE MODE: ${HAP_SEN}"
 echo "[INFO] ENABLE INCLUDE ALL CTGS CALLING: ${INCLUDE_ALL_CTGS}"
 echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
 echo "[INFO] ENABLE REMOVING INTERMEDIATE FILES: ${RM_TMP_DIR}"
-echo "[INFO] ENABLE LONGPHASE FOR INTERMEDIATE VCF PHASING: ${TMP_LP_PHASING}"
+echo "[INFO] ENABLE LONGPHASE FOR INTERMEDIATE VCF PHASING: ${USE_LONGPHASE}"
 echo "[INFO] ENABLE PHASING FINAL VCF OUTPUT USING WHATSHAP: ${FINAL_WH_PHASING}"
 echo "[INFO] ENABLE PHASING FINAL VCF OUTPUT USING LONGPHASE: ${FINAL_LP_PHASING}"
 echo "[INFO] ENABLE HAPLOTAGGING FINAL BAM: ${FINAL_WH_HAPLOTAG}"
