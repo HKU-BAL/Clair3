@@ -1,5 +1,6 @@
 #Clair3 pileup parameters
 REPO_NAME="Clair3"
+version = "1.0.0"
 import re
 from itertools import accumulate
 

@@ -1,5 +1,6 @@
 # Clair3 full alignment parameters
 REPO_NAME = "Clair3"
+version = "1.0.0"
 from itertools import accumulate
 
 zstd='zstd'

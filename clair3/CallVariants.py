@@ -264,6 +264,8 @@ def output_utilties_from(
         from textwrap import dedent
         output(dedent("""\
             ##fileformat=VCFv4.2
+            ##source=Clair3
+            ##clair3_version={}
             ##FILTER=<ID=PASS,Description="All filters passed">
             ##FILTER=<ID=LowQual,Description="Low quality variant">
             ##FILTER=<ID=RefCall,Description="Reference call">
@@ -274,7 +276,7 @@ def output_utilties_from(
             ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
             ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Read depth for each allele">
             ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
-            ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">"""
+            ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">""".format(param.version)
                       ))
 
         if reference_file_path is not None:
