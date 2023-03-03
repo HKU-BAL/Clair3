@@ -21,6 +21,20 @@ from os.path import isfile, isdir
 # D->A or G or T
 # H->A or C or T
 # V->A or C or G
+
+def convert_iupac_to_n(string):
+    output_str = []
+    not_acgt_count = 0
+    for s in string:
+        if s.upper() not in "ACGTN":
+            not_acgt_count += 1
+            output_str.append('N')
+        else:
+            output_str.append(s)
+    if not_acgt_count == 0:
+        return string
+    return ''.join(output_str)
+
 IUPAC_base_to_ACGT_base_dict = dict(zip(
     "ACGTURYSWKMBDHVN",
     ("A", "C", "G", "T", "T", "A", "C", "C", "A", "G", "A", "C", "A", "A", "A", "A")

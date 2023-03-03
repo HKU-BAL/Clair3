@@ -167,6 +167,7 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
     --pypy ${PYPY} \
     --samtools ${SAMTOOLS} \
     --temp_file_dir ${GVCF_TMP_PATH} \
+    --keep_iupac_bases ${KEEP_IUPAC_BASES} \
     --pileup" :::: ${OUTPUT_FOLDER}/tmp/CHUNK_LIST |& tee ${LOG_PATH}/1_call_var_bam_pileup.log
 
 ${PYPY} ${CLAIR3} SortVcf \
@@ -282,6 +283,7 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_b
     --python ${PYTHON} \
     --pypy ${PYPY} \
     --samtools ${SAMTOOLS} \
+    --keep_iupac_bases ${KEEP_IUPAC_BASES} \
     --platform ${PLATFORM}" :::: ${CANDIDATE_BED_PATH}/FULL_ALN_FILES |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
 
 ${PYPY} ${CLAIR3} SortVcf \

@@ -18,7 +18,8 @@ from clair3.task.gt21 import (
 import clair3.utils as utils
 import shared.param_p as param
 from clair3.task.genotype import Genotype, genotype_string_from, genotype_enum_from, genotype_enum_for_task
-from shared.utils import IUPAC_base_to_ACGT_base_dict as BASE2ACGT, BASIC_BASES, str2bool, file_path_from, log_error, log_warning
+from shared.utils import IUPAC_base_to_ACGT_base_dict as BASE2ACGT, BASIC_BASES, str2bool, file_path_from, \
+    log_error, log_warning, convert_iupac_to_n
 from clair3.task.variant_length import VariantLength
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.basicConfig(format='%(message)s', level=logging.INFO)
@@ -39,7 +40,8 @@ OutputConfig = namedtuple('OutputConfig', [
     'gvcf',
     'pileup',
     'enable_long_indel',
-    'maximum_variant_length_that_need_infer'
+    'maximum_variant_length_that_need_infer',
+    'keep_iupac_bases'
 ])
 OutputUtilities = namedtuple('OutputUtilities', [
     'print_debug_message',
@@ -199,7 +201,8 @@ def Run(args):
         gvcf=args.gvcf,
         pileup=args.pileup,
         enable_long_indel=args.enable_long_indel,
-        maximum_variant_length_that_need_infer=maximum_variant_length_that_need_infer
+        maximum_variant_length_that_need_infer=maximum_variant_length_that_need_infer,
+        keep_iupac_bases=args.keep_iupac_bases
     )
     output_utilities = output_utilties_from(
         sample_name=args.sampleName,
@@ -207,7 +210,7 @@ def Run(args):
         is_output_for_ensemble=args.output_for_ensemble,
         reference_file_path=args.ref_fn,
         output_file_path=args.call_fn,
-        output_probabilities=args.output_probabilities
+        output_probabilities=args.output_probabilities,
     )
     if args.input_probabilities:
         call_variants_with_probabilities_input(args=args, output_config=output_config,
@@ -1309,6 +1312,10 @@ def output_with(
         is_reference=is_reference
     )
 
+    if not output_config.keep_iupac_bases:
+        reference_base = convert_iupac_to_n(reference_base)
+        alternate_base = convert_iupac_to_n(alternate_base)
+    
     if output_config.is_debug:
         output_utilities.print_debug_message(
             chromosome,
@@ -1809,6 +1816,9 @@ def main():
 
     parser.add_argument('--enable_long_indel', type=str2bool, default=False,
                         help="EXPERIMENTAL: Enable long Indel variants(>50 bp) calling")
+
+    parser.add_argument('--keep_iupac_bases', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Keep IUPAC (non ACGTN) reference and alternate bases, default: convert all IUPAC bases to N")
 
     # options for debug purpose
     parser.add_argument('--use_gpu', type=str2bool, default=False,

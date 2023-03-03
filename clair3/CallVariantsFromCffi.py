@@ -47,7 +47,8 @@ def Run(args):
         gvcf=args.gvcf,
         pileup=args.pileup,
         enable_long_indel=args.enable_long_indel,
-        maximum_variant_length_that_need_infer=maximum_variant_length_that_need_infer
+        maximum_variant_length_that_need_infer=maximum_variant_length_that_need_infer,
+        keep_iupac_bases=args.keep_iupac_bases
     )
     output_utilities = output_utilties_from(
         sample_name=args.sampleName,
@@ -233,6 +234,9 @@ def main():
 
     parser.add_argument('--enable_long_indel', type=str2bool, default=False,
                         help="EXPERIMENTAL: Enable long Indel variants(>50 bp) calling")
+
+    parser.add_argument('--keep_iupac_bases', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Keep IUPAC (non ACGTN) reference and alternate bases, default: convert all IUPAC bases to N")
 
     # options for debug purpose
     parser.add_argument('--use_gpu', type=str2bool, default=False,

@@ -165,6 +165,7 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
     --samtools ${SAMTOOLS} \
     --temp_file_dir ${GVCF_TMP_PATH} \
     --pileup \
+    --keep_iupac_bases ${KEEP_IUPAC_BASES} \
     --use_gpu ${USE_GPU}" :::: ${OUTPUT_FOLDER}/tmp/CHUNK_LIST |& tee ${LOG_PATH}/1_call_var_bam_pileup.log
 
 ${PYPY} ${CLAIR3} SortVcf \
@@ -269,6 +270,7 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_b
     --enable_long_indel ${ENABLE_LONG_INDEL} \
     --samtools ${SAMTOOLS} \
     --use_gpu ${USE_GPU} \
+    --keep_iupac_bases ${KEEP_IUPAC_BASES} \
     --platform ${PLATFORM}" :::: ${CANDIDATE_BED_PATH}/FULL_ALN_FILES |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
 
 ${PYPY} ${CLAIR3} SortVcf \
