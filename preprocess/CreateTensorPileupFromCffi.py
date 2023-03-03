@@ -138,8 +138,8 @@ def _plp_data_to_numpy(plp_data, n_rows, gvcf=False):
 
     """
     ffi = libclair3.ffi
-    size_sizet = np.dtype(np.int).itemsize
-    _dtype = np.int
+    size_sizet = np.dtype(int).itemsize
+    _dtype = int
     np_counts = np.frombuffer(ffi.buffer(
         plp_data.matrix, size_sizet * plp_data.n_cols * n_rows),
         dtype=_dtype

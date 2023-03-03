@@ -19,7 +19,7 @@ Clair3 is a germline small variant caller for long-reads. Clair3 makes the best 
 
 Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Clair) (the 2<sup>nd</sup>) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante) (the 1<sup>st</sup>).
 
-A short preprint describing Clair3's algorithms and results is at [bioRxiv](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v1).
+Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), and available as a preprint at [bioRxiv](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v2).
 
 ----
 
@@ -110,18 +110,8 @@ In a docker installation, models are in `/opt/models/`. In a bioconda installati
 
 ### ONT-provided Models
 
-ONT provides models for some latest or specific chemistries and basecallers through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers. Avaiable model in Rerio including:
+ONT provides models for some latest or specific chemistries and basecallers (including both Guppy and Dorado) through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers.
 
-|       Config       | Chemistry  | Guppy basecaller |
-| :----------------: | :-------:  | :--------------: |
-| r1041_e82_400bps_sup_g615  | R10.4.1 E8.2 | v6.1.5 SUP |
-| r1041_e82_400bps_hac_g632  | R10.4.1 E8.2 | v6.3.2 HAC |
-| r1041_e82_400bps_fast_g632 | R10.4.1 E8.2 | v6.3.2 FAST |
-| r1041_e82_260bps_sup_g632  | R10.4.1 E8.2 | v6.3.2 SUP |
-| r1041_e82_260bps_hac_g632  | R10.4.1 E8.2 | v6.3.2 HAC |
-| r1041_e82_260bps_fast_g632 | R10.4.1 E8.2 | v6.3.2 FAST |
-| r104_e81_sup_g5015         | R10.4 E8.1   | v5.0.15 SUP |
-| r104_e81_hac_g5015         | R10.4 E8.1   | v5.0.15 HAC |
 
 ----
 
