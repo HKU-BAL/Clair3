@@ -373,6 +373,20 @@ then
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 fi
 
+if [ ${FINAL_WH_HAPLOTAG} == True ]
+then
+    echo $''
+    echo "[INFO] 4/7 Haplotag input BAM file using Whatshap, need some time to finish!"
+    ${WHATSHAP} haplotag \
+        --output ${OUTPUT_FOLDER}/phased_output.bam \
+        --reference ${REFERENCE_FILE_PATH} \
+        --ignore-read-groups \
+        ${OUTPUT_FOLDER}/phased_merge_output.vcf.gz \
+        ${BAM_FILE_PATH} |& tee ${LOG_PATH}/9_haplotag.log
+
+    ${SAMTOOLS} index -@12 ${OUTPUT_FOLDER}/phased_output.bam
+fi
+
 if [ "${VCF_FILE_PATH}" != "EMPTY" ]; then
     echo "[INFO] Double check re-genotyping variants"
     ${PYPY} ${CLAIR3} AddBackMissingVariantsInGenotyping \

@@ -5,7 +5,7 @@ from sys import stdin, exit
 from argparse import ArgumentParser
 from collections import defaultdict
 
-
+import shared.param_p as param
 from shared.utils import log_error, log_warning, file_path_from, subprocess_popen
 major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] + [str(a) for a in
                                                                                    list(range(1, 23)) + ["X", "Y"]]
@@ -22,6 +22,8 @@ def output_header(output_fn, reference_file_path, sample_name='SAMPLE'):
     from textwrap import dedent
     output_file.write(dedent("""\
         ##fileformat=VCFv4.2
+        ##source=Clair3
+        ##clair3_version={}
         ##FILTER=<ID=PASS,Description="All filters passed">
         ##FILTER=<ID=LowQual,Description="Low quality variant">
         ##FILTER=<ID=RefCall,Description="Reference call">
@@ -32,7 +34,7 @@ def output_header(output_fn, reference_file_path, sample_name='SAMPLE'):
         ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
         ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Read depth for each allele">
         ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
-        ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">"""
+        ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">""".format(param.version)
                   ) + '\n')
 
     if reference_file_path is not None:
