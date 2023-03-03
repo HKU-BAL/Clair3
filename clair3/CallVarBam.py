@@ -118,6 +118,7 @@ def Run(args):
     fast_mode = CommandOption('fast_mode', args.fast_mode)
     call_snp_only_mode = CommandOption('call_snp_only', args.call_snp_only)
     enable_long_indel_mode = CommandOption('enable_long_indel', args.enable_long_indel)
+    keep_iupac_bases_mode = CommandOption('keep_iupac_bases', args.keep_iupac_bases)
 
     ctgStart = None
     ctgEnd = None
@@ -228,7 +229,8 @@ def Run(args):
         chunk_id,
         chunk_num,
         gvcf_mode,
-        enable_long_indel_mode
+        enable_long_indel_mode,
+        keep_iupac_bases_mode
     ]
 
     try:
@@ -376,6 +378,9 @@ def main():
 
     parser.add_argument('--enable_long_indel', type=str2bool, default=False,
                         help="EXPERIMENTAL: Enable long Indel variants(>50 bp) calling")
+
+    parser.add_argument('--keep_iupac_bases', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Keep IUPAC (non ACGTN) reference and alternate bases, default: convert all IUPAC bases to N")
 
     # options for debug purpose
     parser.add_argument('--phasing_info_in_bam', action='store_true',
