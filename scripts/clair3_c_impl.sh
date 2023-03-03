@@ -60,11 +60,11 @@ while true; do
     --keep_iupac_bases ) KEEP_IUPAC_BASES="$2"; shift 2 ;;
     --use_gpu ) USE_GPU="$2"; shift 2 ;;
     --longphase_for_phasing ) USE_LONGPHASE="$2"; shift 2 ;;
-    --use_whatshap_for_intermediate_phasing ) TMP_WH_PHASING=True; shift 2 ;;
-    --use_longphase_for_intermediate_phasing ) USE_LONGPHASE=True; shift 2 ;;
-    --use_whatshap_for_final_output_phasing ) FINAL_WH_PHASING=True; shift 2 ;;
-    --use_longphase_for_final_output_phasing ) FINAL_LP_PHASING=True; shift 2 ;;
-    --use_whatshap_for_final_output_haplotagging ) FINAL_WH_HAPLOTAG=True; shift 2 ;;
+    --use_whatshap_for_intermediate_phasing ) TMP_WH_PHASING="$2"; shift 2 ;;
+    --use_longphase_for_intermediate_phasing ) USE_LONGPHASE="$2"; shift 2 ;;
+    --use_whatshap_for_final_output_phasing ) FINAL_WH_PHASING="$2"; shift 2 ;;
+    --use_longphase_for_final_output_phasing ) FINAL_LP_PHASING="$2"; shift 2 ;;
+    --use_whatshap_for_final_output_haplotagging ) FINAL_WH_HAPLOTAG="$2"; shift 2 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
