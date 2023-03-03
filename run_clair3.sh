@@ -37,8 +37,18 @@ print_help_messages()
     echo $'      --print_ref_calls         Show reference calls (0/0) in VCF file, default: disable.'
     echo $'      --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.'
     echo $'      --gvcf                    Enable GVCF output, default: disable.'
-    echo $'      --enable_phasing          Output phased variants using whatshap, default: disable.'
-    echo $'      --longphase_for_phasing   Use longphase for phasing, default: enable.'
+    echo $'      --use_whatshap_for_intermediate_phasing
+                                           Phase high-quality heterozygous variants using whatshap for full-alignment model calling, default: enable.'
+    echo $'      --use_longphase_for_intermediate_phasing
+                                           Phase high-quality heterozygous variants using longphase for full-alignment model calling, default: disable.'
+    echo $'      --use_whatshap_for_final_output_phasing
+                                           Phase the output variants using whatshap, default: disable.'
+    echo $'      --use_longphase_for_final_output_phasing
+                                           Phase the output variants using longphase, default: disable.'
+    echo $'      --use_whatshap_for_final_output_haplotagging
+                                           Haplotag input BAM using output phased variants using whatshap, default: disable.'
+    echo $'      --enable_phasing          It means `--use_whatshap_for_final_output_phasing`. The option is retained for backward compatibility.'
+    echo $'      --longphase_for_phasing   It means `--use_longphase_for_intermediate_phasing`. The option is retained for backward compatibility.'
     echo $'      --disable_c_impl          Disable C implement with cffi for pileup and full-alignment create tensor, default: enable.'
     echo $'      --remove_intermediate_dir Remove intermediate directory, including intermediate phased BAM, pileup and full-alignment results. default: disable.'
     echo $'      --snp_min_af=FLOAT        Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.'
@@ -57,6 +67,7 @@ print_help_messages()
     echo $'      --no_phasing_for_fa       EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.'
     echo $'      --call_snp_only           EXPERIMENTAL: Call candidates pass SNP minimum AF only, ignore Indel candidates, default: disable.'
     echo $'      --enable_long_indel       EXPERIMENTAL: Call long Indel variants(>50 bp), default: disable.'
+    echo $'      --keep_iupac_bases        EXPERIMENTAL: Keep IUPAC reference and alternate bases, default: convert all IUPAC bases to N.'
     echo $''
 }
 
@@ -74,6 +85,7 @@ ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,longphase::,\
 min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
+use_whatshap_for_intermediate_phasing,use_longphase_for_intermediate_phasing,use_whatshap_for_final_output_phasing,use_longphase_for_final_output_phasing,use_whatshap_for_final_output_haplotagging,keep_iupac_bases,\
 remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,enable_long_indel,use_gpu,longphase_for_phasing,disable_c_impl,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
@@ -111,8 +123,13 @@ SNP_ONLY=False
 INCLUDE_ALL_CTGS=False
 NO_PHASING=False
 RM_TMP_DIR=False
-ENABLE_PHASING=False
 ENABLE_LONG_INDEL=False
+TMP_LP_PHASING=False
+TMP_WH_PHASING=True
+FINAL_LP_PHASING=False
+FINAL_WH_PHASING=False
+FINAL_WH_HAPLOTAG=False
+KEEP_IUPAC_BASES=False
 USE_GPU=False
 USE_LONGPHASE=False
 ENABLE_C_IMPL=True
@@ -160,8 +177,14 @@ while true; do
     --include_all_ctgs ) INCLUDE_ALL_CTGS=True; shift 1 ;;
     --no_phasing_for_fa ) NO_PHASING=True; shift 1 ;;
     --remove_intermediate_dir ) RM_TMP_DIR=True; shift 1 ;;
-    --enable_phasing ) ENABLE_PHASING=True; shift 1 ;;
+    --use_whatshap_for_intermediate_phasing ) TMP_WH_PHASING=True; shift 1 ;;
+    --use_longphase_for_intermediate_phasing ) USE_LONGPHASE=True; shift 1 ;;
+    --use_whatshap_for_final_output_phasing ) FINAL_WH_PHASING=True; shift 1 ;;
+    --use_longphase_for_final_output_phasing ) FINAL_LP_PHASING=True; shift 1 ;;
+    --use_whatshap_for_final_output_haplotagging ) FINAL_WH_HAPLOTAG=True; shift 1 ;;
+    --enable_phasing ) FINAL_WH_PHASING=True; shift 1 ;;
     --enable_long_indel ) ENABLE_LONG_INDEL=True; shift 1 ;;
+    --keep_iupac_bases ) KEEP_IUPAC_BASES=True; shift 1 ;;
     --use_gpu ) USE_GPU=True; shift 1 ;;
     --longphase_for_phasing ) USE_LONGPHASE=True; shift 1 ;;
     --disable_c_impl ) ENABLE_C_IMPL=False; shift 1 ;;
@@ -271,9 +294,11 @@ echo "[INFO] ENABLE HAPLOID SENSITIVE MODE: ${HAP_SEN}"
 echo "[INFO] ENABLE INCLUDE ALL CTGS CALLING: ${INCLUDE_ALL_CTGS}"
 echo "[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: ${NO_PHASING}"
 echo "[INFO] ENABLE REMOVING INTERMEDIATE FILES: ${RM_TMP_DIR}"
-echo "[INFO] ENABLE PHASING VCF OUTPUT: ${ENABLE_PHASING}"
+echo "[INFO] ENABLE LONGPHASE FOR INTERMEDIATE VCF PHASING: ${TMP_LP_PHASING}"
+echo "[INFO] ENABLE PHASING FINAL VCF OUTPUT USING WHATSHAP: ${FINAL_WH_PHASING}"
+echo "[INFO] ENABLE PHASING FINAL VCF OUTPUT USING LONGPHASE: ${FINAL_LP_PHASING}"
+echo "[INFO] ENABLE HAPLOTAGGING FINAL BAM: ${FINAL_WH_HAPLOTAG}"
 echo "[INFO] ENABLE LONG INDEL CALLING: ${ENABLE_LONG_INDEL}"
-echo "[INFO] ENABLE LONGPHASE_FOR_PHASING: ${USE_LONGPHASE}"
 echo "[INFO] ENABLE C_IMPLEMENT: ${ENABLE_C_IMPL}"
 echo $''
 
@@ -291,6 +316,7 @@ if [ ! -d ${MODEL_PATH} ]; then echo -e "${ERROR} Model path not found${NC}"; ex
 
 # max threads detection
 if [ "$(uname)" = "Darwin" ]; then MAX_THREADS=$(sysctl -n hw.logicalcpu); else MAX_THREADS=$(nproc); fi
+if [ "$(uname)" = "Darwin" ]; then SHELL_ENTRY=${SHELL}; else SHELL_ENTRY=""; fi
 if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( ${THREADS} <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
 if [[ ${THREADS} -gt ${MAX_THREADS} ]]; then echo -e "${WARNING} Threads setting exceeds maximum available threads ${MAX_THREADS}, set threads=${MAX_THREADS}${NC}"; THREADS=${MAX_THREADS}; fi
 
@@ -343,7 +369,7 @@ if [ "${ENABLE_C_IMPL}" == True ] && [ "${PLATFORM}" = "ilmn" ]; then echo -e "$
 if [ "${ENABLE_C_IMPL}" == True ]; then CLAIR3_SCRIPT="clair3_c_impl.sh"; fi
 
 set -x
-${SHELL} ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
+${SHELL_ENTRY} ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --bam_fn ${BAM_FILE_PATH} \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --threads ${THREADS} \
@@ -382,11 +408,16 @@ ${SHELL} ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --pileup_model_prefix=${PILEUP_PREFIX} \
     --fa_model_prefix=${FA_PREFIX} \
     --remove_intermediate_dir=${RM_TMP_DIR} \
-    --enable_phasing=${ENABLE_PHASING} \
+    --enable_phasing=${FINAL_WH_PHASING} \
     --enable_long_indel=${ENABLE_LONG_INDEL} \
+    --keep_iupac_bases=${KEEP_IUPAC_BASES} \
     --use_gpu=${USE_GPU} \
     --longphase_for_phasing=${USE_LONGPHASE} \
-    --longphase=${LONGPHASE}
-
+    --longphase=${LONGPHASE} \
+    --use_whatshap_for_intermediate_phasing=${TMP_WH_PHASING} \
+    --use_longphase_for_intermediate_phasing=${USE_LONGPHASE} \
+    --use_whatshap_for_final_output_phasing=${FINAL_WH_PHASING} \
+    --use_longphase_for_final_output_phasing=${TMP_WH_PHASING} \
+    --use_whatshap_for_final_output_haplotagging=${FINAL_WH_HAPLOTAG}
 
 )) 2>&1 | tee ${OUTPUT_FOLDER}/run_clair3.log

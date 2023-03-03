@@ -8,6 +8,7 @@ ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,var_pct_phasing::,\
 min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
+use_whatshap_for_intermediate_phasing::,use_longphase_for_intermediate_phasing::,use_whatshap_for_final_output_phasing::,use_longphase_for_final_output_phasing::,use_whatshap_for_final_output_haplotagging::,keep_iupac_bases::,\
 no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir::,enable_phasing::,enable_long_indel::,use_gpu::,longphase_for_phasing::,longphase:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
@@ -54,10 +55,16 @@ while true; do
     --include_all_ctgs ) INCLUDE_ALL_CTGS="$2"; shift 2 ;;
     --no_phasing_for_fa ) NO_PHASING="$2"; shift 2 ;;
     --remove_intermediate_dir ) RM_TMP_DIR="$2"; shift 2 ;;
-    --enable_phasing ) ENABLE_PHASING="$2"; shift 2 ;;
+    --enable_phasing ) FINAL_WH_PHASING="$2"; shift 2 ;;
     --enable_long_indel ) ENABLE_LONG_INDEL="$2"; shift 2 ;;
+    --keep_iupac_bases ) KEEP_IUPAC_BASES="$2"; shift 2 ;;
     --use_gpu ) USE_GPU="$2"; shift 2 ;;
     --longphase_for_phasing ) USE_LONGPHASE="$2"; shift 2 ;;
+    --use_whatshap_for_intermediate_phasing ) TMP_WH_PHASING=True; shift 2 ;;
+    --use_longphase_for_intermediate_phasing ) USE_LONGPHASE=True; shift 2 ;;
+    --use_whatshap_for_final_output_phasing ) FINAL_WH_PHASING=True; shift 2 ;;
+    --use_longphase_for_final_output_phasing ) FINAL_LP_PHASING=True; shift 2 ;;
+    --use_whatshap_for_final_output_haplotagging ) FINAL_WH_HAPLOTAG=True; shift 2 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; break ;;
@@ -201,7 +208,7 @@ else
     then
         echo "[INFO] 3/7 Phase VCF file using LongPhase"
         time ${PARALLEL}  --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_3_phase.log -j${THREADS} \
-        "${LONGPHASE} phase\
+        "${LONGPHASE} phase \
             -s  ${PHASE_VCF_PATH}/{1}.vcf \
             -b ${BAM_FILE_PATH} \
             -r ${REFERENCE_FILE_PATH} \
@@ -338,7 +345,7 @@ then
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 fi
 
-if [ ${ENABLE_PHASING} == True ]
+if [ ${FINAL_WH_PHASING} == True ]
 then
     echo "[INFO] 7/7 Phasing VCF output in parallel using WhatsHap"
     time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_8_phase_vcf_output.log -j${THREADS} \
@@ -348,6 +355,25 @@ then
         --ignore-read-groups \
         ${TMP_FILE_PATH}/merge_output/merge_{1}.vcf \
         ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/8_phase_vcf_output.log
+
+    ${PYPY} ${CLAIR3} SortVcf \
+        --input_dir ${TMP_FILE_PATH}/merge_output \
+        --vcf_fn_prefix "phased_merge" \
+        --output_fn ${OUTPUT_FOLDER}/phased_merge_output.vcf \
+        --sampleName ${SAMPLE} \
+        --ref_fn ${REFERENCE_FILE_PATH} \
+        --contigs_fn ${TMP_FILE_PATH}/CONTIGS
+elif [ ${FINAL_LP_PHASING} == True ]
+then
+    echo "[INFO] 7/7 Phasing VCF output in parallel using LongPhase"
+    time ${PARALLEL}  --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_8_phase_vcf_output.log -j${THREADS} \
+    "${LONGPHASE} phase \
+        -s  ${TMP_FILE_PATH}/merge_output/merge_{1}.vcf \
+        -b ${BAM_FILE_PATH} \
+        -r ${REFERENCE_FILE_PATH} \
+        -t ${LONGPHASE_THREADS} \
+        -o ${TMP_FILE_PATH}/merge_output/phased_merge_{1} \
+        --${LP_PLATFORM}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
 
     ${PYPY} ${CLAIR3} SortVcf \
         --input_dir ${TMP_FILE_PATH}/merge_output \
@@ -371,4 +397,5 @@ if [ ${RM_TMP_DIR} == True ]; then echo "[INFO] Removing intermediate files in $
 echo $''
 echo "[INFO] Finish calling, output file: ${OUTPUT_FOLDER}/merge_output.vcf.gz"
 
-if [ ${ENABLE_PHASING} == True ]; then echo "[INFO] Finish calling, phased output file: ${OUTPUT_FOLDER}/phased_merge_output.vcf.gz"; fi
+if [ ${FINAL_WH_PHASING} == True ]; then echo "[INFO] Finish calling, phased output file: ${OUTPUT_FOLDER}/phased_merge_output.vcf.gz"; fi
+if [ ${FINAL_WH_HAPLOTAG} == True ]; then echo "[INFO] Finish calling, phased output BAM file: ${OUTPUT_FOLDER}/phased_output.bam"; fi
