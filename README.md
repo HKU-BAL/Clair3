@@ -57,6 +57,7 @@ Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), an
 ----
 
 ## Latest Updates
+*v1.0.0 (Mar 6, 2023)* : 1. Added Clair3 version in VCF header([#141](https://github.com/HKU-BAL/Clair3/issues/141)). 3. Fixed the Numpy int issue using latest numpy version ([#165](https://github.com/HKU-BAL/Clair3/issues/165), contributor @[Aaron Tyler](https://github.com/AJTDaedalus)). 3. Coverted all IUPAC bases to 'N' in both VCF and GVCF output, use `--keep_iupac_bases` to keep the IUPAC bases ([#153](https://github.com/HKU-BAL/Clair3/issues/153)). 4. Added `--use_longphase_for_intermediate_phasing`, `--use_whatshap_for_final_output_phasing`, `--use_longphase_for_final_output_phasing`, `--use_whatshap_for_final_output_haplotagging` options to support intermediate phasing and final VCF phasing(using WhatsHap or LongPhase) ([#164](https://github.com/HKU-BAL/Clair3/issues/164)). 5. Fixed shell issue in docker host user mode ([#175](https://github.com/HKU-BAL/Clair3/issues/175)).
 
 *v0.1-r12 (Aug 19)* : 1. CRAM input is supported ([#117](https://github.com/HKU-BAL/Clair3/issues/117)). 2. Bumped up dependencies' version to "Python 3.9" ([#96](https://github.com/HKU-BAL/Clair3/issues/96)), "TensorFlow 2.8", "Samtools 1.15.1", "WhatsHap 1.4". 3. VCF DP tag now shows raw coverage for both pileup and full-alignment calls (before r12, sub-sampled coverage was shown for pileup calls if average DP > 144, ([#128](https://github.com/HKU-BAL/Clair3/issues/128)). 4. Fixed Illumina representation unification out-of-range error in training ([#110](https://github.com/HKU-BAL/Clair3/issues/110)). 5. Updated package longphase from v1.0 to v1.3 (on Sept 27th, included in all installation options labeled v0.1-r12).
 
@@ -382,6 +383,16 @@ Instructions are given as an answer to issue [#149](https://github.com/HKU-BAL/C
       --print_ref_calls         Show reference calls (0/0) in vcf file, default: disable.
       --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
       --gvcf                    Enable GVCF output, default: disable.
+      --use_whatshap_for_intermediate_phasing
+                                Phase high-quality heterozygous variants using whatshap for full-alignment model calling, default: enable.
+      --use_longphase_for_intermediate_phasing
+                                Phase high-quality heterozygous variants using longphase for full-alignment model calling, default: disable.
+      --use_whatshap_for_final_output_phasing
+                                Phase the output variants using whatshap, default: disable.
+      --use_longphase_for_final_output_phasing
+                                Phase the output variants using longphase, default: disable.
+      --use_whatshap_for_final_output_haplotagging
+                                Haplotag input BAM using output phased variants using whatshap, default: disable.
       --enable_phasing          Output phased variants using whatshap, default: disable.
       --longphase_for_phasing   Use longphase for phasing, default: enable.
       --disable_c_impl          Disable C implement with cffi for pileup and full-alignment create tensor, default: enable.
@@ -402,6 +413,7 @@ Instructions are given as an answer to issue [#149](https://github.com/HKU-BAL/C
       --no_phasing_for_fa       EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.
       --call_snp_only           EXPERIMENTAL: Call candidates pass SNP minimum AF only, ignore Indel candidates, default: disable.
       --enable_long_indel       EXPERIMENTAL: Call long Indel variants(>50 bp), default: disable.
+      --keep_iupac_bases        EXPERIMENTAL: Keep IUPAC reference and alternate bases, default: convert all IUPAC bases to N.
 ```
 
 #### Call variants in a chromosome
