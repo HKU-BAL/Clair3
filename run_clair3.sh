@@ -419,7 +419,7 @@ ${SHELL_ENTRY} ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --use_whatshap_for_intermediate_phasing=${TMP_WH_PHASING} \
     --use_longphase_for_intermediate_phasing=${USE_LONGPHASE} \
     --use_whatshap_for_final_output_phasing=${FINAL_WH_PHASING} \
-    --use_longphase_for_final_output_phasing=${TMP_WH_PHASING} \
+    --use_longphase_for_final_output_phasing=${FINAL_LP_PHASING} \
     --use_whatshap_for_final_output_haplotagging=${FINAL_WH_HAPLOTAG}
 
 )) 2>&1 | tee ${OUTPUT_FOLDER}/run_clair3.log
