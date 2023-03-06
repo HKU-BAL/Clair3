@@ -23,10 +23,12 @@ from os.path import isfile, isdir
 # V->A or C or G
 
 def convert_iupac_to_n(string):
+    if string == ".":
+        return string
     output_str = []
     not_acgt_count = 0
     for s in string:
-        if s.upper() not in "ACGTN":
+        if s.upper() not in "ACGTN,.":
             not_acgt_count += 1
             output_str.append('N')
         else:
