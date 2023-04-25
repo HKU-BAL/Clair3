@@ -1393,7 +1393,7 @@ def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, refe
             gt21_prob_index = gt21_enum_from_label(gt21_label)
         except:
             #skip N positions
-            return [990 * len(genotypes[alt_num])]
+            return [990] * len(genotypes[alt_num])
         genotype_prob_21 = gt21_probabilities[gt21_prob_index]
 
         # obtain the genotype probability from 3 zygosity
