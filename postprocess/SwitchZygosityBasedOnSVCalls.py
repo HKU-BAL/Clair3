@@ -158,7 +158,7 @@ class VcfReader(object):
                 if sum([1 if filter == FILTER else 0 for filter in filter_list]) == 0:
                     continue
 
-            reference, alternate, last_column = columns[3], columns[4], columns[-1]
+            reference, alternate, next_to_last_column, last_column = columns[3], columns[4], columns[-2], columns[-1]
 
             if self.sv_input:
                 if self.sv_alt_tag is not None:
@@ -194,7 +194,8 @@ class VcfReader(object):
                 alternate = ''.join([alt_base for alt_base in alternate if alt_base != '*'])
 
             try:
-                af = float(last_column.split(':')[3])
+                af_idx = next_to_last_column.split(':').index('AF')
+                af = float(last_column.split(':')[af_idx])
             except:
                 af = None
 
