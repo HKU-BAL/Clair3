@@ -275,7 +275,7 @@ conda install -c conda-forge pytables -y
 conda install -c anaconda pigz cffi==1.14.4 -y
 conda install -c conda-forge parallel=20191122 zstd -y
 conda install -c conda-forge -c bioconda samtools=1.15.1 -y
-conda install -c conda-forge -c bioconda whatshap=1.4 -y
+conda install -c conda-forge -c bioconda whatshap=1.7 -y
 conda install -c conda-forge xz zlib bzip2 automake curl -y
 # tensorflow-addons is required in training
 pip install tensorflow-addons
