@@ -598,3 +598,5 @@ Please find more details about the training data and links at [Training Data](do
 Clair3 supports both VCF and GVCF output formats. Clair3 uses VCF version 4.2 specifications. Specifically, Clair3 adds a `P` INFO tag to the results called using a pileup model, and a `F` INFO tag to the results called using a full-alignment model.
 
 Clair3 outputs a GATK-compatible GVCF format that passes GATK's `ValidateVariants` module. Different from DeepVariant that uses `<*>` to represent any possible alternative allele, Clair3 uses `<NON_REF>`, the same as GATK.
+
+Clair3 GVCF files can be merged with GLNexus. A GLNexus caller based configuration file is available [Download](http://www.bio8.cs.hku.hk/clair3_trio/config/clair3.yml).
