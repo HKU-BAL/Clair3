@@ -203,7 +203,9 @@ conda activate singularity-env
 singularity pull docker://hkubal/clair3:latest
 
 # run clair3 like this afterward
-singularity exec clair3_latest.sif \
+singularity exec \
+  -B ${INPUT_DIR},${OUTPUT_DIR} \
+  clair3_latest.sif \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
