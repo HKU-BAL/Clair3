@@ -57,6 +57,11 @@ Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), an
 ----
 
 ## Latest Updates
+*v1.0.2 (May 22, 2023)* : 1. Added PacBio HiFi Revio model, check [Pre-trained model](#pre-trained-models) for model usage. 2. Fixed a bug when there are too few variant candidate in v1.0.1([#198](https://github.com/HKU-BAL/Clair3/issues/198)).
+
+*v1.0.1 (Apr 24, 2023)* : 1. Bumped up "WhatsHap" version to 1.7, `whatshap haplotag` step is ~15% faster.([#193](https://github.com/HKU-BAL/Clair3/issues/193)). 2. Fixed PL issue when alternative base is N ([#191](https://github.com/HKU-BAL/Clair3/issues/191), contributor @[
+Dennis Hendriksen](https://github.com/dennishendriksen)).
+
 *v1.0.0 (Mar 6, 2023)* : 1. Added Clair3 version in VCF header([#141](https://github.com/HKU-BAL/Clair3/issues/141)). 2. Fixed the Numpy int issue using the latest numpy version ([#165](https://github.com/HKU-BAL/Clair3/issues/165), contributor @[Aaron Tyler](https://github.com/AJTDaedalus)). 3. Coverted all IUPAC bases to 'N' in both VCF and GVCF output, use `--keep_iupac_bases` to keep the IUPAC bases ([#153](https://github.com/HKU-BAL/Clair3/issues/153)). 4. Added `--use_longphase_for_intermediate_phasing`, `--use_whatshap_for_intermediate_phasing`, `--use_longphase_for_final_output_phasing`, `--use_whatshap_for_final_output_phasing`, `--use_whatshap_for_final_output_haplotagging` options to support intermediate phasing and final VCF phasing(using WhatsHap or LongPhase) ([#164](https://github.com/HKU-BAL/Clair3/issues/164)). 5. Fixed shell issue in docker host user mode ([#175](https://github.com/HKU-BAL/Clair3/issues/175)).
 
 *v0.1-r12 (Aug 19)* : 1. CRAM input is supported ([#117](https://github.com/HKU-BAL/Clair3/issues/117)). 2. Bumped up dependencies' version to "Python 3.9" ([#96](https://github.com/HKU-BAL/Clair3/issues/96)), "TensorFlow 2.8", "Samtools 1.15.1", "WhatsHap 1.4". 3. VCF DP tag now shows raw coverage for both pileup and full-alignment calls (before r12, sub-sampled coverage was shown for pileup calls if average DP > 144, ([#128](https://github.com/HKU-BAL/Clair3/issues/128)). 4. Fixed Illumina representation unification out-of-range error in training ([#110](https://github.com/HKU-BAL/Clair3/issues/110)). 5. Updated package longphase from v1.0 to v1.3 (on Sept 27th, included in all installation options labeled v0.1-r12).
@@ -99,15 +104,16 @@ Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or 
 
 In a docker installation, models are in `/opt/models/`. In a bioconda installation, models are in `{CONDA_PREFIX}/bin/models/`.
 
-|           Model name           |  Platform   |                       Training samples                       | Included in the bioconda package | Included in the docker image |   Date   |  Basecaller  | File                                |                             Link                             |
-| :----------------------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :------: | :----------: | ----------------------------------- | :----------------------------------------------------------: |
-|      r941_prom_sup_g5014       |     ONT r9.4.1     |                    HG002,4,5 (Guppy5_sup)                    | Yes                              |             Yes              | 20220112 |  Guppy5 sup/hac/fast  | r941_prom_sup_g5014.tar.gz          | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g5014.tar.gz) |
-|    r941_prom_hac_g360+g422     |     ONT r9.4.1    |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422.tar.gz      | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422.tar.gz) |
-|  r941_prom_hac_g360+g422_1235  |     ONT r9.4.1    |                         HG001,2,3,5                          |                                  |                              | 20210517 | Guppy3,4 hac | r941_prom_hac_g360+g422_1235.tar.gz | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g360+g422_1235.tar.gz) |
-|       r941_prom_hac_g238       |     ONT r9.4.1    |                         HG001,2,3,4                          |                                  |             Yes              | 20210627 |    Guppy2    | r941_prom_hac_g238.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_hac_g238.tar.gz) |
-| ~~r941_prom_sup_g506~~ |     ONT r9.4.1    | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) |                                  |                              | 20210609 |  Guppy5 sup  | r941_prom_sup_g506.tar.gz           | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/r941_prom_sup_g506.tar.gz) |
-|              hifi              | PacBio HiFi |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 |      NA      | hifi.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/hifi.tar.gz) |
-|              ilmn              |  Illumina   |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 |      NA      | ilmn.tar.gz                         | [Download](http://www.bio8.cs.hku.hk/clair3/clair3_models/ilmn.tar.gz) |
+|           Model name           |  Platform   | Option (`-p/--platform`) |                       Training samples                       | Included in the bioconda package | Included in the docker image |   Date   |
+| :----------------------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :------: | :------: |
+|      r941_prom_sup_g5014       |     ONT r9.4.1     |     `ont`     |                    HG002,4,5 (Guppy5_sup)                    | Yes                              |             Yes              | 20220112 |
+|    r941_prom_hac_g360+g422     |     ONT r9.4.1    | `ont`    |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 |
+|  r941_prom_hac_g360+g422_1235  |     ONT r9.4.1    | `ont`    |                         HG001,2,3,5                          |                                  |                              | 20210517 |
+|       r941_prom_hac_g238       |     ONT r9.4.1    | `ont`    |                         HG001,2,3,4                          |                                  |             Yes              | 20210627 |
+| ~~r941_prom_sup_g506~~ |     ONT r9.4.1    |         | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) |                                  |                              | 20210609 |
+|              hifi_revio              | PacBio HiFi Revio | `hifi` |                         HG002,4                         | Yes                              |             Yes              | 20230522 |
+|             hifi_sequel2             | PacBio HiFi Sequel II | `hifi` |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 |
+| ilmn | Illumina | `ilmn` | HG001,2,4,5 | Yes | Yes | 20210517 |
 
 ### ONT-provided Models
 
@@ -200,7 +206,9 @@ conda activate singularity-env
 singularity pull docker://hkubal/clair3:latest
 
 # run clair3 like this afterward
-singularity exec clair3_latest.sif \
+singularity exec \
+  -B ${INPUT_DIR},${OUTPUT_DIR} \
+  clair3_latest.sif \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
@@ -583,7 +591,8 @@ Clair3 trained both its pileup and full-alignment models using four GIAB samples
 |  Platform   |   Reference   |      Aligner      | Training samples |
 | :---------: | :-----------: | :---------------: | :--------------: |
 |     ONT     | GRCh38_no_alt |     minimap2      | HG001,2,(3\|4),5 |
-| PacBio HiFi | GRCh38_no_alt |       pbmm2       |   HG001,2,4,5    |
+| PacBio HiFi Sequel II | GRCh38_no_alt |       pbmm2       |   HG001,2,4,5    |
+| PacBio HiFi Revio | GRCh38_no_alt |       pbmm2       |   HG002,4   |
 |  Illumina   |    GRCh38     | BWA-MEM/NovoAlign |   HG001,2,4,5    |
 
 Please find more details about the training data and links at [Training Data](docs/training_data.md).
@@ -595,3 +604,5 @@ Please find more details about the training data and links at [Training Data](do
 Clair3 supports both VCF and GVCF output formats. Clair3 uses VCF version 4.2 specifications. Specifically, Clair3 adds a `P` INFO tag to the results called using a pileup model, and a `F` INFO tag to the results called using a full-alignment model.
 
 Clair3 outputs a GATK-compatible GVCF format that passes GATK's `ValidateVariants` module. Different from DeepVariant that uses `<*>` to represent any possible alternative allele, Clair3 uses `<NON_REF>`, the same as GATK.
+
+Clair3 GVCF files can be merged with GLNexus. A GLNexus caller based configuration file is available [Download](http://www.bio8.cs.hku.hk/clair3_trio/config/clair3.yml).
