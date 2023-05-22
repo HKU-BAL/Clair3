@@ -41,6 +41,8 @@ def CreateTensorFullAlignment(args):
     matrix_depth = param.matrix_depth_dict[platform]
     max_indel_length = param.maximum_variant_length_that_need_infer if not enable_long_indel else param.maximum_variant_length_that_need_infer_include_long_indel
 
+    all_position_info, all_alt_info = [], []
+
     if full_aln_regions:
 
         """
@@ -102,6 +104,8 @@ def CreateTensorFullAlignment(args):
         Variants = libclair3.ffi.new("struct Variant *[]", 1)
         variant_num = 0
 
+    if ctg_start is None or ctg_end is None:
+        return [], all_position_info, all_alt_info
     # 1-index to 0-index
     candidates_list = sorted(list(set([item-1 for item in candidates_set if item >= ctg_start and item <= ctg_end])))
 
@@ -124,8 +128,6 @@ def CreateTensorFullAlignment(args):
         dtype=_dtype
     ).reshape(candidate_num, matrix_depth, no_of_positions, channel_size).copy()
 
-
-    all_position_info, all_alt_info = [], []
     for idx in range(candidate_num):
         # decode the C char* to python string
         alt_info_string = ffi.string(fa_data.all_alt_info[idx]).decode('utf8', 'ignore')

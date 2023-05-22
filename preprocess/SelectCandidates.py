@@ -3,6 +3,7 @@ import math
 import sys
 import logging
 import os
+import subprocess
 
 from argparse import ArgumentParser, SUPPRESS
 from collections import defaultdict
@@ -22,6 +23,14 @@ def discrete_gaussian_pro(entropy_windnow):
     gaussian_pro = [gaussian_distribution(index, entropy_windnow / 2, 1) for index in range(entropy_windnow)]
     return gaussian_pro
 
+def print_calling_step(output_fn=""):
+
+    merge_output = os.path.join(os.path.dirname(output_fn), 'merge_output.vcf.gz')
+    pileup_output = os.path.join(os.path.dirname(output_fn), 'pileup.vcf.gz')
+
+    print (log_warning("[WARNING] Copying pileup.vcf.gz to {}".format(merge_output)))
+    subprocess.run('cp {} {}'.format(pileup_output, merge_output), shell=True, stdout=subprocess.PIPE,
+                   stderr=subprocess.PIPE)
 
 def calculate_sequence_entropy(sequence, entropy_window=None, kmer=5):
     """
@@ -268,6 +277,8 @@ def SelectCandidates(args):
                 all_full_aln_regions_path = os.path.join(split_folder, 'FULL_ALN_FILE_{}'.format(contig_name))
                 with open(all_full_aln_regions_path, 'w') as output_file:
                     output_file.write('\n'.join(all_full_aln_regions) + '\n')
+            else:
+                print_calling_step(output_fn=pileup_vcf_fn)
             return
 
         for pos, qual in low_qual_ref_list:
