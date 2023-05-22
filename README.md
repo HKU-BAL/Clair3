@@ -57,7 +57,7 @@ Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), an
 ----
 
 ## Latest Updates
-*v1.0.2 (May 22, 2023)* : 1. Added PacBio HiFi Revio model, check [Pre-trained model](#pre-trained-models) for model usage. 2. Fixed a bug when there are too few variant candidate in v1.0.1([#198](https://github.com/HKU-BAL/Clair3/issues/198)).
+*v1.0.2 (May 22, 2023)* : 1. Added PacBio HiFi Revio model, check [Pre-trained model](#pre-trained-models) for model usage. 2. Fixed a bug that halts the pipeline when there exists too few variant candidates ([#198](https://github.com/HKU-BAL/Clair3/issues/198)).
 
 *v1.0.1 (Apr 24, 2023)* : 1. Bumped up "WhatsHap" version to 1.7, `whatshap haplotag` step is ~15% faster.([#193](https://github.com/HKU-BAL/Clair3/issues/193)). 2. Fixed PL issue when alternative base is N ([#191](https://github.com/HKU-BAL/Clair3/issues/191), contributor @[
 Dennis Hendriksen](https://github.com/dennishendriksen)).
