@@ -273,11 +273,11 @@ def SelectCandidates(args):
                         ['\t'.join([contig_name, str(x[0] - 1), str(x[1] - 1), ]) for x in
                          split_output]) + '\n')  # bed format
 
-            if len(all_full_aln_regions) > 0:
-                all_full_aln_regions_path = os.path.join(split_folder, 'FULL_ALN_FILE_{}'.format(contig_name))
-                with open(all_full_aln_regions_path, 'w') as output_file:
-                    output_file.write('\n'.join(all_full_aln_regions) + '\n')
-            else:
+
+            all_full_aln_regions_path = os.path.join(split_folder, 'FULL_ALN_FILE_{}'.format(contig_name))
+            with open(all_full_aln_regions_path, 'w') as output_file:
+                output_file.write('\n'.join(all_full_aln_regions) + '\n')
+            if len(all_full_aln_regions) == 0:
                 print_calling_step(output_fn=pileup_vcf_fn)
             return
 
