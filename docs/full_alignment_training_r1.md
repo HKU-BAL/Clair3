@@ -309,9 +309,9 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/mergeBin.log -j${THREADS} \
 
 We provide two optional training mode:
 
-​	**Option1**: Train  pileup model using new dataset, in this mode, we will use randomly initialized model weights and train the model until reaches max epochs(30) or converge.
+​	**Option1**: Train  full-alignment model using new dataset, in this mode, we will use randomly initialized model weights and train the model until reaches max epochs(30) or converge.
 
-​    **Option2**: Fine-tune pileup model using pre-trained parameters and choose a smaller learning rate for better converge in new dataset.
+​    **Option2**: Fine-tune full-alignment model using pre-trained parameters and choose a smaller learning rate for better converge in new dataset.
 
 ***We recommend using the fine-tune mode (option 2) for better robustness.***
 
