@@ -1039,7 +1039,13 @@ def batch_output_for_ensemble(X, batch_chr_pos_seq, alt_info_list, batch_Y, outp
         alt_info_list
     ):
         if output_config.tensor_fn != 'PIPE':
-            chromosome, position, reference_sequence = chr_pos_seq.decode().rstrip().split(":")
+            info_list = chr_pos_seq.rstrip().split(':')
+            if len(info_list) == 3:
+                chromosome, position, reference_sequence = info_list
+            else:
+                position = info_list[-2]
+                reference_sequence = info_list[-1]
+                chromosome = ':'.join(info_list[:-2])
         else:
             chromosome, position, reference_sequence = chr_pos_seq
 
@@ -1116,7 +1122,13 @@ def output_with(
     elif type(chr_pos_seq) == np.bytes_ or type(chr_pos_seq) == bytes:
         chr_pos_seq = chr_pos_seq.decode()
 
-    chromosome, position, reference_sequence = chr_pos_seq.rstrip().split(':')
+    info_list = chr_pos_seq.rstrip().split(':')
+    if len(info_list) == 3:
+        chromosome, position, reference_sequence = info_list
+    else:
+        position = info_list[-2]
+        reference_sequence = info_list[-1]
+        chromosome = ':'.join(info_list[:-2])
     position = int(position)
 
     # only store the centered reference base for C implment for efficiency
