@@ -119,6 +119,7 @@ ${PYTHON} ${CLAIR3} CheckEnvs \
     --ref_pct_full ${REF_PRO} \
     --snp_min_af ${SNP_AF} \
     --indel_min_af ${INDEL_AF} \
+    --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --min_contig_size ${MIN_CONTIG_SIZE}
 
 if [ "$(uname)" = "Darwin" ];
@@ -166,6 +167,7 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
     --temp_file_dir ${GVCF_TMP_PATH} \
     --pileup \
     --keep_iupac_bases ${KEEP_IUPAC_BASES} \
+    --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --use_gpu ${USE_GPU}" :::: ${OUTPUT_FOLDER}/tmp/CHUNK_LIST |& tee ${LOG_PATH}/1_call_var_bam_pileup.log
 
 ${PYPY} ${CLAIR3} SortVcf \
@@ -173,6 +175,7 @@ ${PYPY} ${CLAIR3} SortVcf \
     --vcf_fn_prefix "pileup" \
     --output_fn ${OUTPUT_FOLDER}/pileup.vcf \
     --sampleName ${SAMPLE} \
+    --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
@@ -271,6 +274,7 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_b
     --samtools ${SAMTOOLS} \
     --use_gpu ${USE_GPU} \
     --keep_iupac_bases ${KEEP_IUPAC_BASES} \
+    --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --platform ${PLATFORM}" :::: ${CANDIDATE_BED_PATH}/FULL_ALN_FILES |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
 
 ${PYPY} ${CLAIR3} SortVcf \
@@ -279,6 +283,7 @@ ${PYPY} ${CLAIR3} SortVcf \
     --output_fn ${OUTPUT_FOLDER}/full_alignment.vcf \
     --sampleName ${SAMPLE} \
     --ref_fn ${REFERENCE_FILE_PATH} \
+    --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
 if [ "$( gzip -fdc ${OUTPUT_FOLDER}/full_alignment.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in full-alignment variant calling"; exit 0; fi
@@ -290,6 +295,7 @@ then
         --vcf_fn_suffix ".tmp.gvcf" \
         --output_fn ${GVCF_TMP_PATH}/non_var.gvcf \
         --ref_fn ${REFERENCE_FILE_PATH} \
+        --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 fi
 
@@ -319,6 +325,7 @@ ${PYPY} ${CLAIR3} SortVcf \
     --output_fn ${OUTPUT_FOLDER}/merge_output.vcf \
     --sampleName ${SAMPLE} \
     --ref_fn ${REFERENCE_FILE_PATH} \
+    --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
 if [ "$( gzip -fdc ${OUTPUT_FOLDER}/merge_output.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in variant merging"; exit 0; fi
@@ -331,6 +338,7 @@ then
         --output_fn ${OUTPUT_FOLDER}/merge_output.gvcf \
         --sampleName ${SAMPLE} \
         --ref_fn ${REFERENCE_FILE_PATH} \
+        --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 fi
 
@@ -351,6 +359,7 @@ then
         --output_fn ${OUTPUT_FOLDER}/phased_merge_output.vcf \
         --sampleName ${SAMPLE} \
         --ref_fn ${REFERENCE_FILE_PATH} \
+        --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 elif [ ${FINAL_LP_PHASING} == True ]
 then
@@ -370,6 +379,7 @@ then
         --output_fn ${OUTPUT_FOLDER}/phased_merge_output.vcf \
         --sampleName ${SAMPLE} \
         --ref_fn ${REFERENCE_FILE_PATH} \
+        --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 fi
 
