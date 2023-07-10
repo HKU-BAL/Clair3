@@ -124,6 +124,13 @@ def executable_command_string_from(command_to_execute, exit_on_not_found=False):
 def subprocess_popen(args, stdin=None, stdout=PIPE, stderr=stderr, bufsize=8388608):
     return Popen(args, stdin=stdin, stdout=stdout, stderr=stderr, bufsize=bufsize, universal_newlines=True)
 
+def str_none(v):
+    if v is None:
+        return None
+    if v.upper() == "NONE":
+        return None
+    if isinstance(v, str):
+        return v
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -240,4 +247,61 @@ def samtools_view_process_from(
     return subprocess_popen(
         shlex.split("%s view -F 2318 %s %s" % (samtools, bam_file_path, region_str))
     )
+
+def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", version='1.0.4'):
+    from textwrap import dedent
+
+    if reference_file_path is None or not os.path.exists(reference_file_path):
+        ref_header_str = ""
+    else:
+        ref_header_str = "##reference={}".format(reference_file_path)
+
+    cmdline_str = ""
+    if cmd_fn is not None and os.path.exists(cmd_fn):
+            cmd_line = open(cmd_fn).read().rstrip()
+
+            if cmd_line is not None and len(cmd_line) > 0:
+                cmdline_str = "##cmdline={}".format(cmd_line)
+
+    header = dedent("""\
+        ##fileformat=VCFv4.2
+        ##source=Clair3
+        ##clair3_version={}
+        ##FILTER=<ID=PASS,Description="All filters passed">
+        ##FILTER=<ID=LowQual,Description="Low quality variant">
+        ##FILTER=<ID=RefCall,Description="Reference call">
+        ##INFO=<ID=P,Number=0,Type=Flag,Description="Result from pileup calling">
+        ##INFO=<ID=F,Number=0,Type=Flag,Description="Result from full-alignment calling">
+        ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+        ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+        ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+        ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Read depth for each allele">
+        ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
+        ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1], AF represents reference base allele frequency when $FILTER is RefCall">\n""".format(
+        version))
+
+    if ref_header_str != "":
+        header_list = header.rstrip('\n').split('\n')
+        insert_index = 3 if len(header_list) >= 3 else len(header_list) - 1
+        header_list.insert(insert_index, ref_header_str)
+        header = "\n".join(header_list) + '\n'
+
+    if cmdline_str != "":
+        header_list = header.rstrip('\n').split('\n')
+        insert_index = 3 if len(header_list) >= 3 else len(header_list) - 1
+        header_list.insert(insert_index, cmdline_str)
+        header = "\n".join(header_list) + '\n'
+
+    if reference_file_path is not None:
+        reference_index_file_path = file_path_from(reference_file_path, suffix=".fai", exit_on_not_found=True, sep='.')
+        with open(reference_index_file_path, "r") as fai_fp:
+            for row in fai_fp:
+                columns = row.strip().split("\t")
+                contig_name, contig_size = columns[0], columns[1]
+                header += "##contig=<ID=%s,length=%s>\n" % (contig_name, contig_size)
+
+        header += '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s' % (sample_name)
+
+    return header
+
 

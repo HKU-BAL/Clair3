@@ -4,6 +4,8 @@ SCRIPT_PATH=$(dirname $(readlink -f "$0"))
 VERSION='v1.0.3'
 Usage="Usage: ${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
+CMD="$0 $@"
+
 set -e
 #./run_clair3.sh -b tmp.bam -f ref.fasta -t 32 -o tmp -p ont -m model_path
 print_help_messages()
@@ -369,6 +371,10 @@ if [ ! -f ${MODEL_PATH}/${FA_PREFIX}.index ]; then echo -e "${ERROR} No full-ali
 CLAIR3_SCRIPT="clair3.sh"
 if [ "${ENABLE_C_IMPL}" == True ] && [ "${PLATFORM}" = "ilmn" ]; then echo -e "${WARNING} Illumina platform will disable C implement to support short read realignment process! ${NC}";  ENABLE_C_IMPL=False; fi
 if [ "${ENABLE_C_IMPL}" == True ]; then CLAIR3_SCRIPT="clair3_c_impl.sh"; fi
+
+# keep command line info., for vcf header
+mkdir -p ${OUTPUT_FOLDER}/tmp
+echo "$CMD" > "${OUTPUT_FOLDER}/tmp/CMD"
 
 set -x
 ${SHELL_ENTRY} ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \

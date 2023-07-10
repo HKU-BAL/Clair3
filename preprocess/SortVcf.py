@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 from collections import defaultdict
 
 import shared.param_p as param
-from shared.utils import log_error, log_warning, file_path_from, subprocess_popen
+from shared.utils import log_error, log_warning, file_path_from, subprocess_popen, get_header, str_none
 major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] + [str(a) for a in
                                                                                    list(range(1, 23)) + ["X", "Y"]]
 
@@ -17,35 +17,10 @@ def compress_index_vcf(input_vcf):
     proc = subprocess.run('bgzip -f {}'.format(input_vcf), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     proc = subprocess.run('tabix -f -p vcf {}.gz'.format(input_vcf), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-def output_header(output_fn, reference_file_path, sample_name='SAMPLE'):
+def output_header(output_fn, reference_file_path, cmd_fn=None, sample_name='SAMPLE'):
     output_file = open(output_fn, "w")
-    from textwrap import dedent
-    output_file.write(dedent("""\
-        ##fileformat=VCFv4.2
-        ##source=Clair3
-        ##clair3_version={}
-        ##FILTER=<ID=PASS,Description="All filters passed">
-        ##FILTER=<ID=LowQual,Description="Low quality variant">
-        ##FILTER=<ID=RefCall,Description="Reference call">
-        ##INFO=<ID=P,Number=0,Type=Flag,Description="Result from pileup calling">
-        ##INFO=<ID=F,Number=0,Type=Flag,Description="Result from full-alignment calling">
-        ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-        ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
-        ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
-        ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Read depth for each allele">
-        ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
-        ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">""".format(param.version)
-                  ) + '\n')
-
-    if reference_file_path is not None:
-        reference_index_file_path = file_path_from(reference_file_path, suffix=".fai", exit_on_not_found=True, sep='.')
-        with open(reference_index_file_path, "r") as fai_fp:
-            for row in fai_fp:
-                columns = row.strip().split("\t")
-                contig_name, contig_size = columns[0], columns[1]
-                output_file.write(("##contig=<ID=%s,length=%s>" % (contig_name, contig_size) + '\n'))
-
-    output_file.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s' % (sample_name))
+    header_str = get_header(reference_file_path=reference_file_path, cmd_fn=cmd_fn, sample_name=sample_name)
+    output_file.write(header_str)
     output_file.close()
 
 def print_calling_step(output_fn=""):
@@ -117,6 +92,7 @@ def sort_vcf_from(args):
     sample_name = args.sampleName
     ref_fn = args.ref_fn
     contigs_fn = args.contigs_fn
+    cmd_fn = args.cmd_fn
 
     if not os.path.exists(input_dir):
         exit(log_error("[ERROR] Input directory: {} not exists!").format(input_dir))
@@ -125,7 +101,7 @@ def sort_vcf_from(args):
     if vcf_fn_prefix is not None:
         all_files = [item for item in all_files if item.startswith(vcf_fn_prefix)]
         if len(all_files) == 0:
-            output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
+            output_header(output_fn=output_fn, reference_file_path=ref_fn, cmd_fn=cmd_fn, sample_name=sample_name)
             print (log_warning(
                 "[WARNING] No vcf file found with prefix:{}/{}, output empty vcf file".format(input_dir,vcf_fn_prefix)))
             compress_index_vcf(output_fn)
@@ -135,7 +111,7 @@ def sort_vcf_from(args):
     if vcf_fn_suffix is not None:
         all_files = [item for item in all_files if item.endswith(vcf_fn_suffix)]
         if len(all_files) == 0:
-            output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
+            output_header(output_fn=output_fn, reference_file_path=ref_fn, cmd_fn=cmd_fn, sample_name=sample_name)
             print (log_warning(
                 "[WARNING] No vcf file found with suffix:{}/{}, output empty vcf file".format(input_dir,vcf_fn_prefix)))
             compress_index_vcf(output_fn)
@@ -221,12 +197,12 @@ def sort_vcf_from(args):
 
     if row_count == 0:
         print (log_warning("[WARNING] No vcf file found, output empty vcf file"))
-        output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
+        output_header(output_fn=output_fn, reference_file_path=ref_fn, cmd_fn=cmd_fn, sample_name=sample_name)
         compress_index_vcf(output_fn)
         print_calling_step(output_fn=output_fn)
         return
     if no_vcf_output:
-        output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
+        output_header(output_fn=output_fn, reference_file_path=ref_fn, cmd_fn=cmd_fn, sample_name=sample_name)
         print (log_warning("[WARNING] No variant found, output empty vcf file"))
         compress_index_vcf(output_fn)
         print_calling_step(output_fn=output_fn)
@@ -262,6 +238,9 @@ def main():
 
     parser.add_argument('--contigs_fn', type=str, default=None,
                         help="Contigs file with all processing contigs")
+
+    parser.add_argument('--cmd_fn', type=str_none, default=None,
+                        help="If defined, added command line into VCF header")
 
     args = parser.parse_args()
     if args.input_dir is None:

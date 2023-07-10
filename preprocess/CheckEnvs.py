@@ -12,7 +12,7 @@ from distutils.version import LooseVersion
 import shared.param_p as param
 from shared.interval_tree import bed_tree_from
 from shared.utils import file_path_from, folder_path_from, subprocess_popen, str2bool, \
-    legal_range_from, log_error, log_warning
+    legal_range_from, log_error, log_warning, get_header, str_none
 
 MIN_CHUNK_LENGTH = 200000
 MAX_CHUNK_LENGTH = 20000000
@@ -165,33 +165,10 @@ def split_extend_bed(bed_fn, output_fn, contig_set=None):
     unzip_process.wait()
 
 
-def output_header(output_fn, reference_file_path, sample_name='SAMPLE'):
+def output_header(output_fn, reference_file_path, cmd_fn=None, sample_name='SAMPLE'):
     output_file = open(output_fn, "w")
-    from textwrap import dedent
-    output_file.write(dedent("""\
-        ##fileformat=VCFv4.2
-        ##FILTER=<ID=PASS,Description="All filters passed">
-        ##FILTER=<ID=LowQual,Description="Low quality variant">
-        ##FILTER=<ID=RefCall,Description="Reference call">
-        ##INFO=<ID=P,Number=0,Type=Flag,Description="Result from pileup calling">
-        ##INFO=<ID=F,Number=0,Type=Flag,Description="Result from full-alignment calling">
-        ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-        ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
-        ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
-        ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Read depth for each allele">
-        ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
-        ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">"""
-                             ) + '\n')
-
-    if reference_file_path is not None:
-        reference_index_file_path = file_path_from(reference_file_path, suffix=".fai", exit_on_not_found=True, sep='.')
-        with open(reference_index_file_path, "r") as fai_fp:
-            for row in fai_fp:
-                columns = row.strip().split("\t")
-                contig_name, contig_size = columns[0], columns[1]
-                output_file.write(("##contig=<ID=%s,length=%s>" % (contig_name, contig_size) + '\n'))
-
-    output_file.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s' % (sample_name))
+    header_str = get_header(reference_file_path=reference_file_path, cmd_fn=cmd_fn, sample_name=sample_name)
+    output_file.write(header_str)
     output_file.close()
 
 def compress_index_vcf(input_vcf):
@@ -248,6 +225,7 @@ def CheckEnvs(args):
     sample_name = args.sampleName
     contig_name_list = os.path.join(tmp_file_path, 'CONTIGS')
     chunk_list = os.path.join(tmp_file_path, 'CHUNK_LIST')
+    cmd_fn = args.cmd_fn
 
     legal_range_from(param_name="qual", x=qual, min_num=0, exit_out_of_range=True)
     legal_range_from(param_name="var_pct_full", x=var_pct_full, min_num=0, max_num=1, exit_out_of_range=True)
@@ -367,7 +345,7 @@ def CheckEnvs(args):
     if not found_contig:
         # output header only to merge_output.vcf.gz
         output_fn = os.path.join(output_fn_prefix, "merge_output.vcf")
-        output_header(output_fn=output_fn, reference_file_path=ref_fn, sample_name=sample_name)
+        output_header(output_fn=output_fn, reference_file_path=ref_fn, cmd_fn=cmd_fn, sample_name=sample_name)
         compress_index_vcf(output_fn)
         print(log_warning(
             ("[WARNING] No contig intersection found, output header only in {}").format(output_fn + ".gz")))
@@ -473,6 +451,9 @@ def main():
 
     parser.add_argument('--min_contig_size', type=int, default=0,
                         help="Minimum Indel allele frequency for a site to be considered as a candidate site, default: %(default)f")
+
+    parser.add_argument('--cmd_fn', type=str_none, default=None,
+                        help="If defined, added command line into VCF header")
 
     # options for internal process control
     ## The number of chucks to be divided into for parallel processing

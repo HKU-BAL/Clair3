@@ -5,7 +5,7 @@ import logging
 from time import time
 from argparse import ArgumentParser, SUPPRESS
 
-from shared.utils import str2bool, log_error
+from shared.utils import str2bool, log_error, str_none
 from clair3.CallVariants import OutputConfig, output_utilties_from, batch_output
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -56,7 +56,8 @@ def Run(args):
         is_output_for_ensemble=args.output_for_ensemble,
         reference_file_path=args.ref_fn,
         output_file_path=args.call_fn,
-        output_probabilities=args.output_probabilities
+        output_probabilities=args.output_probabilities,
+        cmd_fn=args.cmd_fn
     )
 
     call_variants_from_cffi(args=args, output_config=output_config, output_utilities=output_utilities)
@@ -340,6 +341,10 @@ def main():
 
     ## Provide the regions to be included in full-alignment based calling
     parser.add_argument('--full_aln_regions', type=str, default=None,
+                        help=SUPPRESS)
+
+    ## If defined, added command line into VCF header
+    parser.add_argument('--cmd_fn', type=str_none, default=None,
                         help=SUPPRESS)
 
     args = parser.parse_args()

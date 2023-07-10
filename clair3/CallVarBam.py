@@ -21,7 +21,7 @@ from shared.command_options import (
     command_string_from,
     command_option_from
 )
-from shared.utils import file_path_from, executable_command_string_from, subprocess_popen, str2bool, log_warning
+from shared.utils import file_path_from, executable_command_string_from, subprocess_popen, str2bool, log_warning, str_none
 import shared.param_p as param
 
 
@@ -84,6 +84,7 @@ def Run(args):
     ref_fn = file_path_from(args.ref_fn, exit_on_not_found=True)
     bed_fn = file_path_from(args.bed_fn)
     vcf_fn = file_path_from(args.vcf_fn)
+    cmd_fn = file_path_from(args.cmd_fn)
     extend_bed = file_path_from(args.extend_bed)
     full_aln_regions = file_path_from(args.full_aln_regions)
 
@@ -218,6 +219,7 @@ def Run(args):
         CommandOption('platform', platform),
         CommandOption('ctgName', ctgName),
         CommandOption('temp_file_dir', args.temp_file_dir),
+        CommandOption('cmd_fn', cmd_fn),
         haploid_precise_mode,
         haploid_sensitive_mode,
         output_for_ensemble,
@@ -230,7 +232,7 @@ def Run(args):
         chunk_num,
         gvcf_mode,
         enable_long_indel_mode,
-        keep_iupac_bases_mode
+        keep_iupac_bases_mode,
     ]
 
     try:
@@ -451,6 +453,9 @@ def main():
     parser.add_argument('--showRef', action='store_false',
                         help=SUPPRESS)
 
+    ## If defined, added command line into VCF header
+    parser.add_argument('--cmd_fn', type=str_none, default=None,
+                        help=SUPPRESS)
 
     args = parser.parse_args()
 

@@ -19,7 +19,7 @@ import clair3.utils as utils
 import shared.param_p as param
 from clair3.task.genotype import Genotype, genotype_string_from, genotype_enum_from, genotype_enum_for_task
 from shared.utils import IUPAC_base_to_ACGT_base_dict as BASE2ACGT, BASIC_BASES, str2bool, file_path_from, \
-    log_error, log_warning, convert_iupac_to_n
+    log_error, log_warning, convert_iupac_to_n, get_header, str_none
 from clair3.task.variant_length import VariantLength
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.basicConfig(format='%(message)s', level=logging.INFO)
@@ -211,6 +211,7 @@ def Run(args):
         reference_file_path=args.ref_fn,
         output_file_path=args.call_fn,
         output_probabilities=args.output_probabilities,
+        cmd_fn=args.cmd_fn
     )
     if args.input_probabilities:
         call_variants_with_probabilities_input(args=args, output_config=output_config,
@@ -227,7 +228,8 @@ def output_utilties_from(
         is_output_for_ensemble,
         reference_file_path,
         output_file_path,
-        output_probabilities
+        output_probabilities,
+        cmd_fn=None,
 ):
     def gen_output_file():
         global output_file
@@ -264,33 +266,8 @@ def output_utilties_from(
         if is_output_for_ensemble:
             return
 
-        from textwrap import dedent
-        output(dedent("""\
-            ##fileformat=VCFv4.2
-            ##source=Clair3
-            ##clair3_version={}
-            ##FILTER=<ID=PASS,Description="All filters passed">
-            ##FILTER=<ID=LowQual,Description="Low quality variant">
-            ##FILTER=<ID=RefCall,Description="Reference call">
-            ##INFO=<ID=P,Number=0,Type=Flag,Description="Result from pileup calling">
-            ##INFO=<ID=F,Number=0,Type=Flag,Description="Result from full-alignment calling">
-            ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-            ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
-            ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
-            ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Read depth for each allele">
-            ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred-scaled genotype likelihoods rounded to the closest integer">
-            ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Estimated allele frequency in the range of [0,1]">""".format(param.version)
-                      ))
-
-        if reference_file_path is not None:
-            reference_index_file_path = file_path_from(reference_file_path, suffix=".fai", exit_on_not_found=True, sep='.')
-            with open(reference_index_file_path, "r") as fai_fp:
-                for row in fai_fp:
-                    columns = row.strip().split("\t")
-                    contig_name, contig_size = columns[0], columns[1]
-                    output("##contig=<ID=%s,length=%s>" % (contig_name, contig_size))
-
-        output('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s' % (sample_name))
+        header_str = get_header(reference_file_path=reference_file_path, cmd_fn=cmd_fn, sample_name=sample_name)
+        output(header_str)
 
     return OutputUtilities(
         print_debug_message,
@@ -1364,20 +1341,6 @@ def output_with(
                 allele_frequency_s,
                 PLs
             ))
-        else:
-            output_utilities.output("%s\t%d\t.\t%s\t%s\t%.2f\t%s\t%s\tGT:GQ:DP:AF\t%s:%d:%d:%.4f" % (
-                chromosome,
-                position,
-                reference_base,
-                alternate_base,
-                quality_score,
-                filtration_value,
-                information_string,
-                genotype_string,
-                quality_score,
-                read_depth,
-                allele_frequency
-            ))
 
 
 def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, reference_base, alternate_base):
@@ -1814,6 +1777,9 @@ def main():
 
     parser.add_argument('--samtools', type=str, default="samtools",
                         help="Path to the 'samtools', samtools version >= 1.10 is required, default: %(default)s")
+
+    parser.add_argument('--cmd_fn', type=str_none, default=None,
+                        help="If defined, added command line into VCF header")
 
     # options for advanced users
     parser.add_argument('--temp_file_dir', type=str, default='./',
