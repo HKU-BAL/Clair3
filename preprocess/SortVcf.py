@@ -179,6 +179,18 @@ def sort_vcf_from(args):
             if is_lz4_format:
                 read_proc.wait()
         if need_write_header and len(header):
+            #add cmdline for gvcf
+            if "##cmdline" not in '\n'.join(header) and os.path.exists(cmd_fn):
+                cmdline_str = ""
+                if cmd_fn is not None and os.path.exists(cmd_fn):
+                    cmd_line = open(cmd_fn).read().rstrip()
+
+                    if cmd_line is not None and len(cmd_line) > 0:
+                        cmdline_str = "##cmdline={}\n".format(cmd_line)
+                if cmdline_str != "":
+                    insert_index = 3 if len(header) >= 3 else len(header) - 1
+                    header.insert(insert_index, cmdline_str)
+
             if output_bgzip_gvcf:
                 header = check_header_in_gvcf(header=header, contigs_list=all_contigs_list)
             output.write(''.join(header))
