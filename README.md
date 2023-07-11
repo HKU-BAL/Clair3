@@ -57,6 +57,8 @@ Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), an
 ----
 
 ## Latest Updates
+*v1.0.4 (Jul 11, 2023)* : 1. Added command line and reference source in output VCF header. 2. Split the AF tag into separate values for each allele in multi-allelic variants(1/2 genotypes). Added AD tag in output VCF.
+
 *v1.0.3 (Jun 20, 2023)* : 1. Colon ':' is now allowed in reference sequence name ([#203](https://github.com/HKU-BAL/Clair3/issues/203)).
 
 *v1.0.2 (May 22, 2023)* : 1. Added PacBio HiFi Revio model, check [Pre-trained model](#pre-trained-models) for model usage. 2. Fixed a bug that halts the pipeline when there exists too few variant candidates ([#198](https://github.com/HKU-BAL/Clair3/issues/198)).
