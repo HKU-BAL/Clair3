@@ -568,7 +568,7 @@ class variantInfoCalculator(object):
 
     def _print_vcf_header(self):
 
-        header_str = get_header(reference_file_path=self.reference_file_path, sample_name=self.sampleName)
+        header_str = get_header(reference_file_path=self.reference_file_path, sample_name=self.sampleName, gvcf=True)
         print(header_str, file=self.vcf_writer)
 
    
