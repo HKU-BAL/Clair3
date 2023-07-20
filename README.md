@@ -57,7 +57,7 @@ Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), an
 ----
 
 ## Latest Updates
-*v1.0.4 (Jul 11, 2023)* : 1. Added command line and reference source in output VCF header. 2. Split the AF tag into separate values for each allele in multi-allelic variants(1/2 genotypes). Added AD tag in output VCF.
+*v1.0.4 (Jul 11, 2023)* : 1. Added showing command line and reference source in output VCF header. 2. Fixed a bug in showing the AF tag for 1/2 genotypes. 3. Added AD tag output.
 
 *v1.0.3 (Jun 20, 2023)* : 1. Colon ':' is now allowed in reference sequence name ([#203](https://github.com/HKU-BAL/Clair3/issues/203)).
 
