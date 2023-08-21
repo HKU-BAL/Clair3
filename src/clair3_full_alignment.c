@@ -823,6 +823,8 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
         char *alt_info_str = calloc(max_alt_length, sizeof(char));
         char center_ref_base = upper_base(ref_seq[candidate - ref_start]);
 
+        int ref_count = pos_alt_info[i].acgt_count[acgt2num[center_ref_base - 'A']];
+
         sprintf(alt_info_str, "%i-%i-%c-", candidate + 1, candidate_depth, center_ref_base);
         for (size_t j = 0; j < 4; j++)
         {
@@ -835,6 +837,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
             {
                 char *key = kh_key(pos_alt_info[i].ins_counter, k);
                 int val = kh_val(pos_alt_info[i].ins_counter, k);
+                ref_count -= val;
                 if (strlen(key) <= max_indel_length)
                 {
                     if (strlen(alt_info_str) + strlen(key) + 32 >= max_alt_length)
@@ -854,6 +857,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
             {
                 int key = kh_key(pos_alt_info[i].del_counter, k);
                 int val = kh_val(pos_alt_info[i].del_counter, k);
+                ref_count -= val;
                 if (key <= max_indel_length)
                 {
                     if (strlen(alt_info_str) + key + 32 >= max_alt_length)
@@ -866,6 +870,9 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
                 }
             }
         }
+
+        if (ref_count > 0)
+            sprintf(alt_info_str + strlen(alt_info_str), "R%c %i ", center_ref_base, ref_count);
 
         alt_info_p[i] = alt_info_str;
 

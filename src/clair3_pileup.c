@@ -376,6 +376,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         bool pass_ref_base_in_acgt = ref_base == 'A' || ref_base == 'C' || ref_base == 'G' || ref_base == 'T';
         bool non_ref_base_majority = ref_count < alt_count || ref_count < ins_count || ref_count < del_count;
         bool ref_alt_equal_majority = (ref_count > 0 && ref_count == alt_count && ref_base - major_alt_base < 0);
+        int ref_depth = ref_count;
         if (call_snp_only == true) {
             pass_af = alt_count / (float)depth >= min_snp_af;
         } else {
@@ -409,6 +410,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
             //del
             for (size_t i = 0; i < del_buf_size; i++) {
                 size_t d = dels_f[i] + dels_r[i];
+                ref_depth -= d;
                 if (d > 0 && i+1 <= max_indel_length) {
                     // 32 bytes is a safe number for integer to string
                     if (strlen(alt_info_str) + i + 32 >= max_alt_length) {
@@ -425,6 +427,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
                 if (kh_exist(ins_counts_all, k)) {
                     const char *key = kh_key(ins_counts_all, k);
                     size_t val = kh_val(ins_counts_all, k);
+                    ref_depth -= val;
                     if (strlen(key) <= max_indel_length) {
                          if (strlen(alt_info_str) + strlen(key) + 32 >= max_alt_length) {
                              while (strlen(alt_info_str) + strlen(key) + 32 >= max_alt_length)
@@ -435,6 +438,11 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
                     }
                 }
             }
+
+            // ref
+            if (ref_depth > 0)
+                sprintf(alt_info_str + strlen(alt_info_str), "R%c %i ", ref_base, ref_depth);
+
             // update the alternative information for current candidates here
             alt_info_p[candidates_num++] = alt_info_str;
         }
