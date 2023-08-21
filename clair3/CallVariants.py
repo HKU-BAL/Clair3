@@ -1179,8 +1179,9 @@ def output_with(
 
         # allele frequency / supported reads
 
-    def decode_alt_info(alt_info_dict):
+    def decode_alt_info(alt_info_dict, ref_base=None):
         alt_type_list = [{}, {}, {}]  # SNP I D
+        ref_count = 0
         for alt_type, count in alt_info_dict.items():
             count = int(count)
             if alt_type[0] == 'X':
@@ -1189,15 +1190,16 @@ def output_with(
                 alt_type_list[1][alt_type[1:]] = count
             elif alt_type[0] == 'D':
                 alt_type_list[2][alt_type[1:]] = count
-        return alt_type_list
+            elif alt_type[0] == 'R':
+                ref_count = count
 
-    alt_type_list = decode_alt_info(alt_info_dict)
+        ref_count = max(0, ref_count)
+        return alt_type_list, ref_count
+
+    alt_type_list, ref_count = decode_alt_info(alt_info_dict, ref_base=reference_base)
     supported_reads_count = 0
-    ref_count, alt_list_count = 0, []
-    snp_num = sum([item for item in alt_type_list[0].values()]) if len(alt_type_list[0]) else 0
-    insert_num = sum([item for item in alt_type_list[1].values()]) if len(alt_type_list[1]) else 0
-    del_num = sum([item for item in alt_type_list[2].values()]) if len(alt_type_list[2]) else 0
-    ref_count = max(0, read_depth - snp_num - insert_num - del_num)
+    alt_list_count = []
+
     if is_reference:
         supported_reads_count = ref_count
         alternate_base = "."
