@@ -321,6 +321,7 @@ def generate_tensor(ctg_name, center_pos, sorted_read_name_list, pileup_dict, re
 
     alt_dict = defaultdict(int)
     depth, max_del_length = 0, 0
+    ref_count = 0
     for base, indel in pileup_dict[center_pos].base_list:
         if base in "#*":
             depth += 1
@@ -335,7 +336,8 @@ def generate_tensor(ctg_name, center_pos, sorted_read_name_list, pileup_dict, re
                 max_del_length = max(len(indel), max_del_length)
         elif base.upper() != reference_base:
             alt_dict[base.upper()] += 1
-
+        elif base.upper() == reference_base:
+            ref_count += 1
     # match deletion cases and bed format
     pass_confident_bed = not len(confident_bed_tree) or is_region_in(confident_bed_tree, ctg_name,
                                                                      center_pos - 2,
@@ -391,6 +393,8 @@ def generate_tensor(ctg_name, center_pos, sorted_read_name_list, pileup_dict, re
             alt_info.append(['D' + del_ref_bases, str(alt_count)])
         else:
             alt_info.append(['X' + alt_type, str(alt_count)])
+    if ref_count > 0:
+        alt_info.append(['R' + reference_base, str(ref_count)])
 
     alt_info = str(depth) + '-' + ' '.join([' '.join([item[0], str(item[1])]) for item in alt_info])
     tensor_string_list = [" ".join((" ".join(" ".join(str(x) for x in innerlist) for innerlist in outerlist)) for outerlist in tensor)]

@@ -70,6 +70,9 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
     base_list = []
     alt_dict = defaultdict(int)
     pileup_dict = defaultdict(int)
+    alt_count = 0
+    ins_count = 0
+    del_count = 0
     while base_idx < len(pileup_bases):
         base = pileup_bases[base_idx]
         if base in "ACGTNacgtn#*":
@@ -98,6 +101,7 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
         if key[0] == '+':
             alt_dict['I' + reference_base + key[1:].upper()] += count
             pileup_dict['I'] += count
+            ins_count += count
             # two strand
             if key[1] in 'ACGTN*':
                 pileup_tensor[BASE2INDEX["I"]] += count
@@ -110,6 +114,7 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
             alt_dict['D' + del_base] += count
             pileup_dict['D'] += count
             max_del_length = max(max_del_length, len(del_base))
+            del_count += count
             # two strand
             if key[1] in 'N*ACGT':
                 pileup_tensor[BASE2INDEX["D"]] += count
@@ -123,10 +128,17 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
                 depth += count
                 if key.upper() != reference_base:
                     alt_dict['X' + key.upper()] += count
+                    alt_count += count
+
                 pileup_tensor[BASE2INDEX[key]] += count
             elif key in '#*':
+                del_count += count
                 pileup_tensor[BASE2INDEX[key]] += count
                 depth += count
+    ref_count = max(0, depth - del_count - ins_count - alt_count)
+    if ref_count > 0:
+        alt_dict['R' + reference_base] += ref_count
+
     pileup_tensor[BASE2INDEX['I1']] = max_ins_0
     pileup_tensor[BASE2INDEX['i1']] = max_ins_1
     pileup_tensor[BASE2INDEX['D1']] = max_del_0
