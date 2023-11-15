@@ -539,7 +539,7 @@ docker run -it \
 ## Tips
 
 ### Dealing with amplicon data
-If you are dealing with amplicon data with excessively high depth coverage, please try setting --var_pct_full, --ref_pct_full and --var_pct_phasing to 1. Please refer to discussion [#160](https://github.com/HKU-BAL/Clair3/issues/160#issuecomment-1396743261) for more details.
+If you are dealing with amplicon data with excessively high depth coverage, please try setting --var_pct_full, --ref_pct_full and --var_pct_phasing to 1. Please refer to discussion [#160](https://github.com/HKU-BAL/Clair3/issues/160#issuecomment-1396743261), and [#240](https://github.com/HKU-BAL/Clair3/issues/240) for more details.
 
 
 ----
