@@ -42,6 +42,8 @@ Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), an
   + [Run Clair3 with Apple Silicon](#run-clair3-with-apple-silicon)
 * [Quick Demo](#quick-demo)
 * [Usage](#usage)
+* [Tips](#tips)
+  + [Dealing with amplicon data](#dealing-with-amplicon-data)
 * [Postprocessing scripts](#postprocessing-scripts)
   + [SwitchZygosityBasedOnSVCalls module](#switchzygositybasedonsvcalls-module)
 * [Folder Structure and Submodule Descriptions](#folder-structure-and-submodule-descriptions)
@@ -532,6 +534,13 @@ docker run -it \
   --include_all_ctgs \                 ## call variants on all contigs in the reference fasta
   --haploid_precise                    ## optional(enable --haploid_precise or --haploid_sensitive) for haploid calling
 ```
+----
+
+## Tips
+
+### Dealing with amplicon data
+If you are dealing with amplicon data with excessively high depth coverage, please try setting --var_pct_full, --ref_pct_full and --var_pct_phasing to 1. Please refer to discussion [#160](https://github.com/HKU-BAL/Clair3/issues/160#issuecomment-1396743261), and [#240](https://github.com/HKU-BAL/Clair3/issues/240) for more details.
+
 
 ----
 
