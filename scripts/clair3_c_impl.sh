@@ -230,7 +230,6 @@ else
             ${PHASE_VCF_PATH}/{1}.vcf \
             ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
     fi
-    ${PARALLEL} -j${THREADS} tabix -f -p vcf ${PHASE_VCF_PATH}/phased_{}.vcf.gz ::: ${CHR[@]}
 
 fi
 
