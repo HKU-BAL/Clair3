@@ -5,7 +5,7 @@ import logging
 from time import time
 from argparse import ArgumentParser, SUPPRESS
 
-from shared.utils import str2bool, log_error, str_none
+from shared.utils import str2bool, log_error, log_warning, str_none
 from clair3.CallVariants import OutputConfig, output_utilties_from, batch_output
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -170,7 +170,7 @@ def call_variants_from_cffi(args, output_config, output_utilities):
         logging.info("Total processed positions in {} : {}".format(args.ctgName, total))
 
     if full_alignment_mode and total == 0:
-        logging.info(log_error("[ERROR] No full-alignment output for file {}/{}".format(args.ctgName, args.call_fn)))
+        logging.info(log_warning("[WARNING] No full-alignment output for file {}/{}".format(args.ctgName, args.call_fn)))
 
     logging.info("Total time elapsed: %.2f s" % (time() - variant_call_start_time))
 

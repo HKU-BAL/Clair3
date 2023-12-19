@@ -1208,8 +1208,9 @@ def output_with(
         for base in str(alternate_base):
             if base == ',':
                 continue
+            read_count = alt_type_list[0][base] if base in alt_type_list[0] else 0
             supported_reads_count += alt_type_list[0][base] if base in alt_type_list[0] else 0
-            alt_list_count.append(supported_reads_count)
+            alt_list_count.append(read_count)
     elif is_homo_insertion or is_hetero_InsIns:
         base_list = alternate_base.split(',')
         for ins_bases in base_list:
