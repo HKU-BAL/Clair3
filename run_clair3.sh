@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH=$(dirname $(readlink -f "$0"))
-VERSION='v1.0.4'
+VERSION='v1.0.5'
 Usage="Usage: ${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
 CMD="$0 $@"
@@ -70,6 +70,9 @@ print_help_messages()
     echo $'      --call_snp_only           EXPERIMENTAL: Call candidates pass SNP minimum AF only, ignore Indel candidates, default: disable.'
     echo $'      --enable_long_indel       EXPERIMENTAL: Call long Indel variants(>50 bp), default: disable.'
     echo $'      --keep_iupac_bases        EXPERIMENTAL: Keep IUPAC reference and alternate bases, default: convert all IUPAC bases to N.'
+    echo $'      --base_err=FLOAT          EXPERIMENTAL: Estimated base error rate when enabling gvcf option, default: 0.001.'
+    echo $'      --gq_bin_size=INT         EXPERIMENTAL: Default gq bin size for merge non-variant block when enabling gvcf option, default: 5.'
+
     echo $''
 }
 
@@ -86,7 +89,7 @@ NC="\\033[0m"
 ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,longphase::,\
-min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
+min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,base_err::,gq_bin_size::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
 use_whatshap_for_intermediate_phasing,use_longphase_for_intermediate_phasing,use_whatshap_for_final_output_phasing,use_longphase_for_final_output_phasing,use_whatshap_for_final_output_haplotagging,keep_iupac_bases,\
 remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,enable_long_indel,use_gpu,longphase_for_phasing,disable_c_impl,help,version -n 'run_clair3.sh' -- "$@"`
 
@@ -109,6 +112,8 @@ CHUNK_SIZE=5000000
 QUAL=2
 MIN_MQ=5
 MIN_COV=2
+BASE_ERR=0.001
+GQ_BIN_SIZE=5
 MIN_CONTIG_SIZE=0
 PHASING_PCT="0"
 PRO="0"
@@ -169,6 +174,8 @@ while true; do
     --min_contig_size ) MIN_CONTIG_SIZE="$2"; shift 2 ;;
     --pileup_model_prefix ) PILEUP_PREFIX="$2"; shift 2 ;;
     --fa_model_prefix ) FA_PREFIX="$2"; shift 2 ;;
+    --base_err ) BASE_ERR="$2"; shift 2 ;;
+    --gq_bin_size ) GQ_BIN_SIZE="$2"; shift 2 ;;
     --gvcf ) GVCF=True; shift 1 ;;
     --pileup_only ) PILEUP_ONLY=True; shift 1 ;;
     --fast_mode ) FAST_MODE=True; shift 1 ;;
@@ -288,6 +295,8 @@ echo "[INFO] MINIMUM MQ: ${MIN_MQ}"
 echo "[INFO] MINIMUM COVERAGE: ${MIN_COV}"
 echo "[INFO] SNP AF THRESHOLD: ${SNP_AF}"
 echo "[INFO] INDEL AF THRESHOLD: ${INDEL_AF}"
+echo "[INFO] BASE ERROR IN GVCF: ${BASE_ERR}"
+echo "[INFO] GQ BIN SIZE IN GVCF: ${GQ_BIN_SIZE}"
 echo "[INFO] ENABLE FILEUP ONLY CALLING: ${PILEUP_ONLY}"
 echo "[INFO] ENABLE FAST MODE CALLING: ${FAST_MODE}"
 echo "[INFO] ENABLE CALLING SNP CANDIDATES ONLY: ${SNP_ONLY}"
@@ -357,12 +366,15 @@ if [ -z ${MIN_MQ} ]; then echo -e "${ERROR} Use '--min_mq=INT' instead of '--min
 if [ -z ${MIN_COV} ]; then echo -e "${ERROR} Use '--min_coverage=INT' instead of '--min_coverage INT' for optional parameters${NC}"; exit 1 ; fi
 if [ -z ${MIN_CONTIG_SIZE} ]; then echo -e "${ERROR} Use '--min_contig_size=INT' instead of '--min_contig_size INT' for optional parameters${NC}"; exit 1 ; fi
 if [ -z ${LONGPHASE} ]; then echo -e "${ERROR} Use '--longphase=STR' instead of '--longphase STR' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${BASE_ERR} ]; then echo -e "${ERROR} Use '--base_err=FLOAT' instead of '--base_err FLOAT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${GQ_BIN_SIZE} ]; then echo -e "${ERROR} Use '--gq_bin_size=INT' instead of '--gq_bin_size INT' for optional parameters${NC}"; exit 1 ; fi
 
 # min mapping quality, min coverage and min contig size detection
 if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( ${THREADS} <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
 if [[ ! ${MIN_MQ} =~ ^[\-0-9]+$ ]] || (( ${MIN_MQ} < 5)); then echo -e "${WARNING} Invalid minimum mapping quality input --min_mq>=5 ${NC}"; MIN_MQ=5; fi
 if [[ ! ${MIN_COV} =~ ^[\-0-9]+$ ]] || (( ${MIN_COV} < 2)); then echo -e "${WARNING} Invalid minimum coverage input --min_coverage>=2 ${NC}"; MIN_COV=2; fi
 if [[ ! ${MIN_CONTIG_SIZE} =~ ^[\-0-9]+$ ]] || (( ${MIN_CONTIG_SIZE} < 0)); then echo -e "${WARNING} Invalid minimum contig size --min_contig_size>=0 ${NC}"; MIN_CONTIG_SIZE=0; fi
+if [[ ! ${GQ_BIN_SIZE} =~ ^[\-0-9]+$ ]] || (( ${GQ_BIN_SIZE} < 0)); then echo -e "${WARNING} Invalid gq bin size --gq_bin_size>=0 ${NC}"; MIN_CONTIG_SIZE=0; fi
 
 # model prefix detection
 if [ ! -f ${MODEL_PATH}/${PILEUP_PREFIX}.index ]; then echo -e "${ERROR} No pileup model found in provided model path and model prefix ${MODEL_PATH}/${PILEUP_PREFIX} ${NC}"; exit 1; fi
@@ -406,6 +418,8 @@ ${SHELL_ENTRY} ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --min_contig_size=${MIN_CONTIG_SIZE} \
     --pileup_only=${PILEUP_ONLY} \
     --gvcf=${GVCF} \
+    --base_err=${BASE_ERR} \
+    --gq_bin_size=${GQ_BIN_SIZE} \
     --fast_mode=${FAST_MODE} \
     --call_snp_only=${SNP_ONLY} \
     --print_ref_calls=${SHOW_REF} \

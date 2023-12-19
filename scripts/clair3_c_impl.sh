@@ -9,7 +9,7 @@ ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,var_pct_phasing::,\
 min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
 use_whatshap_for_intermediate_phasing::,use_longphase_for_intermediate_phasing::,use_whatshap_for_final_output_phasing::,use_longphase_for_final_output_phasing::,use_whatshap_for_final_output_haplotagging::,keep_iupac_bases::,\
-no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir::,enable_phasing::,enable_long_indel::,use_gpu::,longphase_for_phasing::,longphase:: -n 'run_clair3.sh' -- "$@"`
+no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir::,enable_phasing::,enable_long_indel::,use_gpu::,longphase_for_phasing::,longphase::,base_err::,gq_bin_size:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -50,6 +50,8 @@ while true; do
     --min_contig_size ) MIN_CONTIG_SIZE="$2"; shift 2 ;;
     --pileup_model_prefix ) PILEUP_PREFIX="$2"; shift 2 ;;
     --fa_model_prefix ) FA_PREFIX="$2"; shift 2 ;;
+    --base_err ) BASE_ERR="$2"; shift 2 ;;
+    --gq_bin_size ) GQ_BIN_SIZE="$2"; shift 2 ;;
     --haploid_precise ) HAP_PRE="$2"; shift 2 ;;
     --haploid_sensitive ) HAP_SEN="$2"; shift 2 ;;
     --include_all_ctgs ) INCLUDE_ALL_CTGS="$2"; shift 2 ;;
@@ -120,7 +122,8 @@ ${PYTHON} ${CLAIR3} CheckEnvs \
     --snp_min_af ${SNP_AF} \
     --indel_min_af ${INDEL_AF} \
     --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
-    --min_contig_size ${MIN_CONTIG_SIZE}
+    --min_contig_size ${MIN_CONTIG_SIZE} \
+    --no_phasing_for_fa ${NO_PHASING}
 
 if [ "$(uname)" = "Darwin" ];
 then
@@ -162,6 +165,8 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
     --minCoverage ${MIN_COV} \
     --call_snp_only ${SNP_ONLY} \
     --gvcf ${GVCF} \
+    --base_err ${BASE_ERR} \
+    --gq_bin_size ${GQ_BIN_SIZE} \
     --enable_long_indel ${ENABLE_LONG_INDEL} \
     --samtools ${SAMTOOLS} \
     --temp_file_dir ${GVCF_TMP_PATH} \
