@@ -460,6 +460,10 @@ def main():
     parser.add_argument('--chunk_num', type=int, default=0,
                         help=SUPPRESS)
 
+    ## EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.
+    parser.add_argument('--no_phasing_for_fa', type=str2bool, default=False,
+                        help=SUPPRESS)
+
     args = parser.parse_args()
 
     if len(sys.argv[1:]) == 0:
@@ -470,7 +474,8 @@ def main():
         print("[INFO] --include_all_ctgs not enabled, use chr{1..22,X,Y} and {1..22,X,Y} by default")
     elif args.include_all_ctgs:
         print("[INFO] --include_all_ctgs enabled")
-        print(log_warning("[WARNING] Please enable --no_phasing_for_fa if calling variant in non-diploid organisms"))
+        if not args.no_phasing_for_fa:
+            print(log_warning("[WARNING] Please enable --no_phasing_for_fa if calling variant in non-diploid organisms"))
 
     CheckEnvs(args)
 
