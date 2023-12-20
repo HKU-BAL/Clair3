@@ -21,6 +21,8 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), and available as a preprint at [bioRxiv](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v2).
 
+For somatic variant calling using paired tumor/normal samples, please try [ClairS](https://github.com/HKU-BAL/ClairS).
+
 ----
 
 ## Contents
@@ -59,6 +61,8 @@ Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), an
 ----
 
 ## Latest Updates
+*v1.0.5 (Dec 20, 2023)* : 1. Fixed the issue showing wrong multi-allelic AF when read coverage is excessively high ([#241](https://github.com/HKU-BAL/Clair3/issues/241)). 2. Added `--base_err` and `--gq_bin_size` options that can resolve the problem of having excessive GT ./. in GVCF output ([#220](https://github.com/HKU-BAL/Clair3/issues/220)). 3. Modified logs ([#231](https://github.com/HKU-BAL/Clair3/issues/231), [#225](https://github.com/HKU-BAL/Clair3/issues/225))
+
 *v1.0.4 (Jul 11, 2023)* : 1. Added showing command line and reference source in output VCF header. 2. Fixed a bug in showing the AF tag for 1/2 genotypes. 3. Added AD tag output.
 
 *v1.0.3 (Jun 20, 2023)* : 1. Colon ':' is now allowed in reference sequence name ([#203](https://github.com/HKU-BAL/Clair3/issues/203)).
@@ -428,6 +432,8 @@ Instructions are given as an answer to issue [#149](https://github.com/HKU-BAL/C
       --call_snp_only           EXPERIMENTAL: Call candidates pass SNP minimum AF only, ignore Indel candidates, default: disable.
       --enable_long_indel       EXPERIMENTAL: Call long Indel variants(>50 bp), default: disable.
       --keep_iupac_bases        EXPERIMENTAL: Keep IUPAC reference and alternate bases, default: convert all IUPAC bases to N.
+      --base_err=FLOAT          EXPERIMENTAL: Estimated base error rate when enabling gvcf option, default: 0.001.
+      --gq_bin_size=INT         EXPERIMENTAL: Default gq bin size for merge non-variant block when enabling gvcf option, default: 5.
 ```
 
 #### Call variants in a chromosome
