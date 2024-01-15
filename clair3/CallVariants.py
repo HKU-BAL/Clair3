@@ -1425,9 +1425,7 @@ def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, refe
 def call_variants(args, output_config, output_utilities):
     use_gpu = args.use_gpu
     if use_gpu:
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        tf.config.experimental.set_virtual_device_configuration(gpus[0], [
-            tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)])
+        pass
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
     global param
@@ -1654,9 +1652,7 @@ def predict(args, output_config, output_utilities):
     add_indel_length = args.add_indel_length
 
     if use_gpu:
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        tf.config.experimental.set_virtual_device_configuration(gpus[0], [
-            tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)])
+        pass
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
 

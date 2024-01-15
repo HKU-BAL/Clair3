@@ -10,7 +10,8 @@ RUN apt-get update --fix-missing && \
         bzip2 \
         make \
         g++ \
-        libboost-graph-dev && \
+        libboost-graph-dev \
+        unzip && \
     rm -rf /bar/lib/apt/lists/*
 
 RUN conda install --no-deps -y -n base conda-libmamba-solver && \
@@ -28,12 +29,15 @@ conda create -n clair3 python=3.9.0 -y
 ENV PATH /opt/conda/envs/clair3/bin:$PATH
 ENV CONDA_DEFAULT_ENV clair3
 
+RUN wget https://download.amd.com/developer/eula/zendnn/zendnn-4-1/tensorflow/TF_v2.12_ZenDNN_v4.1_Python_v3.9.zip && \
+    unzip TF_v2.12_ZenDNN_v4.1_Python_v3.9.zip
+
 RUN /bin/bash -c "source activate clair3" && \
     conda install -c conda-forge pypy3.6 -y && \
-    conda install -c conda-forge mkl numpy==1.24.3 scipy scikit-learn numexpr -y && \
+    conda install -c conda-forge nomkl numpy==1.24.3 scipy scikit-learn numexpr -y && \
     pypy3 -m ensurepip && \
     pypy3 -m pip install mpmath==1.2.1 && \
-    conda install -c defaults tensorflow==2.12.0 -y && \
+    pip install TF_v2.12_ZenDNN_v4.1_Python_v3.9/tensorflow-2.12.1-cp39-cp39-manylinux2014_x86_64.whl && \
     conda install -c conda-forge pytables -y && \
     pip install tensorflow-addons && \
     conda install -c conda-forge pigz -y && \
@@ -58,3 +62,6 @@ RUN cd /opt/bin/preprocess/realign && \
     cd /opt/bin && \
     make USE_NATIVE=1 PREFIX=/opt/conda/envs/clair3 PYTHON=/opt/conda/envs/clair3/bin/python && \
     rm -rf /opt/bin/samtools-* /opt/bin/longphase-*
+
+ENV TF_ENABLE_ZENDNN_OPTS 1
+ENV TF_ENABLE_ONEDNN_OPTS 0

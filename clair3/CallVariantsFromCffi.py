@@ -66,39 +66,21 @@ def Run(args):
 def call_variants_from_cffi(args, output_config, output_utilities):
     use_gpu = args.use_gpu
     if use_gpu:
-        import tritonclient.grpc as tritongrpcclient
-        server_url = 'localhost:8001'
-        try:
-            triton_client = tritongrpcclient.InferenceServerClient(
-            url=server_url,
-            verbose=False
-        )
-        except Exception as e:
-            print("channel creation failed: " + str(e))
-            sys.exit()
+        pass
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
     global param
     if args.pileup:
         import shared.param_p as param
-        if use_gpu:
-            model_name = 'pileup'
-            input_dtype = 'INT32'
-        else:
-            from clair3.model import Clair3_P
-            m = Clair3_P(add_indel_length=args.add_indel_length, predict=True)
+        from clair3.model import Clair3_P
+        m = Clair3_P(add_indel_length=args.add_indel_length, predict=True)
     else:
         import shared.param_f as param
-        if use_gpu:
-            model_name = 'alignment'
-            input_dtype = 'INT8'
-        else:
-            from clair3.model import Clair3_F
-            m = Clair3_F(add_indel_length=args.add_indel_length, predict=True)
+        from clair3.model import Clair3_F
+        m = Clair3_F(add_indel_length=args.add_indel_length, predict=True)
 
-    if not use_gpu:
-        m.load_weights(args.chkpnt_fn)
+    m.load_weights(args.chkpnt_fn)
     output_utilities.gen_output_file()
     output_utilities.output_header()
     chunk_id = args.chunk_id - 1 if args.chunk_id else None  # 1-base to 0-base
@@ -142,17 +124,7 @@ def call_variants_from_cffi(args, output_config, output_utilities):
                         scale_factor = depth / max_depth
                         X[alt_idx] = X[alt_idx] / scale_factor
 
-            if use_gpu:
-                inputs = []; outputs = []
-
-                inputs.append(tritongrpcclient.InferInput('input_1', X.shape, input_dtype))
-                outputs.append(tritongrpcclient.InferRequestedOutput('output_1'))
-
-                inputs[0].set_data_from_numpy(X)
-                results = triton_client.infer(model_name=model_name, inputs=inputs, outputs=outputs)
-                Y = results.as_numpy('output_1')
-            else:
-                Y = m.predict_on_batch(X)
+            Y = m.predict_on_batch(X)
 
             batch_output_method(position, alt_info_list, Y, output_config, output_utilities)
 

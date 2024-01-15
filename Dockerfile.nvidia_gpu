@@ -1,4 +1,4 @@
-FROM continuumio/miniconda3:23.5.2-0
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PATH=/opt/bin:/opt/conda/bin:$PATH
 
@@ -12,6 +12,10 @@ RUN apt-get update --fix-missing && \
         g++ \
         libboost-graph-dev && \
     rm -rf /bar/lib/apt/lists/*
+
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py39_23.5.2-0-Linux-x86_64.sh && \
+    sh Miniconda3-py39_23.5.2-0-Linux-x86_64.sh -b -p /opt/conda && \
+    echo 'eval "$(/opt/conda/bin/conda shell.bash hook)"' > ~/.bashrc
 
 RUN conda install --no-deps -y -n base conda-libmamba-solver && \
 conda config --set solver libmamba && \
@@ -30,10 +34,10 @@ ENV CONDA_DEFAULT_ENV clair3
 
 RUN /bin/bash -c "source activate clair3" && \
     conda install -c conda-forge pypy3.6 -y && \
-    conda install -c conda-forge mkl numpy==1.24.3 scipy scikit-learn numexpr -y && \
+    conda install -c conda-forge mkl numpy==1.26.3 scipy scikit-learn numexpr -y && \
     pypy3 -m ensurepip && \
     pypy3 -m pip install mpmath==1.2.1 && \
-    conda install -c defaults tensorflow==2.12.0 -y && \
+    pip install tensorflow[and-cuda]==2.13.0 tensorrt==8.5.3.1 && \
     conda install -c conda-forge pytables -y && \
     pip install tensorflow-addons && \
     conda install -c conda-forge pigz -y && \
@@ -58,3 +62,6 @@ RUN cd /opt/bin/preprocess/realign && \
     cd /opt/bin && \
     make USE_NATIVE=1 PREFIX=/opt/conda/envs/clair3 PYTHON=/opt/conda/envs/clair3/bin/python && \
     rm -rf /opt/bin/samtools-* /opt/bin/longphase-*
+
+ENV TF_FORCE_GPU_ALLOW_GROWTH true
+ENV LD_LIBRARY_PATH=/opt/conda/envs/clair3/lib/python3.9/site-packages/tensorrt:$LD_LIBRARY_PATH
