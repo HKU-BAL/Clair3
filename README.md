@@ -23,6 +23,8 @@ Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), an
 
 For somatic variant calling using paired tumor/normal samples, please try [ClairS](https://github.com/HKU-BAL/ClairS).
 
+For somatic variant calling using tumor-only samples, please try [ClairS-TO](https://github.com/HKU-BAL/ClairS-TO).
+
 ----
 
 ## Contents
