@@ -47,7 +47,7 @@ def pileup_counts_clair3(
     """
     lib = libclair3.lib
     featlenclair3 = lib.featlenclair3
-    bam = BAMHandler(bam)
+    bam = BAMHandler(bam, fasta)
 
     def _process_region(reg):
         # ctg start is 1-based, medaka.common.Region object is 0-based
@@ -55,7 +55,7 @@ def pileup_counts_clair3(
         if isinstance(bam, BAMHandler):
             bam_handle = bam
         else:
-            bam_handle = BAMHandler(bam)
+            bam_handle = BAMHandler(bam, fasta)
         with bam_handle.borrow() as fh:
             counts = lib.calculate_clair3_pileup(
                 region_str.encode(), fh, fasta.encode(), min_depth, min_snp_af, min_indel_af, min_mq, max_indel_length, call_snp_only, max_depth, gvcf)
@@ -88,7 +88,7 @@ def pileup_counts_clair3(
 class BAMHandler(object):
     """Opening of BAM file handles and indices."""
 
-    def __init__(self, bam, size=16):
+    def __init__(self, bam, fasta, size=16):
         """Initialise a pool of HTSlib filehandles."""
         # note: the default size here is set to match the default
         #       `bam_workers` of prediction.DataLoader and `workers`
@@ -100,7 +100,7 @@ class BAMHandler(object):
         lib, ffi = libclair3.lib, libclair3.ffi
         for _ in range(size):
             fset = ffi.gc(
-                lib.create_bam_fset(self.bam.encode()),
+                lib.create_bam_fset(self.bam.encode(), fasta.encode()),
                 self._destroy_fset)
             self._pool.put(fset)
 

@@ -58,7 +58,7 @@ ffibuilder.set_source("libclair3",
 
 cdef = [
     "typedef struct { ...; } bam_fset;"
-    "bam_fset* create_bam_fset(char* fname);"
+    "bam_fset* create_bam_fset(char* fname, char* fasta_path);"
     "void destroy_bam_fset(bam_fset* fset);"
 ]
 for header in ('clair3_pileup.h', 'clair3_full_alignment.h'):
