@@ -212,8 +212,8 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         size_t ins_count = 0;
 
         bool pass_af = false;
-        bool pass_snp_af = false;
-        bool pass_indel_af = false;
+        //bool pass_snp_af = false;  // ununsed
+        //bool pass_indel_af = false;  // unused
 
         const char *c_name = data->hdr->target_name[tid];
         if (strcmp(c_name, chr) != 0) continue;
@@ -222,7 +222,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         n_cols++;
 
 
-        if (pre_pos + 1 != pos || pre_pos == 0)
+        if (pre_pos + 1 != (size_t)pos || pre_pos == 0)
             contiguous_flanking_num = 0;
         else
             contiguous_flanking_num++;
@@ -355,7 +355,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         for (size_t i = 0; i < 4; i++) {
             forward_sum += pileup->matrix[major_col + i];
             reverse_sum += pileup->matrix[major_col + i + reverse_pos_start];
-            if (i == ref_offset_forward) {
+            if (i == (size_t)ref_offset_forward) {
                 ref_count = pileup->matrix[major_col + i] + pileup->matrix[major_col + i + reverse_pos_start];
             } else {
                 size_t current_count = pileup->matrix[major_col + i] + pileup->matrix[major_col + i + reverse_pos_start];
@@ -397,15 +397,15 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
             size_t max_alt_length = 64;
             char *alt_info_str = xalloc(max_alt_length, sizeof(char), "alt_info_str");
 
-            sprintf(alt_info_str, "%i-%i-%c-", pos+1, depth, ref_base);
+            sprintf(alt_info_str, "%i-%zu-%c-", pos+1, depth, ref_base);
             //snp
             for (size_t i = 0; i < 4; i++) {
                 forward_sum += pileup->matrix[major_col + i];
                 reverse_sum += pileup->matrix[major_col + i + reverse_pos_start];
                 size_t alt_sum = pileup->matrix[major_col + i] + pileup->matrix[major_col + i + reverse_pos_start];
 
-                if (alt_sum > 0 && i != ref_offset_forward)
-                    sprintf(alt_info_str + strlen(alt_info_str), "X%c %i ", plp_bases_clair3[i], alt_sum);
+                if (alt_sum > 0 && i != (size_t)ref_offset_forward)
+                    sprintf(alt_info_str + strlen(alt_info_str), "X%c %zu ", plp_bases_clair3[i], alt_sum);
             }
             //del
             for (size_t i = 0; i < del_buf_size; i++) {
@@ -418,7 +418,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
                             max_alt_length = max_alt_length << 1;
                          alt_info_str = xrealloc(alt_info_str, max_alt_length*sizeof(char), "alt_info_str");
                     }
-                    sprintf(alt_info_str + strlen(alt_info_str), "D%.*s %i ", i+1,ref_seq+offset+1, d);
+                    sprintf(alt_info_str + strlen(alt_info_str), "D%.*s %zu ", (int)i+1, ref_seq+offset+1, d);
                 }
 
             }
@@ -434,7 +434,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
                                  max_alt_length = max_alt_length << 1;
                              alt_info_str = xrealloc(alt_info_str, max_alt_length *sizeof(char), "alt_info_str");
                         }
-                        sprintf(alt_info_str + strlen(alt_info_str), "I%c%s %i ", ref_base, key, val);
+                        sprintf(alt_info_str + strlen(alt_info_str), "I%c%s %zu ", ref_base, key, val);
                     }
                 }
             }

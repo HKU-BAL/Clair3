@@ -93,8 +93,8 @@ void kh_counter_print(khash_t(KH_COUNTER) *hash) {
             printf("%s -> %i\n", key, val);
         }
     }
-    kh_counter_stats_t stats = kh_counter_stats(hash);
-//    printf("max: %i, sum: %i\n", stats.max, stats.sum);
+    //kh_counter_stats_t stats = kh_counter_stats(hash);
+    //printf("max: %i, sum: %i\n", stats.max, stats.sum);
 }
 
 

@@ -62,9 +62,10 @@ char *substring(char *string, int position, int length) {
    char *ptr;
    size_t i;
 
+   if(length < 0) return NULL;
    ptr = malloc(length + 1);
 
-   for (i = 0 ; i < length ; i++) {
+   for (i = 0 ; i < (size_t) length ; i++) {
       *(ptr + i) = *(string + position);
       string++;
    }

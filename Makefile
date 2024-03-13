@@ -16,6 +16,8 @@ CFLAGS	= -fpic -std=c99 -O3 -I ${PREFIX}/include -L ${PREFIX}/lib
 CPPFLAGS	=	-std=c++11 -Wall -O3 -I ${PREFIX}/include -L ${PREFIX}/lib -Wl,-rpath=${PREFIX}/lib
 LP_CPPFLAGS	 =	-std=c++11 -Wall -g -O3 -I ${PREFIX}/include -L ${PREFIX}/lib -Wl,-rpath=${PREFIX}/lib
 
+
+
 samtools-$(SAMVER)/Makefile:
 		curl -L -o samtools-${SAMVER}.tar.bz2 https://github.com/samtools/samtools/releases/download/${SAMVER}/samtools-${SAMVER}.tar.bz2; \
 		tar -xjf samtools-${SAMVER}.tar.bz2; \
@@ -26,7 +28,6 @@ libhts.a: samtools-$(SAMVER)/Makefile
 	@echo "\x1b[1;33mMaking $(@F)\x1b[0m"
 	cd samtools-${SAMVER}/htslib-${SAMVER}; CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}" ./configure; make CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}"
 	cp samtools-${SAMVER}/htslib-${SAMVER}/$@ $@
-
 
 longphase-$(LPVER)/Makefile:
 	curl -L -o longphase-${LPVER}.tar.gz https://github.com/twolinin/longphase/archive/refs/tags/v${LPVER}.tar.gz; \
@@ -39,7 +40,7 @@ longphase: longphase-$(LPVER)/Makefile
 	cp longphase-${LPVER}/$@ $@
 
 
-libclair3.so: samtools-${SAMVER}/htslib-${SAMVER}
+libclair3.so: samtools-${SAMVER}/htslib-${SAMVER} libhts.a
 	${PYTHON} build.py
 
 
