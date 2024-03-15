@@ -404,6 +404,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
     bam_hdr_t *header;
 
     hts_file = sam_open(bam_path, "r");
+    hts_set_opt(hts_file, CRAM_OPT_REFERENCE, fasta_path);
     idx = sam_index_load(hts_file, bam_path);
     header = sam_hdr_read(hts_file);
     const int tid = bam_name2id(header, chr);

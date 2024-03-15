@@ -49,9 +49,10 @@ int read_bam(void *data, bam1_t *b) {
 
 
 // Initialise BAM file, index and header structures
-bam_fset* create_bam_fset(const char* fname) {
+bam_fset* create_bam_fset(const char* fname, const char* fasta_path) {
     bam_fset* fset = xalloc(1, sizeof(bam_fset), "bam fileset");
     fset->fp = hts_open(fname, "rb");
+    hts_set_opt(fset->fp, CRAM_OPT_REFERENCE, fasta_path);
     fset->idx = sam_index_load(fset->fp, fname);
     fset->hdr = sam_hdr_read(fset->fp);
     if (fset->hdr == 0 || fset->idx == 0 || fset->fp == 0) {
