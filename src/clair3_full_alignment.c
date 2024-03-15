@@ -209,7 +209,7 @@ int realign_read(Variant *variant, Read *read, size_t i, size_t consumed, size_t
     uint32_t *cigartuples = read->cigartuples;
     uint8_t *seqi = read->seqi;
     size_t n_cigar = read->n_cigar;
-    size_t middle_op = bam_cigar_op(cigartuples[i]);
+    //size_t middle_op = bam_cigar_op(cigartuples[i]);  // unused
     size_t middle_length = bam_cigar_oplen(cigartuples[i]);
     size_t left_consumed = consumed > 0 ? consumed : 0;
     size_t right_consumed = consumed < middle_length ? middle_length - consumed : 0;
@@ -258,7 +258,7 @@ int haplotag_read(Variants_info *variants_info, Read *read, char *ref_seq, size_
     size_t query_pos = 0;
     size_t v_position = 0;
     Variant **variants = variants_info->variants;
-    uint8_t *seqi = read->seqi;
+    //uint8_t *seqi = read->seqi;  // unused
     uint32_t *cigartuples = read->cigartuples;
     size_t n_cigar = read->n_cigar;
     size_t j = variants_info->variant_current_pos;
@@ -266,7 +266,7 @@ int haplotag_read(Variants_info *variants_info, Read *read, char *ref_seq, size_
     khash_t(KH_INT_COUNTER) *haplotype_cost = kh_init(KH_INT_COUNTER);
     int allele = 0;
 
-    while (j < n && variants[j]->position < ref_pos)
+    while (j < n && (size_t)variants[j]->position < ref_pos)
         j += 1;
 
     for (size_t i = 0; i < n_cigar; i++)
@@ -456,7 +456,8 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
         }
     }
 
-    size_t flanking_candidates[flanking_candidates_num];
+    size_t *flanking_candidates = malloc(flanking_candidates_num * sizeof(size_t));
+
     for (khiter_t k = kh_begin(flanking_candidates_p); k != kh_end(flanking_candidates_p); ++k)
     {
         if (kh_exist(flanking_candidates_p, k))
@@ -517,13 +518,13 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
             variant_current_pos++;
         variants_info.variant_current_pos = variant_current_pos;
 
-        while (candidate_current_index < flanking_candidates_num && flanking_candidates[candidate_current_index] < pos)
+        while (candidate_current_index < flanking_candidates_num && flanking_candidates[candidate_current_index] < (size_t)pos)
             candidate_current_index++;
 
         read.read_end = get_read_end(cigartuples, n_cigar, read.read_start);
 
         // get the overlap candidates number and skip the alignment if no flanking candidate overlapped
-        size_t overlap_candidates_num = get_overlap_candidate_num(pos, read.read_end, candidate_current_index, flanking_candidates_num, &flanking_candidates);
+        size_t overlap_candidates_num = get_overlap_candidate_num(pos, read.read_end, candidate_current_index, flanking_candidates_num, flanking_candidates);
         read.overlap_candidates_num = overlap_candidates_num;
         if (read.overlap_candidates_num == 0)
         {
@@ -651,14 +652,14 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
     }
 
     // allocate memory of the input matrix of all candidates
-    int8_t *matrix = calloc(candidate_num * matrix_depth * no_of_positions * channel_size, sizeof(int8_t));
-
-    HAP read_hap_array[reads_num];
-    int matrix_read_index_array[matrix_depth];
     Alt_info *alt_info = malloc(matrix_depth * sizeof(Alt_info));
+    HAP *read_hap_array = malloc(reads_num * sizeof(HAP));
+    int *matrix_read_index_array = malloc(matrix_depth * sizeof(int));
 
-    char **alt_info_p = calloc(candidate_num, sizeof(char*));
+    // allocate output
     fa_data data = calloc(1, sizeof(_fa_data));
+    char **alt_info_p = calloc(candidate_num, sizeof(char*));
+    int8_t *matrix = calloc(candidate_num * matrix_depth * no_of_positions * channel_size, sizeof(int8_t));
 
     // loop each candiate and generate full-alignment input matrix
     for (size_t i = 0; i < candidate_num; i++)
@@ -690,7 +691,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
             read_hap_array[overlap_read_num++].haplotype = read.haplotype;
         }
 
-        sort_read_name_by_haplotype(&read_hap_array, &matrix_read_index_array, matrix_depth, overlap_read_num);
+        sort_read_name_by_haplotype(read_hap_array, matrix_read_index_array, matrix_depth, overlap_read_num);
 
         // loop each overlapped read of a candidate
         for (size_t d = 0; d < matrix_depth; d++)
@@ -718,7 +719,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
                     continue;
                 }
 
-                if (offset < 0 || offset >= read.overlap_candidates_num)
+                if (offset < 0 || (size_t)offset >= read.overlap_candidates_num)
                     continue;
 
                 int8_t alt_v = 0;
@@ -728,7 +729,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
 
                 if (is_center_pos)
                     candidate_depth++;
-                size_t alt_int = read.pos_info[offset].alt_base;
+                //size_t alt_int = read.pos_info[offset].alt_base;  // unused
                 char alt_base = seq_nt16_str[read.pos_info[offset].alt_base];
                 if (read.pos_info[offset].ins_length > 0)
                 {
@@ -825,17 +826,17 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
 
         int ref_count = pos_alt_info[i].acgt_count[acgt2num[center_ref_base - 'A']];
 
-        sprintf(alt_info_str, "%i-%i-%c-", candidate + 1, candidate_depth, center_ref_base);
-        for (size_t j = 0; j < 4; j++)
+        sprintf(alt_info_str, "%zu-%zu-%c-", candidate + 1, candidate_depth, center_ref_base);
+        for (int8_t j = 0; j < 4; j++)
         {
             if (j != acgt2num[center_ref_base - 'A'] && pos_alt_info[i].acgt_count[j] > 0)
-                sprintf(alt_info_str + strlen(alt_info_str), "X%c %i ", ACGT[j], pos_alt_info[i].acgt_count[j]);
+                sprintf(alt_info_str + strlen(alt_info_str), "X%c %zu ", ACGT[j], pos_alt_info[i].acgt_count[j]);
         }
         for (khiter_t k = kh_begin(pos_alt_info[i].ins_counter); k != kh_end(pos_alt_info[i].ins_counter); k++)
         {
             if (kh_exist(pos_alt_info[i].ins_counter, k))
             {
-                char *key = kh_key(pos_alt_info[i].ins_counter, k);
+                const char *key = kh_key(pos_alt_info[i].ins_counter, k);
                 int val = kh_val(pos_alt_info[i].ins_counter, k);
                 ref_count -= val;
                 if (strlen(key) <= max_indel_length)
@@ -858,7 +859,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
                 int key = kh_key(pos_alt_info[i].del_counter, k);
                 int val = kh_val(pos_alt_info[i].del_counter, k);
                 ref_count -= val;
-                if (key <= max_indel_length)
+                if (key <= (int)max_indel_length)  // don't set max_indel_length to >2^32
                 {
                     if (strlen(alt_info_str) + key + 32 >= max_alt_length)
                     {
@@ -904,6 +905,9 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
     free(chr);
     free(pos_alt_info);
     free(alt_info);
+    free(read_hap_array);
+    free(matrix_read_index_array);
+    free(flanking_candidates);
     kh_counter_destroy(read_name_set);
     kh_int_counter_destroy(candidates_p);
     kh_int_counter_destroy(flanking_candidates_p);
