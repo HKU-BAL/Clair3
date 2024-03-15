@@ -6,7 +6,8 @@ from argparse import ArgumentParser
 from collections import defaultdict
 
 import shared.param_p as param
-from shared.utils import log_error, log_warning, file_path_from, subprocess_popen, get_header, str_none
+from preprocess.MergeVcf import update_haploid_precise_genotype, update_haploid_sensitive_genotype, MarkLowQual
+from shared.utils import log_error, log_warning, file_path_from, subprocess_popen, get_header, str_none, str2bool
 major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] + [str(a) for a in
                                                                                    list(range(1, 23)) + ["X", "Y"]]
 
@@ -45,6 +46,28 @@ def check_header_in_gvcf(header, contigs_list):
         update_header.append(row)
 
     return update_header
+
+def postprocess_row_with_params(args, row):
+    # apply the user-specific filtering if only output pileup variants
+    is_haploid_precise_mode_enabled = args.haploid_precise
+    is_haploid_sensitive_mode_enabled = args.haploid_sensitive
+    print_ref = args.print_ref_calls
+    QUAL = args.qual
+
+    columns = row.strip().split()
+    ref_base, alt_base = columns[3], columns[4]
+    qual = float(columns[5])
+    is_reference = (alt_base == "." or ref_base == alt_base)
+    if is_haploid_precise_mode_enabled:
+        row = update_haploid_precise_genotype(columns)
+    if is_haploid_sensitive_mode_enabled:
+        row = update_haploid_sensitive_genotype(columns)
+    if not is_reference:
+        row = MarkLowQual(row, QUAL, qual)
+    if is_reference and not print_ref:
+        return None
+    return row
+
 
 def sort_vcf_from_stdin(args):
     """
@@ -197,7 +220,13 @@ def sort_vcf_from(args):
             need_write_header = False
         all_pos = sorted(contig_dict.keys())
         for pos in all_pos:
-            output.write(contig_dict[pos])
+            if args.pileup_only:
+                row = contig_dict[pos]
+                row = postprocess_row_with_params(args, row)
+                if row is not None:
+                    output.write(contig_dict[pos])
+            else:
+                output.write(contig_dict[pos])
 
     if compress_gvcf_output:
         write_proc.stdin.close()
@@ -224,6 +253,7 @@ def sort_vcf_from(args):
         return
     if vcf_fn_suffix == ".gvcf":
         print("[INFO] Need some time to compress and index GVCF file...")
+
     compress_index_vcf(output_fn)
 
 
@@ -253,6 +283,23 @@ def main():
 
     parser.add_argument('--cmd_fn', type=str_none, default=None,
                         help="If defined, added command line into VCF header")
+
+    ## the belowing options are used when --pileup-only option is enabled
+    parser.add_argument('--pileup_only', type=str2bool, default=None,
+                        help="Use the pileup model only when calling, default: disable")
+
+    parser.add_argument('--print_ref_calls', type=str2bool, default=False,
+                        help="Show reference calls (0/0) in vcf file output")
+
+    # options for advanced users
+    parser.add_argument('--haploid_precise', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is considered as a variant")
+
+    parser.add_argument('--haploid_sensitive', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant")
+
+    parser.add_argument('--qual', type=int, default=2,
+                        help="If set, variants with >$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
 
     args = parser.parse_args()
     if args.input_dir is None:
