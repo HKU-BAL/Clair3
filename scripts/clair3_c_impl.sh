@@ -182,6 +182,11 @@ ${PYPY} ${CLAIR3} SortVcf \
     --sampleName ${SAMPLE} \
     --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --ref_fn ${REFERENCE_FILE_PATH} \
+    --pileup_only ${PILEUP_ONLY} \
+    --print_ref_calls ${SHOW_REF} \
+    --haploid_precise ${HAP_PRE} \
+    --haploid_sensitive ${HAP_SEN} \
+    --qual ${QUAL} \
     --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
 if [ "$( gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in pileup variant calling"; exit 0; fi
@@ -321,6 +326,7 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_7_merge_vcf.
     --gvcf_fn ${TMP_FILE_PATH}/merge_output/merge_{1}.gvcf \
     --non_var_gvcf_fn ${GVCF_TMP_PATH}/non_var.gvcf \
     --ref_fn ${REFERENCE_FILE_PATH} \
+    --qual ${QUAL} \
     --ctgName {1}" ::: ${CHR[@]} |& tee ${LOG_PATH}/7_merge_vcf.log
 
 ${PYPY} ${CLAIR3} SortVcf \

@@ -209,7 +209,6 @@ int realign_read(Variant *variant, Read *read, size_t i, size_t consumed, size_t
     uint32_t *cigartuples = read->cigartuples;
     uint8_t *seqi = read->seqi;
     size_t n_cigar = read->n_cigar;
-    //size_t middle_op = bam_cigar_op(cigartuples[i]);  // unused
     size_t middle_length = bam_cigar_oplen(cigartuples[i]);
     size_t left_consumed = consumed > 0 ? consumed : 0;
     size_t right_consumed = consumed < middle_length ? middle_length - consumed : 0;
@@ -258,7 +257,6 @@ int haplotag_read(Variants_info *variants_info, Read *read, char *ref_seq, size_
     size_t query_pos = 0;
     size_t v_position = 0;
     Variant **variants = variants_info->variants;
-    //uint8_t *seqi = read->seqi;  // unused
     uint32_t *cigartuples = read->cigartuples;
     size_t n_cigar = read->n_cigar;
     size_t j = variants_info->variant_current_pos;
@@ -730,7 +728,6 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
 
                 if (is_center_pos)
                     candidate_depth++;
-                //size_t alt_int = read.pos_info[offset].alt_base;  // unused
                 char alt_base = seq_nt16_str[read.pos_info[offset].alt_base];
                 if (read.pos_info[offset].ins_length > 0)
                 {

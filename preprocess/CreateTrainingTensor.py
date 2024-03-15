@@ -93,6 +93,7 @@ def Run(args):
     ctgName = args.ctgName
     min_af = args.min_af if args.min_af else param.min_af_dict[platform]
     snp_min_af = args.snp_min_af
+    min_coverage = args.minCoverage
     indel_min_af = args.indel_min_af
 
     if ctgName is None:
@@ -130,6 +131,7 @@ def Run(args):
         CommandOption('bed_fn', bed_fn),
         CommandOption('extend_bed', extend_bed),
         CommandOption('min_af', min_af),
+        CommandOption('minCoverage', min_coverage),
         CommandOption('snp_min_af', snp_min_af),
         CommandOption('indel_min_af', indel_min_af),
         ctgStart,
@@ -236,6 +238,9 @@ def main():
 
     parser.add_argument('--min_af', type=float, default=None,
                         help="Minimum allele frequency for both SNP and Indel for a site to be considered as a candidate site, default: %(default)f")
+
+    parser.add_argument('--minCoverage', type=int, default=2,
+                        help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")
 
     parser.add_argument('--snp_min_af', type=float, default=0.08,
                         help="Minimum SNP allele frequency for a site to be considered as a candidate site, default: %(default)f")

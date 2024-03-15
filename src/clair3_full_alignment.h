@@ -14,7 +14,6 @@ static const int8_t HAP_TYPE[3] = {60, 30, 90};
 #define normalize_hap(x) (HAP_TYPE[x])
 
 static const size_t overhang = 10;
-//static const char *RN = "\0"; // unused
 static const size_t min_haplotag_mq = 20;
 static const size_t expand_reference_region = 2000000;
 static const size_t flanking_base_num = 16;

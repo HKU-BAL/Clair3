@@ -212,8 +212,6 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         size_t ins_count = 0;
 
         bool pass_af = false;
-        //bool pass_snp_af = false;  // ununsed
-        //bool pass_indel_af = false;  // unused
 
         const char *c_name = data->hdr->target_name[tid];
         if (strcmp(c_name, chr) != 0) continue;
