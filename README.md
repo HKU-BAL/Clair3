@@ -63,6 +63,8 @@ For somatic variant calling using tumor-only samples, please try [ClairS-TO](htt
 ----
 
 ## Latest Updates
+*v1.0.6 (Mar 15, 2024)* : 1. Fixed a stack overflow issue when the read coverage is extreme high ([#191](https://github.com/HKU-BAL/Clair3/issues/191), contributors @[Chris Wright](https://github.com/cjw85), @[ymcki](https://github.com/ymcki)). 2. Added reference caching for CRAM input ([#180](https://github.com/HKU-BAL/Clair3/issues/180), [#278](https://github.com/HKU-BAL/Clair3/pull/278), contributor @[Alex Leonard](https://github.com/ASLeonard)).  3. Added option user-specific params when only output pileup VCF([#271](https://github.com/HKU-BAL/Clair3/issues/271)). 4. Fixed an issue for variants below min coverage still being called([#262](https://github.com/HKU-BAL/Clair3/issues/262)).
+
 *v1.0.5 (Dec 20, 2023)* : 1. Fixed the issue showing wrong multi-allelic AF when read coverage is excessively high ([#241](https://github.com/HKU-BAL/Clair3/issues/241)). 2. Added `--base_err` and `--gq_bin_size` options that can resolve the problem of having excessive GT ./. in GVCF output ([#220](https://github.com/HKU-BAL/Clair3/issues/220)). 3. Modified logs ([#231](https://github.com/HKU-BAL/Clair3/issues/231), [#225](https://github.com/HKU-BAL/Clair3/issues/225))
 
 *v1.0.4 (Jul 11, 2023)* : 1. Added showing command line and reference source in output VCF header. 2. Fixed a bug in showing the AF tag for 1/2 genotypes. 3. Added AD tag output.
@@ -557,14 +559,13 @@ If you are dealing with amplicon data with excessively high depth coverage, plea
 ### `SwitchZygosityBasedOnSVCalls` module
 The module takes a Clair3 VCF and a Sniffle2 VCF as inputs. It switches the zygosity from homozygous to heterozygous of a Clair3 called SNP that matches the following two criteria: 1) AF<=0.7, and 2) the flanking 16bp of the SNP is inside one or more SV deletions given in the Sniffle2 VCF. The usage is as follows.
 
-```
+```shell
 pypy3 ${CLAIR3_PATH}/clair3.py SwitchZygosityBasedOnSVCalls
       --bam_fn input.bam
       --clair3_vcf_input clair3_input.vcf.gz
       --sv_vcf_input sniffle2.vcf.gz
       --vcf_output output.vcf
       --threads 8
-
 ```
 
 This postprocessing script was inspired by Philipp Rescheneder from ONT. There are heterozygous SNPs that overlap large deletion, and some of these SNPs are clinically significant. Clair3 doesn't call structural variants and might incorrectly output these SNPs as homozygous SNP but with relatively low AF and QUAL. Given a Sniffle2 SV VCF, the script relabels these SNPs as heterozygous, and adds two INFO tags: 1) SVBASEDHET flag, and 2) ORG_CLAIR3_SCORE that shows the original Clair3 QUAL score. The new QUAL of an SNP that switched zygosity will be the top QUAL of the deletions that overlapped the SNP. 
