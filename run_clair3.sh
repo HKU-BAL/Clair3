@@ -376,6 +376,9 @@ if [[ ! ${MIN_COV} =~ ^[\-0-9]+$ ]] || (( ${MIN_COV} < 2)); then echo -e "${WARN
 if [[ ! ${MIN_CONTIG_SIZE} =~ ^[\-0-9]+$ ]] || (( ${MIN_CONTIG_SIZE} < 0)); then echo -e "${WARNING} Invalid minimum contig size --min_contig_size>=0 ${NC}"; MIN_CONTIG_SIZE=0; fi
 if [[ ! ${GQ_BIN_SIZE} =~ ^[\-0-9]+$ ]] || (( ${GQ_BIN_SIZE} < 0)); then echo -e "${WARNING} Invalid gq bin size --gq_bin_size>=0 ${NC}"; MIN_CONTIG_SIZE=0; fi
 
+# in genotyping mode, set --snp_min_af and --indel_min_af to 0.0
+if [ "${VCF_FILE_PATH}" != "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [ -f ${VCF_FILE_PATH} ]; then SNP_AF=0.0; INDEL_AF=0.0; fi
+
 # model prefix detection
 if [ ! -f ${MODEL_PATH}/${PILEUP_PREFIX}.index ]; then echo -e "${ERROR} No pileup model found in provided model path and model prefix ${MODEL_PATH}/${PILEUP_PREFIX} ${NC}"; exit 1; fi
 if [ ! -f ${MODEL_PATH}/${FA_PREFIX}.index ]; then echo -e "${ERROR} No full-alignment model found in provided model path and model prefix ${MODEL_PATH}/${FA_PREFIX} ${NC}"; exit 1; fi
