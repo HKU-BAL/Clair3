@@ -63,7 +63,7 @@ For somatic variant calling using tumor-only samples, please try [ClairS-TO](htt
 ----
 
 ## Latest Updates
-*v1.0.6 (Mar 15, 2024)* : 1. Fixed a stack overflow issue when the read coverage is extreme high ([#191](https://github.com/HKU-BAL/Clair3/issues/191), contributors @[Chris Wright](https://github.com/cjw85), @[ymcki](https://github.com/ymcki)). 2. Added reference caching for CRAM input ([#180](https://github.com/HKU-BAL/Clair3/issues/180), [#278](https://github.com/HKU-BAL/Clair3/pull/278), contributor @[Alex Leonard](https://github.com/ASLeonard)).  3. Added option user-specific params when only output pileup VCF([#271](https://github.com/HKU-BAL/Clair3/issues/271)). 4. Fixed an issue for variants below min coverage still being called([#262](https://github.com/HKU-BAL/Clair3/issues/262)).
+*v1.0.6 (Mar 15, 2024)* : 1. Fixed stack overflow issue when the read coverage is excessively high (#282 by @Chris Wright, #265 by @ymcki). 2. Added reference caching for CRAM input (#278 by @Alex Leonard, #180 by @bartcharbon and @SamStudio8). 3. Fixed a bug that outputs RefCall calls when no variant is called by full-alignment model (#271). 4. Fixed a bug that variants below min coverage were still being called (#262).
 
 *v1.0.5 (Dec 20, 2023)* : 1. Fixed the issue showing wrong multi-allelic AF when read coverage is excessively high ([#241](https://github.com/HKU-BAL/Clair3/issues/241)). 2. Added `--base_err` and `--gq_bin_size` options that can resolve the problem of having excessive GT ./. in GVCF output ([#220](https://github.com/HKU-BAL/Clair3/issues/220)). 3. Modified logs ([#231](https://github.com/HKU-BAL/Clair3/issues/231), [#225](https://github.com/HKU-BAL/Clair3/issues/225))
 
