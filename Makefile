@@ -43,6 +43,14 @@ longphase: longphase-$(LPVER)/Makefile
 libclair3.so: samtools-${SAMVER}/htslib-${SAMVER} libhts.a
 	${PYTHON} build.py
 
+src/%.o: src/%.c
+	$(GCC) -Isrc -Isamtools-${SAMVER}/htslib-${SAMVER} -c -pthread -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
+		$(CFLAGS) $^ -o $@
+
+fa_test: src/fa_test.o src/levenshtein.o src/medaka_bamiter.o src/medaka_common.o src/medaka_khcounter.o src/clair3_pileup.o src/clair3_full_alignment.o
+	gcc -Isrc -L ./ -pthread -fstack-protector-strong -D_FORTIFY_SOURCE=2 \
+		$(CFLAGS) $^ \
+		-lhts -llzma -lcurl -lcrypto -lz -lm -lbz2 -o $@
 
 .PHONY: clean_htslib
 clean_htslib:
