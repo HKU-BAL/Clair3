@@ -230,11 +230,12 @@ int realign_read(Variant *variant, Read *read, size_t i, size_t consumed, size_t
     char *query = get_query_seq(seqi, qst, qen);
     char *ref = get_ref_seq(reference, rst, ren);
 
-    // I'm not convinced an extra char here is correct, but it
-    // stops valgrind complaining
-    size_t alt_length = left_ref_bases + right_ref_bases;
+    // right_ref_bases can be zero, alt[left_ref_bases] would then be
+    // accessing the last char in the string, either we need another
+    // character or it should be alt[left_ref_bases - 1]? :/
+    size_t alt_length = left_ref_bases + right_ref_bases;  // equivalently ren - rst
     char *alt = calloc(alt_length + 2, sizeof(char));
-    strcpy(alt, ref);
+    strncpy(alt, ref, ren - rst);
     alt[left_ref_bases] = variant->alt_base;
 
     size_t distance_ref = levenshtein(query, ref);
