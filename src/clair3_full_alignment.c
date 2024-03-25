@@ -152,7 +152,7 @@ char *get_ref_seq(char *ref_seq, size_t start, size_t end)
 {
 
     size_t seq_size = end - start;
-    char *sub_seq = malloc((seq_size + 1));
+    char *sub_seq = calloc(seq_size + 1, sizeof(char));
     strncpy(sub_seq, ref_seq + start, seq_size);
     sub_seq[seq_size] = '\0';
     return sub_seq;
@@ -178,7 +178,7 @@ char *get_query_seq(uint8_t *seqi, size_t start, size_t end)
 {
 
     size_t seq_size = end - start;
-    char *sub_seq = malloc((seq_size + 1));
+    char *sub_seq = calloc(seq_size + 1, sizeof(char));
     for (size_t i = 0; i < seq_size; i++)
     {
         sub_seq[i] = seq_nt16_str[bam_seqi(seqi, start + i)];
@@ -222,24 +222,30 @@ int realign_read(Variant *variant, Read *read, size_t i, size_t consumed, size_t
     cigar_prefix_length(cigartuples, overhang, &left_ref_bases, &left_query_bases, 0, left_cigar_size, left_consumed, true);
     cigar_prefix_length(cigartuples, overhang + 1, &right_ref_bases, &right_query_bases, right_cigar_size, n_cigar, right_consumed, false);
 
-    char *query = get_query_seq(seqi, query_pos - left_query_bases, query_pos + right_query_bases);
-    char *ref = get_ref_seq(reference, variant->position - left_ref_bases - ref_start, variant->position + right_ref_bases - ref_start);
+    size_t qst = query_pos - left_query_bases;
+    size_t qen = query_pos + right_query_bases;
+    size_t rst = variant->position - left_ref_bases - ref_start;
+    size_t ren = variant->position + right_ref_bases - ref_start;
+    if (qen == qst) return 0;  // fast return
+    char *query = get_query_seq(seqi, qst, qen);
+    char *ref = get_ref_seq(reference, rst, ren);
 
-    size_t alt_length = left_ref_bases + right_ref_bases + 1;
-    char *alt = malloc(alt_length);
-    strcpy(alt, ref);
+    // right_ref_bases can be zero, alt[left_ref_bases] would then be
+    // accessing the last char in the string, either we need another
+    // character or it should be alt[left_ref_bases - 1]? :/
+    size_t alt_length = left_ref_bases + right_ref_bases;  // equivalently ren - rst
+    char *alt = calloc(alt_length + 2, sizeof(char));
+    strncpy(alt, ref, ren - rst);
     alt[left_ref_bases] = variant->alt_base;
 
     size_t distance_ref = levenshtein(query, ref);
     size_t distance_alt = levenshtein(query, alt);
 
     int allele = 0;
-    if (distance_ref < distance_alt)
-    {
+    if (distance_ref < distance_alt) {
         allele = 1;
     }
-    else if (distance_ref > distance_alt)
-    {
+    else if (distance_ref > distance_alt) {
         allele = 2;
     }
 
@@ -513,8 +519,9 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
             .pos_info = NULL,
             .haplotype = HAP_UNPHASED};
 
-        while (variant_current_pos < variant_num && variants[variant_current_pos]->position < pos)
+        while (variant_current_pos < variant_num && variants[variant_current_pos]->position < pos) {
             variant_current_pos++;
+        }
         variants_info.variant_current_pos = variant_current_pos;
 
         while (candidate_current_index < flanking_candidates_num && flanking_candidates[candidate_current_index] < (size_t)pos)
@@ -910,8 +917,14 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
     kh_int_counter_destroy(candidates_p);
     kh_int_counter_destroy(flanking_candidates_p);
     kv_destroy(read_array);
+
     bam_destroy1(alignment);
     hts_itr_destroy(iter);
+    sam_hdr_destroy(header);
+    hts_idx_destroy(idx);
+    hts_close(hts_file);
+
+    free(ref_seq);
     fai_destroy(fai);
 
     return data;
