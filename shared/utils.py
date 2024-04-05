@@ -248,7 +248,7 @@ def samtools_view_process_from(
         shlex.split("%s view -F 2318 %s %s" % (samtools, bam_file_path, region_str))
     )
 
-def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", version='1.0.4', gvcf=False):
+def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", version='1.0.7', gvcf=False):
     from textwrap import dedent
 
     if reference_file_path is None or not os.path.exists(reference_file_path):
