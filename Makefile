@@ -7,15 +7,13 @@ all : libhts.a longphase libclair3.so
 clean : clean_htslib clean_longphase clean_libclair3
 
 SAMVER	=	1.15.1
-LPVER	=	1.3
+LPVER	=	1.6
 GCC	?=	gcc
 GXX	?=	g++
 PREFIX	?=	${CONDA_PREFIX}
 LDFLAGS	=	-L ${PREFIX}/lib
 CFLAGS	= -fpic -std=c99 -O3 -I ${PREFIX}/include -L ${PREFIX}/lib
 CPPFLAGS	=	-std=c++11 -Wall -O3 -I ${PREFIX}/include -L ${PREFIX}/lib -Wl,-rpath=${PREFIX}/lib
-LP_CPPFLAGS	 =	-std=c++11 -Wall -g -O3 -I ${PREFIX}/include -L ${PREFIX}/lib -Wl,-rpath=${PREFIX}/lib
-
 
 
 samtools-$(SAMVER)/Makefile:
@@ -29,15 +27,12 @@ libhts.a: samtools-$(SAMVER)/Makefile
 	cd samtools-${SAMVER}/htslib-${SAMVER}; CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}" ./configure; make CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}"
 	cp samtools-${SAMVER}/htslib-${SAMVER}/$@ $@
 
-longphase-$(LPVER)/Makefile:
-	curl -L -o longphase-${LPVER}.tar.gz https://github.com/twolinin/longphase/archive/refs/tags/v${LPVER}.tar.gz; \
-	tar -zxvf longphase-${LPVER}.tar.gz; \
-	rm longphase-${LPVER}.tar.gz
 
-longphase: longphase-$(LPVER)/Makefile
-	@echo "\x1b[1;33mMaking $(@F)\x1b[0m"
-	cd longphase-${LPVER}; autoreconf -i; CPPFLAGS="${CPPFLAGS}" ./configure; make CC=${GCC} CXX=${GXX} CPPFLAGS="${CPPFLAGS}"
-	cp longphase-${LPVER}/$@ $@
+longphase:
+    curl -L -o longphase-${LPVER}.tar.xz https://github.com/twolinin/longphase/releases/download/v${LPVER}/longphase_linux-x64.tar.xz
+	tar -xJf longphase-${LPVER}.tar.xz
+	mv longphase_linux-x64 $@
+	rm longphase-${LPVER}.tar.xz
 
 
 libclair3.so: samtools-${SAMVER}/htslib-${SAMVER} libhts.a
@@ -61,7 +56,6 @@ clean_htslib:
 
 .PHONY: clean_longphase
 clean_longphase:
-	cd longphase-${LPVER} && make clean || exit 0
 	rm longphase
 
 .PHONY: clean_libclair3
