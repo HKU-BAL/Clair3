@@ -29,7 +29,7 @@ libhts.a: samtools-$(SAMVER)/Makefile
 
 
 longphase:
-    curl -L -o longphase-${LPVER}.tar.xz https://github.com/twolinin/longphase/releases/download/v${LPVER}/longphase_linux-x64.tar.xz
+	curl -L -o longphase-${LPVER}.tar.xz https://github.com/twolinin/longphase/releases/download/v${LPVER}/longphase_linux-x64.tar.xz
 	tar -xJf longphase-${LPVER}.tar.xz
 	mv longphase_linux-x64 $@
 	rm longphase-${LPVER}.tar.xz
