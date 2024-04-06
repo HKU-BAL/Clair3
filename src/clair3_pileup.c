@@ -168,7 +168,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
     data->min_mapQ = min_mq;
 
     bam_mplp_t mplp = bam_mplp_init(1, read_bam, (void **)& data);
-    bam_mplp_set_maxcnt(mplp, INT_MAX);
+    bam_mplp_set_maxcnt(mplp, (1 << 20));
 
     const bam_pileup1_t **plp = xalloc(1, sizeof(bam_pileup1_t *), "pileup");
     int ret, pos, tid, n_plp;
