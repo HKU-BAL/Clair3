@@ -470,8 +470,3 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
 
     return pileup;
 }
-
-int main()
-{
-    return 0;
-}
