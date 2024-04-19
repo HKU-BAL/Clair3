@@ -47,7 +47,16 @@ def FiterHeteSnpPhasing(args):
         genotype = columns[9].split(':')[0].replace('|', '/')
 
         if len(ref_base) == 1 and len(alt_base) == 1:
-            if genotype == '0/1' or genotype=='1/0':
+            if genotype == '0/1' or genotype == '1/0':
+                if "PL" in columns[-2]:
+                    FORMAT_list = columns[-2].split(':')
+                    PL_index = FORMAT_list.index("PL")
+                    del FORMAT_list[PL_index]
+                    columns[-2] = ':'.join(FORMAT_list)
+                    last_column_list = columns[-1].split(':')
+                    del last_column_list[PL_index]
+                    columns[-1] = ':'.join(last_column_list)
+                    row = '\t'.join(columns)
                 variant_dict[pos] = row
                 qual = float(columns[5])
                 qual_set[pos] = qual
