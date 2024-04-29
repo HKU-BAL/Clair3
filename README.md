@@ -63,6 +63,8 @@ For somatic variant calling using tumor-only samples, please try [ClairS-TO](htt
 ----
 
 ## Latest Updates
+*v1.0.7 minor 2 (Apr 29)* : 1. Fixed an issue in VCF output that occasionally caused quality score change when `--gvcf` is enabled. 2. Updated LongPhase to version 1.7.
+
 *v1.0.7 (Apr 7, 2024)* : 1. Added memory guards and test function on full-alignment C implement ([#286](https://github.com/HKU-BAL/Clair3/pull/286) by @[Chris Wright](https://github.com/cjw85)). 2. Increased the maximum mpileup read coverage to 2^20 to adapt high-coverage amplicon data ([#292](https://github.com/HKU-BAL/Clair3/pull/292) by @[Devon Ryan](https://github.com/dpryan79)). 3. Updated LongPhase to version 1.6.
 
 *v1.0.6 (Mar 15, 2024)* : 1. Fixed stack overflow issue when the read coverage is excessively high ([#282](https://github.com/HKU-BAL/Clair3/issues/282) by @[Chris Wright](https://github.com/cjw85), [#265](https://github.com/HKU-BAL/Clair3/issues/265) by @[ymcki](https://github.com/ymcki)). 2. Added reference caching for CRAM input ([#278](https://github.com/HKU-BAL/Clair3/pull/278) by @[Alex Leonard](https://github.com/ASLeonard), [#180](https://github.com/HKU-BAL/Clair3/issues/180) by @[bartcharbon](https://github.com/bartcharbon) and @[SamStudio8](https://github.com/SamStudio8)). 3. Fixed a bug that outputs RefCall calls when no variant is called by full-alignment model ([#271](https://github.com/HKU-BAL/Clair3/issues/271)). 4. Fixed a bug that variants below min coverage were still being called ([#262](https://github.com/HKU-BAL/Clair3/issues/262)). 5. Set `--min_snp_af` and `--min_indel_af` to 0.0 when `--vcf_fn` is provided ([#261](https://github.com/HKU-BAL/Clair3/issues/261)).
