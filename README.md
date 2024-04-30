@@ -63,7 +63,7 @@ For somatic variant calling using tumor-only samples, please try [ClairS-TO](htt
 ----
 
 ## Latest Updates
-*v1.0.7 minor 2 (Apr 29)* : 1. Fixed an issue in VCF output that occasionally caused quality score change when `--gvcf` is enabled. 2. Updated LongPhase to version 1.7.
+*v1.0.8 (Apr 29, 2024)* : 1. Fixed an issue in VCF output that caused occasional quality score small differences compared to GVCF output. 2. Updated LongPhase to version 1.7.
 
 *v1.0.7 (Apr 7, 2024)* : 1. Added memory guards and test function on full-alignment C implement ([#286](https://github.com/HKU-BAL/Clair3/pull/286) by @[Chris Wright](https://github.com/cjw85)). 2. Increased the maximum mpileup read coverage to 2^20 to adapt high-coverage amplicon data ([#292](https://github.com/HKU-BAL/Clair3/pull/292) by @[Devon Ryan](https://github.com/dpryan79)). 3. Updated LongPhase to version 1.6.
 
