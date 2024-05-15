@@ -248,7 +248,7 @@ def samtools_view_process_from(
         shlex.split("%s view -F 2318 %s %s" % (samtools, bam_file_path, region_str))
     )
 
-def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", version='1.0.8', gvcf=False):
+def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", version='1.0.9', gvcf=False):
     from textwrap import dedent
 
     if reference_file_path is None or not os.path.exists(reference_file_path):
@@ -277,11 +277,11 @@ def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", vers
             ##INFO=<ID=END,Number=1,Type=Integer,Description="End position (for use with symbolic alleles)">
             ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
             ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
-            ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ<20 or selected by 'samtools view -F 2316' are filtered)">
+            ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads 1. with MQ below 5 or an user-specified threshold, or 2. selected by 'samtools view -F 2316', are filtered)">
             ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
             ##FORMAT=<ID=MIN_DP,Number=1,Type=Integer,Description="Minimum DP observed within the GVCF block">
             ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
-            ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Observed allele frequency in reads, for each ALT allele, in the same order as listed, or the REF allele for a RefCall">\n""".format(
+            ##FORMAT=<ID=AF,Number=G,Type=Float,Description="Observed allele frequency in reads, for each ALT allele, in the same order as listed, or the REF allele for a RefCall">\n""".format(
             version))
     else:
         header = dedent("""\
@@ -295,10 +295,10 @@ def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", vers
             ##INFO=<ID=F,Number=0,Type=Flag,Description="Result from full-alignment calling">
             ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
             ##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
-            ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ<20 or selected by 'samtools view -F 2316' are filtered)">
+            ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads 1. with MQ below 5 or an user-specified threshold, or 2. selected by 'samtools view -F 2316', are filtered)">
             ##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
             ##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
-            ##FORMAT=<ID=AF,Number=1,Type=Float,Description="Observed allele frequency in reads, for each ALT allele, in the same order as listed, or the REF allele for a RefCall">\n""".format(
+            ##FORMAT=<ID=AF,Number=G,Type=Float,Description="Observed allele frequency in reads, for each ALT allele, in the same order as listed, or the REF allele for a RefCall">\n""".format(
             version))
     if ref_header_str != "":
         header_list = header.rstrip('\n').split('\n')
