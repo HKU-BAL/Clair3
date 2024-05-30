@@ -1,4 +1,4 @@
-FROM continuumio/miniconda3:latest
+FROM continuumio/miniconda3:24.1.2-0
 
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PATH=/opt/bin:/opt/conda/bin:$PATH
 
@@ -42,14 +42,15 @@ RUN /bin/bash -c "source activate clair3" && \
     rm -rf /root/.cache/pip && \
     echo "source activate clair3" > ~/.bashrc
 
+RUN wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz -P /opt/models && \
+    tar -zxvf /opt/models/clair3_models.tar.gz -C /opt/models && \
+    rm /opt/models/clair3_models.tar.gz
+
 COPY . .
 
 RUN cd /opt/bin/preprocess/realign && \
     g++ -std=c++14 -O1 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c realigner.cpp && \
     g++ -std=c++11 -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp && \
-    wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz -P /opt/models && \
-    tar -zxvf /opt/models/clair3_models.tar.gz -C /opt/models && \
-    rm /opt/models/clair3_models.tar.gz && \
     cd /opt/bin && \
     make PREFIX=/opt/conda/envs/clair3 PYTHON=/opt/conda/envs/clair3/bin/python && \
     rm -rf /opt/bin/samtools-* /opt/bin/longphase-*
