@@ -171,62 +171,57 @@ def sort_vcf_from(args):
     else:
         output = open(output_fn, 'w')
 
-    for contig in contigs_order_list:
-        contig_dict = defaultdict(str)
-        contig_vcf_fns = [fn for fn in all_files if contig in fn]
-        for vcf_fn in contig_vcf_fns:
-            file = os.path.join(input_dir, vcf_fn)
-            if is_lz4_format:
-                read_proc = subprocess_popen(shlex.split("{} {}".format("lz4 -fdc", file)), stderr=subprocess.DEVNULL)
-                fn = read_proc.stdout
-            else:
-                fn = open(file, 'r')
-            for row in fn:
-                row_count += 1
-                if row[0] == '#':
-                    # skip phasing command line only occur with --enable_phasing, otherwise would lead to hap.py evaluation failure
-                    if row.startswith('##commandline='):
-                        continue
-                    if row not in header:
-                        header.append(row)
+    contig_dict = defaultdict(str)
+    for vcf_fn in all_files:
+        file = os.path.join(input_dir, vcf_fn)
+        if is_lz4_format:
+            read_proc = subprocess_popen(shlex.split("{} {}".format("lz4 -fdc", file)), stderr=subprocess.DEVNULL)
+            fn = read_proc.stdout
+        else:
+            fn = open(file, 'r')
+        for row in fn:
+            row_count += 1
+            if row[0] == '#':
+                # skip phasing command line only occur with --enable_phasing, otherwise would lead to hap.py evaluation failure
+                if row.startswith('##commandline='):
                     continue
-                # use the first vcf header
-                columns = row.strip().split(maxsplit=3)
-                ctg_name, pos = columns[0], columns[1]
-                # skip vcf file sharing same contig prefix, ie, chr1 and chr11
-                if ctg_name != contig:
-                    break
-                contig_dict[int(pos)] = row
-                no_vcf_output = False
-            fn.close()
-            if is_lz4_format:
-                read_proc.wait()
-        if need_write_header and len(header):
-            #add cmdline for gvcf
-            if "##cmdline" not in '\n'.join(header) and os.path.exists(cmd_fn):
-                cmdline_str = ""
-                if cmd_fn is not None and os.path.exists(cmd_fn):
-                    cmd_line = open(cmd_fn).read().rstrip()
+                if row not in header:
+                    header.append(row)
+                continue
+            # use the first vcf header
+            columns = row.strip().split(maxsplit=3)
+            ctg_name, pos = columns[0], columns[1]
+            contig_dict[(ctg_name, int(pos))] = row
+            no_vcf_output = False
+        fn.close()
+        if is_lz4_format:
+            read_proc.wait()
+    if need_write_header and len(header):
+        #add cmdline for gvcf
+        if "##cmdline" not in '\n'.join(header) and os.path.exists(cmd_fn):
+            cmdline_str = ""
+            if cmd_fn is not None and os.path.exists(cmd_fn):
+                cmd_line = open(cmd_fn).read().rstrip()
 
-                    if cmd_line is not None and len(cmd_line) > 0:
-                        cmdline_str = "##cmdline={}\n".format(cmd_line)
-                if cmdline_str != "":
-                    insert_index = 3 if len(header) >= 3 else len(header) - 1
-                    header.insert(insert_index, cmdline_str)
+                if cmd_line is not None and len(cmd_line) > 0:
+                    cmdline_str = "##cmdline={}\n".format(cmd_line)
+            if cmdline_str != "":
+                insert_index = 3 if len(header) >= 3 else len(header) - 1
+                header.insert(insert_index, cmdline_str)
 
-            if output_bgzip_gvcf:
-                header = check_header_in_gvcf(header=header, contigs_list=all_contigs_list)
-            output.write(''.join(header))
-            need_write_header = False
-        all_pos = sorted(contig_dict.keys())
-        for pos in all_pos:
-            if args.pileup_only:
-                row = contig_dict[pos]
-                row = postprocess_row_with_params(args, row)
-                if row is not None:
-                    output.write(contig_dict[pos])
-            else:
+        if output_bgzip_gvcf:
+            header = check_header_in_gvcf(header=header, contigs_list=all_contigs_list)
+        output.write(''.join(header))
+        need_write_header = False
+    all_pos = sorted(contig_dict.keys(), key=lambda x: (contigs_order_list.index(x[0]), x[1]))
+    for pos in all_pos:
+        if args.pileup_only:
+            row = contig_dict[pos]
+            row = postprocess_row_with_params(args, row)
+            if row is not None:
                 output.write(contig_dict[pos])
+        else:
+            output.write(contig_dict[pos])
 
     if compress_gvcf_output:
         write_proc.stdin.close()

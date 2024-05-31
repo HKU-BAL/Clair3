@@ -1,11 +1,14 @@
 import sys
 import os
+import copy
+import csv
 import tensorflow as tf
 import logging
 from time import time
 from argparse import ArgumentParser, SUPPRESS
 
 from shared.utils import str2bool, log_error, log_warning, str_none
+from shared.interval_tree import bed_tree_from
 from clair3.CallVariants import OutputConfig, output_utilties_from, batch_output
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -62,6 +65,37 @@ def Run(args):
 
     call_variants_from_cffi(args=args, output_config=output_config, output_utilities=output_utilities)
 
+def tensor_generator_for_chunk(gen_cls, args, batch_size=200):
+    tensor, all_position, all_alt_info = gen_cls(args)
+    total_data = len(tensor)
+    assert total_data == len(all_alt_info)
+    assert total_data == len(all_position)
+    batch_size = batch_size
+    total_chunk = total_data // batch_size if total_data % batch_size == 0 else total_data // batch_size + 1
+    for chunk_id in range(total_chunk):
+        chunk_start = chunk_id * batch_size
+        chunk_end = (chunk_id + 1) * batch_size if chunk_id < total_chunk - 1 else total_data
+        yield (tensor[chunk_start:chunk_end],
+               all_position[chunk_start:chunk_end],
+               all_alt_info[chunk_start:chunk_end])
+
+def tensor_generator_for_unchunked(gen_cls, args, batch_size=200):
+    if args.bed_fn:
+        tree = bed_tree_from(args.bed_fn)
+        for contig in tree.values():
+            contig.merge_overlaps()
+        chunks = [(ctg_name, I.begin, I.end) for ctg_name, ctg_tree in tree.items() for I in ctg_tree.all_intervals]
+    else:
+        fai = f"{args.ref_fn}.fai"
+        chunks = [(ctg, 0, ctg_len) for ctg, ctg_len, *_ in csv.reader(open(fai), delimiter='\t')]
+    for ctg, start, end in chunks:
+        temp_args = copy.copy(args)
+        temp_args.ctgName = ctg
+        temp_args.ctgStart = int(start)
+        temp_args.ctgEnd = int(end)
+        for batch in tensor_generator_for_chunk(gen_cls, temp_args, batch_size=batch_size):
+            yield batch
+
 
 def call_variants_from_cffi(args, output_config, output_utilities):
     use_gpu = args.use_gpu
@@ -116,22 +150,12 @@ def call_variants_from_cffi(args, output_config, output_utilities):
     else:
         from preprocess.CreateTensorFullAlignmentFromCffi import CreateTensorFullAlignment as CT
 
-    tensor, all_position, all_alt_info = CT(args)
+    if args.ctgName == 'None' and args.pileup:
+        batch_gen = tensor_generator_for_unchunked(CT, args, batch_size=param.predictBatchSize)
+    else:
+        batch_gen = tensor_generator_for_chunk(CT, args, batch_size=param.predictBatchSize)
 
-    def tensor_generator_from(tensor, all_position, all_alt_info):
-        total_data = len(tensor)
-        assert total_data == len(all_alt_info)
-        assert total_data == len(all_position)
-        batch_size = param.predictBatchSize
-        total_chunk = total_data // batch_size if total_data % batch_size == 0 else total_data // batch_size + 1
-        for chunk_id in range(total_chunk):
-            chunk_start = chunk_id * batch_size
-            chunk_end = (chunk_id + 1) * batch_size if chunk_id < total_chunk - 1 else total_data
-            yield (tensor[chunk_start:chunk_end], all_position[chunk_start:chunk_end], all_alt_info[chunk_start:chunk_end])
-
-    tensor_generator = tensor_generator_from(tensor, all_position, all_alt_info)
-
-    for (X, position, alt_info_list) in tensor_generator:
+    for (X, position, alt_info_list) in batch_gen:
             total += len(X)
             if args.pileup:
                 for alt_idx, alt_info in enumerate(alt_info_list):
