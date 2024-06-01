@@ -16,13 +16,19 @@ logging.basicConfig(format='%(message)s', level=logging.INFO)
 
 
 def Run(args):
-    os.environ["OMP_NUM_THREADS"] = "1"
-    os.environ["OPENBLAS_NUM_THREADS"] = "1"
-    os.environ["MKL_NUM_THREADS"] = "1"
-    os.environ["NUMEXPR_NUM_THREADS"] = "1"
+    threads = args.threads
+    os.environ["OMP_NUM_THREADS"] = f"{threads}"
+    os.environ["OPENBLAS_NUM_THREADS"] = f"{threads}"
+    os.environ["MKL_NUM_THREADS"] = f"{threads}"
+    os.environ["NUMEXPR_NUM_THREADS"] = f"{threads}"
 
-    tf.config.threading.set_intra_op_parallelism_threads(1)
-    tf.config.threading.set_inter_op_parallelism_threads(1)
+    # https://stackoverflow.com/a/54832345
+    tf.config.threading.set_intra_op_parallelism_threads(threads)
+    tf.config.threading.set_inter_op_parallelism_threads(2 if threads > 1 else 1)
+
+    if not args.use_gpu:
+        # https://www.intel.com/content/www/us/en/developer/articles/technical/maximize-tensorflow-performance-on-cpu-considerations-and-recommendations-for-inference.html
+        os.environ["TF_ENABLE_ONEDNN_OPTS"] = "1"
 
     global test_pos
     test_pos = None
@@ -150,10 +156,11 @@ def call_variants_from_cffi(args, output_config, output_utilities):
     else:
         from preprocess.CreateTensorFullAlignmentFromCffi import CreateTensorFullAlignment as CT
 
+    batch_size = param.predictBatchSize * args.threads
     if args.ctgName == 'None' and args.pileup:
-        batch_gen = tensor_generator_for_unchunked(CT, args, batch_size=param.predictBatchSize)
+        batch_gen = tensor_generator_for_unchunked(CT, args, batch_size=batch_size)
     else:
-        batch_gen = tensor_generator_for_chunk(CT, args, batch_size=param.predictBatchSize)
+        batch_gen = tensor_generator_for_chunk(CT, args, batch_size=batch_size)
 
     for (X, position, alt_info_list) in batch_gen:
             total += len(X)
@@ -266,6 +273,9 @@ def main():
     # options for debug purpose
     parser.add_argument('--use_gpu', type=str2bool, default=False,
                         help="DEBUG: Use GPU for calling. Speed up is mostly insignficiant. Only use this for building your own pipeline")
+
+    parser.add_argument('--threads', type=int, default=1,
+                        help="How many threads for python to use for parallelization default: %(default)f")
 
     parser.add_argument('--predict_fn', type=str, default=None,
                         help="DEBUG: Output network output probabilities for further analysis")

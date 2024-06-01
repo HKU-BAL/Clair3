@@ -354,8 +354,11 @@ def CheckEnvs(args):
         return
 
     print('[INFO] Call variant in contigs: {}'.format(' '.join(sorted_contig_list)))
-    print('[INFO] Chunk number for each contig: {}'.format(
-        ' '.join([str(contig_chunk_num[c]) for c in sorted_contig_list])))
+    if default_chunk_num > -1:
+        print('[INFO] Chunk number for each contig: {}'.format(
+            ' '.join([str(contig_chunk_num[c]) for c in sorted_contig_list])))
+    else:
+        print('[INFO] No genome chunking due to chunk_num == -1') 
 
     if default_chunk_num > 0 and max_chunk_length > MAX_CHUNK_LENGTH:
         print(log_warning(
