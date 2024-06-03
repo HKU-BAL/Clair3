@@ -140,11 +140,22 @@ if [[ ${THREADS_LOW} < 1 ]]; then THREADS_LOW=1; fi
 if [[ ${LONGPHASE_THREADS} < 1 ]]; then LONGPHASE_THREADS=1; fi
 if [ "${PLATFORM}" = "ont" ]; then LP_PLATFORM="ont"; else LP_PLATFORM="pb"; fi
 
+#fix pileup threads based on parallelezation option
+if [ "$CHUNK_NUM" -eq -1 ]; then
+    PARALLEL_THREADS=1
+    INTERNAL_THREADS=$THREADS
+else
+    PARALLEL_THREADS=$THREADS_LOW
+    INTERNAL_THREADS=1
+fi
+
+
+
 cd ${OUTPUT_FOLDER}
 # Pileup calling
 #-----------------------------------------------------------------------------------------------------------------------
 echo "[INFO] 1/7 Call variants using pileup model"
-time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_call_var_bam_pileup.log -j ${THREADS_LOW} \
+time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_call_var_bam_pileup.log -j ${PARALLEL_THREADS} \
 "${PYTHON} ${CLAIR3} CallVariantsFromCffi \
     --chkpnt_fn ${PILEUP_CHECKPOINT_PATH} \
     --bam_fn ${BAM_FILE_PATH} \
@@ -154,6 +165,7 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
     --extend_bed ${SPLIT_BED_PATH}/{1} \
     --bed_fn ${BED_FILE_PATH} \
     --vcf_fn ${VCF_FILE_PATH} \
+    --threads ${INTERNAL_THREADS} \
     --ctgName {1} \
     --chunk_id {2} \
     --chunk_num {3} \
