@@ -28,8 +28,8 @@ RUN /bin/bash -c "source activate clair3" && \
     conda install -c conda-forge pypy3.6 -y && \
     pypy3 -m ensurepip && \
     pypy3 -m pip install mpmath==1.2.1 && \
-    conda install -c conda-forge tensorflow-cpu==2.8.0 && \
-    conda install -c conda-forge pytables && \
+    conda install -c conda-forge tensorflow-cpu==2.8.0 -y && \
+    conda install -c conda-forge pytables -y && \
     pip install tensorflow-addons && \
     conda install -c anaconda pigz -y && \
     conda install -c anaconda cffi=1.14.4 -y && \
