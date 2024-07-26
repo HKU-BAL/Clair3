@@ -248,9 +248,10 @@ def samtools_view_process_from(
         shlex.split("%s view -F 2318 %s %s" % (samtools, bam_file_path, region_str))
     )
 
-def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", version='1.0.9', gvcf=False):
+def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", version='1.0.10', gvcf=False, return_contig_length=False):
     from textwrap import dedent
 
+    contig_length_dict = {}
     if reference_file_path is None or not os.path.exists(reference_file_path):
         ref_header_str = ""
     else:
@@ -318,10 +319,13 @@ def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", vers
             for row in fai_fp:
                 columns = row.strip().split("\t")
                 contig_name, contig_size = columns[0], columns[1]
+                contig_length_dict[contig_name] = int(contig_size)
                 header += "##contig=<ID=%s,length=%s>\n" % (contig_name, contig_size)
 
         header += '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t%s' % (sample_name)
 
+    if return_contig_length:
+        return header, contig_length_dict
     return header
 
 

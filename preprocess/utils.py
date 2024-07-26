@@ -568,7 +568,8 @@ class variantInfoCalculator(object):
 
     def _print_vcf_header(self):
 
-        header_str = get_header(reference_file_path=self.reference_file_path, sample_name=self.sampleName, gvcf=True)
+        header_str, contig_length_dict = get_header(reference_file_path=self.reference_file_path, sample_name=self.sampleName, gvcf=True, return_contig_length=True)
+        self.contig_length_dict = contig_length_dict
         print(header_str, file=self.vcf_writer)
 
    
@@ -608,9 +609,13 @@ class variantInfoCalculator(object):
         '''
         write a temporary file gvcf. This file is needed to be merged with model variant calls.
         '''
+        end_pos_str =str(variant_info['END'])
+        if (variant_info['chr'] in self.contig_length_dict):
+            if int(end_pos_str) == self.contig_length_dict[variant_info['chr']] - 1:
+                end_pos_str = str(self.contig_length_dict[variant_info['chr']])
 
         _tmpLine = str(variant_info["chr"]) + '\t' + str(variant_info["pos"]) + "\t.\t" + variant_info[
-            'ref'] + '\t<NON_REF>\t0\t.\tEND=' + str(variant_info['END']) + '\tGT:GQ:MIN_DP:PL\t' + variant_info[
+            'ref'] + '\t<NON_REF>\t0\t.\tEND=' + end_pos_str + '\tGT:GQ:MIN_DP:PL\t' + variant_info[
                        'gt'] + ':' + str(variant_info['binned_gq']) + ':' + str(variant_info['min_dp']) + ':' + str(
             variant_info['pl'][0]) + ',' + str(variant_info['pl'][1]) + ',' + str(variant_info['pl'][2])
         print(_tmpLine, file=self.vcf_writer)
