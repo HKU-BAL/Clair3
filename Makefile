@@ -7,7 +7,7 @@ all : libhts.a longphase libclair3.so
 clean : clean_htslib clean_longphase clean_libclair3
 
 SAMVER	=	1.15.1
-LPVER	=	1.7
+LPVER	=	1.7.3
 GCC	?=	gcc
 GXX	?=	g++
 PREFIX	?=	${CONDA_PREFIX}
