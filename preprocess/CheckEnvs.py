@@ -354,8 +354,11 @@ def CheckEnvs(args):
         return
 
     print('[INFO] Call variant in contigs: {}'.format(' '.join(sorted_contig_list)))
-    print('[INFO] Chunk number for each contig: {}'.format(
-        ' '.join([str(contig_chunk_num[c]) for c in sorted_contig_list])))
+    if default_chunk_num > -1:
+        print('[INFO] Chunk number for each contig: {}'.format(
+            ' '.join([str(contig_chunk_num[c]) for c in sorted_contig_list])))
+    else:
+        print('[INFO] No genome chunking due to chunk_num == -1') 
 
     if default_chunk_num > 0 and max_chunk_length > MAX_CHUNK_LENGTH:
         print(log_warning(
@@ -372,17 +375,20 @@ def CheckEnvs(args):
             '[WARNING] Current maximum contig length {} is much smaller than default chunk size {}, You may set a smaller chunk size by setting --chunk_size=$ for better parallelism.'.format(
                 max(contig_length_list), DEFAULT_CHUNK_SIZE)))
 
-    if is_bed_file_provided:
+    if is_bed_file_provided and default_chunk_num > -1:
         split_extend_bed(bed_fn=bed_fn, output_fn=split_bed_path, contig_set=contig_set)
 
     with open(contig_name_list, 'w') as output_file:
         output_file.write('\n'.join(sorted_contig_list))
 
     with open(chunk_list, 'w') as output_file:
-        for contig_name in sorted_contig_list:
-            chunk_num = contig_chunk_num[contig_name]
-            for chunk_id in range(1, chunk_num + 1):
-                output_file.write(contig_name + ' ' + str(chunk_id) + ' ' + str(chunk_num) + '\n')
+        if default_chunk_num > -1:
+            for contig_name in sorted_contig_list:
+                chunk_num = contig_chunk_num[contig_name]
+                for chunk_id in range(1, chunk_num + 1):
+                    output_file.write(contig_name + ' ' + str(chunk_id) + ' ' + str(chunk_num) + '\n')
+        else:
+            output_file.write("None 0 0\n")
 
 
 def main():
@@ -458,7 +464,7 @@ def main():
     # options for internal process control
     ## The number of chucks to be divided into for parallel processing
     parser.add_argument('--chunk_num', type=int, default=0,
-                        help=SUPPRESS)
+            help="Target number of chunks to divide contigs into for parallel processing. If -1, do not chunk genome")
 
     ## EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.
     parser.add_argument('--no_phasing_for_fa', type=str2bool, default=False,
