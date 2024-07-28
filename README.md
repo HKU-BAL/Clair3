@@ -63,6 +63,8 @@ For somatic variant calling using tumor-only samples, please try [ClairS-TO](htt
 ----
 
 ## Latest Updates
+*v1.0.10 (Jul 28, 2024)* : 1. Fixed an out of range bug when outputing GVCF for non-human genome ([#317](https://github.com/HKU-BAL/Clair3/issues/317). 2. Improve the calling speed when working with targeted amplicon data, Use `—chunk_num=-1` to call variant without splitting genome into chunks ([#306](https://github.com/HKU-BAL/Clair3/issues/306), contributor [Elliot Hallmark](https://github.com/Permafacture)). 3. Updated LongPhase to version 1.7.3 ([#321](https://github.com/HKU-BAL/Clair3/issues/321).
+
 *v1.0.9 (May 15, 2024)* : 1. Fixed an issue in VCF header([#305](https://github.com/HKU-BAL/Clair3/pull/305) by @[Monica Palafox Roberts](https://github.com/mproberts99)). 2. Updated `DP` FORMAT description in header.
 
 *v1.0.8 (Apr 29, 2024)* : 1. Fixed an issue in VCF output that caused occasional quality score small differences compared to GVCF output. 2. Updated LongPhase to version 1.7.
