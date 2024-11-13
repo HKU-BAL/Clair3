@@ -26,7 +26,7 @@ else:
         conda_path = os.environ['CONDA_PREFIX']
         extra_link_args = ['-Wl,-rpath={}/lib'.format(conda_path)]
     except:
-        print("[WARNING] Conda prefix not found, please activate clair3 conda environment first!")
+        print("[WARNING] Conda prefix not found, please activate clair3 conda environment first!\n")
 
 ffibuilder = FFI()
 ffibuilder.set_source("libclair3",
