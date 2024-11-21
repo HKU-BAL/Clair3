@@ -21,9 +21,11 @@ Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Cl
 
 Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), and available as a preprint at [bioRxiv](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v2).
 
-For somatic variant calling using paired tumor/normal samples, please try [ClairS](https://github.com/HKU-BAL/ClairS).
+For germline variant calling using **long-read RNA-seq** samples, please try [Clair3-RNA](https://github.com/HKU-BAL/Clair3-RNA).
 
-For somatic variant calling using tumor-only samples, please try [ClairS-TO](https://github.com/HKU-BAL/ClairS-TO).
+For somatic variant calling using **paired tumor/normal** samples, please try [ClairS](https://github.com/HKU-BAL/ClairS).
+
+For somatic variant calling using **tumor-only** samples, please try [ClairS-TO](https://github.com/HKU-BAL/ClairS-TO).
 
 ----
 
