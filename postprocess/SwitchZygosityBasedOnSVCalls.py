@@ -12,7 +12,7 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from subprocess import Popen
 
-from shared.interval_tree import is_region_in
+from shared.interval_tree import is_region_in, bed_tree_from
 from shared.intervaltree.intervaltree import IntervalTree
 
 def compress_index_vcf(input_vcf):
@@ -21,6 +21,14 @@ def compress_index_vcf(input_vcf):
     proc = subprocess.run('bgzip -f {}'.format(input_vcf), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     proc = subprocess.run('tabix -f -p vcf {}.gz'.format(input_vcf), shell=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
+
+def str_none(v):
+    if v is None:
+        return None
+    if v.upper() == "NONE":
+        return None
+    if isinstance(v, str):
+        return v
 
 
 def str2bool(v):
@@ -87,13 +95,18 @@ class VcfWriter(object):
         self.vcf_fn = vcf_fn
         self.show_ref_calls = show_ref_calls
 
+        # check absolute path
+        if not os.path.isabs(self.vcf_fn):
+            vcf_path = os.path.abspath(self.vcf_fn)
+        else:
+            vcf_path = self.vcf_fn
         # make directory if not exist
-        vcf_folder = os.path.dirname(self.vcf_fn)
+        vcf_folder = os.path.dirname(vcf_path)
         if not os.path.exists(vcf_folder):
             print("[INFO] Output VCF folder {} not found, create it".format(vcf_folder))
             return_code = run("mkdir -p {}".format(vcf_folder), shell=True)
 
-        self.vcf_writer = open(self.vcf_fn, 'w')
+        self.vcf_writer = open(vcf_path, 'w')
         self.ctg_name = ctg_name
         self.sample_name = sample_name
 
@@ -148,12 +161,11 @@ class VcfReader(object):
             chromosome, position = columns[0], int(columns[1])
             key = (chromosome, position) if self.ctg_name is None else position
             sv_del_end = None
-            FILTER = None
+            FILTER = columns[6]
             if self.ctg_name is not None and chromosome != self.ctg_name:
                 continue
 
             if self.filter_tag is not None:
-                FILTER = columns[6]
                 filter_list = self.filter_tag.split(',')
                 if sum([1 if filter == FILTER else 0 for filter in filter_list]) == 0:
                     continue
@@ -216,7 +228,7 @@ class VcfReader(object):
                                               row_str=row_str)
 
 
-def bed_tree_from(input_vcf_dict, contig=None):
+def bed_tree_from_vcf(input_vcf_dict, contig=None):
     tree = {}
     for k, v in input_vcf_dict.items():
         ctg_name = v.ctg_name
@@ -315,32 +327,37 @@ def Run(args):
     threads = args.threads
     clair3_vcf_input = args.clair3_vcf_input
     sv_vcf_input = args.sv_vcf_input
+    sv_bed_input = args.sv_bed_input
     use_sv_qual = args.use_sv_qual
     filter_tag = args.filter_tag
     sv_alt_tag = args.sv_alt_tag
     max_af_for_zygosity_switching = args.max_af_for_zygosity_switching
 
-    input_sv_vcf_reader = VcfReader(vcf_fn=sv_vcf_input,
-                                    ctg_name=ctg_name,
-                                    filter_tag=args.sv_filter_tag,
-                                    sv_input=True,
-                                    sv_alt_tag=sv_alt_tag)
+    if sv_bed_input is not None and os.path.exists(sv_bed_input):
+        sv_bed_tree = bed_tree_from(bed_file_path=sv_bed_input)
+        use_sv_qual = False
+    else:
+        input_sv_vcf_reader = VcfReader(vcf_fn=sv_vcf_input,
+                                        ctg_name=ctg_name,
+                                        filter_tag=args.sv_filter_tag,
+                                        sv_input=True,
+                                        sv_alt_tag=sv_alt_tag)
 
-    input_sv_vcf_reader.read_vcf()
-    sv_input_variant_dict = input_sv_vcf_reader.variant_dict
+        input_sv_vcf_reader.read_vcf()
+        sv_input_variant_dict = input_sv_vcf_reader.variant_dict
 
-    sv_bed_tree = bed_tree_from(input_vcf_dict=sv_input_variant_dict)
+        sv_bed_tree = bed_tree_from_vcf(input_vcf_dict=sv_input_variant_dict)
 
     input_vcf_reader = VcfReader(vcf_fn=clair3_vcf_input,
                                  ctg_name=ctg_name,
-                                 show_ref=False,
+                                 show_ref=True,
                                  keep_row_str=True,
                                  filter_tag=filter_tag,
                                  save_header=True)
 
     input_vcf_reader.read_vcf()
     input_variant_dict = input_vcf_reader.variant_dict
-
+    print(len(input_variant_dict))
     germline_pos_dict = defaultdict(Position)
 
     # only consider homo germline SNP
@@ -350,14 +367,14 @@ def Run(args):
                 and len(v.reference_bases) == 1 and len(v.alternate_bases[0]) == 1 \
                 and v.filter == "PASS":
 
-            pass_sv_bed = sv_vcf_input is None or is_region_in(sv_bed_tree, v.ctg_name, int(v.pos))
+            pass_sv_bed = (sv_vcf_input is None and sv_bed_input is None) or is_region_in(sv_bed_tree, v.ctg_name, int(v.pos))
             if not pass_sv_bed:
                 continue
             germline_pos_dict[key] = v
 
     vcf_output = args.vcf_output
 
-    vcf_writer = VcfWriter(vcf_fn=vcf_output, ctg_name=ctg_name, show_ref_calls=False)
+    vcf_writer = VcfWriter(vcf_fn=vcf_output, ctg_name=ctg_name, show_ref_calls=True)
 
 
     switch_pos_set = set()
@@ -413,13 +430,16 @@ def main():
     parser.add_argument('--sv_vcf_input', type=str, default=None,
                         help=" SV VCF input (tested: Sniffle2)")
 
+    parser.add_argument('--sv_bed_input', type=str, default=None,
+                        help=" SV BED input, if provided, the SV VCF input will be ignored, Three tab separated columns, contig, start, end are required for parsing the BED input.")
+
     parser.add_argument('--use_sv_qual', type=str2bool, default=True,
-                        help="For those short variants’ switching from HOM to HET, substitute the output QUAL and GQ with the GQ from the SV VCF input (Default: enabled)")
+                        help="For those short variants switching from HOM to HET, substitute the output QUAL and GQ with the GQ from the SV VCF input (Default: enabled)")
 
     parser.add_argument('--threads', type=int, default=8,
                         help="Max #threads to be used")
 
-    parser.add_argument('--filter_tag', type=str, default="PASS",
+    parser.add_argument('--filter_tag', type=str_none, default=None,
                         help="Filter tag for the input VCF")
 
     parser.add_argument('--sv_filter_tag', type=str, default="PASS",
