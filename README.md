@@ -366,7 +366,7 @@ Instructions are given as an answer to issue [#149](https://github.com/HKU-BAL/C
 
 ### General Usage
 
-**Caution**:  Use `=value` for optional parameters, e.g. `--bed_fn=fn.bed` instead of `--bed_fn fn.bed`.
+**Caution**:  Use `=value` to assign parameter value, e.g. `--bed_fn=fn.bed` instead of `--bed_fn fn.bed`.
 
 ```bash
 ./run_clair3.sh \
@@ -376,9 +376,11 @@ Instructions are given as an answer to issue [#149](https://github.com/HKU-BAL/C
   --platform="ont" \               ## options: {ont,hifi,ilmn}
   --model_path=${MODEL_PREFIX} \   ## absolute model path prefix
   --output=${OUTPUT_DIR}           ## absolute output path prefix
+  --include_all_ctgs               ## use this for non-human species
 ## pileup output file: ${OUTPUT_DIR}/pileup.vcf.gz
 ## full-alignment output file: ${OUTPUT_DIR}/full_alignment.vcf.gz
 ## Clair3 final output file: ${OUTPUT_DIR}/merge_output.vcf.gz
+## If --include_all_ctgs, --ctg_name, --bed_fn are not used, variants in chr{1..22,X,Y} and {1..22,X,Y} are called.
 ```
 
 ### Options
