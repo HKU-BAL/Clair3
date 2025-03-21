@@ -65,6 +65,8 @@ For somatic variant calling using **tumor-only** samples, please try [ClairS-TO]
 ----
 
 ## Latest Updates
+*v1.0.11 (Mar 19, 2025)* : 1. Added the `--enable_variant_calling_at_sequence_head_and_tail` option to enable variant calling at the head and tail 16bp of each sequence. Use with caution because alignments are less reliable in the regions, and there would be insufficient context to be fed to the neural network for reliable calling. 2. Added `--output_all_contigs_in_gvcf_header` to output all contigs in GVCF output header ([#371](https://github.com/HKU-BAL/Clair3/issues/371)). 3. Added `AddPairEndAlleleDepth` postprocessing script to add "PEAD" tag to short-read pair-end allele depth. 4. Fixed AF value issue in GVCF output in bcftools merge ([#365](https://github.com/HKU-BAL/Clair3/issues/365)). 5. Added workflow for split haplotype in variant calling, with more details in []().
+
 *v1.0.10 (Jul 28, 2024)* : 1. Fixed an out of range bug when outputing GVCF for non-human genome ([#317](https://github.com/HKU-BAL/Clair3/issues/317)). 2. Improve the calling speed when working with targeted amplicon data, Use `—chunk_num=-1` to call variant without splitting genome into chunks ([#306](https://github.com/HKU-BAL/Clair3/issues/306), contributor [Elliot Hallmark](https://github.com/Permafacture)). 3. Updated LongPhase to version 1.7.3 ([#321](https://github.com/HKU-BAL/Clair3/issues/321)).
 
 *v1.0.9 (May 15, 2024)* : 1. Fixed an issue in VCF header([#305](https://github.com/HKU-BAL/Clair3/pull/305) by @[Monica Palafox Roberts](https://github.com/mproberts99)). 2. Updated `DP` FORMAT description in header.
@@ -412,27 +414,27 @@ Instructions are given as an answer to issue [#149](https://github.com/HKU-BAL/C
       --parallel=STR            Path of parallel, parallel >= 20191122 is required.
       --whatshap=STR            Path of whatshap, whatshap >= 1.0 is required.
       --longphase=STR           Path of longphase, longphase >= 1.0 is required.
-      --chunk_size=INT          The size of each chuck for parallel processing, default: 5Mbp.
+      --chunk_size=INT          The size of each chuck for parallel processing, default: 5000000.
       --pileup_only             Use the pileup model only when calling, default: disable.
-      --print_ref_calls         Show reference calls (0/0) in vcf file, default: disable.
+      --print_ref_calls         Show reference calls (0/0) in VCF file, default: disable.
       --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
       --gvcf                    Enable GVCF output, default: disable.
       --use_whatshap_for_intermediate_phasing
-                                Phase high-quality heterozygous variants using whatshap for full-alignment model calling, default: enable.
+                                           Phase high-quality heterozygous variants using whatshap for full-alignment model calling, default: enable.
       --use_longphase_for_intermediate_phasing
-                                Phase high-quality heterozygous variants using longphase for full-alignment model calling, default: disable.
+                                           Phase high-quality heterozygous variants using longphase for full-alignment model calling, default: disable.
       --use_whatshap_for_final_output_phasing
-                                Phase the output variants using whatshap, default: disable.
+                                           Phase the output variants using whatshap, default: disable.
       --use_longphase_for_final_output_phasing
-                                Phase the output variants using longphase, default: disable.
+                                           Phase the output variants using longphase, default: disable.
       --use_whatshap_for_final_output_haplotagging
-                                Haplotag input BAM using output phased variants using whatshap, default: disable.
-      --enable_phasing          Output phased variants using whatshap, default: disable.
-      --longphase_for_phasing   Use longphase for phasing, default: enable.
+                                           Haplotag input BAM using output phased variants using whatshap, default: disable.
+      --enable_phasing          It means `--use_whatshap_for_final_output_phasing`. The option is retained for backward compatibility.
+      --longphase_for_phasing   It means `--use_longphase_for_intermediate_phasing`. The option is retained for backward compatibility.
       --disable_c_impl          Disable C implement with cffi for pileup and full-alignment create tensor, default: enable.
       --remove_intermediate_dir Remove intermediate directory, including intermediate phased BAM, pileup and full-alignment results. default: disable.
       --snp_min_af=FLOAT        Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.
-      --indel_min_af=FLOAT      Minimum INDEL AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
+      --indel_min_af=FLOAT      Minimum Indel AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
       --var_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.
       --ref_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.
       --var_pct_phasing=FLOAT   EXPERIMENTAL: Specify an expected percentage of high quality 0/1 variants used in WhatsHap phasing, default: 0.8 for ont guppy5 and 0.7 for other platforms.
@@ -450,6 +452,10 @@ Instructions are given as an answer to issue [#149](https://github.com/HKU-BAL/C
       --keep_iupac_bases        EXPERIMENTAL: Keep IUPAC reference and alternate bases, default: convert all IUPAC bases to N.
       --base_err=FLOAT          EXPERIMENTAL: Estimated base error rate when enabling gvcf option, default: 0.001.
       --gq_bin_size=INT         EXPERIMENTAL: Default gq bin size for merge non-variant block when enabling gvcf option, default: 5.
+      --enable_variant_calling_at_sequence_head_and_tail
+                                EXPERIMENTAL: Enable variant calling in sequence head and tail start or end regions that flanking 16bp windows having no read support. Default: disable.
+      --output_all_contigs_in_gvcf_header
+                                EXPERIMENTAL: Enable output all contigs in gvcf header. Default: disable.
 ```
 
 #### Call variants in a chromosome
