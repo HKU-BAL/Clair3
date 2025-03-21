@@ -198,7 +198,6 @@ ${PYPY} ${CLAIR3} SortVcf \
     --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --pileup_only ${PILEUP_ONLY} \
-    --output_all_contigs_in_gvcf_header ${OUTPUT_ALL_CONTIGS} \
     --print_ref_calls ${SHOW_REF} \
     --haploid_precise ${HAP_PRE} \
     --haploid_sensitive ${HAP_SEN} \
@@ -318,6 +317,7 @@ then
     ${PYPY} ${CLAIR3} SortVcf \
         --input_dir ${GVCF_TMP_PATH} \
         --vcf_fn_suffix ".tmp.gvcf" \
+        --output_all_contigs_in_gvcf_header ${OUTPUT_ALL_CONTIGS} \
         --output_fn ${GVCF_TMP_PATH}/non_var.gvcf \
         --ref_fn ${REFERENCE_FILE_PATH} \
         --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
@@ -361,6 +361,7 @@ then
         --input_dir ${TMP_FILE_PATH}/merge_output \
         --vcf_fn_prefix "merge" \
         --vcf_fn_suffix ".gvcf" \
+        --output_all_contigs_in_gvcf_header ${OUTPUT_ALL_CONTIGS} \
         --output_fn ${OUTPUT_FOLDER}/merge_output.gvcf \
         --sampleName ${SAMPLE} \
         --ref_fn ${REFERENCE_FILE_PATH} \
