@@ -1,8 +1,8 @@
-# Split reads into haplotypes and do variant calling on single haplotypes
+# Run two rounds of Clair3 to first split reads into haplotypes and then do variant calling on single haplotypes
 
 ## Introduction
 
-This document provides a step-by-step guide to split reads into haplotypes according to phased variants and do variant calling on single haplotypes.
+This document provides a step-by-step guide to first split reads into haplotypes according to phased variants and then do variant calling on single haplotypes.
 
 ## Prerequisites
 
@@ -101,6 +101,5 @@ docker run -it \
   --output=${OUTPUT_DIR}_h2
 ```
 
-#### 4.  Further validation between two haplotype-aware output VCFs...
 
 
