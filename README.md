@@ -454,7 +454,7 @@ Instructions are given as an answer to issue [#149](https://github.com/HKU-BAL/C
       --base_err=FLOAT          EXPERIMENTAL: Estimated base error rate when enabling gvcf option, default: 0.001.
       --gq_bin_size=INT         EXPERIMENTAL: Default gq bin size for merge non-variant block when enabling gvcf option, default: 5.
       --enable_variant_calling_at_sequence_head_and_tail
-                                EXPERIMENTAL: Enable variant calling in sequence head and tail start or end regions that flanking 16bp windows having no read support. Default: disable.
+                                EXPERIMENTAL: Enable variant calling the candidates that are at the head or tail of a sequence, or have no coverage at one or more positions in the flanking 16bp. Enable for amplicon sequencing data. Default: disable.
       --output_all_contigs_in_gvcf_header
                                 EXPERIMENTAL: Enable output all contigs in gvcf header. Default: disable.
 ```
@@ -568,7 +568,8 @@ docker run -it \
 ## Tips
 
 ### Dealing with amplicon data
-If you are dealing with amplicon data with excessively high depth coverage, please try setting `--var_pct_full`, and `--ref_pct_full` to `1`. If you are dealing with human data, set `--var_pct_phasing` to `1`. If you are dealing with non-human data, enable the `--no_phasing_for_fa` option. Please refer to discussion [#160](https://github.com/HKU-BAL/Clair3/issues/160#issuecomment-1396743261), and [#240](https://github.com/HKU-BAL/Clair3/issues/240) for more details.
+* Use the `--enable_variant_calling_at_sequence_head_and_tail` option.
+* If you are dealing with amplicon data with excessively high depth coverage, please try setting `--var_pct_full`, and `--ref_pct_full` to `1`. If you are dealing with human data, set `--var_pct_phasing` to `1`. If you are dealing with non-human data, enable the `--no_phasing_for_fa` option. Please refer to discussion [#160](https://github.com/HKU-BAL/Clair3/issues/160#issuecomment-1396743261), and [#240](https://github.com/HKU-BAL/Clair3/issues/240) for more details.
 
 
 ----
