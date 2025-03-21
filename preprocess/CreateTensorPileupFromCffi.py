@@ -23,7 +23,7 @@ channel_size = len(channel)
 
 def pileup_counts_clair3(
         region, bam, fasta, min_depth, min_snp_af, min_indel_af, min_mq, call_snp_only, max_indel_length, \
-        max_depth, gvcf=False, region_split=100000, workers=1):
+        max_depth, gvcf=False, call_ht=False, region_split=100000, workers=1):
     """Create pileup counts feature array for region.
 
     :param region: `medaka.common.Region` object
@@ -58,7 +58,7 @@ def pileup_counts_clair3(
             bam_handle = BAMHandler(bam, fasta)
         with bam_handle.borrow() as fh:
             counts = lib.calculate_clair3_pileup(
-                region_str.encode(), fh, fasta.encode(), min_depth, min_snp_af, min_indel_af, min_mq, max_indel_length, call_snp_only, max_depth, gvcf)
+                region_str.encode(), fh, fasta.encode(), min_depth, min_snp_af, min_indel_af, min_mq, max_indel_length, call_snp_only, max_depth, gvcf, call_ht)
 
         np_counts, positions, alt_info_string_list, gvcf_output = _plp_data_to_numpy(
             counts, featlenclair3, gvcf=gvcf)
@@ -255,6 +255,7 @@ def CreateTensorPileup(args):
     min_coverage = args.minCoverage
     min_mapping_quality = args.minMQ
     platform = args.platform
+    enable_variant_calling_at_sequence_head_and_tail = args.enable_variant_calling_at_sequence_head_and_tail
 
     vcf_fn = file_path_from(args.vcf_fn)
     is_known_vcf_file_provided = vcf_fn is not None
@@ -336,7 +337,8 @@ def CreateTensorPileup(args):
                                                            max_indel_length=max_indel_length,
                                                            call_snp_only=call_snp_only,
                                                            max_depth=param.max_depth,
-                                                           gvcf=args.gvcf)
+                                                           gvcf=args.gvcf,
+                                                           call_ht=args.enable_variant_calling_at_sequence_head_and_tail)
 
     # slice all candidates tensor according to the alternative information
     np_pileup_data, all_position_info, all_alt_info = [], [], []
@@ -365,8 +367,31 @@ def CreateTensorPileup(args):
                 np_pileup_data.append(tensor)
                 all_position_info.append(pos_info)
                 all_alt_info.append(alt_info)
+            if enable_variant_calling_at_sequence_head_and_tail:
+                if start - 1 < result[1][0][0]:
+                    offset = start - result[1][0][0] - 1
+                    padding_tensor = [[0] * channel_size] * (-1 * offset)
+                    heading_tensor = result[0][:  offset+no_of_positions]
+                    tensor = np.concatenate((padding_tensor, heading_tensor), axis=0)
+                    if tensor.shape != (no_of_positions, channel_size):
+                        continue
+                    np_pileup_data.append(tensor)
+                    all_position_info.append(pos_info)
+                    all_alt_info.append(alt_info)
+                if end > result[1][-1][0]:
+                    offset = start - result[1][0][0] - 1
+                    if end - result[1][-1][0] - 2 > 0:
+                        padding_tensor = [[0] * channel_size] * (end - result[1][-1][0] - 2)
+                        tailing_tensor = result[0][offset:]
+                        tensor = np.concatenate((tailing_tensor, padding_tensor), axis=0)
+                    else:
+                        tensor = result[0][offset : offset + no_of_positions]
+                    if tensor.shape != (no_of_positions, channel_size):
+                        continue
+                    np_pileup_data.append(tensor)
+                    all_position_info.append(pos_info)
+                    all_alt_info.append(alt_info)
     np_pileup_data = np.array(np_pileup_data, dtype=np.int32)
-
 
     if args.gvcf:
 
@@ -466,6 +491,9 @@ def main():
     # options for advanced users
     parser.add_argument('--fast_mode', type=str2bool, default=False,
                         help="EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: %(default)s")
+
+    parser.add_argument('--enable_variant_calling_at_sequence_head_and_tail', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Enable variant calling in sequence head and tail start or end regions that flanking 16bp windows having no read support. Default: disable.")
 
     parser.add_argument('--minCoverage', type=int, default=2,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")

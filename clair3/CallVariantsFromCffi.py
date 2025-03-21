@@ -286,6 +286,9 @@ def main():
     parser.add_argument('--output_probabilities', action='store_true',
                         help="DEBUG: Output the network probabilities of gt21, genotype, indel_length_1 and indel_length_2")
 
+    parser.add_argument('--enable_variant_calling_at_sequence_head_and_tail', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Enable variant calling in sequence head and tail start or end regions that flanking 16bp windows having no read support. Default: disable.")
+
     # options for internal process control
     ## In pileup mode or not (full alignment mode), default: False
     parser.add_argument('--pileup', action='store_true',
@@ -334,7 +337,6 @@ def main():
 
     parser.add_argument('--extend_bed', nargs='?', action="store", type=str, default=None,
                         help="DEBUG: Extend the regions in the --bed_fn by a few bp for tensor creation, default extend 16bp")
-
 
     parser.add_argument('--vcf_fn', type=str, default=None,
                         help="Candidate sites VCF file input, if provided, variants will only be called at the sites in the VCF file,  default: %(default)s")

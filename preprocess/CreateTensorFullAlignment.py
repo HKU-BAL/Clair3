@@ -441,6 +441,26 @@ def update_hete_ref(pos, reference_sequence, reference_start, extend_bp, alt_bas
     return ref_seq, alt_seq
 
 
+def get_flanked_sequence(reference_sequence, center, flanking_base_num, reference_start):
+    left_start = center - flanking_base_num - reference_start
+    right_end = center + flanking_base_num + 1 - reference_start
+
+    if left_start >= 0 and right_end <= len(reference_sequence):
+        return reference_sequence[left_start:right_end]
+
+    flanked_sequence = []
+
+    if left_start < 0:
+        flanked_sequence.extend(['A'] * abs(left_start))
+        left_start = 0
+
+    flanked_sequence.extend(reference_sequence[left_start:right_end])
+
+    if right_end > len(reference_sequence):
+        flanked_sequence.extend(['A'] * (right_end - len(reference_sequence)))
+
+    return ''.join(flanked_sequence)
+
 def CreateTensorFullAlignment(args):
     ctg_start = args.ctgStart
     ctg_end = args.ctgEnd
@@ -512,7 +532,10 @@ def CreateTensorFullAlignment(args):
                                                          genotype=int(genotype), phase_set=phase_set)
                 hete_snp_tree.addi(begin=center_pos - extend_bp, end=center_pos + extend_bp + 1)
             else:
-                center = position + (end - position) // 2 - 1
+                if position == 1:
+                    center = end - flanking_base_num - 2
+                else:
+                    center = position + (end - position) // 2 - 1
                 need_phasing_pos_set.add(center)
         candidate_file_path_output.close()
         candidate_file_path_process.wait()
@@ -826,8 +849,8 @@ def CreateTensorFullAlignment(args):
                 # skip if two scores are the same
 
         sorted_read_name_list = sorted_by_hap_read_name(pos, haplotag_dict, pileup_dict, hap_dict, platform)
-        ref_seq = reference_sequence[
-                  pos - reference_start - flanking_base_num: pos - reference_start + flanking_base_num + 1].upper()
+
+        ref_seq = get_flanked_sequence(reference_sequence, pos, flanking_base_num, reference_start)
 
         if not unify_repre:
             tensor, alt_info = generate_tensor(ctg_name=ctg_name,

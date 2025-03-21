@@ -68,7 +68,10 @@ def CreateTensorFullAlignment(args):
                 center_pos = position + extend_bp + 1
                 ref_base, alt_base, genotype, phase_set = row[3].split('-')
             else:
-                center = position + (end - position) // 2 - 1
+                if position == 1:
+                    center = end - flanking_base_num - 2
+                else:
+                    center = position + (end - position) // 2 - 1
                 candidates_set.add(center)
 
         candidate_file_path_output.close()
