@@ -120,6 +120,7 @@ def Run(args):
     call_snp_only_mode = CommandOption('call_snp_only', args.call_snp_only)
     enable_long_indel_mode = CommandOption('enable_long_indel', args.enable_long_indel)
     keep_iupac_bases_mode = CommandOption('keep_iupac_bases', args.keep_iupac_bases)
+    enable_variant_calling_at_sequence_head_and_tail_mode = CommandOption('enable_variant_calling_at_sequence_head_and_tail', args.enable_variant_calling_at_sequence_head_and_tail)
 
     ctgStart = None
     ctgEnd = None
@@ -200,6 +201,7 @@ def Run(args):
         create_tensor_command_options.append(CommandOption('indel_min_af', indel_min_af))
         create_tensor_command_options.append(fast_mode)
         create_tensor_command_options.append(call_snp_only_mode)
+        create_tensor_command_options.append(enable_variant_calling_at_sequence_head_and_tail_mode)
 
         if (args.gvcf):
             create_tensor_command_options.append(CommandOption('base_err', args.base_err))
@@ -356,6 +358,9 @@ def main():
     # options for advanced users
     parser.add_argument('--fast_mode', type=str2bool, default=False,
                         help="EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: %(default)s")
+
+    parser.add_argument('--enable_variant_calling_at_sequence_head_and_tail', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Enable variant calling in sequence head and tail start or end regions that flanking 16bp windows having no read support. Default: disable.")
 
     parser.add_argument('--minCoverage', type=int, default=param.min_coverage,
                         help="EXPERIMENTAL: Minimum coverage required to call a variant, default: %(default)f")

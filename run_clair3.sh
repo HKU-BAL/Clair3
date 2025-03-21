@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH=$(dirname $(readlink -f "$0"))
-VERSION='v1.0.10'
+VERSION='v1.1.0'
 Usage="Usage: ${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
 CMD="$0 $@"
 
-set -e
+set -e -o pipefail
 #./run_clair3.sh -b tmp.bam -f ref.fasta -t 32 -o tmp -p ont -m model_path
 print_help_messages()
 {
@@ -68,6 +68,10 @@ print_help_messages()
     echo $'      --haploid_sensitive       EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant, default: disable.'
     echo $'      --no_phasing_for_fa       EXPERIMENTAL: Call variants without whatshap phasing in full alignment calling, default: disable.'
     echo $'      --call_snp_only           EXPERIMENTAL: Call candidates pass SNP minimum AF only, ignore Indel candidates, default: disable.'
+    echo $'      --enable_variant_calling_at_sequence_head_and_tail
+                                           EXPERIMENTAL: Enable variant calling in sequence head and tail start or end regions that flanking 16bp windows having no read support. Default: disable.'
+    echo $'      --output_all_contigs_in_gvcf_header
+                                           EXPERIMENTAL: Enable output all contigs in gvcf header. Default: disable.'
     echo $'      --enable_long_indel       EXPERIMENTAL: Call long Indel variants(>50 bp), default: disable.'
     echo $'      --keep_iupac_bases        EXPERIMENTAL: Keep IUPAC reference and alternate bases, default: convert all IUPAC bases to N.'
     echo $'      --base_err=FLOAT          EXPERIMENTAL: Estimated base error rate when enabling gvcf option, default: 0.001.'
@@ -91,7 +95,7 @@ ARGS=`getopt -o b:f:t:m:p:o:hv \
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,longphase::,\
 min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,base_err::,gq_bin_size::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
 use_whatshap_for_intermediate_phasing,use_longphase_for_intermediate_phasing,use_whatshap_for_final_output_phasing,use_longphase_for_final_output_phasing,use_whatshap_for_final_output_haplotagging,keep_iupac_bases,\
-remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_phasing,enable_long_indel,use_gpu,longphase_for_phasing,disable_c_impl,help,version -n 'run_clair3.sh' -- "$@"`
+remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_variant_calling_at_sequence_head_and_tail,output_all_contigs_in_gvcf_header,enable_phasing,enable_long_indel,use_gpu,longphase_for_phasing,disable_c_impl,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -140,6 +144,8 @@ KEEP_IUPAC_BASES=False
 USE_GPU=False
 USE_LONGPHASE=False
 ENABLE_C_IMPL=True
+CALL_HT=False
+OUTPUT_ALL_CONTIGS=False
 PILEUP_PREFIX="pileup"
 FA_PREFIX="full_alignment"
 
@@ -180,6 +186,8 @@ while true; do
     --pileup_only ) PILEUP_ONLY=True; shift 1 ;;
     --fast_mode ) FAST_MODE=True; shift 1 ;;
     --call_snp_only ) SNP_ONLY=True; shift 1 ;;
+    --enable_variant_calling_at_sequence_head_and_tail ) CALL_HT=True; shift 1 ;;
+    --output_all_contigs_in_gvcf_header ) OUTPUT_ALL_CONTIGS=True; shift 1 ;;
     --print_ref_calls ) SHOW_REF=True; shift 1 ;;
     --haploid_precise ) HAP_PRE=True; shift 1 ;;
     --haploid_sensitive ) HAP_SEN=True; shift 1 ;;
@@ -425,6 +433,8 @@ ${SHELL_ENTRY} ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --gq_bin_size=${GQ_BIN_SIZE} \
     --fast_mode=${FAST_MODE} \
     --call_snp_only=${SNP_ONLY} \
+    --enable_variant_calling_at_sequence_head_and_tail=${CALL_HT} \
+    --output_all_contigs_in_gvcf_header=${OUTPUT_ALL_CONTIGS} \
     --print_ref_calls=${SHOW_REF} \
     --haploid_precise=${HAP_PRE} \
     --haploid_sensitive=${HAP_SEN} \

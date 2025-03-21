@@ -116,6 +116,7 @@ def sort_vcf_from(args):
     ref_fn = args.ref_fn
     contigs_fn = args.contigs_fn
     cmd_fn = args.cmd_fn
+    output_all_contigs_in_gvcf_header = args.output_all_contigs_in_gvcf_header
 
     if not os.path.exists(input_dir):
         exit(log_error("[ERROR] Input directory: {} not exists!").format(input_dir))
@@ -214,8 +215,9 @@ def sort_vcf_from(args):
                     insert_index = 3 if len(header) >= 3 else len(header) - 1
                     header.insert(insert_index, cmdline_str)
 
-            if output_bgzip_gvcf:
+            if output_bgzip_gvcf and not output_all_contigs_in_gvcf_header:
                 header = check_header_in_gvcf(header=header, contigs_list=all_contigs_list)
+
             output.write(''.join(header))
             need_write_header = False
         all_pos = sorted(contig_dict.keys())
@@ -300,6 +302,9 @@ def main():
 
     parser.add_argument('--qual', type=int, default=2,
                         help="If set, variants with >$qual will be marked 'PASS', or 'LowQual' otherwise, optional")
+
+    parser.add_argument('--output_all_contigs_in_gvcf_header', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Enable output all contigs in gvcf header. Default: disable")
 
     args = parser.parse_args()
     if args.input_dir is None:

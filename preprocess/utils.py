@@ -123,6 +123,7 @@ class gvcfGenerator(object):
                 # assuming AD is at the columns [-3], add 0 to AD for gVCF
                     ori_info = tmp[-1].split(':')
                     ori_info[-3] += ',0'
+                    ori_info[-2] += ',0.0000'
                     tmp[-1] = ':'.join(ori_info)
 
                     # assumeing PL is at the last column

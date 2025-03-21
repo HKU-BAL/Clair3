@@ -258,7 +258,7 @@ def FiterHeteSnp(args):
                                            '{}_{}_{}_{}'.format(sample_name, DEPTH, contig_name[chr_prefix_length:], chunk_idx+1)), # zero-base to one-base
                               'w') as output_file:
                         output_file.write('\n'.join(
-                            ['\t'.join([contig_name, str(x[0] - 1), str(x[1] - 1), ]) for x in
+                            ['\t'.join([contig_name, str(max(x[0] - 1, 0)), str(x[1] - 1), ]) for x in
                              split_output]) + '\n')  # bed format
                 return
 

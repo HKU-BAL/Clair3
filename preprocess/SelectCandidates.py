@@ -270,7 +270,7 @@ def SelectCandidates(args):
                 all_full_aln_regions.append(output_path)
                 with open(output_path, 'w') as output_file:
                     output_file.write('\n'.join(
-                        ['\t'.join([contig_name, str(x[0] - 1), str(x[1] - 1), ]) for x in
+                        ['\t'.join([contig_name, str(max(x[0] - 1,0)), str(x[1] - 1), ]) for x in
                          split_output]) + '\n')  # bed format
 
 
