@@ -453,7 +453,8 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
 
         for (size_t j = 0; j < no_of_positions; j++)
         {
-            size_t key = candidate - flanking_base_num + j;
+            int result = candidate - flanking_base_num + j;
+            size_t key = (result < 0) ? 0 : result;
             if (kh_int_counter_val(flanking_candidates_p, key) == -1)
             {
                 kh_int_counter_add(flanking_candidates_p, key, flanking_candidates_num++);

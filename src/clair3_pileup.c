@@ -139,7 +139,7 @@ void destroy_plp_data(plp_data data, bool gvcf) {
  * quality if the “R” counts and discrepancy between positions increase.
  *
  */
-plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, const char * fasta_path, size_t min_depth, float min_snp_af, float min_indel_af, size_t min_mq, size_t max_indel_length, bool call_snp_only, size_t max_depth, bool gvcf) {
+plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, const char * fasta_path, size_t min_depth, float min_snp_af, float min_indel_af, size_t min_mq, size_t max_indel_length, bool call_snp_only, size_t max_depth, bool gvcf, bool call_ht) {
     // extract `chr`:`start`-`end` from `region`
     //   (start is one-based and end-inclusive),
     //   hts_parse_reg below sets return value to point
@@ -385,7 +385,9 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         }
 
         pass_af = pass_af && pass_min_depth && pass_ref_base_in_acgt;
-        pass_af = pass_af && (contiguous_flanking_num >= pileup_flanking_base_num);
+        if (call_ht != true) {
+            pass_af = pass_af && (contiguous_flanking_num >= pileup_flanking_base_num);
+        }
         // move to next position
         if (pass_af) {
 
