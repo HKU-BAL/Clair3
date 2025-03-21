@@ -1,7 +1,8 @@
-# Split BAM based on haplotype for haploid calling
+# Split reads into haplotypes and do variant calling on single haplotypes
 
 ## Introduction
-This document provides a step-by-step guide on utilizing Clair3's phased VCF to split an input BAM file into two haplotype-tagged BAM files and perform haplotype-aware scaling for downstream analysis.
+
+This document provides a step-by-step guide to split reads into haplotypes according to phased variants and do variant calling on single haplotypes.
 
 ## Prerequisites
 
