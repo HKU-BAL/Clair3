@@ -9,7 +9,7 @@ ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,var_pct_phasing::,\
 min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
 use_whatshap_for_intermediate_phasing::,use_longphase_for_intermediate_phasing::,use_whatshap_for_final_output_phasing::,use_longphase_for_final_output_phasing::,use_whatshap_for_final_output_haplotagging::,keep_iupac_bases::,\
-no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,remove_intermediate_dir::,enable_phasing::,enable_long_indel::,use_gpu::,longphase_for_phasing::,longphase::,base_err::,gq_bin_size:: -n 'run_clair3.sh' -- "$@"`
+no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,enable_variant_calling_at_sequence_head_and_tail::,output_all_contigs_in_gvcf_header::,remove_intermediate_dir::,enable_phasing::,enable_long_indel::,use_gpu::,longphase_for_phasing::,longphase::,base_err::,gq_bin_size:: -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -41,6 +41,8 @@ while true; do
     --pileup_only ) PILEUP_ONLY="$2"; shift 2 ;;
     --fast_mode ) FAST_MODE="$2"; shift 2 ;;
     --call_snp_only ) SNP_ONLY="$2"; shift 2 ;;
+    --enable_variant_calling_at_sequence_head_and_tail ) CALL_HT="$2"; shift 2 ;;
+    --output_all_contigs_in_gvcf_header ) OUTPUT_ALL_CONTIGS="$2"; shift 2 ;;
     --print_ref_calls ) SHOW_REF="$2"; shift 2 ;;
     --gvcf ) GVCF="$2"; shift 2 ;;
     --snp_min_af ) SNP_AF="$2"; shift 2 ;;
@@ -176,6 +178,7 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
     --minMQ ${MIN_MQ} \
     --minCoverage ${MIN_COV} \
     --call_snp_only ${SNP_ONLY} \
+    --enable_variant_calling_at_sequence_head_and_tail ${CALL_HT} \
     --gvcf ${GVCF} \
     --base_err ${BASE_ERR} \
     --gq_bin_size ${GQ_BIN_SIZE} \
@@ -195,6 +198,7 @@ ${PYPY} ${CLAIR3} SortVcf \
     --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --pileup_only ${PILEUP_ONLY} \
+    --output_all_contigs_in_gvcf_header ${OUTPUT_ALL_CONTIGS} \
     --print_ref_calls ${SHOW_REF} \
     --haploid_precise ${HAP_PRE} \
     --haploid_sensitive ${HAP_SEN} \
