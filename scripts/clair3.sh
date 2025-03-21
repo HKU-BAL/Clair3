@@ -318,6 +318,7 @@ then
     ${PYPY} ${CLAIR3} SortVcf \
         --input_dir ${GVCF_TMP_PATH} \
         --vcf_fn_suffix ".tmp.gvcf" \
+        --output_all_contigs_in_gvcf_header ${OUTPUT_ALL_CONTIGS} \
         --output_fn ${GVCF_TMP_PATH}/non_var.gvcf \
         --ref_fn ${REFERENCE_FILE_PATH} \
         --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
