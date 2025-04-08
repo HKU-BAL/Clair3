@@ -65,6 +65,8 @@ For somatic variant calling using **tumor-only** samples, please try [ClairS-TO]
 ----
 
 ## Latest Updates
+*v1.1.0 (Apri 8, 2025)* : 1. Removed `parallel` version checking ([#377](https://github.com/HKU-BAL/Clair3/issues/377)).
+
 *v1.0.11 (Mar 19, 2025)* : 1. Added the `--enable_variant_calling_at_sequence_head_and_tail` option to enable variant calling at the head and tail 16bp of each sequence. Use with caution because alignments are less reliable in the regions, and there would be insufficient context to be fed to the neural network for reliable calling ([#257
 ](https://github.com/HKU-BAL/Clair3/issues/257) by @0peterk87 and multiple contributors). 2. Added `--output_all_contigs_in_gvcf_header` to show all contigs IDs in the GVCF header ([#371](https://github.com/HKU-BAL/Clair3/issues/371) by @alexnater), regardless whether a contig is covered at least a read or not. 3. Added a postprocessing script named `AddPairEndAlleleDepth` to add the "PEAD" tag for showing short-read pair-end allele depth (by Dr. Bin Guan from NEI). 4. Fixed AF value format issue in GVCF output that caused problem running `bcftools merge` ([#365](https://github.com/HKU-BAL/Clair3/issues/365) by @jimmykhchiu). 5. Added a workflow to split reads into haplotypes according to phased variants and the do variant calling on single haplotypes. More details are in [here](docs/split_haplotype_into_haploid_calling.md). 6 Added `set -o pipefail` to `run_clair3.sh` so the non-zero returns of any part of the pipeline is now returned on failure ([#368](https://github.com/HKU-BAL/Clair3/issues/368) by @Shians). 7. Updated parameter descriptions for clarity ([#369](https://github.com/HKU-BAL/Clair3/issues/369) by @Shians).
 
