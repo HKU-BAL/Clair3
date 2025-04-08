@@ -26,7 +26,6 @@ required_tool_version = {
     'pypy': LooseVersion('3.6'),
     'samtools': LooseVersion('1.10'),
     'whatshap': LooseVersion('1.0'),
-    'parallel': LooseVersion('20191122'),
 }
 
 def check_version(tool, pos=None, is_pypy=False):
@@ -240,7 +239,6 @@ def CheckEnvs(args):
         'pypy': check_version(tool=pypy, pos=0, is_pypy=True),
         'samtools': check_version(tool=samtools, pos=1),
         'whatshap': check_version(tool=whatshap, pos=0),
-        'parallel': check_version(tool=parallel, pos=2),
     }
     check_tools_version(tool_version, required_tool_version)
 
