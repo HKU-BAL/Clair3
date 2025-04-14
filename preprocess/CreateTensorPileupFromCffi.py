@@ -368,29 +368,32 @@ def CreateTensorPileup(args):
                 all_position_info.append(pos_info)
                 all_alt_info.append(alt_info)
             if enable_variant_calling_at_sequence_head_and_tail:
-                if start - 1 < result[1][0][0]:
-                    offset = start - result[1][0][0] - 1
-                    padding_tensor = [[0] * channel_size] * (-1 * offset)
-                    heading_tensor = result[0][:  offset+no_of_positions]
-                    tensor = np.concatenate((padding_tensor, heading_tensor), axis=0)
-                    if tensor.shape != (no_of_positions, channel_size):
-                        continue
-                    np_pileup_data.append(tensor)
-                    all_position_info.append(pos_info)
-                    all_alt_info.append(alt_info)
-                if end > result[1][-1][0]:
-                    offset = start - result[1][0][0] - 1
-                    if end - result[1][-1][0] - 2 > 0:
-                        padding_tensor = [[0] * channel_size] * (end - result[1][-1][0] - 2)
-                        tailing_tensor = result[0][offset:]
-                        tensor = np.concatenate((tailing_tensor, padding_tensor), axis=0)
-                    else:
-                        tensor = result[0][offset : offset + no_of_positions]
-                    if tensor.shape != (no_of_positions, channel_size):
-                        continue
-                    np_pileup_data.append(tensor)
-                    all_position_info.append(pos_info)
-                    all_alt_info.append(alt_info)
+                if pos < result[1][0][0] or pos > result[1][0][0]:
+                    continue
+                else:
+                    if start - 1 < result[1][0][0]:
+                        offset = start - result[1][0][0] - 1
+                        padding_tensor = [[0] * channel_size] * (-1 * offset)
+                        heading_tensor = result[0][:  offset+no_of_positions]
+                        tensor = np.concatenate((padding_tensor, heading_tensor), axis=0)
+                        if tensor.shape != (no_of_positions, channel_size):
+                            continue
+                        np_pileup_data.append(tensor)
+                        all_position_info.append(pos_info)
+                        all_alt_info.append(alt_info)
+                    if end > result[1][-1][0]:
+                        offset = start - result[1][0][0] - 1
+                        if end - result[1][-1][0] - 2 > 0:
+                            padding_tensor = [[0] * channel_size] * (end - result[1][-1][0] - 2)
+                            tailing_tensor = result[0][offset:]
+                            tensor = np.concatenate((tailing_tensor, padding_tensor), axis=0)
+                        else:
+                            tensor = result[0][offset : offset + no_of_positions]
+                        if tensor.shape != (no_of_positions, channel_size):
+                            continue
+                        np_pileup_data.append(tensor)
+                        all_position_info.append(pos_info)
+                        all_alt_info.append(alt_info)
     np_pileup_data = np.array(np_pileup_data, dtype=np.int32)
 
     if args.gvcf:
