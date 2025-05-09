@@ -368,7 +368,7 @@ def CreateTensorPileup(args):
                 all_position_info.append(pos_info)
                 all_alt_info.append(alt_info)
             if enable_variant_calling_at_sequence_head_and_tail:
-                if pos < result[1][0][0] or pos > result[1][0][0]:
+                if pos < result[1][0][0] or pos > result[1][-1][0]:
                     continue
                 else:
                     if start - 1 < result[1][0][0]:
