@@ -213,6 +213,7 @@ ${PARALLEL} -j1 ${CLAIR3_PATH}/run_clair3.sh \
   --ref_fn={4} \
   --threads=${THREADS} \
   --platform="ont" \
+  --print_ref_calls \
   --model_path="${CONDA_PREFIX}/bin/models/ont" \
   --output=${PILEUP_OUTPUT_PATH}/{1}_{2} \
   --bed_fn={5} \
