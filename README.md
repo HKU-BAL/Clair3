@@ -65,6 +65,8 @@ For somatic variant calling using **tumor-only** samples, please try [ClairS-TO]
 ----
 
 ## Latest Updates
+*v1.1.1 (May 19, 2025)* : 1. Fixed the malformed VCF header issue that occurred specifically in AWS cloud environments([#380](https://github.com/HKU-BAL/Clair3/issues/380)). 2.Added a Clair3 R10.4.1 model fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) with improved variant calling performance for bacterial samples. Performance benchmarks and detailed results are documented in our note ["fine-tuning_Clair3_with_12_bacteria_samples"](docs/fine-tuning_Clair3_with_12_bacteria_samples.pdf), (co-contributor @[William Shropshire](https://github.com/wshropshire)) .
+
 *v1.1.0 (Apri 8, 2025)* : 1. Removed `parallel` version checking ([#377](https://github.com/HKU-BAL/Clair3/issues/377)).
 
 *v1.0.11 (Mar 19, 2025)* : 1. Added the `--enable_variant_calling_at_sequence_head_and_tail` option to enable variant calling at the head and tail 16bp of each sequence. Use with caution because alignments are less reliable in the regions, and there would be insufficient context to be fed to the neural network for reliable calling ([#257
@@ -136,9 +138,10 @@ In a docker installation, models are in `/opt/models/`. In a bioconda installati
 |           Model name           |  Platform   | Option (`-p/--platform`) |                       Training samples                       | Included in the bioconda package | Included in the docker image |   Date   |
 | :----------------------------: | :---------: | :----------------------------------------------------------: | -------------------------------- | :--------------------------: | :------: | :------: |
 |      r941_prom_sup_g5014       |     ONT r9.4.1     |     `ont`     |                    HG002,4,5 (Guppy5_sup)                    | Yes                              |             Yes              | 20220112 |
-|    r941_prom_hac_g360+g422     |     ONT r9.4.1    | `ont`    |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 |
+|    r941_prom_hac_g360+g422     |     ONT r9.4.1    | `ont`    |                         HG001,2,4,5                          |                               |                           | 20210517 |
 |  r941_prom_hac_g360+g422_1235  |     ONT r9.4.1    | `ont`    |                         HG001,2,3,5                          |                                  |                              | 20210517 |
-|       r941_prom_hac_g238       |     ONT r9.4.1    | `ont`    |                         HG001,2,3,4                          |                                  |             Yes              | 20210627 |
+|       r941_prom_hac_g238       |     ONT r9.4.1    | `ont`    |                         HG001,2,3,4                          |                                  |                           | 20210627 |
+| r1041_e82_400bps_sup_v430_bacteria_finetuned | ONT r10.4.1 | `ont` | Fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) | | Yes | 20250519 |
 | ~~r941_prom_sup_g506~~ |     ONT r9.4.1    |         | Base model: HG001,2,4,5 (Guppy3,4) <br>Fine-tuning data: HG002 (Guppy5_sup) |                                  |                              | 20210609 |
 |              hifi_revio              | PacBio HiFi Revio | `hifi` |                         HG002,4                         | Yes                              |             Yes              | 20230522 |
 |             hifi_sequel2             | PacBio HiFi Sequel II | `hifi` |                         HG001,2,4,5                          | Yes                              |             Yes              | 20210517 |
@@ -147,6 +150,15 @@ In a docker installation, models are in `/opt/models/`. In a bioconda installati
 ### ONT-provided Models
 
 ONT provides models for some latest or specific chemistries and basecallers (including both Guppy and Dorado) through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers.
+
+We have also added the latest version of ONT-provided models in Docker and Bioconda since v1.1.1:
+
+|        Model name         |        Chemistry        | Dorado basecaller model | Option (`-p/--platform`) | Training samples           | Included in the bioconda package | Included in the docker image |
+| :-----------------------: | :---------------------: | ----------------------- | :----------------------: | -------------------------- | :------------------------------: | :--------------------------: |
+| r1041_e82_400bps_sup_v500 | ONT R10.4.1 E8.2 (5kHz) | v5.0.0 SUP              |          `ont`           | Trained by ONT EPI2ME Lab  |               Yes                |             Yes              |
+| r1041_e82_400bps_hac_v500 |   R10.4.1 E8.2 (5kHz)   | v5.0.0 HAC              |          `ont`           | Trained by ONT  EPI2ME Lab |                                  |             Yes              |
+| r1041_e82_400bps_sup_v410 |   R10.4.1 E8.2 (4kHz)   | v4.1.0 SUP              |          `ont`           | Trained by ONT  EPI2ME Lab |               Yes                |             Yes              |
+| r1041_e82_400bps_hac_v410 |   R10.4.1 E8.2 (4kHz)   | v4.1.0 HAC              |          `ont`           | Trained by ONT  EPI2ME Lab |                                  |             Yes              |
 
 
 ----
@@ -200,7 +212,7 @@ A pre-built docker image is available [here](https://hub.docker.com/r/hkubal/cla
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -225,7 +237,7 @@ Check [Usage](#Usage) for more options.
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 
 conda config --add channels defaults
 conda create -n singularity-env -c conda-forge singularity -y
@@ -263,7 +275,7 @@ conda create -n clair3 -c bioconda clair3 python=3.9.0 -y
 conda activate clair3
 
 # run clair3 like this afterward
-MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 
 run_clair3.sh \
   --bam_fn=input.bam \                 ## change your bam file name here
@@ -331,7 +343,7 @@ wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz
 tar -zxvf clair3_models.tar.gz -C ./models
 
 # run clair3
-MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 ./run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
@@ -468,7 +480,7 @@ CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -491,7 +503,7 @@ KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. /home/user1/known_variants.vcf.gz 
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -526,7 +538,7 @@ BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed (absolute path
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -548,7 +560,7 @@ docker run -it \
 INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r941_prom_hac_g360+g422
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
@@ -563,7 +575,8 @@ docker run -it \
   --output=${OUTPUT_DIR} \
   --no_phasing_for_fa \                ## disable phasing for full-alignment
   --include_all_ctgs \                 ## call variants on all contigs in the reference fasta
-  --haploid_precise                    ## optional(enable --haploid_precise or --haploid_sensitive) for haploid calling
+  --haploid_precise \                  ## optional(enable --haploid_precise or --haploid_sensitive) for haploid calling
+  --enable_variant_calling_at_sequence_head_and_tail ##optional (Enable variant calling in sequence head and tail start or end regions)
 ```
 ----
 
