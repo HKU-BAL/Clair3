@@ -52,30 +52,25 @@ def CreateTensorFullAlignment(args):
         haplotag, which is faster than whatshap haplotag with more memory occupation.
         """
 
-        candidate_file_path_process = subprocess_popen(shlex.split("gzip -fdc %s" % (full_aln_regions)))
-        candidate_file_path_output = candidate_file_path_process.stdout
-
         ctg_start, ctg_end = float('inf'), 0
-        for row in candidate_file_path_output:
-            row = row.rstrip().split('\t')
-            if row[0] != ctg_name: continue
-            position = int(row[1]) + 1
-            end = int(row[2]) + 1
-            ctg_start = min(position, ctg_start)
-            ctg_end = max(end, ctg_end)
+        with open(full_aln_regions, 'r') as f:
+            for row in f:
+                row = row.rstrip().split('\t')
+                if row[0] != ctg_name: continue
+                position = int(row[1]) + 1
+                end = int(row[2]) + 1
+                ctg_start = min(position, ctg_start)
+                ctg_end = max(end, ctg_end)
 
-            if len(row) > 3:  # hete snp positions
-                center_pos = position + extend_bp + 1
-                ref_base, alt_base, genotype, phase_set = row[3].split('-')
-            else:
-                if position == 1:
-                    center = end - flanking_base_num - 2
+                if len(row) > 3:  # hete snp positions
+                    center_pos = position + extend_bp + 1
+                    ref_base, alt_base, genotype, phase_set = row[3].split('-')
                 else:
-                    center = position + (end - position) // 2 - 1
-                candidates_set.add(center)
-
-        candidate_file_path_output.close()
-        candidate_file_path_process.wait()
+                    if position == 1:
+                        center = end - flanking_base_num - 2
+                    else:
+                        center = position + (end - position) // 2 - 1
+                    candidates_set.add(center)
 
     variant_list = []
     if need_haplotagging and phased_vcf_fn and os.path.exists(phased_vcf_fn):

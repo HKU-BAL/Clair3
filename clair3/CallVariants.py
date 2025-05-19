@@ -238,7 +238,8 @@ def output_utilties_from(
 
     def output(string_value):
         global output_file
-        print(string_value, file=output_file)
+        string_value += '\n'
+        output_file.write(string_value)
 
     def print_debug_message(
             chromosome,

@@ -93,7 +93,7 @@ class gvcfGenerator(object):
 
                 continue
             if add_header and len(header) and need_write_header:
-                print(''.join(header).rstrip(), file=writer)
+                writer.write(''.join(header).rstrip() + '\n')
                 need_write_header = False
             if (callType == 'non-variant'):
                 cur_non_variant_start = int(line.strip('\n').split('\t')[1])
@@ -170,12 +170,12 @@ class gvcfGenerator(object):
         tmp = curNonVarCall.split('\t')
         tmp[1] = str(block_new_start)
         tmp[3] = str(new_ref)
-        print('\t'.join(tmp), file=save_writer)
+        save_writer.write('\t'.join(tmp) + '\n')
 
     def _writeLeftBlock(self, end_pos, curNonVarCall, save_writer):
 
         new_left_block = re.sub("END=[0-9]*\t", "END=" + str(end_pos) + '\t', curNonVarCall)
-        print(new_left_block, file=save_writer)
+        save_writer.write(new_left_block + '\n')
         pass
 
     def writeNonVarBlock(self, start, end, pos_flag, curNonVarCall, save_writer):
@@ -185,7 +185,7 @@ class gvcfGenerator(object):
         elif (pos_flag == 'right'):
             self._writeRightBlock(start, end, curNonVarCall, save_writer)
         else:
-            print(curNonVarCall, file=save_writer)
+            save_writer.write(curNonVarCall + '\n')
     def mergeCalls(self, variantCallPath, nonVarCallPath, savePath, sampleName, ctgName=None, ctgStart=None,
                    ctgEnd=None, haploid_calling=False):
 
@@ -237,7 +237,7 @@ class gvcfGenerator(object):
                 var region is on the left, no overlapped region
                 '''
                 # print("{_____} |_____|")
-                print(curVarCall, file=save_writer)
+                save_writer.write(curNonVarCall + '\n')
                 try:
                     curVarCall, curVarStart, curVarEnd = next(varCallGenerator)
                 except StopIteration:
@@ -253,7 +253,7 @@ class gvcfGenerator(object):
                 var region is on the left, has overlapped region
                 '''
                 # write the current variant Call
-                print(curVarCall, file=save_writer)
+                save_writer.write(curVarCall + '\n')
                 block_new_start = curVarEnd + 1
                 try:
                     curVarCall, curVarStart, curVarEnd = next(varCallGenerator)
@@ -293,7 +293,7 @@ class gvcfGenerator(object):
                 if (non_var_block_left_end >= curNonVarStart):
                     self._writeLeftBlock(non_var_block_left_end, curNonVarCall, save_writer)
                 # print out variant call
-                print(curVarCall, file=save_writer)
+                save_writer.write(curVarCall + '\n')
                 # take care here, whether write the left right non-variant block,
                 # it dependes on the position of the next variant calls
                 non_var_block_right_start = curVarEnd + 1
@@ -333,14 +333,14 @@ class gvcfGenerator(object):
         if (not varCallStop):
             # print out the left
 
-            print(curVarCall, file=save_writer)
+            save_writer.write(curVarCall + '\n')
             for curVarCall, curVarStart, curVarEnd in varCallGenerator:
-                print(curVarCall, file=save_writer)
+                save_writer.write(curVarCall + '\n')
         if (not nonVarCallStop):
             if (hasVar and curNonVarEnd > curVarEnd):
                 self.writeNonVarBlock(curVarEnd + 1, curNonVarEnd, curNonVarPos, curNonVarCall, save_writer)
             for curNonVarCall, curNonVarStart, curNonVarEnd, curNonVarPos in nonVarCallGenerator:
-                print(curNonVarCall, file=save_writer)
+                save_writer.write(curNonVarCall + '\n')
 
         CW.close_writer()
 
@@ -571,7 +571,7 @@ class variantInfoCalculator(object):
 
         header_str, contig_length_dict = get_header(reference_file_path=self.reference_file_path, sample_name=self.sampleName, gvcf=True, return_contig_length=True)
         self.contig_length_dict = contig_length_dict
-        print(header_str, file=self.vcf_writer)
+        self.vcf_writer.write(header_str + '\n')
 
    
     def write_to_gvcf_batch(self, block, block_min_dp, block_min_raw_gq):
@@ -619,7 +619,7 @@ class variantInfoCalculator(object):
             'ref'] + '\t<NON_REF>\t0\t.\tEND=' + end_pos_str + '\tGT:GQ:MIN_DP:PL\t' + variant_info[
                        'gt'] + ':' + str(variant_info['binned_gq']) + ':' + str(variant_info['min_dp']) + ':' + str(
             variant_info['pl'][0]) + ',' + str(variant_info['pl'][1]) + ',' + str(variant_info['pl'][2])
-        print(_tmpLine, file=self.vcf_writer)
+        self.vcf_writer.write(_tmpLine + '\n')
 
 
     def close_vcf_writer(self):

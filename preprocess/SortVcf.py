@@ -47,6 +47,37 @@ def check_header_in_gvcf(header, contigs_list):
 
     return update_header
 
+def check_malformed_records(row, contig, file, check_header=False):
+    if check_header:
+        if row.startswith("#CHROM") and len(row.split('\t')) != 10:
+            print(log_warning("[WARNING] Malformed header line:\n {} in {}, split into two lines").format(row, file))
+            chr_pos = row.find(contig)
+            header_row = row[:chr_pos] + '\n'
+            vcf_record_row = row[chr_pos:]
+            if len(vcf_record_row.split('\t')) > 10:
+                return None, None
+            columns = vcf_record_row.strip().split(maxsplit=3)
+            ctg_name, pos = columns[0], columns[1]
+            # skip vcf file sharing same contig prefix, ie, chr1 and chr11
+            if ctg_name != contig:
+                return None, vcf_record_row
+            return header_row, vcf_record_row
+        else:
+            return row, None
+    else:
+        if len(row.split('\t')) == 10:
+            return row, None
+        if len(row.split('\t')) > 19:
+            #multiple malformed, skip the row
+            print(log_warning("[WARNING] Malformed header line:\n {} in {}, skip!").format(row, file))
+            return None, None
+        else:
+            print(log_warning("[WARNING] Malformed VCF line:\n {} in {}, split into two lines").format(row, file))
+            #the second position
+            chr_pos = row[len(contig):].find(contig) + len(contig)
+            first_row = row[:chr_pos] + '\n'
+            second_row = row[chr_pos:]
+            return first_row, second_row
 def postprocess_row_with_params(args, row):
     # apply the user-specific filtering if only output pileup variants
     is_haploid_precise_mode_enabled = args.haploid_precise
@@ -188,6 +219,12 @@ def sort_vcf_from(args):
                     # skip phasing command line only occur with --enable_phasing, otherwise would lead to hap.py evaluation failure
                     if row.startswith('##commandline='):
                         continue
+                    if args.check_malformed_records:
+                        row, vcf_record_row = check_malformed_records(row=row, contig=contig, file=file, check_header=True)
+                        if row is None:
+                            continue
+                        elif vcf_record_row is not None:
+                            contig_dict[int(vcf_record_row.split(maxsplit=3)[1])] = vcf_record_row
                     if row not in header:
                         header.append(row)
                     continue
@@ -197,6 +234,12 @@ def sort_vcf_from(args):
                 # skip vcf file sharing same contig prefix, ie, chr1 and chr11
                 if ctg_name != contig:
                     break
+                if args.check_malformed_records:
+                    row, second_row = check_malformed_records(row=row, contig=contig, file=file)
+                    if second_row is not None:
+                        contig_dict[int(second_row.split(maxsplit=3)[1])] = second_row
+                if row is None or row == "":
+                    continue
                 contig_dict[int(pos)] = row
                 no_vcf_output = False
             fn.close()
@@ -292,6 +335,9 @@ def main():
 
     parser.add_argument('--print_ref_calls', type=str2bool, default=False,
                         help="Show reference calls (0/0) in vcf file output")
+
+    parser.add_argument('--check_malformed_records', type=str2bool, default=True,
+                        help="Check the malformed records in vcf file, default: enable")
 
     # options for advanced users
     parser.add_argument('--haploid_precise', type=str2bool, default=False,

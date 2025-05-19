@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH=$(dirname $(readlink -f "$0"))
-VERSION='v1.0.11'
+VERSION='v1.1.1'
 Usage="Usage: ${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
 CMD="$0 $@"
