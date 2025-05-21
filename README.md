@@ -309,38 +309,28 @@ INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. ./input
 OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. ./output
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 
-# create and activate an environment named clair3
-conda create -n clair3 python=3.9.0 -y
+# create and activate an environment named clair3 (require tensorflow version <2.16.1)
+conda create -c conda-forge -c bioconda -n clair3 python tensorflow=2.15.0 whatshap samtools parallel -y
 source activate clair3
 
-# install pypy and packages in the environemnt
-conda install -c conda-forge pypy3.6 -y
-pypy3 -m ensurepip
-pypy3 -m pip install mpmath==1.2.1
+# install other packages to run C in environment
+conda install -c conda-forge xz zlib bzip2 automake curl pigz cffi make gcc g++ -y
 
-# install python packages in environment
-conda install -c conda-forge tensorflow==2.8.0 -y
-conda install -c conda-forge pytables -y
-conda install -c anaconda pigz cffi==1.14.4 -y
-conda install -c conda-forge parallel=20191122 zstd -y
-conda install -c conda-forge -c bioconda samtools=1.15.1 -y
-conda install -c conda-forge -c bioconda whatshap=1.7 -y
-conda install -c conda-forge xz zlib bzip2 automake curl -y
-# tensorflow-addons is required in training
-pip install tensorflow-addons
-
-# clone Clair3
+# clone Clair3 and compile longphase and cffi library for c implement
+cd ${HOME}
 git clone https://github.com/HKU-BAL/Clair3.git
 cd Clair3
-
-# compile samtools, longphase and cffi library for c implement
-# after building, longphase binary is in `Clair3` folder
 source activate clair3 && make PREFIX=${CONDA_PREFIX}
 
+# install pypy
+cd ${CONDA_PREFIX}/bin
+wget https://downloads.python.org/pypy/pypy3.10-v7.3.19-linux64.tar.bz2 && tar -jxvf ${CONDA_PREFIX}/bin/pypy3.10-v7.3.19-linux64.tar.bz2
+ln -sf pypy3.10-v7.3.19-linux64/bin/pypy3 ${CONDA_PREFIX}/bin/pypy3
+
 # download pre-trained models
-mkdir models
-wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz 
-tar -zxvf clair3_models.tar.gz -C ./models
+cd ${HOME}/Clair3 && mkdir models
+wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz && tar -zxvf clair3_models.tar.gz -C ./models
+
 
 # run clair3
 MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
