@@ -248,7 +248,7 @@ def samtools_view_process_from(
         shlex.split("%s view -F 2318 %s %s" % (samtools, bam_file_path, region_str))
     )
 
-def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", version='1.0.11', gvcf=False, return_contig_length=False):
+def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", version='1.1.1', gvcf=False, return_contig_length=False):
     from textwrap import dedent
 
     contig_length_dict = {}
