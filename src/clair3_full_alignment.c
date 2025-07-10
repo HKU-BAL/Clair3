@@ -572,7 +572,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
                 for (size_t p = ref_pos; p < ref_pos + length; p++)
                 {
                     int flanking_index = kh_int_counter_val(flanking_candidates_p, p);
-                    if (flanking_index != -1)
+                    if (flanking_index != -1 && flanking_index >= flanking_start)
                     {
                         size_t offset = flanking_index - flanking_start;
                         pos_info[offset].alt_base = bam_seqi(seqi, query_pos);
@@ -594,7 +594,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
             {
 
                 int flanking_index = kh_int_counter_val(flanking_candidates_p, ref_pos - 1);
-                if (flanking_index != -1)
+                if (flanking_index != -1 && flanking_index >= flanking_start)
                 {
                     size_t offset = flanking_index - flanking_start;
                     pos_info[offset].del_length = length;
@@ -607,7 +607,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
                 for (size_t p = ref_pos; p < ref_pos + length; p++)
                 {
                     int flanking_index = kh_int_counter_val(flanking_candidates_p, p);
-                    if (flanking_index != -1)
+                    if (flanking_index != -1 && flanking_index >= flanking_start)
                     {
                         size_t offset = flanking_index - flanking_start;
                         pos_info[offset].alt_base = -1;
@@ -623,7 +623,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
             else if (cigar_op == BAM_CINS)
             {
                 int flanking_index = kh_int_counter_val(flanking_candidates_p, ref_pos - 1);
-                if (flanking_index != -1)
+                if (flanking_index != -1 && flanking_index >= flanking_start)
                 {
                     size_t offset = flanking_index - flanking_start;
                     pos_info[offset].ins_bases = calloc(length + 1, sizeof(char));
