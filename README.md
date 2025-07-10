@@ -65,6 +65,8 @@ For somatic variant calling using **tumor-only** samples, please try [ClairS-TO]
 ----
 
 ## Latest Updates
+*v1.1.2 (Jul 10, 2025)* : 1. Added boundary check where an insertion is immediately followed by a soft-clipping ([#394](https://github.com/HKU-BAL/Clair3/issues/394), co-contributor @[Devon Ryan](https://github.com/dpryan79)) 2. Added exit code checking for all parallel jobs. The pipeline now immediately exits when encountering any job failure ([#392](https://github.com/HKU-BAL/Clair3/issues/392), co-contributor @[Sam Nicholls](https://github.com/SamStudio8)).
+
 *v1.1.1 (May 19, 2025)* : 1. Fixed the malformed VCF header issue that occurred specifically in AWS cloud environments([#380](https://github.com/HKU-BAL/Clair3/issues/380)). 2.Added a Clair3 R10.4.1 model fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) with improved variant calling performance for bacterial samples. Performance benchmarks and detailed results are documented in our note ["fine-tuning_Clair3_with_12_bacteria_samples"](docs/fine-tuning_Clair3_with_12_bacteria_samples.pdf), (co-contributor @[William Shropshire](https://github.com/wshropshire)) .
 
 *v1.1.0 (Apri 8, 2025)* : 1. Removed `parallel` version checking ([#377](https://github.com/HKU-BAL/Clair3/issues/377)).
