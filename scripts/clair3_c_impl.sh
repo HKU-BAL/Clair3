@@ -189,6 +189,7 @@ time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_cal
     --keep_iupac_bases ${KEEP_IUPAC_BASES} \
     --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --use_gpu ${USE_GPU}" :::: ${OUTPUT_FOLDER}/tmp/CHUNK_LIST |& tee ${LOG_PATH}/1_call_var_bam_pileup.log
+${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_1_call_var_bam_pileup.log
 
 ${PYPY} ${CLAIR3} SortVcf \
     --input_dir ${PILEUP_VCF_PATH} \
@@ -229,6 +230,7 @@ else
         --vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
         --split_folder ${PHASE_VCF_PATH} \
         --ctgName {1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} |& tee ${LOG_PATH}/2_select_hetero_snp.log
+    ${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_2_select_hetero_snp.log
 
     echo $''
     if [ ${USE_LONGPHASE} == True ]
@@ -242,6 +244,7 @@ else
             -t ${LONGPHASE_THREADS} \
             -o ${PHASE_VCF_PATH}/phased_{1} \
             --${LP_PLATFORM}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
+        ${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_3_phase.log
         ${PARALLEL} -j${THREADS} bgzip -f ${PHASE_VCF_PATH}/phased_{}.vcf ::: ${CHR[@]}
     else
         echo "[INFO] 3/7 Phase VCF file using Whatshap"
@@ -254,6 +257,7 @@ else
             --ignore-read-groups \
             ${PHASE_VCF_PATH}/{1}.vcf \
             ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
+        ${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_3_phase.log
     fi
 
 fi
@@ -273,6 +277,7 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_5_select_can
     --ref_pct_full ${REF_PRO} \
     --platform ${PLATFORM} \
     --ctgName {1}" ::: ${CHR[@]}  |& tee ${LOG_PATH}/5_select_candidate.log
+${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_5_select_candidate.log
 
 echo $''
 echo "[INFO] 6/7 Call low-quality variants using full-alignment model"
@@ -300,6 +305,7 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_b
     --keep_iupac_bases ${KEEP_IUPAC_BASES} \
     --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --platform ${PLATFORM}" :::: ${CANDIDATE_BED_PATH}/FULL_ALN_FILES |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
+${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log
 
 ${PYPY} ${CLAIR3} SortVcf \
     --input_dir ${FULL_ALIGNMENT_OUTPUT_PATH} \
@@ -344,6 +350,7 @@ time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_7_merge_vcf.
     --ref_fn ${REFERENCE_FILE_PATH} \
     --qual ${QUAL} \
     --ctgName {1}" ::: ${CHR[@]} |& tee ${LOG_PATH}/7_merge_vcf.log
+${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_7_merge_vcf.log
 
 ${PYPY} ${CLAIR3} SortVcf \
     --input_dir ${TMP_FILE_PATH}/merge_output \
@@ -379,6 +386,7 @@ then
         --ignore-read-groups \
         ${TMP_FILE_PATH}/merge_output/merge_{1}.vcf \
         ${BAM_FILE_PATH}" ::: ${CHR[@]} |& tee ${LOG_PATH}/8_phase_vcf_output.log
+    ${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_8_phase_vcf_output.log
 
     ${PYPY} ${CLAIR3} SortVcf \
         --input_dir ${TMP_FILE_PATH}/merge_output \
@@ -399,6 +407,7 @@ then
         -t ${LONGPHASE_THREADS} \
         -o ${TMP_FILE_PATH}/merge_output/phased_merge_{1} \
         --${LP_PLATFORM}" ::: ${CHR[@]} |& tee ${LOG_PATH}/3_phase.log
+    ${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_8_phase_vcf_output.log
 
     ${PYPY} ${CLAIR3} SortVcf \
         --input_dir ${TMP_FILE_PATH}/merge_output \

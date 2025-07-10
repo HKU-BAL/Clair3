@@ -32,6 +32,7 @@ data_preprocess_folder = [
     'SelectQual',
     "CreateTensorPileupFromCffi"
     "CreateTensorFullAlignmentFromCffi",
+    "CheckExitCode",
 ]
 
 post_process_scripts_folder = [
