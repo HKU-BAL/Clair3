@@ -5,9 +5,13 @@ import csv
 import tensorflow as tf
 import logging
 from time import time
-from argparse import ArgumentParser, SUPPRESS
+import numpy as np
 
-from shared.utils import str2bool, log_error, log_warning, str_none
+from argparse import ArgumentParser, SUPPRESS
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from multiprocessing import shared_memory
+
+from shared.utils import str2bool, log_error, log_warning, str_none, get_header
 from shared.interval_tree import bed_tree_from
 from clair3.CallVariants import OutputConfig, output_utilties_from, batch_output
 
@@ -71,19 +75,49 @@ def Run(args):
 
     call_variants_from_cffi(args=args, output_config=output_config, output_utilities=output_utilities)
 
-def tensor_generator_for_chunk(gen_cls, args, batch_size=200):
-    tensor, all_position, all_alt_info = gen_cls(args)
-    total_data = len(tensor)
-    assert total_data == len(all_alt_info)
-    assert total_data == len(all_position)
-    batch_size = batch_size
-    total_chunk = total_data // batch_size if total_data % batch_size == 0 else total_data // batch_size + 1
-    for chunk_id in range(total_chunk):
-        chunk_start = chunk_id * batch_size
-        chunk_end = (chunk_id + 1) * batch_size if chunk_id < total_chunk - 1 else total_data
-        yield (tensor[chunk_start:chunk_end],
-               all_position[chunk_start:chunk_end],
-               all_alt_info[chunk_start:chunk_end])
+def tensor_generator_for_chunk(gen_cls, args, batch_size=50):
+    if args.output_tensor_can_fn_list is not None:
+        f_list = open(args.output_tensor_can_fn_list, 'r').read()
+        f_list = f_list.strip().split('\n')
+        import numpy as np
+        for f in f_list:
+            if f == '': continue
+            parent_dir = os.path.dirname(args.output_tensor_can_fn_list)
+            tensor = np.load(os.path.join(parent_dir, f +'.npy'))
+            pos_alt = os.path.join(parent_dir, f + '.info')
+            pos_alt_info = open(pos_alt, 'r').read().strip().split('\n')
+            all_alt_info = []
+            all_position = []
+            for pos_alt in pos_alt_info:
+                pos_alt = pos_alt.split('\t')
+                all_position.append(pos_alt[0])
+                all_alt_info.append(pos_alt[1])
+            total_data = len(tensor)
+            assert total_data == len(all_alt_info)
+            assert total_data == len(all_position)
+            batch_size = batch_size
+            total_chunk = total_data // batch_size if total_data % batch_size == 0 else total_data // batch_size + 1
+            for chunk_id in range(total_chunk):
+                chunk_start = chunk_id * batch_size
+                chunk_end = (chunk_id + 1) * batch_size if chunk_id < total_chunk - 1 else total_data
+                yield (tensor[chunk_start:chunk_end],
+                       all_position[chunk_start:chunk_end],
+                       all_alt_info[chunk_start:chunk_end])
+    else:
+        tensor, all_position, all_alt_info = gen_cls(args)
+        if tensor is None:
+            return
+        total_data = len(tensor)
+        assert total_data == len(all_alt_info)
+        assert total_data == len(all_position)
+        batch_size = batch_size
+        total_chunk = total_data // batch_size if total_data % batch_size == 0 else total_data // batch_size + 1
+        for chunk_id in range(total_chunk):
+            chunk_start = chunk_id * batch_size
+            chunk_end = (chunk_id + 1) * batch_size if chunk_id < total_chunk - 1 else total_data
+            yield (tensor[chunk_start:chunk_end],
+                   all_position[chunk_start:chunk_end],
+                   all_alt_info[chunk_start:chunk_end])
 
 def tensor_generator_for_unchunked(gen_cls, args, batch_size=200):
     if args.bed_fn:
@@ -103,9 +137,34 @@ def tensor_generator_for_unchunked(gen_cls, args, batch_size=200):
             yield batch
 
 
+
+
+def batch_output_worker(position, alt_info_list, shm_name, shape, dtype,
+                        output_config, output_utilities):
+    try:
+        shm = shared_memory.SharedMemory(name=shm_name)
+        Y = np.ndarray(shape, dtype=dtype, buffer=shm.buf).copy()
+
+        result = batch_output(position, alt_info_list, Y, output_config, output_utilities)
+
+        return result
+    finally:
+        if 'shm' in locals():
+            shm.close()
+            shm.unlink()
+
 def call_variants_from_cffi(args, output_config, output_utilities):
-    use_gpu = args.use_gpu
-    if use_gpu:
+    if args.pileup:
+        from preprocess.CreateTensorPileupFromCffi import CreateTensorPileup as CT
+    else:
+        from preprocess.CreateTensorFullAlignmentFromCffi import CreateTensorFullAlignment as CT
+
+    if args.output_tensor_can_fn_list is None and args.use_gpu:
+        CT(args)
+        return
+
+    use_triton_gpu = args.use_triton_gpu
+    if use_triton_gpu:
         import tritonclient.grpc as tritongrpcclient
         server_url = 'localhost:8001'
         try:
@@ -116,13 +175,20 @@ def call_variants_from_cffi(args, output_config, output_utilities):
         except Exception as e:
             print("channel creation failed: " + str(e))
             sys.exit()
+    elif args.use_gpu:
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        for gpu in gpus:
+            tf.config.experimental.set_virtual_device_configuration(gpu, [
+                tf.config.experimental.VirtualDeviceConfiguration(memory_limit=args.max_gpu_memory)])
+
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id) if args.gpu_id else ""
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
     global param
     if args.pileup:
         import shared.param_p as param
-        if use_gpu:
+        if use_triton_gpu:
             model_name = 'pileup'
             input_dtype = 'INT32'
         else:
@@ -130,17 +196,21 @@ def call_variants_from_cffi(args, output_config, output_utilities):
             m = Clair3_P(add_indel_length=args.add_indel_length, predict=True)
     else:
         import shared.param_f as param
-        if use_gpu:
+        if use_triton_gpu:
             model_name = 'alignment'
             input_dtype = 'INT8'
         else:
             from clair3.model import Clair3_F
             m = Clair3_F(add_indel_length=args.add_indel_length, predict=True)
 
-    if not use_gpu:
+    if not use_triton_gpu:
         m.load_weights(args.chkpnt_fn)
-    output_utilities.gen_output_file()
-    output_utilities.output_header()
+    args.output_file = open(args.call_fn, 'w') if args.call_fn != 'PIPE' else sys.stdout
+
+    header_str = get_header(reference_file_path=args.ref_fn, cmd_fn=args.cmd_fn, sample_name=args.sampleName)
+    header_str += '\n'
+    args.output_file.write(header_str)
+
     chunk_id = args.chunk_id - 1 if args.chunk_id else None  # 1-base to 0-base
     chunk_num = args.chunk_num
     full_alignment_mode = not args.pileup
@@ -151,18 +221,18 @@ def call_variants_from_cffi(args, output_config, output_utilities):
     batch_output_method = batch_output
     total = 0
 
-    if args.pileup:
-        from preprocess.CreateTensorPileupFromCffi import CreateTensorPileup as CT
+    if not args.use_gpu:
+        batch_size = param.predictBatchSize * args.threads
     else:
-        from preprocess.CreateTensorFullAlignmentFromCffi import CreateTensorFullAlignment as CT
-
-    batch_size = param.predictBatchSize * args.threads
+        # increase bs in gpu for speed up
+        batch_size = param.predictBatchSize * 5
     if args.ctgName == 'None' and args.pileup:
         batch_gen = tensor_generator_for_unchunked(CT, args, batch_size=batch_size)
     else:
         batch_gen = tensor_generator_for_chunk(CT, args, batch_size=batch_size)
 
-    for (X, position, alt_info_list) in batch_gen:
+    if not args.use_gpu:
+        for (X, position, alt_info_list) in batch_gen:
             total += len(X)
             if args.pileup:
                 for alt_idx, alt_info in enumerate(alt_info_list):
@@ -173,19 +243,44 @@ def call_variants_from_cffi(args, output_config, output_utilities):
                         scale_factor = depth / max_depth
                         X[alt_idx] = X[alt_idx] / scale_factor
 
-            if use_gpu:
-                inputs = []; outputs = []
-
+            if use_triton_gpu:
+                inputs = [];
+                outputs = []
                 inputs.append(tritongrpcclient.InferInput('input_1', X.shape, input_dtype))
                 outputs.append(tritongrpcclient.InferRequestedOutput('output_1'))
-
                 inputs[0].set_data_from_numpy(X)
                 results = triton_client.infer(model_name=model_name, inputs=inputs, outputs=outputs)
                 Y = results.as_numpy('output_1')
             else:
                 Y = m.predict_on_batch(X)
 
-            batch_output_method(position, alt_info_list, Y, output_config, output_utilities)
+            output = batch_output_method(position, alt_info_list, Y, output_config, output_utilities, args)
+    else:
+        with ProcessPoolExecutor(max_workers=args.cpu_threads) as executor:
+            futures = []
+            for X, position, alt_info_list in batch_gen:
+                total += len(X)
+                Y = m.predict_on_batch(X)
+                shm = shared_memory.SharedMemory(create=True, size=Y.nbytes)
+                shared_Y = np.ndarray(Y.shape, dtype=Y.dtype, buffer=shm.buf)
+                np.copyto(shared_Y, Y)
+
+                future = executor.submit(
+                    batch_output_worker,
+                    position, alt_info_list,
+                    shm.name, Y.shape, Y.dtype,
+                    output_config, output_utilities
+                )
+                futures.append(future)
+
+                shm.close()
+
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    args.output_file.write(result)
+                except Exception as e:
+                    print(f"[Error] Task failed: {e}", flush=True)
 
     if chunk_id is not None:
         logging.info("Total processed positions in {} (chunk {}/{}) : {}".format(args.ctgName, chunk_id+1, chunk_num, total))
@@ -196,16 +291,16 @@ def call_variants_from_cffi(args, output_config, output_utilities):
             c_id = int(c_id) + 1 # 0-index to 1-index
             logging.info("Total processed positions in {} (chunk {}/{}) : {}".format(args.ctgName, c_id, c_num, total))
         except:
-            logging.info("Total processed positions in {} : {}".format(args.ctgName, total))
+            logging.info("Total processed positions {}: {}".format(args.ctgName if args.ctgName else "", total))
     else:
-        logging.info("Total processed positions in {} : {}".format(args.ctgName, total))
+        logging.info("Total processed positions {}: {}".format(args.ctgName if args.ctgName else "", total))
 
     if full_alignment_mode and total == 0:
         logging.info(log_warning("[WARNING] No full-alignment output for file {}/{}".format(args.ctgName, args.call_fn)))
 
     logging.info("Total time elapsed: %.2f s" % (time() - variant_call_start_time))
 
-    output_utilities.close_opened_files()
+    args.output_file.close()
     # remove file if on variant in output
     if os.path.exists(args.call_fn):
         for row in open(args.call_fn, 'r'):
@@ -382,6 +477,28 @@ def main():
     ## If defined, added command line into VCF header
     parser.add_argument('--cmd_fn', type=str_none, default=None,
                         help=SUPPRESS)
+
+    parser.add_argument('--tensor_can_fn', type=str, default="PIPE",
+                        help="Tensor output, stdout by default, default: %(default)s")
+
+    parser.add_argument('--gpu_id', type=str, default=None,
+                        help="Tensor output, stdout by default, default: %(default)s")
+
+    parser.add_argument('--max_gpu_memory', type=int, default=5000,
+                        help="Tensor output, stdout by default, default: %(default)s")
+
+    parser.add_argument('--use_triton_gpu', type=str2bool, default=False,
+                        help="DEBUG: Use GPU for calling. Speed up is mostly insignficiant. Only use this for building your own pipeline")
+
+    parser.add_argument('--output_tensor_can_fn_list', type=str, default=None,
+                        help="Tensor output, stdout by default, default: %(default)s")
+
+    parser.add_argument('--cpu_threads', type=int, default=4,
+                        help="How many threads for python to use for parallelization default: %(default)f")
+
+    parser.add_argument('--output_file', type=str, default=None,
+                        help="How many threads for python to use for parallelization default: %(default)f")
+
 
     args = parser.parse_args()
 
