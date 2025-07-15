@@ -130,7 +130,7 @@ ${PYTHON} ${CLAIR3} CheckEnvs \
 
 if [ "$(uname)" = "Darwin" ];
 then
-    mapfile -t CHR < "${OUTPUT_FOLDER}/tmp/CONTIGS"
+    CHR=($(cat "${OUTPUT_FOLDER}/tmp/CONTIGS"))
     USE_GPU=False
 else
     readarray -t CHR < "${OUTPUT_FOLDER}/tmp/CONTIGS"
