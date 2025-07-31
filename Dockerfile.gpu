@@ -17,6 +17,8 @@ RUN apt-get update && apt-get install -y \
     libboost-graph-dev \
     libssl-dev \
     libdeflate-dev \
+    time \
+    tabix \
     && rm -rf /var/lib/apt/lists/*
 
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8

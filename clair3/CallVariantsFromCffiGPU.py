@@ -41,11 +41,17 @@ def check_gpu_memory(memory, device_ids=None, print_log=True):
         print(log_error("No GPU available, Please disabling --use_gpu for variant calling, exiting."))
         sys.exit(1)
     if len(gpu_id_list) == 0:
-        print(log_error("No memory in GPU, Please assgin GPU memory first, exiting."))
+        print(log_error("No memory in GPU, Please assign GPU memory first, exiting."))
         sys.exit(1)
     return gpu_id_list
 
 def Run(args):
+    try:
+        rc = subprocess.check_call('time', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time = 'time '
+    except subprocess.CalledProcessError as e:
+        time = ''
+
     prefix = "full_alignment" if not args.pileup else "pileup"
 
     pileup_per_thread_gpu_memory = 5000  # GB
@@ -55,7 +61,7 @@ def Run(args):
 
     if args.device and args.device != "EMPTY":
         if not args.device.startswith('cuda:'):
-            print(log_error("Please specify the device as '--device=cuda:0,1' or '--device=cuda:0,1'"))
+            print(log_error("Please specify the device as '--device=cuda:0' or '--device=cuda:0,1'"))
             sys.exit(1)
         device_ids = [int(x) for x in args.device.split("cuda:")[-1].split(",")]
         os.environ["CUDA_VISIBLE_DEVICES"] = ','.join([str(item) for item in device_ids])
@@ -69,7 +75,7 @@ def Run(args):
     gpu_id_list = check_gpu_memory(pileup_per_thread_gpu_memory if args.pileup else full_alignment_per_thread_gpu_memory, device_ids, print_log=False)
 
     if args.pileup:
-        cp_command = 'time ' + args.parallel + ' -C " " '
+        cp_command = time + args.parallel + ' -C " " '
         cp_command += ' --joblog ' + args.output_dir + '/log/parallel_1_pileup_create_tensor.log'
         cp_command += ' -j ' + str(args.cpu_threads)
         cp_command += ' --retries 4'
@@ -151,7 +157,7 @@ def Run(args):
                         f.write(fn + '\n')
                 all_f.write(' '.join([str(i), str(gpu_id_list[i]), gpu_chunk_num_fn]) + '\n')
 
-        cp_command = 'time ' + args.parallel + ' -C " " '
+        cp_command = time + args.parallel + ' -C " " '
         cp_command += ' --joblog ' + args.output_dir + '/log/parallel_1_pileup_call_variant.log'
         cp_command += ' -j ' + str(total_gpu_treads)
         cp_command += ' --retries 4'
@@ -196,9 +202,16 @@ def Run(args):
                 "ERROR in Pileup model calling, THE FOLLOWING COMMAND FAILED: {}\n".format(cp_command))
             exit(1)
 
+        print("[INFO] Removing temporary tensor files...")
+        for f in file_list:
+            if os.path.exists(f + ".npy"):
+                os.remove(f + ".npy")
+            if os.path.exists(f + ".bin"):
+                os.remove(f + ".bin")
+
     else:
         # create full-alignment tensor
-        ct_command = '( time ' + args.parallel + ' -C " "'
+        ct_command = '(' + time + args.parallel + ' -C " "'
         ct_command += ' --joblog ' + args.output_dir + '/log/parallel_6_full_alignment_create_tensor.log'
         ct_command += ' -j ' + str(args.cpu_threads)
         ct_command += ' --retries 4'
@@ -266,7 +279,7 @@ def Run(args):
                 all_f.write(' '.join([str(i), str(gpu_id_list[i]), gpu_chunk_num_fn]) + '\n')
 
         #full-alignment variant calling
-        ct_command = '( time ' + args.parallel + ' -C " "'
+        ct_command = '(' + time + args.parallel + ' -C " "'
         ct_command += ' --joblog ' + args.output_dir + '/log/parallel_6_full_alignment_call_variant.log'
         ct_command += ' -j ' + str(total_gpu_treads)
         ct_command += ' --retries 4'
@@ -297,8 +310,6 @@ def Run(args):
         ct_command += ' :::: ' + all_gpu_chunk_file_list
         ct_command += ' ) 2>&1 | tee ' + args.output_dir + '/log/6_full_alignment_call_variant.log'
 
-        # remove the temp tensor file
-
         try:
             return_code = subprocess.check_call(ct_command, shell=True, stdout=sys.stdout)
         except subprocess.CalledProcessError as e:
@@ -306,6 +317,12 @@ def Run(args):
                 "ERROR in Full-alignment model calling, THE FOLLOWING COMMAND FAILED: {}\n".format(ct_command))
             exit(1)
 
+        print("[INFO] Removing temporary tensor files...")
+        for f in file_list:
+            if os.path.exists(f + ".npy"):
+                os.remove(f + ".npy")
+            if os.path.exists(f + ".bin"):
+                os.remove(f + ".bin")
 
 def main():
     parser = ArgumentParser(description="The wrapper of GPU Call variants")

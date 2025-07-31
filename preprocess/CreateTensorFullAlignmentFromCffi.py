@@ -142,7 +142,7 @@ def CreateTensorFullAlignment(args):
         with open(args.tensor_can_fn + '.info', 'w') as info_file:
             for idx, pos_info in enumerate(all_position_info):
                 info_file.write(f"{pos_info}\t{all_alt_info[idx]}\n")
-        print(logging.info("[INFO] Total processed positions in {} : {}".format(args.ctgName, len(all_position_info))))
+        print("[INFO] Total processed positions in {} : {}".format(args.ctgName, len(all_position_info)))
         return None, None, None
 
     return np_fa_data, all_position_info, all_alt_info

@@ -9,7 +9,6 @@ import numpy as np
 
 from argparse import ArgumentParser, SUPPRESS
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from multiprocessing import shared_memory
 
 from shared.utils import str2bool, log_error, log_warning, str_none, get_header
 from shared.interval_tree import bed_tree_from
@@ -141,6 +140,7 @@ def tensor_generator_for_unchunked(gen_cls, args, batch_size=200):
 
 def batch_output_worker(position, alt_info_list, shm_name, shape, dtype,
                         output_config, output_utilities):
+    from multiprocessing import shared_memory
     try:
         shm = shared_memory.SharedMemory(name=shm_name)
         Y = np.ndarray(shape, dtype=dtype, buffer=shm.buf).copy()
@@ -256,6 +256,7 @@ def call_variants_from_cffi(args, output_config, output_utilities):
 
             output = batch_output_method(position, alt_info_list, Y, output_config, output_utilities, args)
     else:
+        from multiprocessing import shared_memory
         with ProcessPoolExecutor(max_workers=args.cpu_threads) as executor:
             futures = []
             for X, position, alt_info_list in batch_gen:
