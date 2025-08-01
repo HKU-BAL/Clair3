@@ -157,6 +157,11 @@ def Run(args):
                         f.write(fn + '\n')
                 all_f.write(' '.join([str(i), str(gpu_id_list[i]), gpu_chunk_num_fn]) + '\n')
 
+
+        for f in os.listdir(args.call_fn):
+            if f.startswith(prefix):
+                os.remove(os.path.join(args.call_fn, f))
+
         cp_command = time + args.parallel + ' -C " " '
         cp_command += ' --joblog ' + args.output_dir + '/log/parallel_1_pileup_call_variant.log'
         cp_command += ' -j ' + str(total_gpu_treads)
@@ -277,6 +282,10 @@ def Run(args):
                     for fn in gpu_file_list:
                         f.write(fn + '\n')
                 all_f.write(' '.join([str(i), str(gpu_id_list[i]), gpu_chunk_num_fn]) + '\n')
+
+        for f in os.listdir(args.call_fn):
+            if f.startswith(prefix):
+                os.remove(os.path.join(args.call_fn, f))
 
         #full-alignment variant calling
         ct_command = '(' + time + args.parallel + ' -C " "'
