@@ -1476,7 +1476,7 @@ def call_variants(args, output_config, output_utilities):
                     total += len(X)
                     thread_pool.append(Thread(
                         target=batch_output_method,
-                        args=(position, alt_info_list, prediction, output_config, output_utilities)
+                        args=(position, alt_info_list, prediction, output_config, output_utilities, args)
                     ))
 
                 if not is_finish_loaded_all_mini_batches:
