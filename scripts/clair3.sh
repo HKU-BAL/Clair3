@@ -7,7 +7,7 @@ set -e
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,var_pct_phasing::,\
-min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
+min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,device::,\
 use_whatshap_for_intermediate_phasing::,use_longphase_for_intermediate_phasing::,use_whatshap_for_final_output_phasing::,use_longphase_for_final_output_phasing::,use_whatshap_for_final_output_haplotagging::,keep_iupac_bases::,\
 no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,enable_variant_calling_at_sequence_head_and_tail::,output_all_contigs_in_gvcf_header::,remove_intermediate_dir::,enable_phasing::,enable_long_indel::,use_gpu::,longphase_for_phasing::,longphase::,base_err::,gq_bin_size:: -n 'run_clair3.sh' -- "$@"`
 

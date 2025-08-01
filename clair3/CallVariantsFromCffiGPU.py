@@ -159,7 +159,7 @@ def Run(args):
 
 
         for f in os.listdir(args.call_fn):
-            if f.startswith(prefix):
+            if f.startswith(prefix) and f.endswith('.vcf'):
                 os.remove(os.path.join(args.call_fn, f))
 
         cp_command = time + args.parallel + ' -C " " '
@@ -284,7 +284,7 @@ def Run(args):
                 all_f.write(' '.join([str(i), str(gpu_id_list[i]), gpu_chunk_num_fn]) + '\n')
 
         for f in os.listdir(args.call_fn):
-            if f.startswith(prefix):
+            if f.startswith(prefix) and f.endswith('.vcf'):
                 os.remove(os.path.join(args.call_fn, f))
 
         #full-alignment variant calling
