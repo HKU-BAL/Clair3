@@ -65,6 +65,12 @@ For somatic variant calling using **tumor-only** samples, please try [ClairS-TO]
 ----
 
 ## Latest Updates
+*v1.2.0 (Aug 1, 2025)* : 1. Clair3 now natively supports GPU on Linux and Apple Silicon. Please refer to the  [GPU quick start guide](docs/gpu_quick_start.md) for usage. Clair3 on GPU runs ~5 times compared CPU. Below is quick speed comparison. 
+
+<div align="center">
+    <img src="docs/images/clair3_gpu_benchmark.png" width = "400" alt="Clair3 gpu benchmark">
+</div>
+
 *v1.1.2 (Jul 10, 2025)* : 1. Added boundary check where an insertion is immediately followed by a soft-clipping ([#394](https://github.com/HKU-BAL/Clair3/issues/394), co-contributor @[Devon Ryan](https://github.com/dpryan79)) 2. Added exit code checking for all parallel jobs. The pipeline now immediately exits when encountering any job failure ([#392](https://github.com/HKU-BAL/Clair3/issues/392), co-contributor @[Sam Nicholls](https://github.com/SamStudio8)).
 
 *v1.1.1 (May 19, 2025)* : 1. Fixed the malformed VCF header issue that occurred specifically in AWS cloud environments([#380](https://github.com/HKU-BAL/Clair3/issues/380)). 2.Added a Clair3 R10.4.1 model fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) with improved variant calling performance for bacterial samples. Performance benchmarks and detailed results are documented in our note ["fine-tuning_Clair3_with_12_bacteria_samples"](docs/fine-tuning_Clair3_with_12_bacteria_samples.pdf), (co-contributor @[William Shropshire](https://github.com/wshropshire)) .
@@ -203,6 +209,8 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 ----
 
 ## Installation
+
+**Clair3 support GPU calling on Linux and Apple macOS (M1/M2/M3 chips) systems. Please refer the [GPU quick start](docs/gpu_quick_start.md) to install and run Clair3 with GPU.**
 
 ### Option 1.  Docker pre-built image
 
@@ -363,11 +371,6 @@ docker build -f ./Dockerfile -t hkubal/clair3:latest .
 # run clair3 docker image like option 1
 docker run -it hkubal/clair3:latest /opt/bin/run_clair3.sh --help
 ```
-
-
-### Run Clair3 with Apple Silicon
-
-Instructions are given as an answer to issue [#149](https://github.com/HKU-BAL/Clair3/issues/149).
 
 ----
 

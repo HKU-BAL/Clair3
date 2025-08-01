@@ -86,7 +86,7 @@ def Run(args):
         cp_command += ' --sampleName ' + args.sampleName
         cp_command += ' --ref_fn ' + args.ref_fn if args.ref_fn else ''
         cp_command += ' --vcf_fn ' + args.vcf_fn if args.vcf_fn != "EMPTY" else ''
-        cp_command += ' --extend_bed ' + args.output_dir + "tmp/split_beds/{1}"
+        cp_command += ' --extend_bed ' + args.output_dir + "/tmp/split_beds/{1}"
         if args.bed_fn != "" and args.bed_fn is not None:
             cp_command += ' --bed_fn ' + str(args.bed_fn)
         cp_command += ' --threads ' + str(args.internal_threads)
@@ -107,7 +107,7 @@ def Run(args):
         cp_command += ' --gq_bin_size ' + str(args.gq_bin_size)
         cp_command += ' --enable_long_indel ' + str(args.enable_long_indel)
         cp_command += ' --samtools ' + str(args.samtools)
-        cp_command += ' --temp_file_dir ' + args.output_dir + "tmp/gvcf_tmp_output"
+        cp_command += ' --temp_file_dir ' + args.output_dir + "/tmp/gvcf_tmp_output"
         cp_command += ' --pileup '
         cp_command += ' --keep_iupac_bases ' + str(args.keep_iupac_bases)
         cp_command += ' --cmd_fn ' + str(args.cmd_fn)
@@ -185,7 +185,7 @@ def Run(args):
         cp_command += ' --gq_bin_size ' + str(args.gq_bin_size)
         cp_command += ' --enable_long_indel ' + str(args.enable_long_indel)
         cp_command += ' --samtools ' + str(args.samtools)
-        cp_command += ' --temp_file_dir ' + args.output_dir + "tmp/gvcf_tmp_output"
+        cp_command += ' --temp_file_dir ' + args.output_dir + "/tmp/gvcf_tmp_output"
         cp_command += ' --pileup '
         cp_command += ' --keep_iupac_bases ' + str(args.keep_iupac_bases)
         cp_command += ' --cmd_fn ' + str(args.cmd_fn)
@@ -206,8 +206,8 @@ def Run(args):
         for f in file_list:
             if os.path.exists(f + ".npy"):
                 os.remove(f + ".npy")
-            if os.path.exists(f + ".bin"):
-                os.remove(f + ".bin")
+            if os.path.exists(f + ".info"):
+                os.remove(f + ".info")
 
     else:
         # create full-alignment tensor
@@ -321,8 +321,8 @@ def Run(args):
         for f in file_list:
             if os.path.exists(f + ".npy"):
                 os.remove(f + ".npy")
-            if os.path.exists(f + ".bin"):
-                os.remove(f + ".bin")
+            if os.path.exists(f + ".info"):
+                os.remove(f + ".info")
 
 def main():
     parser = ArgumentParser(description="The wrapper of GPU Call variants")
