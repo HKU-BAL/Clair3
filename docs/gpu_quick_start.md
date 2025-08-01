@@ -79,6 +79,7 @@ run_clair3.sh \
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path="${CONDA_PREFIX}/bin/models/${MODEL_NAME}" \ 
   --use_gpu \                          ## use gpu for variant calling
+  --use_longphase_for_intermediate_phasing \
   --device='cuda:0,1' \                ## select the GPU device for calling, default: use all Nvidia GPUs
   --output=${OUTPUT_DIR}               ## output path prefix 
 ```
