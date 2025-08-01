@@ -135,6 +135,15 @@ def CreateTensorFullAlignment(args):
         all_alt_info.append(depth + '-' + alt)
 
     libclair3.lib.destroy_fa_data(fa_data)
+    if args.tensor_can_fn != "PIPE":
+        if len(all_position_info) == 0:
+            return None, None, None
+        np.save(args.tensor_can_fn, np.array(np_fa_data, dtype=np.int8))
+        with open(args.tensor_can_fn + '.info', 'w') as info_file:
+            for idx, pos_info in enumerate(all_position_info):
+                info_file.write(f"{pos_info}\t{all_alt_info[idx]}\n")
+        print("[INFO] Total processed positions in {} : {}".format(args.ctgName, len(all_position_info)))
+        return None, None, None
 
     return np_fa_data, all_position_info, all_alt_info
 

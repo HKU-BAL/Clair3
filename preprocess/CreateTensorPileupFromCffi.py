@@ -440,6 +440,17 @@ def CreateTensorPileup(args):
             nonVariantCaller.write_empty_pileup(ctg_name, ctg_start, ctg_end)
         nonVariantCaller.close_vcf_writer()
 
+    if args.tensor_can_fn != "PIPE":
+        if len(all_position_info) == 0:
+            print("[INFO] Total processed positions in {} (chunk {}/{}) : 0".format(args.ctgName, chunk_id, chunk_num,))
+            return None, None, None
+        np.save(args.tensor_can_fn, np.array(np_pileup_data, dtype=np.int8))
+        with open(args.tensor_can_fn + '.info', 'w') as info_file:
+            for idx, pos_info in enumerate(all_position_info):
+                info_file.write(f"{pos_info}\t{all_alt_info[idx]}\n")
+        print("[INFO] Total processed positions in {} (chunk {}/{}) : {}".format(args.ctgName, chunk_id, chunk_num, len(all_position_info)))
+        return None, None, None
+
     return np_pileup_data, all_position_info, all_alt_info
 
 

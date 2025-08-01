@@ -6,7 +6,7 @@ Usage="Usage: ./${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --t
 set -e
 ARGS=`getopt -o b:f:t:m:p:o:r::c::s::h::g \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
-bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,var_pct_phasing::,\
+bed_fn::,vcf_fn::,ctg_name::,sample_name::,help::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,var_pct_phasing::,device::,\
 min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,ref_pct_full::,pileup_only::,fast_mode::,gvcf::,print_ref_calls::,haploid_precise::,haploid_sensitive::,include_all_ctgs::,\
 use_whatshap_for_intermediate_phasing::,use_longphase_for_intermediate_phasing::,use_whatshap_for_final_output_phasing::,use_longphase_for_final_output_phasing::,use_whatshap_for_final_output_haplotagging::,keep_iupac_bases::,\
 no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,enable_variant_calling_at_sequence_head_and_tail::,output_all_contigs_in_gvcf_header::,remove_intermediate_dir::,enable_phasing::,enable_long_indel::,use_gpu::,longphase_for_phasing::,longphase::,base_err::,gq_bin_size:: -n 'run_clair3.sh' -- "$@"`
@@ -63,6 +63,7 @@ while true; do
     --enable_long_indel ) ENABLE_LONG_INDEL="$2"; shift 2 ;;
     --keep_iupac_bases ) KEEP_IUPAC_BASES="$2"; shift 2 ;;
     --use_gpu ) USE_GPU="$2"; shift 2 ;;
+    --device ) DEVICE="$2"; shift 2 ;;
     --longphase_for_phasing ) USE_LONGPHASE="$2"; shift 2 ;;
     --use_whatshap_for_intermediate_phasing ) TMP_WH_PHASING="$2"; shift 2 ;;
     --use_longphase_for_intermediate_phasing ) USE_LONGPHASE="$2"; shift 2 ;;
@@ -129,7 +130,8 @@ ${PYTHON} ${CLAIR3} CheckEnvs \
 
 if [ "$(uname)" = "Darwin" ];
 then
-    mapfile -t CHR < "${OUTPUT_FOLDER}/tmp/CONTIGS"
+    CHR=($(cat "${OUTPUT_FOLDER}/tmp/CONTIGS"))
+    USE_GPU=False
 else
     readarray -t CHR < "${OUTPUT_FOLDER}/tmp/CONTIGS"
 fi
@@ -157,39 +159,75 @@ cd ${OUTPUT_FOLDER}
 # Pileup calling
 #-----------------------------------------------------------------------------------------------------------------------
 echo "[INFO] 1/7 Call variants using pileup model"
-time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_call_var_bam_pileup.log -j ${PARALLEL_THREADS} \
-"${PYTHON} ${CLAIR3} CallVariantsFromCffi \
-    --chkpnt_fn ${PILEUP_CHECKPOINT_PATH} \
-    --bam_fn ${BAM_FILE_PATH} \
-    --call_fn ${PILEUP_VCF_PATH}/pileup_{1}_{2}.vcf \
-    --sampleName ${SAMPLE} \
-    --ref_fn ${REFERENCE_FILE_PATH} \
-    --extend_bed ${SPLIT_BED_PATH}/{1} \
-    --bed_fn ${BED_FILE_PATH} \
-    --vcf_fn ${VCF_FILE_PATH} \
-    --threads ${INTERNAL_THREADS} \
-    --ctgName {1} \
-    --chunk_id {2} \
-    --chunk_num {3} \
-    --platform ${PLATFORM} \
-    --fast_mode ${FAST_MODE} \
-    --snp_min_af ${SNP_AF} \
-    --indel_min_af ${INDEL_AF} \
-    --minMQ ${MIN_MQ} \
-    --minCoverage ${MIN_COV} \
-    --call_snp_only ${SNP_ONLY} \
-    --enable_variant_calling_at_sequence_head_and_tail ${CALL_HT} \
-    --gvcf ${GVCF} \
-    --base_err ${BASE_ERR} \
-    --gq_bin_size ${GQ_BIN_SIZE} \
-    --enable_long_indel ${ENABLE_LONG_INDEL} \
-    --samtools ${SAMTOOLS} \
-    --temp_file_dir ${GVCF_TMP_PATH} \
-    --pileup \
-    --keep_iupac_bases ${KEEP_IUPAC_BASES} \
-    --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
-    --use_gpu ${USE_GPU}" :::: ${OUTPUT_FOLDER}/tmp/CHUNK_LIST |& tee ${LOG_PATH}/1_call_var_bam_pileup.log
-${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_1_call_var_bam_pileup.log
+if [ ${USE_GPU} != True ]; then
+  time ${PARALLEL} --retries ${RETRIES} -C ' ' --joblog ${LOG_PATH}/parallel_1_call_var_bam_pileup.log -j ${PARALLEL_THREADS} \
+  "${PYTHON} ${CLAIR3} CallVariantsFromCffi \
+      --chkpnt_fn ${PILEUP_CHECKPOINT_PATH} \
+      --bam_fn ${BAM_FILE_PATH} \
+      --call_fn ${PILEUP_VCF_PATH}/pileup_{1}_{2}.vcf \
+      --sampleName ${SAMPLE} \
+      --ref_fn ${REFERENCE_FILE_PATH} \
+      --extend_bed ${SPLIT_BED_PATH}/{1} \
+      --bed_fn ${BED_FILE_PATH} \
+      --vcf_fn ${VCF_FILE_PATH} \
+      --threads ${INTERNAL_THREADS} \
+      --ctgName {1} \
+      --chunk_id {2} \
+      --chunk_num {3} \
+      --platform ${PLATFORM} \
+      --fast_mode ${FAST_MODE} \
+      --snp_min_af ${SNP_AF} \
+      --indel_min_af ${INDEL_AF} \
+      --minMQ ${MIN_MQ} \
+      --minCoverage ${MIN_COV} \
+      --call_snp_only ${SNP_ONLY} \
+      --enable_variant_calling_at_sequence_head_and_tail ${CALL_HT} \
+      --gvcf ${GVCF} \
+      --base_err ${BASE_ERR} \
+      --gq_bin_size ${GQ_BIN_SIZE} \
+      --enable_long_indel ${ENABLE_LONG_INDEL} \
+      --samtools ${SAMTOOLS} \
+      --temp_file_dir ${GVCF_TMP_PATH} \
+      --pileup \
+      --keep_iupac_bases ${KEEP_IUPAC_BASES} \
+      --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
+      --use_gpu ${USE_GPU}" :::: ${OUTPUT_FOLDER}/tmp/CHUNK_LIST |& tee ${LOG_PATH}/1_call_var_bam_pileup.log
+      ${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_1_call_var_bam_pileup.log
+else
+  ${PYTHON} ${CLAIR3} CallVariantsFromCffiGPU \
+      --chkpnt_fn ${PILEUP_CHECKPOINT_PATH} \
+      --bam_fn ${BAM_FILE_PATH} \
+      --call_fn ${PILEUP_VCF_PATH} \
+      --sampleName ${SAMPLE} \
+      --ref_fn ${REFERENCE_FILE_PATH} \
+      --extend_bed ${SPLIT_BED_PATH} \
+      --bed_fn ${BED_FILE_PATH} \
+      --vcf_fn ${VCF_FILE_PATH} \
+      --platform ${PLATFORM} \
+      --fast_mode ${FAST_MODE} \
+      --snp_min_af ${SNP_AF} \
+      --indel_min_af ${INDEL_AF} \
+      --minMQ ${MIN_MQ} \
+      --minCoverage ${MIN_COV} \
+      --call_snp_only ${SNP_ONLY} \
+      --enable_variant_calling_at_sequence_head_and_tail ${CALL_HT} \
+      --gvcf ${GVCF} \
+      --base_err ${BASE_ERR} \
+      --gq_bin_size ${GQ_BIN_SIZE} \
+      --enable_long_indel ${ENABLE_LONG_INDEL} \
+      --samtools ${SAMTOOLS} \
+      --temp_file_dir ${GVCF_TMP_PATH} \
+      --pileup \
+      --keep_iupac_bases ${KEEP_IUPAC_BASES} \
+      --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
+      --output_dir ${OUTPUT_FOLDER} \
+      --python ${PYTHON} \
+      --parallel ${PARALLEL} \
+      --pypy ${PYPY} \
+      --cpu_threads ${THREADS} \
+      --internal_threads ${INTERNAL_THREADS} \
+      --device ${DEVICE}
+fi
 
 ${PYPY} ${CLAIR3} SortVcf \
     --input_dir ${PILEUP_VCF_PATH} \
@@ -203,11 +241,12 @@ ${PYPY} ${CLAIR3} SortVcf \
     --haploid_precise ${HAP_PRE} \
     --haploid_sensitive ${HAP_SEN} \
     --qual ${QUAL} \
+    --use_gpu ${USE_GPU} \
     --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
 if [ "$( gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in pileup variant calling"; exit 0; fi
-if [ ${PILEUP_ONLY} == True ]; then
-    if [ ${RM_TMP_DIR} == True ]; then echo "[INFO] Removing intermediate files in ${OUTPUT_FOLDER}/tmp"; rm -rf ${OUTPUT_FOLDER}/tmp; fi
+if [ ${PILEUP_ONLY} = True ]; then
+    if [ ${RM_TMP_DIR} = True ]; then echo "[INFO] Removing intermediate files in ${OUTPUT_FOLDER}/tmp"; rm -rf ${OUTPUT_FOLDER}/tmp; fi
     echo "[INFO] Only call pileup output with --pileup_only, output file: ${OUTPUT_FOLDER}/pileup.vcf.gz"
     echo "[INFO] Finish calling!"
     exit 0;
@@ -215,7 +254,7 @@ fi
 
 # Whatshap phasing and haplotaging
 #-----------------------------------------------------------------------------------------------------------------------
-if [ ${NO_PHASING} == True ]
+if [ ${NO_PHASING} = True ]
 then
     echo "[INFO] 2/7 No phasing for full alignment calling"
     ${PARALLEL} -j${THREADS} ln -sf ${BAM_FILE_PATH} ${PHASE_BAM_PATH}/{1}.bam ::: ${CHR[@]}
@@ -233,7 +272,7 @@ else
     ${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_2_select_hetero_snp.log
 
     echo $''
-    if [ ${USE_LONGPHASE} == True ]
+    if [ ${USE_LONGPHASE} = True ]
     then
         echo "[INFO] 3/7 Phase VCF file using LongPhase"
         time ${PARALLEL}  --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_3_phase.log -j${THREADS} \
@@ -283,29 +322,59 @@ echo $''
 echo "[INFO] 6/7 Call low-quality variants using full-alignment model"
 if [ "$( ls ${CANDIDATE_BED_PATH}/FULL_ALN_FILE_* | wc -l )" -eq 0 ]; then echo "[INFO] No Candidate found! Exit in selecting full-alignment candidates"; exit 0; fi
 cat ${CANDIDATE_BED_PATH}/FULL_ALN_FILE_* > ${CANDIDATE_BED_PATH}/FULL_ALN_FILES
-time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log -j ${THREADS_LOW} \
-"${PYTHON} ${CLAIR3} CallVariantsFromCffi \
-    --chkpnt_fn ${FULL_ALIGNMENT_CHECKPOINT_PATH} \
-    --bam_fn ${BAM_FILE_PATH} \
-    --call_fn ${FULL_ALIGNMENT_OUTPUT_PATH}/full_alignment_{1/}.vcf \
-    --sampleName ${SAMPLE} \
-    --vcf_fn ${VCF_FILE_PATH} \
-    --ref_fn ${REFERENCE_FILE_PATH} \
-    --full_aln_regions {1} \
-    --ctgName {1/.} \
-    --add_indel_length \
-    --no_phasing_for_fa ${NO_PHASING} \
-    --minMQ ${MIN_MQ} \
-    --minCoverage ${MIN_COV} \
-    --phased_vcf_fn ${PHASE_VCF_PATH}/phased_{/.}.vcf.gz \
-    --gvcf ${GVCF} \
-    --enable_long_indel ${ENABLE_LONG_INDEL} \
-    --samtools ${SAMTOOLS} \
-    --use_gpu ${USE_GPU} \
-    --keep_iupac_bases ${KEEP_IUPAC_BASES} \
-    --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
-    --platform ${PLATFORM}" :::: ${CANDIDATE_BED_PATH}/FULL_ALN_FILES |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
-${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log
+if [ ${USE_GPU} != True ]; then
+  time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log -j ${THREADS_LOW} \
+  "${PYTHON} ${CLAIR3} CallVariantsFromCffi \
+      --chkpnt_fn ${FULL_ALIGNMENT_CHECKPOINT_PATH} \
+      --bam_fn ${BAM_FILE_PATH} \
+      --call_fn ${FULL_ALIGNMENT_OUTPUT_PATH}/full_alignment_{1/}.vcf \
+      --sampleName ${SAMPLE} \
+      --vcf_fn ${VCF_FILE_PATH} \
+      --ref_fn ${REFERENCE_FILE_PATH} \
+      --full_aln_regions {1} \
+      --ctgName {1/.} \
+      --add_indel_length \
+      --no_phasing_for_fa ${NO_PHASING} \
+      --minMQ ${MIN_MQ} \
+      --minCoverage ${MIN_COV} \
+      --phased_vcf_fn ${PHASE_VCF_PATH}/phased_{/.}.vcf.gz \
+      --gvcf ${GVCF} \
+      --enable_long_indel ${ENABLE_LONG_INDEL} \
+      --samtools ${SAMTOOLS} \
+      --use_gpu ${USE_GPU} \
+      --keep_iupac_bases ${KEEP_IUPAC_BASES} \
+      --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
+      --platform ${PLATFORM}" :::: ${CANDIDATE_BED_PATH}/FULL_ALN_FILES |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
+  ${PYPY} ${CLAIR3} CheckExitCode --parallel_log_fn ${LOG_PATH}/parallel_6_call_var_bam_full_alignment.log
+else
+  (time ${PYTHON} ${CLAIR3} CallVariantsFromCffiGPU \
+      --chkpnt_fn ${FULL_ALIGNMENT_CHECKPOINT_PATH} \
+      --bam_fn ${BAM_FILE_PATH} \
+      --call_fn ${FULL_ALIGNMENT_OUTPUT_PATH} \
+      --sampleName ${SAMPLE} \
+      --vcf_fn ${VCF_FILE_PATH} \
+      --ref_fn ${REFERENCE_FILE_PATH} \
+      --add_indel_length \
+      --no_phasing_for_fa ${NO_PHASING} \
+      --minMQ ${MIN_MQ} \
+      --minCoverage ${MIN_COV} \
+      --phased_vcf_fn ${PHASE_VCF_PATH} \
+      --gvcf ${GVCF} \
+      --enable_long_indel ${ENABLE_LONG_INDEL} \
+      --samtools ${SAMTOOLS} \
+      --use_gpu ${USE_GPU} \
+      --keep_iupac_bases ${KEEP_IUPAC_BASES} \
+      --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
+      --cpu_threads ${THREADS} \
+      --platform ${PLATFORM} \
+      --output_dir ${OUTPUT_FOLDER} \
+      --python ${PYTHON} \
+      --parallel ${PARALLEL} \
+      --pypy ${PYPY} \
+      --internal_threads ${INTERNAL_THREADS} \
+      --device ${DEVICE} \
+      --full_aln_files ${CANDIDATE_BED_PATH}/FULL_ALN_FILES ) |& tee ${LOG_PATH}/6_call_var_bam_full_alignment.log
+fi
 
 ${PYPY} ${CLAIR3} SortVcf \
     --input_dir ${FULL_ALIGNMENT_OUTPUT_PATH} \
@@ -314,11 +383,12 @@ ${PYPY} ${CLAIR3} SortVcf \
     --sampleName ${SAMPLE} \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
+    --use_gpu ${USE_GPU} \
     --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
 if [ "$( gzip -fdc ${OUTPUT_FOLDER}/full_alignment.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in full-alignment variant calling"; exit 0; fi
 # Compress GVCF output using lz4
-if [ ${GVCF} == True ]
+if [ ${GVCF} = True ]
 then
     ${PYPY} ${CLAIR3} SortVcf \
         --input_dir ${GVCF_TMP_PATH} \
@@ -362,7 +432,7 @@ ${PYPY} ${CLAIR3} SortVcf \
     --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
 if [ "$( gzip -fdc ${OUTPUT_FOLDER}/merge_output.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in variant merging"; exit 0; fi
-if [ ${GVCF} == True ]
+if [ ${GVCF} = True ]
 then
     ${PYPY} ${CLAIR3} SortVcf \
         --input_dir ${TMP_FILE_PATH}/merge_output \
@@ -376,7 +446,7 @@ then
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 fi
 
-if [ ${FINAL_WH_PHASING} == True ]
+if [ ${FINAL_WH_PHASING} = True ]
 then
     echo "[INFO] 7/7 Phasing VCF output in parallel using WhatsHap"
     time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_8_phase_vcf_output.log -j${THREADS} \
@@ -396,7 +466,7 @@ then
         --ref_fn ${REFERENCE_FILE_PATH} \
         --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
-elif [ ${FINAL_LP_PHASING} == True ]
+elif [ ${FINAL_LP_PHASING} = True ]
 then
     echo "[INFO] 7/7 Phasing VCF output in parallel using LongPhase"
     time ${PARALLEL}  --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_8_phase_vcf_output.log -j${THREADS} \
@@ -419,7 +489,7 @@ then
         --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 fi
 
-if [ ${FINAL_WH_HAPLOTAG} == True ]
+if [ ${FINAL_WH_HAPLOTAG} = True ]
 then
     echo $''
     echo "[INFO] 4/7 Haplotag input BAM file using Whatshap, need some time to finish!"
@@ -441,10 +511,10 @@ if [ "${VCF_FILE_PATH}" != "EMPTY" ]; then
         --output_fn ${OUTPUT_FOLDER}/merge_output.vcf
 fi
 
-if [ ${RM_TMP_DIR} == True ]; then echo "[INFO] Removing intermediate files in ${OUTPUT_FOLDER}/tmp"; rm -rf ${OUTPUT_FOLDER}/tmp; fi
+if [ ${RM_TMP_DIR} = True ]; then echo "[INFO] Removing intermediate files in ${OUTPUT_FOLDER}/tmp"; rm -rf ${OUTPUT_FOLDER}/tmp; fi
 
 echo $''
 echo "[INFO] Finish calling, output file: ${OUTPUT_FOLDER}/merge_output.vcf.gz"
 
-if [ ${FINAL_WH_PHASING} == True ]; then echo "[INFO] Finish calling, phased output file: ${OUTPUT_FOLDER}/phased_merge_output.vcf.gz"; fi
-if [ ${FINAL_WH_HAPLOTAG} == True ]; then echo "[INFO] Finish calling, phased output BAM file: ${OUTPUT_FOLDER}/phased_output.bam"; fi
+if [ ${FINAL_WH_PHASING} = True ]; then echo "[INFO] Finish calling, phased output file: ${OUTPUT_FOLDER}/phased_merge_output.vcf.gz"; fi
+if [ ${FINAL_WH_HAPLOTAG} = True ]; then echo "[INFO] Finish calling, phased output BAM file: ${OUTPUT_FOLDER}/phased_output.bam"; fi

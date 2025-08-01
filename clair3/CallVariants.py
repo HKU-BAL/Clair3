@@ -221,6 +221,36 @@ def Run(args):
     else:
         call_variants(args=args, output_config=output_config, output_utilities=output_utilities)
 
+def print_debug_message(
+        chromosome,
+        position,
+        gt21_probabilities,
+        genotype_probabilities,
+        variant_length_probabilities_1,
+        variant_length_probabilities_2,
+        extra_infomation_string=""
+):
+    print("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
+        chromosome,
+        position,
+        ["{:0.8f}".format(x) for x in gt21_probabilities],
+        ["{:0.8f}".format(x) for x in genotype_probabilities],
+        ["{:0.8f}".format(x) for x in variant_length_probabilities_1],
+        ["{:0.8f}".format(x) for x in variant_length_probabilities_2],
+        extra_infomation_string
+    ))
+
+def gen_output_file():
+    return
+
+def close_opened_files():
+    return
+def output_header(reference_file_path,
+                  cmd_fn,
+                  sample_name):
+    header_str = get_header(reference_file_path=reference_file_path, cmd_fn=cmd_fn, sample_name=sample_name)
+    return
+
 
 def output_utilties_from(
         sample_name,
@@ -231,52 +261,8 @@ def output_utilties_from(
         output_probabilities,
         cmd_fn=None,
 ):
-    def gen_output_file():
-        global output_file
-        if not output_probabilities:
-            output_file = open(output_file_path, "w")
-
-    def output(string_value):
-        global output_file
-        string_value += '\n'
-        output_file.write(string_value)
-
-    def print_debug_message(
-            chromosome,
-            position,
-            gt21_probabilities,
-            genotype_probabilities,
-            variant_length_probabilities_1,
-            variant_length_probabilities_2,
-            extra_infomation_string=""
-    ):
-        output("{}\t{}\t{}\t{}\t{}\t{}\t{}".format(
-            chromosome,
-            position,
-            ["{:0.8f}".format(x) for x in gt21_probabilities],
-            ["{:0.8f}".format(x) for x in genotype_probabilities],
-            ["{:0.8f}".format(x) for x in variant_length_probabilities_1],
-            ["{:0.8f}".format(x) for x in variant_length_probabilities_2],
-            extra_infomation_string
-        ))
-
-    def close_opened_files():
-        output_file.close()
-
-    def output_header():
-        if is_output_for_ensemble:
-            return
-
-        header_str = get_header(reference_file_path=reference_file_path, cmd_fn=cmd_fn, sample_name=sample_name)
-        output(header_str)
-
-    return OutputUtilities(
-        print_debug_message,
-        output,
-        output_header,
-        close_opened_files,
-        gen_output_file
-    )
+    #deprecated since v1.2.0
+    return
 
 
 def homo_Ins_tuples_from(variant_length_probabilities_1, variant_length_probabilities_2, extra_probability):
@@ -1045,7 +1031,7 @@ def batch_output_for_ensemble(X, batch_chr_pos_seq, alt_info_list, batch_Y, outp
         )
 
 
-def batch_output(batch_chr_pos_seq, alt_info_list, batch_Y, output_config, output_utilities):
+def batch_output(batch_chr_pos_seq, alt_info_list, batch_Y, output_config, output_utilities, args=None):
     batch_size = len(batch_chr_pos_seq)
 
     batch_gt21_probabilities, batch_genotype_probabilities = batch_Y[:,:param.label_shape_cum[0]], batch_Y[:,param.label_shape_cum[0]:param.label_shape_cum[1]]
@@ -1056,6 +1042,7 @@ def batch_output(batch_chr_pos_seq, alt_info_list, batch_Y, output_config, outpu
         )
     batch_variant_length_probabilities_1, batch_variant_length_probabilities_2 = [0] * batch_size, [0] * batch_size
 
+    batch_output_result = ""
     if output_config.add_indel_length:
         batch_variant_length_probabilities_1, batch_variant_length_probabilities_2 = batch_Y[:,param.label_shape_cum[1]:param.label_shape_cum[2]], batch_Y[:,param.label_shape_cum[2]:param.label_shape_cum[3]]
     for (
@@ -1073,7 +1060,7 @@ def batch_output(batch_chr_pos_seq, alt_info_list, batch_Y, output_config, outpu
         batch_variant_length_probabilities_1,
         batch_variant_length_probabilities_2
     ):
-        output_with(
+        output_row = output_with(
             chr_pos_seq,
             alt_info,
             gt21_probabilities,
@@ -1084,6 +1071,14 @@ def batch_output(batch_chr_pos_seq, alt_info_list, batch_Y, output_config, outpu
             output_utilities,
         )
 
+        if output_row is not None:
+            if args is not None:
+                args.output_file.write(output_row)
+            else:
+                #store the vcf output in batch in gpu mode
+                batch_output_result += output_row
+
+    return batch_output_result
 
 def output_with(
         chr_pos_seq,
@@ -1332,7 +1327,7 @@ def output_with(
                                  alternate_base)
             PLs = ','.join([str(x) for x in PLs])
 
-            output_utilities.output("%s\t%d\t.\t%s\t%s\t%.2f\t%s\t%s\tGT:GQ:DP:AD:AF:PL\t%s:%d:%d:%s:%s:%s" % (
+            return "%s\t%d\t.\t%s\t%s\t%.2f\t%s\t%s\tGT:GQ:DP:AD:AF:PL\t%s:%d:%d:%s:%s:%s\n" % (
                     chromosome,
                     position,
                     reference_base,
@@ -1346,9 +1341,9 @@ def output_with(
                     allele_depth,
                     allele_frequency_s,
                     PLs
-                ))
+                )
         else:
-            output_utilities.output("%s\t%d\t.\t%s\t%s\t%.2f\t%s\t%s\tGT:GQ:DP:AD:AF\t%s:%d:%d:%s:%s" % (
+            return "%s\t%d\t.\t%s\t%s\t%.2f\t%s\t%s\tGT:GQ:DP:AD:AF\t%s:%d:%d:%s:%s\n" % (
                 chromosome,
                 position,
                 reference_base,
@@ -1361,7 +1356,7 @@ def output_with(
                 read_depth,
                 allele_depth,
                 allele_frequency_s,
-            ))
+            )
 
 
 def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, reference_base, alternate_base):
@@ -1443,8 +1438,11 @@ def call_variants(args, output_config, output_utilities):
 
     m.load_weights(args.chkpnt_fn)
 
-    output_utilities.gen_output_file()
-    output_utilities.output_header()
+    args.output_file = open(args.call_fn, 'w') if args.call_fn != 'PIPE' else sys.stdout
+    header_str = get_header(reference_file_path=args.ref_fn, cmd_fn=args.cmd_fn, sample_name=args.sampleName)
+    header_str += '\n'
+    args.output_file.write(header_str)
+
     chunk_id = args.chunk_id - 1 if args.chunk_id else None  # 1-base to 0-base
     chunk_num = args.chunk_num
     full_alignment_mode = not args.pileup
@@ -1478,7 +1476,7 @@ def call_variants(args, output_config, output_utilities):
                     total += len(X)
                     thread_pool.append(Thread(
                         target=batch_output_method,
-                        args=(position, alt_info_list, prediction, output_config, output_utilities)
+                        args=(position, alt_info_list, prediction, output_config, output_utilities, args)
                     ))
 
                 if not is_finish_loaded_all_mini_batches:
@@ -1561,7 +1559,7 @@ def call_variants(args, output_config, output_utilities):
 
     logging.info("Total time elapsed: %.2f s" % (time() - variant_call_start_time))
 
-    output_utilities.close_opened_files()
+    args.output_file.close()
     # remove file if on variant in output
     if os.path.exists(args.call_fn):
         for row in open(args.call_fn, 'r'):

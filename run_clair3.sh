@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 SCRIPT_NAME=$(basename "$0")
 SCRIPT_PATH=$(dirname $(readlink -f "$0"))
-VERSION='v1.1.2'
+VERSION='v1.2.0'
 Usage="Usage: ${SCRIPT_NAME} --bam_fn=BAM --ref_fn=REF --output=OUTPUT_DIR --threads=THREADS --platform=PLATFORM --model_path=MODEL_PREFIX [--bed_fn=BED] [options]"
 
 CMD="$0 $@"
@@ -92,7 +92,7 @@ NC="\\033[0m"
 
 ARGS=`getopt -o b:f:t:m:p:o:hv \
 -l bam_fn:,ref_fn:,threads:,model_path:,platform:,output:,\
-bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,longphase::,\
+bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,longphase::,device::,\
 min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,base_err::,gq_bin_size::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
 use_whatshap_for_intermediate_phasing,use_longphase_for_intermediate_phasing,use_whatshap_for_final_output_phasing,use_longphase_for_final_output_phasing,use_whatshap_for_final_output_haplotagging,keep_iupac_bases,\
 remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_variant_calling_at_sequence_head_and_tail,output_all_contigs_in_gvcf_header,enable_phasing,enable_long_indel,use_gpu,longphase_for_phasing,disable_c_impl,help,version -n 'run_clair3.sh' -- "$@"`
@@ -142,6 +142,7 @@ FINAL_WH_PHASING=False
 FINAL_WH_HAPLOTAG=False
 KEEP_IUPAC_BASES=False
 USE_GPU=False
+DEVICE="EMPTY"
 USE_LONGPHASE=False
 ENABLE_C_IMPL=True
 CALL_HT=False
@@ -203,6 +204,7 @@ while true; do
     --enable_long_indel ) ENABLE_LONG_INDEL=True; shift 1 ;;
     --keep_iupac_bases ) KEEP_IUPAC_BASES=True; shift 1 ;;
     --use_gpu ) USE_GPU=True; shift 1 ;;
+    --device ) DEVICE="$2"; shift 2 ;;
     --longphase_for_phasing ) USE_LONGPHASE=True; shift 1 ;;
     --disable_c_impl ) ENABLE_C_IMPL=False; shift 1 ;;
 
@@ -264,11 +266,11 @@ BASE_MODEL=$(basename ${MODEL_PATH})
 if [ "${BASE_MODEL}" = "r941_prom_sup_g5014" ] || [ "${BASE_MODEL}" = "r941_prom_hac_g5014" ] || [ "${BASE_MODEL}" = "ont_guppy5" ]; then PHASING_PCT=0.8; fi
 
 # use the default longphase binary path
-if ([ "${USE_LONGPHASE}" == True ] || [ "${FINAL_LP_PHASING}" == True ]) && [ "${LONGPHASE}" == "EMPTY" ]; then LONGPHASE="${SCRIPT_PATH}/longphase"; fi
-if ([ "${USE_LONGPHASE}" == True ] || [ "${FINAL_LP_PHASING}" == True ]) && [ ! -f ${LONGPHASE} ]; then echo -e "${ERROR} Cannot find LongPhase path in ${LONGPHASE}, exit!${NC}"; exit 1; fi
-if ([ "${USE_LONGPHASE}" == True ] || [ "${FINAL_LP_PHASING}" == True ]) && [ "${PLATFORM}" = "ilmn" ]; then echo -e "${WARNING} Illumina platform do not support longphase phasing, will enable whatshap phasing! ${NC}";  USE_LONGPHASE=False; fi
+if ([ "${USE_LONGPHASE}" = True ] || [ "${FINAL_LP_PHASING}" = True ]) && [ "${LONGPHASE}" = "EMPTY" ]; then LONGPHASE="${SCRIPT_PATH}/longphase"; fi
+if ([ "${USE_LONGPHASE}" = True ] || [ "${FINAL_LP_PHASING}" = True ]) && [ ! -f ${LONGPHASE} ]; then echo -e "${ERROR} Cannot find LongPhase path in ${LONGPHASE}, exit!${NC}"; exit 1; fi
+if ([ "${USE_LONGPHASE}" = True ] || [ "${FINAL_LP_PHASING}" = True ]) && [ "${PLATFORM}" = "ilmn" ]; then echo -e "${WARNING} Illumina platform do not support longphase phasing, will enable whatshap phasing! ${NC}";  USE_LONGPHASE=False; fi
 
-if [ "${FINAL_WH_HAPLOTAG}" == True ] && [ "${FINAL_WH_PHASING}" == False ] && [ "${FINAL_LP_PHASING}" == False ]; then FINAL_WH_PHASING=True; fi
+if [ "${FINAL_WH_HAPLOTAG}" = True ] && [ "${FINAL_WH_PHASING}" = False ] && [ "${FINAL_LP_PHASING}" = False ]; then FINAL_WH_PHASING=True; fi
 
 # remove the last '/' character in directory input
 OUTPUT_FOLDER=$(echo ${OUTPUT_FOLDER%*/})
@@ -321,6 +323,9 @@ echo "[INFO] ENABLE PHASING FINAL VCF OUTPUT USING LONGPHASE: ${FINAL_LP_PHASING
 echo "[INFO] ENABLE HAPLOTAGGING FINAL BAM: ${FINAL_WH_HAPLOTAG}"
 echo "[INFO] ENABLE LONG INDEL CALLING: ${ENABLE_LONG_INDEL}"
 echo "[INFO] ENABLE C_IMPLEMENT: ${ENABLE_C_IMPL}"
+if [ "${USE_GPU}" != "False" ]; then echo "[INFO] USE GPU: ${USE_GPU}"; fi
+if [ "${DEVICE}" != "EMPTY" ]; then echo "[INFO] GPU DEVICE: ${DEVICE}"; fi
+
 echo $''
 
 # file check
@@ -376,6 +381,7 @@ if [ -z ${MIN_CONTIG_SIZE} ]; then echo -e "${ERROR} Use '--min_contig_size=INT'
 if [ -z ${LONGPHASE} ]; then echo -e "${ERROR} Use '--longphase=STR' instead of '--longphase STR' for optional parameters${NC}"; exit 1 ; fi
 if [ -z ${BASE_ERR} ]; then echo -e "${ERROR} Use '--base_err=FLOAT' instead of '--base_err FLOAT' for optional parameters${NC}"; exit 1 ; fi
 if [ -z ${GQ_BIN_SIZE} ]; then echo -e "${ERROR} Use '--gq_bin_size=INT' instead of '--gq_bin_size INT' for optional parameters${NC}"; exit 1 ; fi
+if [ -z ${DEVICE} ]; then echo -e "${ERROR} Use '--device=STR' instead of '--device STR' for optional parameters${NC}"; exit 1 ; fi
 
 # min mapping quality, min coverage and min contig size detection
 if [[ ! ${THREADS} =~ ^[\-0-9]+$ ]] || (( ${THREADS} <= 0)); then echo -e "${ERROR} Invalid threads input --threads=INT ${NC}"; exit 1; fi
@@ -392,8 +398,9 @@ if [ ! -f ${MODEL_PATH}/${PILEUP_PREFIX}.index ]; then echo -e "${ERROR} No pile
 if [ ! -f ${MODEL_PATH}/${FA_PREFIX}.index ]; then echo -e "${ERROR} No full-alignment model found in provided model path and model prefix ${MODEL_PATH}/${FA_PREFIX} ${NC}"; exit 1; fi
 
 CLAIR3_SCRIPT="clair3.sh"
-if [ "${ENABLE_C_IMPL}" == True ] && [ "${PLATFORM}" = "ilmn" ]; then echo -e "${WARNING} Illumina platform will disable C implement to support short read realignment process! ${NC}";  ENABLE_C_IMPL=False; fi
-if [ "${ENABLE_C_IMPL}" == True ]; then CLAIR3_SCRIPT="clair3_c_impl.sh"; fi
+if [ "${ENABLE_C_IMPL}" = True ] && [ "${PLATFORM}" = "ilmn" ]; then echo -e "${WARNING} Illumina platform will disable C implement to support short read realignment process! ${NC}";  ENABLE_C_IMPL=False; fi
+if [ "${ENABLE_C_IMPL}" = True ]; then CLAIR3_SCRIPT="clair3_c_impl.sh"; fi
+if [ "${ENABLE_C_IMPL}" != True ] && [ "${USE_GPU}" = True ]; then echo -e "${WARNING} GPU calling only support C implement for speedup! ${NC}";  USE_GPU=False; fi
 
 # keep command line info., for vcf header
 mkdir -p ${OUTPUT_FOLDER}/tmp
@@ -447,6 +454,7 @@ ${SHELL_ENTRY} ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --enable_long_indel=${ENABLE_LONG_INDEL} \
     --keep_iupac_bases=${KEEP_IUPAC_BASES} \
     --use_gpu=${USE_GPU} \
+    --device=${DEVICE} \
     --longphase_for_phasing=${USE_LONGPHASE} \
     --longphase=${LONGPHASE} \
     --use_whatshap_for_intermediate_phasing=${TMP_WH_PHASING} \

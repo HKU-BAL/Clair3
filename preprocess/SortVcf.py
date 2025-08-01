@@ -47,11 +47,15 @@ def check_header_in_gvcf(header, contigs_list):
 
     return update_header
 
-def check_malformed_records(row, contig, file, check_header=False):
+def check_malformed_records(row, file, contig=None, check_header=False, sample_name=None):
     if check_header:
         if row.startswith("#CHROM") and len(row.split('\t')) != 10:
             print(log_warning("[WARNING] Malformed header line:\n {} in {}, split into two lines").format(row, file))
-            chr_pos = row.find(contig)
+            if sample_name is not None:
+                # add sample name to the header
+                chr_pos = row.find(sample_name) + len(sample_name)
+            else:
+                chr_pos = row.find(contig)
             header_row = row[:chr_pos] + '\n'
             vcf_record_row = row[chr_pos:]
             if len(vcf_record_row.split('\t')) > 10:
@@ -203,9 +207,82 @@ def sort_vcf_from(args):
     else:
         output = open(output_fn, 'w')
 
-    for contig in contigs_order_list:
-        contig_dict = defaultdict(str)
-        contig_vcf_fns = [fn for fn in all_files if contig in fn]
+    if not args.use_gpu:
+        for contig in contigs_order_list:
+            contig_dict = defaultdict(str)
+            contig_vcf_fns = [fn for fn in all_files if contig in fn]
+            for vcf_fn in contig_vcf_fns:
+                file = os.path.join(input_dir, vcf_fn)
+                if is_lz4_format:
+                    read_proc = subprocess_popen(shlex.split("{} {}".format("lz4 -fdc", file)),
+                                                 stderr=subprocess.DEVNULL)
+                    fn = read_proc.stdout
+                else:
+                    fn = open(file, 'r')
+                for row in fn:
+                    row_count += 1
+                    if row[0] == '#':
+                        # skip phasing command line only occur with --enable_phasing, otherwise would lead to hap.py evaluation failure
+                        if row.startswith('##commandline='):
+                            continue
+                        if args.check_malformed_records:
+                            row, vcf_record_row = check_malformed_records(row=row, contig=contig, file=file,
+                                                                          check_header=True)
+                            if row is None:
+                                continue
+                            elif vcf_record_row is not None:
+                                contig_dict[int(vcf_record_row.split(maxsplit=3)[1])] = vcf_record_row
+                        if row not in header:
+                            header.append(row)
+                        continue
+                    # use the first vcf header
+                    columns = row.strip().split(maxsplit=3)
+                    ctg_name, pos = columns[0], columns[1]
+                    # skip vcf file sharing same contig prefix, ie, chr1 and chr11
+                    if ctg_name != contig:
+                        break
+                    if args.check_malformed_records:
+                        row, second_row = check_malformed_records(row=row, contig=contig, file=file)
+                        if second_row is not None:
+                            contig_dict[int(second_row.split(maxsplit=3)[1])] = second_row
+                    if row is None or row == "":
+                        continue
+                    contig_dict[int(pos)] = row
+                    no_vcf_output = False
+                fn.close()
+                if is_lz4_format:
+                    read_proc.wait()
+            if need_write_header and len(header):
+                # add cmdline for gvcf
+                if "##cmdline" not in '\n'.join(header) and os.path.exists(cmd_fn):
+                    cmdline_str = ""
+                    if cmd_fn is not None and os.path.exists(cmd_fn):
+                        cmd_line = open(cmd_fn).read().rstrip()
+
+                        if cmd_line is not None and len(cmd_line) > 0:
+                            cmdline_str = "##cmdline={}\n".format(cmd_line)
+                    if cmdline_str != "":
+                        insert_index = 3 if len(header) >= 3 else len(header) - 1
+                        header.insert(insert_index, cmdline_str)
+
+                if output_bgzip_gvcf and not output_all_contigs_in_gvcf_header:
+                    header = check_header_in_gvcf(header=header, contigs_list=all_contigs_list)
+
+                output.write(''.join(header))
+                need_write_header = False
+            all_pos = sorted(contig_dict.keys())
+            for pos in all_pos:
+                if args.pileup_only:
+                    row = contig_dict[pos]
+                    row = postprocess_row_with_params(args, row)
+                    if row is not None:
+                        output.write(contig_dict[pos])
+                else:
+                    output.write(contig_dict[pos])
+    else:
+        # the vcfs are unsorted among contigs
+        all_contigs_dict = defaultdict(defaultdict)
+        contig_vcf_fns = all_files
         for vcf_fn in contig_vcf_fns:
             file = os.path.join(input_dir, vcf_fn)
             if is_lz4_format:
@@ -220,11 +297,11 @@ def sort_vcf_from(args):
                     if row.startswith('##commandline='):
                         continue
                     if args.check_malformed_records:
-                        row, vcf_record_row = check_malformed_records(row=row, contig=contig, file=file, check_header=True)
+                        row, vcf_record_row = check_malformed_records(row=row, file=file, check_header=True, sample_name=args.sampleName)
                         if row is None:
                             continue
                         elif vcf_record_row is not None:
-                            contig_dict[int(vcf_record_row.split(maxsplit=3)[1])] = vcf_record_row
+                            all_contigs_dict[vcf_record_row.split(maxsplit=3)[0]][int(vcf_record_row.split(maxsplit=3)[1])] = vcf_record_row
                     if row not in header:
                         header.append(row)
                     continue
@@ -232,15 +309,15 @@ def sort_vcf_from(args):
                 columns = row.strip().split(maxsplit=3)
                 ctg_name, pos = columns[0], columns[1]
                 # skip vcf file sharing same contig prefix, ie, chr1 and chr11
-                if ctg_name != contig:
-                    break
+                # if ctg_name != contig:
+                #     break
                 if args.check_malformed_records:
-                    row, second_row = check_malformed_records(row=row, contig=contig, file=file)
+                    row, second_row = check_malformed_records(row=row, contig=ctg_name, file=file, sample_name=args.sampleName)
                     if second_row is not None:
-                        contig_dict[int(second_row.split(maxsplit=3)[1])] = second_row
+                        all_contigs_dict[ctg_name][int(second_row.split(maxsplit=3)[1])] = second_row
                 if row is None or row == "":
                     continue
-                contig_dict[int(pos)] = row
+                all_contigs_dict[ctg_name][int(pos)] = row
                 no_vcf_output = False
             fn.close()
             if is_lz4_format:
@@ -263,15 +340,17 @@ def sort_vcf_from(args):
 
             output.write(''.join(header))
             need_write_header = False
-        all_pos = sorted(contig_dict.keys())
-        for pos in all_pos:
-            if args.pileup_only:
-                row = contig_dict[pos]
-                row = postprocess_row_with_params(args, row)
-                if row is not None:
-                    output.write(contig_dict[pos])
-            else:
-                output.write(contig_dict[pos])
+
+        for contig in contigs_order_list:
+            all_pos = sorted(all_contigs_dict[contig].keys())
+            for pos in all_pos:
+                if args.pileup_only:
+                    row = all_contigs_dict[contig][pos]
+                    row = postprocess_row_with_params(args, row)
+                    if row is not None:
+                        output.write(row)
+                else:
+                    output.write(all_contigs_dict[contig][pos])
 
     if compress_gvcf_output:
         write_proc.stdin.close()
@@ -351,6 +430,9 @@ def main():
 
     parser.add_argument('--output_all_contigs_in_gvcf_header', type=str2bool, default=False,
                         help="EXPERIMENTAL: Enable output all contigs in gvcf header. Default: disable")
+
+    parser.add_argument('--use_gpu', type=str2bool, default=False,
+                        help="Use GPU for variant calling. Default: disable")
 
     args = parser.parse_args()
     if args.input_dir is None:

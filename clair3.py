@@ -11,7 +11,8 @@ deep_learning_folder = [
     "CallVarBam",
     "CallVariants",
     "Train",
-    "CallVariantsFromCffi"
+    "CallVariantsFromCffi",
+    "CallVariantsFromCffiGPU",
 ]
 
 data_preprocess_folder = [
@@ -30,7 +31,7 @@ data_preprocess_folder = [
     'CheckEnvs',
     'SortVcf',
     'SelectQual',
-    "CreateTensorPileupFromCffi"
+    "CreateTensorPileupFromCffi",
     "CreateTensorFullAlignmentFromCffi",
     "CheckExitCode",
 ]
