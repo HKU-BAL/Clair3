@@ -1,0 +1,223 @@
+[INFO] CLAIR3 VERSION: v1.2.0
+[INFO] BAM FILE PATH: /autofs/bal19/xyu/ont_open_data/HG001/hac_calls/downsample/HG001_30x.bam
+[INFO] REFERENCE FILE PATH: /autofs/bal19/zxzheng/testData/ont/data/GRCh38_no_alt_analysis_set.fasta
+[INFO] MODEL PATH: /autofs/nas5/xyu2/projects/Clair3_mv/hg002_hac/model
+[INFO] OUTPUT FOLDER: /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf
+[INFO] PLATFORM: ont
+[INFO] THREADS: 60
+[INFO] BED FILE PATH: EMPTY
+[INFO] VCF FILE PATH: EMPTY
+[INFO] CONTIGS: chr20
+[INFO] CONDA PREFIX: /autofs/bal19/zxzheng/env/conda/envs/mamba/envs/somatic
+[INFO] SAMTOOLS PATH: /autofs/bal33/zxzheng/env/conda/envs/clair-somatic/bin/samtools
+[INFO] PYTHON PATH: /autofs/bal19/zxzheng/env/conda/envs/mamba/envs/somatic/bin/python3
+[INFO] PYPY PATH: /autofs/bal33/zxzheng/env/conda/envs/clair-somatic/bin/pypy3
+[INFO] PARALLEL PATH: /autofs/bal33/zxzheng/env/conda/envs/clair-somatic/bin/parallel
+[INFO] WHATSHAP PATH: /autofs/bal33/zxzheng/env/conda/envs/clair-somatic/bin/whatshap
+[INFO] LONGPHASE PATH: EMPTY
+[INFO] CHUNK SIZE: 5000000
+[INFO] FULL ALIGN PROPORTION: 0.7
+[INFO] FULL ALIGN REFERENCE PROPORTION: 0.1
+[INFO] PHASING PROPORTION: 0.7
+[INFO] MINIMUM MQ: 5
+[INFO] MINIMUM COVERAGE: 2
+[INFO] SNP AF THRESHOLD: 0.08
+[INFO] INDEL AF THRESHOLD: 0.15
+[INFO] BASE ERROR IN GVCF: 0.001
+[INFO] GQ BIN SIZE IN GVCF: 5
+[INFO] ENABLE FILEUP ONLY CALLING: False
+[INFO] ENABLE FAST MODE CALLING: False
+[INFO] ENABLE CALLING SNP CANDIDATES ONLY: False
+[INFO] ENABLE PRINTING REFERENCE CALLS: False
+[INFO] ENABLE OUTPUT GVCF: False
+[INFO] ENABLE HAPLOID PRECISE MODE: False
+[INFO] ENABLE HAPLOID SENSITIVE MODE: False
+[INFO] ENABLE INCLUDE ALL CTGS CALLING: False
+[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: False
+[INFO] ENABLE REMOVING INTERMEDIATE FILES: False
+[INFO] ENABLE LONGPHASE FOR INTERMEDIATE VCF PHASING: False
+[INFO] ENABLE PHASING FINAL VCF OUTPUT USING WHATSHAP: False
+[INFO] ENABLE PHASING FINAL VCF OUTPUT USING LONGPHASE: False
+[INFO] ENABLE HAPLOTAGGING FINAL BAM: False
+[INFO] ENABLE LONG INDEL CALLING: False
+[INFO] ENABLE C_IMPLEMENT: True
+[INFO] ENABLE DWELL TIME: True
+
++ /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2/scripts/clair3_c_impl.sh --bam_fn /autofs/bal19/xyu/ont_open_data/HG001/hac_calls/downsample/HG001_30x.bam --ref_fn /autofs/bal19/zxzheng/testData/ont/data/GRCh38_no_alt_analysis_set.fasta --threads 60 --model_path /autofs/nas5/xyu2/projects/Clair3_mv/hg002_hac/model --platform ont --output /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf --bed_fn=EMPTY --vcf_fn=EMPTY --ctg_name=chr20 --sample_name=SAMPLE --chunk_num=0 --chunk_size=5000000 --samtools=/autofs/bal33/zxzheng/env/conda/envs/clair-somatic/bin/samtools --python=/autofs/bal19/zxzheng/env/conda/envs/mamba/envs/somatic/bin/python3 --pypy=/autofs/bal33/zxzheng/env/conda/envs/clair-somatic/bin/pypy3 --parallel=/autofs/bal33/zxzheng/env/conda/envs/clair-somatic/bin/parallel --whatshap=/autofs/bal33/zxzheng/env/conda/envs/clair-somatic/bin/whatshap --qual=2 --var_pct_full=0.7 --ref_pct_full=0.1 --var_pct_phasing=0.7 --snp_min_af=0.08 --indel_min_af=0.15 --min_mq=5 --min_coverage=2 --min_contig_size=0 --pileup_only=False --gvcf=False --base_err=0.001 --gq_bin_size=5 --fast_mode=False --call_snp_only=False --enable_variant_calling_at_sequence_head_and_tail=False --output_all_contigs_in_gvcf_header=False --print_ref_calls=False --haploid_precise=False --haploid_sensitive=False --include_all_ctgs=False --no_phasing_for_fa=False --pileup_model_prefix=pileup --fa_model_prefix=full_alignment --remove_intermediate_dir=False --enable_phasing=False --enable_long_indel=False --keep_iupac_bases=False --use_gpu=False --device=EMPTY --longphase_for_phasing=False --longphase=EMPTY --use_whatshap_for_intermediate_phasing=True --use_longphase_for_intermediate_phasing=False --use_whatshap_for_final_output_phasing=False --use_longphase_for_final_output_phasing=False --use_whatshap_for_final_output_haplotagging=False --enable_dwell_time=True
+
+[INFO] Check environment variables
+[INFO] Create folder /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/log
+[INFO] Create folder /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/tmp/pileup_output
+[INFO] Create folder /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/tmp/merge_output
+[INFO] Create folder /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/tmp/phase_output
+[INFO] Create folder /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/tmp/gvcf_tmp_output
+[INFO] Create folder /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/tmp/full_alignment_output
+[INFO] Create folder /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/tmp/phase_output/phase_vcf
+[INFO] Create folder /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/tmp/phase_output/phase_bam
+[INFO] Create folder /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/tmp/full_alignment_output/candidate_bed
+[INFO] Call variant in contigs: chr20
+[INFO] Chunk number for each contig: 13
+[INFO] 1/7 Call variants using pileup model
+Calling variants ...
+Total processed positions in chr20 (chunk 9/13) : 27381
+Total time elapsed: 97.03 s
+Calling variants ...
+Total processed positions in chr20 (chunk 8/13) : 31210
+Total time elapsed: 106.45 s
+Calling variants ...
+Total processed positions in chr20 (chunk 3/13) : 32363
+Total time elapsed: 109.36 s
+Calling variants ...
+Total processed positions in chr20 (chunk 5/13) : 32680
+Total time elapsed: 109.73 s
+Calling variants ...
+Total processed positions in chr20 (chunk 10/13) : 34997
+Total time elapsed: 110.65 s
+Calling variants ...
+Total processed positions in chr20 (chunk 4/13) : 34425
+Total time elapsed: 112.62 s
+Calling variants ...
+Total processed positions in chr20 (chunk 12/13) : 37095
+Total time elapsed: 112.78 s
+Calling variants ...
+Total processed positions in chr20 (chunk 11/13) : 35486
+Total time elapsed: 114.88 s
+Calling variants ...
+Total processed positions in chr20 (chunk 2/13) : 35164
+Total time elapsed: 115.37 s
+Calling variants ...
+Total processed positions in chr20 (chunk 1/13) : 39308
+Total time elapsed: 122.78 s
+Calling variants ...
+Total processed positions in chr20 (chunk 13/13) : 43176
+Total time elapsed: 128.07 s
+Calling variants ...
+Total processed positions in chr20 (chunk 7/13) : 80742
+Total time elapsed: 194.26 s
+Calling variants ...
+Total processed positions in chr20 (chunk 6/13) : 120467
+Total time elapsed: 266.27 s
+
+real	4m37.561s
+user	26m9.854s
+sys	4m19.971s
+
+[INFO] 2/7 Select heterozygous SNP variants for Whatshap phasing and haplotagging
+[INFO] Select heterozygous pileup variants exceeding phasing quality cutoff 14
+[INFO] Total heterozygous SNP positions selected: chr20: 60175
+
+real	0m2.865s
+user	0m2.277s
+sys	0m0.302s
+
+[INFO] 3/7 Phase VCF file using Whatshap
+This is WhatsHap 1.4 running under Python 3.9.0
+Working on 1 samples from 1 family
+======== Working on chromosome 'chr20'
+---- Processing individual SAMPLE
+Using maximum coverage per sample of 15X
+Number of variants skipped due to missing genotypes: 0
+Number of remaining heterozygous variants: 60175
+Reading alignments on chromosome chr20 and detecting alleles ...
+Found 85823 reads covering 57944 variants
+Kept 74095 reads that cover at least two variants each
+Reducing coverage to at most 15X by selecting most informative reads ...
+Selected 27293 reads covering 57931 variants
+Variants covered by at least one phase-informative read in at least one individual after read selection: 57931
+Phasing 1 sample by solving the MEC problem ...
+MEC cost: 338850
+No. of phased blocks: 907
+Largest block contains 2968 variants (5.1% of accessible variants) between position 29204944 and 29564021
+======== Writing VCF
+Done writing VCF
+Changed 527 genotypes while writing VCF
+
+== SUMMARY ==
+Maximum memory usage: 0.542 GB
+Time spent reading BAM/CRAM:                   84.5 s
+Time spent parsing VCF:                         1.2 s
+Time spent selecting reads:                    34.9 s
+Time spent phasing:                           345.5 s
+Time spent writing VCF:                         2.3 s
+Time spent finding components:                 29.3 s
+Time spent on rest:                             5.3 s
+Total elapsed time:                           503.0 s
+
+real	8m25.349s
+user	8m13.605s
+sys	0m6.301s
+
+[INFO] 5/7 Select candidates for full-alignment calling
+[INFO] Set variants quality cutoff 22.0
+[INFO] Set reference calls quality cutoff 11.0
+[INFO] Low quality reference calls to be processed in chr20: 43335
+[INFO] Low quality variants to be processed in chr20: 105200
+
+real	0m2.862s
+user	0m2.259s
+sys	0m0.406s
+
+[INFO] 6/7 Call low-quality variants using full-alignment model
+Calling variants ...
+Total processed positions in chr20 (chunk 15/15) : 8535
+Total time elapsed: 111.20 s
+Calling variants ...
+Total processed positions in chr20 (chunk 4/15) : 10000
+Total time elapsed: 111.76 s
+Calling variants ...
+Total processed positions in chr20 (chunk 8/15) : 10000
+Total time elapsed: 112.34 s
+Calling variants ...
+Total processed positions in chr20 (chunk 10/15) : 10000
+Total time elapsed: 115.63 s
+Calling variants ...
+Total processed positions in chr20 (chunk 6/15) : 10000
+Total time elapsed: 117.47 s
+Calling variants ...
+Total processed positions in chr20 (chunk 11/15) : 10000
+Total time elapsed: 118.89 s
+Calling variants ...
+Total processed positions in chr20 (chunk 5/15) : 10000
+Total time elapsed: 119.46 s
+Calling variants ...
+Total processed positions in chr20 (chunk 9/15) : 10000
+Total time elapsed: 123.83 s
+Calling variants ...
+Total processed positions in chr20 (chunk 7/15) : 10000
+Total time elapsed: 127.64 s
+Calling variants ...
+Total processed positions in chr20 (chunk 14/15) : 10000
+Total time elapsed: 129.02 s
+Calling variants ...
+Total processed positions in chr20 (chunk 3/15) : 10000
+Total time elapsed: 134.58 s
+Calling variants ...
+Total processed positions in chr20 (chunk 2/15) : 10000
+Total time elapsed: 138.61 s
+Calling variants ...
+Total processed positions in chr20 (chunk 13/15) : 10000
+Total time elapsed: 138.30 s
+Calling variants ...
+Total processed positions in chr20 (chunk 1/15) : 10000
+Total time elapsed: 142.54 s
+Calling variants ...
+Total processed positions in chr20 (chunk 12/15) : 10000
+Total time elapsed: 146.11 s
+
+real	2m36.479s
+user	27m58.442s
+sys	4m29.361s
+
+[INFO] 7/7 Merge pileup VCF and full-alignment VCF
+[INFO] Pileup variants processed in chr20: 45166
+[INFO] Full-alignment variants processed in chr20: 94233
+
+real	0m3.824s
+user	0m3.361s
+sys	0m0.452s
+
+[INFO] Finish calling, output file: /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/merge_output.vcf.gz
+
+real	16m5.710s
+user	62m42.207s
+sys	8m59.303s
