@@ -40,19 +40,6 @@ python run_clair3.py \
   --enable_dwell_time
 ```
 
-The flag can also be used with the legacy bash script:
-
-```bash
-python3 run_clair3.py \
-  --bam_fn=input.bam \
-  --ref_fn=ref.fa \
-  --threads=8 \
-  --platform="ont" \
-  --model_path="${MODEL_PATH}" \
-  --output=${OUTPUT_DIR} \
-  --enable_dwell_time
-```
-
 ### Variant Calling with GPU
 
 Dwelling time is fully compatible with GPU-accelerated calling:

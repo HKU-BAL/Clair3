@@ -63,7 +63,7 @@ For somatic variant calling using **tumor-only** samples, please try [ClairS-TO]
 ----
 
 ## Latest Updates
-*v2.0.0 (Feb 6, 2026)* : 1. Shifted the deep learning framework from TensorFlow to PyTorch. 2. ONT model now supports signal-aware variant calling using Dorado move tables. Use `--enable_dwell_time` for BAM files with `mv` tags (requires Dorado with `--emit-moves`). See [Dwelling Time Feature](docs/dwelling_time.md) for details. 3. Reconstructed the `run_clair3.sh` script in Python (`run_clair3.py`) for improved user experience. 4. Model checkpoint format changed from TensorFlow (`.index`/`.data`) to PyTorch (`.pt`). Pre-trained PyTorch models are available for download.
+*v2.0.0 (Feb 9, 2026)* : 1. Shifted the deep learning framework from TensorFlow to PyTorch. 2. ONT model now supports signal-aware variant calling using Dorado move tables. Use `--enable_dwell_time` for BAM files with `mv` tags (requires Dorado with `--emit-moves`). See [Dwelling Time Feature](docs/dwelling_time.md) for details. 3. Reconstructed the `run_clair3.sh` script in Python (`run_clair3.py`) for improved user experience. 4. Model checkpoint format changed from TensorFlow (`.index`/`.data`) to PyTorch (`.pt`). Pre-trained PyTorch models are available for download.
 
 *v1.2.0 (Aug 1, 2025)* : 1. Clair3 now natively supports GPU on Linux and Apple Silicon. Please refer to the  [GPU quick start guide](docs/gpu_quick_start.md) for usage. Clair3 on GPU runs ~5 times compared CPU. Below is quick speed comparison. 
 
