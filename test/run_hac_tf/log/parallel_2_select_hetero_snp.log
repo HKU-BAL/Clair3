@@ -1,2 +1,0 @@
-Seq	Host	Starttime	JobRuntime	Send	Receive	Exitval	Signal	Command
-1	:	1767769554.129	     2.509	0	63	0	0	/autofs/bal33/zxzheng/env/conda/envs/clair-somatic/bin/pypy3 /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2/scripts/../clair3.py SelectHetSnp         --vcf_fn /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/pileup.vcf.gz         --split_folder /autofs/nas5/xyu2/softwares/Clair3_no_change_v1.2_torch/test/run_hac_tf/tmp/phase_output/phase_vcf         --ctgName chr20

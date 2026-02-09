@@ -404,9 +404,12 @@ if [ ! -f "${PILEUP_MODEL_CANDIDATE}.pt" ] && [ ! -f "${PILEUP_MODEL_CANDIDATE}.
   echo -e "${ERROR} No pileup model found in provided model path and model prefix ${PILEUP_MODEL_CANDIDATE} ${NC}"
   exit 1
 fi
-if [ ! -f "${FA_MODEL_CANDIDATE}.pt" ] && [ ! -f "${FA_MODEL_CANDIDATE}.index" ] && [ ! -f "${FA_MODEL_CANDIDATE}" ]; then
-  echo -e "${ERROR} No full-alignment model found in provided model path and model prefix ${FA_MODEL_CANDIDATE} ${NC}"
-  exit 1
+
+if [ "${PILEUP_ONLY}" = False ]; then
+    if [ ! -f "${FA_MODEL_CANDIDATE}.pt" ] && [ ! -f "${FA_MODEL_CANDIDATE}.index" ] && [ ! -f "${FA_MODEL_CANDIDATE}" ]; then
+        echo -e "${ERROR} No full-alignment model found in provided model path and model prefix ${FA_MODEL_CANDIDATE} ${NC}"
+        exit 1
+    fi
 fi
 
 CLAIR3_SCRIPT="clair3.sh"

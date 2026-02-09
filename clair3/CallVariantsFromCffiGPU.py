@@ -48,7 +48,7 @@ def Run(args):
         time = 'time '
     except subprocess.CalledProcessError as e:
         time = ''
-
+    full_alignment_cpu_threads = max(args.cpu_threads//4, 1)
     prefix = "full_alignment" if not args.pileup else "pileup"
     dwell_flag = ' --enable_dwell_time True' if args.enable_dwell_time else ''
 
@@ -75,7 +75,7 @@ def Run(args):
     if args.pileup:
         cp_command = time + args.parallel + ' -C " " '
         cp_command += ' --joblog ' + args.output_dir + '/log/parallel_1_pileup_create_tensor.log'
-        cp_command += ' -j ' + str(args.cpu_threads)
+        cp_command += ' -j ' + str(args.cpu_threads*2)
         cp_command += ' --retries 4'
         cp_command += ' ' + args.python + ' ' + main_entry + " CallVariantsFromCffi"
         cp_command += ' --chkpnt_fn ' + args.chkpnt_fn
@@ -216,7 +216,7 @@ def Run(args):
         # create full-alignment tensor
         ct_command = '(' + time + args.parallel + ' -C " "'
         ct_command += ' --joblog ' + args.output_dir + '/log/parallel_6_full_alignment_create_tensor.log'
-        ct_command += ' -j ' + str(args.cpu_threads)
+        ct_command += ' -j ' + str(args.threads)
         ct_command += ' --retries 4'
         ct_command += ' ' + args.python + ' ' + main_entry + " CallVariantsFromCffi"
         ct_command += ' --chkpnt_fn ' + args.chkpnt_fn
@@ -239,7 +239,6 @@ def Run(args):
         ct_command += ' --keep_iupac_bases ' + str(args.keep_iupac_bases)
         ct_command += ' --cmd_fn ' + args.cmd_fn if args.cmd_fn else ''
         ct_command += ' --platform ' + args.platform
-        ct_command += ' --use_gpu ' + str(args.use_gpu)
         ct_command += dwell_flag
         ct_command += " --tensor_can_fn " + args.output_dir + "/tmp/full_alignment_output/{1/}"
         ct_command += ' :::: ' + args.full_aln_files
@@ -312,7 +311,7 @@ def Run(args):
         ct_command += ' --cmd_fn ' + args.cmd_fn if args.cmd_fn else ''
         ct_command += ' --platform ' + args.platform
         ct_command += ' --gpu_id {2}'
-        ct_command += ' --cpu_threads ' + str(args.cpu_threads)
+        ct_command += ' --cpu_threads ' + str(full_alignment_cpu_threads)
         ct_command += ' --use_gpu ' + str(args.use_gpu)
         ct_command += dwell_flag
         ct_command += ' --output_tensor_can_fn_list {3} '

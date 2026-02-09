@@ -20,12 +20,16 @@ def q(value):
 
 
 def run_command(cmd, log_path=None, env=None):
+    run_env = os.environ.copy()
+    run_env["PYTHONUNBUFFERED"] = "1"
+    if env:
+        run_env.update(env)
     process = subprocess.Popen(
         cmd,
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        env=env,
+        env=run_env,
         text=True,
         bufsize=1,
     )
@@ -36,8 +40,10 @@ def run_command(cmd, log_path=None, env=None):
     try:
         for line in process.stdout:
             sys.stdout.write(line)
+            sys.stdout.flush()
             if log_file:
                 log_file.write(line)
+                log_file.flush()
         process.wait()
     finally:
         if log_file:
@@ -84,7 +90,7 @@ def parse_args():
     parser.add_argument("--sample_name", default="SAMPLE")
     parser.add_argument("--chunk_num", type=int, default=0)
     parser.add_argument("--chunk_size", type=int, default=5000000)
-    parser.add_argument("--qual", type=float, default=2)
+    parser.add_argument("--qual", type=int, default=2)
     parser.add_argument("--samtools", default="samtools")
     parser.add_argument("--python", dest="python_bin", default="python3")
     parser.add_argument("--pypy", default="pypy3")
@@ -200,17 +206,22 @@ def main():
         print("[INFO] Exit in environment checking")
         return 0
 
-    threads_low = args.threads * 3 // 4
-    longphase_threads = args.threads * 1 // 2
-    if threads_low < 1:
-        threads_low = 1
-    if longphase_threads < 1:
-        longphase_threads = 1
+    total_threads = args.threads
+
+    threads_low = max(1, total_threads * 3 // 4)
+
+    cpu_threads = max(1, total_threads // 4)
+
+    longphase_parallel = max(1, min(4, total_threads // 2))
+    longphase_threads_per_job = max(1, total_threads // longphase_parallel)
+
+    samtools_threads = max(1, total_threads // 2)
+
     lp_platform = "ont" if args.platform == "ont" else "pb"
 
     if args.chunk_num == -1:
         parallel_threads = 1
-        internal_threads = args.threads
+        internal_threads = total_threads
     else:
         parallel_threads = threads_low
         internal_threads = 1
@@ -255,7 +266,8 @@ def main():
             f"--pileup "
             f"--keep_iupac_bases {q(args.keep_iupac_bases)} "
             f"--cmd_fn {q(tmp_path / 'CMD')} "
-            f"--use_gpu {q(args.use_gpu)}\" :::: {q(chunk_list)}"
+            f"--use_gpu {q(args.use_gpu)} "
+            f"--cpu_threads {q(cpu_threads)}\" :::: {q(chunk_list)}"
         )
         run_command(pileup_call_cmd, log_path=log_path / "1_call_var_bam_pileup.log")
         run_command(
@@ -293,7 +305,7 @@ def main():
             f"--python {q(args.python_bin)} "
             f"--parallel {q(args.parallel)} "
             f"--pypy {q(args.pypy)} "
-            f"--cpu_threads {q(args.threads)} "
+            f"--cpu_threads {q(cpu_threads)} "
             f"--internal_threads {q(internal_threads)} "
             f"--device {q(args.device)}"
         )
@@ -375,12 +387,12 @@ def main():
             print("[INFO] 3/7 Phase VCF file using LongPhase")
             phase_cmd = (
                 f"{q(args.parallel)} --retries {retries} --joblog {q(log_path / 'parallel_3_phase.log')} "
-                f"-j {q(args.threads)} "
+                f"-j {q(longphase_parallel)} "
                 f"\"{q(args.longphase)} phase "
                 f"-s {q(phase_vcf_path / '{1}.vcf')} "
                 f"-b {q(args.bam_fn)} "
                 f"-r {q(args.ref_fn)} "
-                f"-t {q(longphase_threads)} "
+                f"-t {q(longphase_threads_per_job)} "
                 f"-o {q(phase_vcf_path / 'phased_{1}')} "
                 f"--{lp_platform}\" ::: {' '.join(map(q, contigs))}"
             )
@@ -389,7 +401,7 @@ def main():
                 f"{q(args.pypy)} {q(clair3)} CheckExitCode --parallel_log_fn {q(log_path / 'parallel_3_phase.log')}"
             )
             run_command(
-                f"{q(args.parallel)} -j{q(args.threads)} bgzip -f {q(phase_vcf_path / 'phased_{}.vcf')} ::: {' '.join(map(q, contigs))}"
+                f"{q(args.parallel)} -j{q(longphase_parallel)} bgzip -f {q(phase_vcf_path / 'phased_{}.vcf')} ::: {' '.join(map(q, contigs))}"
             )
         else:
             print("[INFO] 3/7 Phase VCF file using Whatshap")
@@ -444,7 +456,9 @@ def main():
     full_aln_files_path = candidate_bed_path / "FULL_ALN_FILES"
     with open(full_aln_files_path, "w", encoding="utf-8") as handle:
         for path in candidate_files:
-            handle.write(str(path) + "\n")
+            with open(path, "r", encoding="utf-8") as infile:
+                for line in infile:
+                    handle.write(line.rstrip("\n") + "\n")
 
     if not args.use_gpu:
         full_aln_call_cmd = (
@@ -497,7 +511,8 @@ def main():
             f"--use_gpu {q(args.use_gpu)} "
             f"--keep_iupac_bases {q(args.keep_iupac_bases)} "
             f"--cmd_fn {q(tmp_path / 'CMD')} "
-            f"--cpu_threads {q(args.threads)} "
+            f"--threads {q(total_threads)} "
+            f"--cpu_threads {q(cpu_threads)} "
             f"--platform {q(args.platform)} "
             f"--enable_dwell_time {q(args.enable_dwell_time)} "
             f"--output_dir {q(output_folder)} "
@@ -623,12 +638,12 @@ def main():
         print("[INFO] 7/7 Phasing VCF output in parallel using LongPhase")
         phase_cmd = (
             f"{q(args.parallel)} --retries {retries} --joblog {q(log_path / 'parallel_8_phase_vcf_output.log')} "
-            f"-j {q(args.threads)} "
+            f"-j {q(longphase_parallel)} "
             f"\"{q(args.longphase)} phase "
             f"-s {q(tmp_path / 'merge_output/merge_{1}.vcf')} "
             f"-b {q(args.bam_fn)} "
             f"-r {q(args.ref_fn)} "
-            f"-t {q(longphase_threads)} "
+            f"-t {q(longphase_threads_per_job)} "
             f"-o {q(tmp_path / 'merge_output/phased_merge_{1}')} "
             f"--{lp_platform}\" ::: {' '.join(map(q, contigs))}"
         )
@@ -660,7 +675,7 @@ def main():
         )
         run_command(haplotag_cmd, log_path=log_path / "9_haplotag.log")
         run_command(
-            f"{q(args.samtools)} index -@12 {q(output_folder / 'phased_output.bam')}"
+            f"{q(args.samtools)} index -@{samtools_threads} {q(output_folder / 'phased_output.bam')}"
         )
 
     if args.vcf_fn != "EMPTY":

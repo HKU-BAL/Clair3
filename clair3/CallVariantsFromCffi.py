@@ -298,31 +298,59 @@ def call_variants_from_cffi(args, output_config, output_utilities):
             output = batch_output_method(position, alt_info_list, Y, output_config, output_utilities, args)
     else:
         from multiprocessing import shared_memory
+        max_pending = args.cpu_threads * 2  # Limit concurrent tasks to bound memory
         with ProcessPoolExecutor(max_workers=args.cpu_threads) as executor:
-            futures = []
-            for X, position, alt_info_list in batch_gen:
-                total += len(X)
-                Y = _torch_predict(m, device, X)
-                shm = shared_memory.SharedMemory(create=True, size=Y.nbytes)
-                shared_Y = np.ndarray(Y.shape, dtype=Y.dtype, buffer=shm.buf)
-                np.copyto(shared_Y, Y)
+            pending_futures = {}  # future -> shm_name for cleanup tracking
+            batch_iter = iter(batch_gen)
+            finished = False
 
-                future = executor.submit(
-                    batch_output_worker,
-                    position, alt_info_list,
-                    shm.name, Y.shape, Y.dtype,
-                    output_config, output_utilities
-                )
-                futures.append(future)
+            while pending_futures or not finished:
+                # Submit new tasks up to max_pending limit
+                while len(pending_futures) < max_pending and not finished:
+                    try:
+                        X, position, alt_info_list = next(batch_iter)
+                    except StopIteration:
+                        finished = True
+                        break
 
-                shm.close()
+                    total += len(X)
+                    Y = _torch_predict(m, device, X)
+                    shm = shared_memory.SharedMemory(create=True, size=Y.nbytes)
+                    shared_Y = np.ndarray(Y.shape, dtype=Y.dtype, buffer=shm.buf)
+                    np.copyto(shared_Y, Y)
 
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                    args.output_file.write(result)
-                except Exception as e:
-                    print(f"[Error] Task failed: {e}", flush=True)
+                    future = executor.submit(
+                        batch_output_worker,
+                        position, alt_info_list,
+                        shm.name, Y.shape, Y.dtype,
+                        output_config, output_utilities
+                    )
+                    pending_futures[future] = shm.name
+                    shm.close()
+
+                if not pending_futures:
+                    break
+
+                # Wait for at least one task to complete
+                done_futures = []
+                for future in as_completed(pending_futures.keys()):
+                    done_futures.append(future)
+                    break  # Process one at a time to submit new tasks promptly
+
+                for future in done_futures:
+                    shm_name = pending_futures.pop(future)
+                    try:
+                        result = future.result()
+                        args.output_file.write(result)
+                    except Exception as e:
+                        print(f"[Error] Task failed: {e}", flush=True)
+                        # Cleanup shared memory if worker failed before unlink
+                        try:
+                            orphan_shm = shared_memory.SharedMemory(name=shm_name)
+                            orphan_shm.close()
+                            orphan_shm.unlink()
+                        except FileNotFoundError:
+                            pass  # Already cleaned up by worker
 
     if chunk_id is not None:
         logging.info("Total processed positions in {} (chunk {}/{}) : {}".format(args.ctgName, chunk_id+1, chunk_num, total))

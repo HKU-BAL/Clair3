@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT))
 
 from shared.utils import str2bool
 
-VERSION = "v1.2.0"
+VERSION = "v2.0.0"
 ERROR = "\033[31m[ERROR]\033[0m"
 WARNING = "\033[33m[WARNING]\033[0m"
 
@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument("--vcf_fn", default="EMPTY")
     parser.add_argument("--ctg_name", default="EMPTY")
     parser.add_argument("--sample_name", default="SAMPLE")
-    parser.add_argument("--qual", type=float, default=2)
+    parser.add_argument("--qual", type=int, default=2)
     parser.add_argument("--samtools", default="samtools")
     parser.add_argument("--python", dest="python_bin", default="python3")
     parser.add_argument("--pypy", default="pypy3")
@@ -148,7 +148,93 @@ def model_file_exists(model_path, prefix):
     return base.is_file() or base.with_suffix(".pt").is_file() or base.with_suffix(".index").is_file()
 
 
+def _mv_field_has_value(field):
+    parts = field.split(":", 2)
+    if len(parts) != 3:
+        return False
+
+    value_type = parts[1]
+    value = parts[2].strip()
+    if not value:
+        return False
+
+    if value_type == "B":
+        # SAM B array: TAG:B:type,val1,val2,...
+        items = value.split(",", 1)
+        return len(items) == 2 and bool(items[1].strip())
+
+    return True
+
+
+def check_bam_for_valid_mv_tag(samtools_path, bam_path, max_records=50):
+    try:
+        proc = subprocess.Popen(
+            [samtools_path, "view", str(bam_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"samtools not found at '{samtools_path}'") from exc
+
+    stderr_text = ""
+    checked_records = 0
+    found_mv_without_value = False
+
+    try:
+        for line in proc.stdout:
+            checked_records += 1
+            fields = line.rstrip("\n").split("\t")
+            for field in fields[11:]:
+                if not field.startswith("mv:"):
+                    continue
+                if _mv_field_has_value(field):
+                    # Fast path: once one valid mv-tagged read is seen, stop immediately.
+                    try:
+                        proc.terminate()
+                    except ProcessLookupError:
+                        pass
+                    try:
+                        proc.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                        proc.wait()
+                    return True, False, checked_records
+                found_mv_without_value = True
+
+            if checked_records >= max_records:
+                # Only sample the first max_records alignments by design.
+                try:
+                    proc.terminate()
+                except ProcessLookupError:
+                    pass
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+                return False, found_mv_without_value, checked_records
+
+        # Stream ended before reaching max_records.
+        stderr_text = proc.stderr.read() if proc.stderr else ""
+        return_code = proc.wait()
+    finally:
+        if proc.stdout:
+            proc.stdout.close()
+        if proc.stderr:
+            proc.stderr.close()
+
+    if return_code != 0:
+        detail = stderr_text.strip() or "unknown error"
+        raise RuntimeError(f"samtools view failed while checking 'mv' tag: {detail}")
+
+    return False, found_mv_without_value, checked_records
+
+
 def tee_command(cmd, log_path):
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
     process = subprocess.Popen(
         cmd,
         shell=True,
@@ -156,12 +242,15 @@ def tee_command(cmd, log_path):
         stderr=subprocess.STDOUT,
         text=True,
         bufsize=1,
+        env=env,
     )
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "a", encoding="utf-8") as log_file:
         for line in process.stdout:
             sys.stdout.write(line)
+            sys.stdout.flush()
             log_file.write(line)
+            log_file.flush()
     process.wait()
     if process.returncode != 0:
         raise SystemExit(process.returncode)
@@ -318,12 +407,36 @@ def main():
 
     enable_dwell_time = args.enable_dwell_time
     if enable_dwell_time:
-        if args.platform == "ilmn":
-            warn("Dwell time is not supported for Illumina platform, disabling option!")
+        if not args.platform == "ont":
+            warn("Dwell time is not supported for non-ONT platform, disabling option! exit!")
+            error_exit("Dwell time is not supported for non-ONT platform, disabling option! exit!")
             enable_dwell_time = False
         elif not enable_c_impl:
             warn("Dwell time requires the C implementation; re-enabling C implementation workflow.")
             enable_c_impl = True
+
+    if enable_dwell_time:
+        try:
+            sampled_records = 50
+            has_valid_mv, found_mv_without_value, checked_records = check_bam_for_valid_mv_tag(
+                args.samtools, bam_path, max_records=sampled_records
+            )
+            if not has_valid_mv and found_mv_without_value:
+                error_exit(
+                    f"Dwell time is enabled but within the first {checked_records} alignments, "
+                    "an 'mv' tag was found without a valid value. "
+                    "Please ensure 'mv' is populated (e.g. mv:B:* with values) or disable --enable_dwell_time."
+                )
+            if not has_valid_mv:
+                error_exit(
+                    f"Dwell time is enabled but no valid 'mv' tag was found in the first {checked_records} alignments. "
+                    "The 'mv' tag (move table) is required for dwell time analysis. "
+                    "Please provide a BAM file containing 'mv' tags earlier in the file or disable --enable_dwell_time."
+                )
+        except FileNotFoundError:
+            error_exit(f"samtools not found at '{args.samtools}', cannot verify 'mv' tag in BAM file.")
+        except Exception as e:
+            error_exit(f"Failed to check BAM file for 'mv' tag: {e}")
 
     use_gpu = args.use_gpu
     if not enable_c_impl and use_gpu:

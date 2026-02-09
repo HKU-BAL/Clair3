@@ -44,7 +44,7 @@ docker run -it --gpus all \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3-gpu:latest \
-  /opt/bin/run_clair3.sh \
+  python3 /opt/bin/run_clair3.py \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -72,7 +72,7 @@ conda create -n clair3 -c bioconda clair3 cudatoolkit cudnn python=3.9.0 -y
 conda activate clair3
 
 # run clair3 like this afterward
-run_clair3.sh \
+python3 run_clair3.py \
   --bam_fn=input.bam \                 ## change your bam file name here
   --ref_fn=ref.fa \                    ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -109,7 +109,7 @@ make PREFIX=${CONDA_PREFIX}
 
 # Then run clair3 like this afterward
 export PATH="/opt/homebrew/opt/gnu-getopt/bin:$PATH"
-./run_clair3.sh \
+python3 run_clair3.py \
   --bam_fn=input.bam \                 ## change your bam file name here
   --ref_fn=ref.fa \                    ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used

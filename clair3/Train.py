@@ -8,6 +8,9 @@ from itertools import accumulate
 import h5py
 import numpy as np
 import torch
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data.distributed import DistributedSampler
 try:
     from tqdm import tqdm
 except Exception:
@@ -20,6 +23,49 @@ from clair3.utils import ensure_hdf5_plugin_path
 from shared.utils import str2bool
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
+
+
+def setup_distributed(rank, world_size, backend='nccl'):
+    """Initialize the distributed environment."""
+    dist.init_process_group(backend, rank=rank, world_size=world_size)
+    torch.cuda.set_device(rank)
+
+
+def cleanup_distributed():
+    """Clean up the distributed environment."""
+    if dist.is_initialized():
+        dist.destroy_process_group()
+
+
+def is_main_process():
+    """Check if this is the main process (rank 0)."""
+    if not dist.is_initialized():
+        return True
+    return dist.get_rank() == 0
+
+
+def get_rank():
+    """Get the rank of the current process."""
+    if not dist.is_initialized():
+        return 0
+    return dist.get_rank()
+
+
+def get_world_size():
+    """Get the total number of processes."""
+    if not dist.is_initialized():
+        return 1
+    return dist.get_world_size()
+
+
+def reduce_tensor(tensor):
+    """Reduce tensor across all processes."""
+    if not dist.is_initialized():
+        return tensor
+    rt = tensor.clone()
+    dist.all_reduce(rt, op=dist.ReduceOp.SUM)
+    rt /= get_world_size()
+    return rt
 
 
 def get_label_task(label, label_shape_cum, task):
@@ -131,16 +177,37 @@ def exist_file_prefix(exclude_training_samples, f):
     return False
 
 
-def _load_checkpoint(model, checkpoint_path, device):
+def _load_checkpoint(model, checkpoint_path, device, is_ddp=False):
     checkpoint = torch.load(checkpoint_path, map_location=device)
     if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
         state_dict = checkpoint["state_dict"]
     else:
         state_dict = checkpoint
+    
+    # Handle DDP state dict prefix
+    if is_ddp:
+        # If loading a non-DDP checkpoint into a DDP model
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if not k.startswith('module.'):
+                new_state_dict['module.' + k] = v
+            else:
+                new_state_dict[k] = v
+        state_dict = new_state_dict
+    else:
+        # If loading a DDP checkpoint into a non-DDP model
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith('module.'):
+                new_state_dict[k[7:]] = v
+            else:
+                new_state_dict[k] = v
+        state_dict = new_state_dict
+    
     model.load_state_dict(state_dict)
 
 
-def _run_epoch(model, loader, optimizer, loss_funcs, label_shapes, device, train=True, desc=None):
+def _run_epoch(model, loader, optimizer, loss_funcs, label_shapes, device, train=True, desc=None, distributed=False):
     if train:
         model.train()
     else:
@@ -149,7 +216,8 @@ def _run_epoch(model, loader, optimizer, loss_funcs, label_shapes, device, train
     epoch_loss = 0.0
     batches = 0
     iterator = loader
-    if tqdm is not None:
+    # Only show progress bar on main process
+    if tqdm is not None and is_main_process():
         iterator = tqdm(loader, desc=desc, unit="batch", leave=False)
     for position_matrix, label in iterator:
         position_matrix = torch.from_numpy(position_matrix).to(device)
@@ -175,15 +243,21 @@ def _run_epoch(model, loader, optimizer, loss_funcs, label_shapes, device, train
                 loss.backward()
                 optimizer.step()
 
-        epoch_loss += loss.item()
-        if tqdm is not None and hasattr(iterator, "set_postfix"):
+        # Reduce loss across all processes for logging
+        if distributed:
+            reduced_loss = reduce_tensor(loss.detach())
+            epoch_loss += reduced_loss.item()
+        else:
+            epoch_loss += loss.item()
+            
+        if tqdm is not None and hasattr(iterator, "set_postfix") and is_main_process():
             iterator.set_postfix(loss=f"{loss.item():.4f}")
         batches += 1
 
     return epoch_loss / max(1, batches)
 
 
-def train_model(args):
+def train_model(args, local_rank=None):
     platform = args.platform
     pileup = args.pileup
     add_indel_length = args.add_indel_length
@@ -192,6 +266,15 @@ def train_model(args):
     add_validation_dataset = args.random_validation or (args.validation_fn is not None)
     validation_fn = args.validation_fn
     ochk_prefix = args.ochk_prefix if args.ochk_prefix is not None else ""
+
+    # Distributed training setup
+    distributed = local_rank is not None
+    if distributed:
+        device = torch.device(f"cuda:{local_rank}")
+        world_size = get_world_size()
+    else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        world_size = 1
 
     ensure_hdf5_plugin_path()
     if pileup:
@@ -211,8 +294,9 @@ def train_model(args):
     bin_tensor_shape = list(tensor_shape)
     if args.reuse_bin:
         bin_tensor_shape[-1] += 1
-        logging.info("[INFO] Reusing %d-channel bin tensors -> %d-channel model inputs (dropping the last channel).",
-                     bin_tensor_shape[-1], tensor_shape[-1])
+        if is_main_process():
+            logging.info("[INFO] Reusing %d-channel bin tensors -> %d-channel model inputs (dropping the last channel).",
+                         bin_tensor_shape[-1], tensor_shape[-1])
 
     label_shape = param.label_shape
     label_shapes = label_shape[0:4 if add_indel_length else 2]
@@ -226,6 +310,13 @@ def train_model(args):
         torch.manual_seed(param.RANDOM_SEED)
 
     learning_rate = args.learning_rate if args.learning_rate else param.initialLearningRate
+    # Scale learning rate by world size for distributed training
+    if distributed and args.scale_lr:
+        learning_rate = learning_rate * world_size
+        if is_main_process():
+            logging.info("[INFO] Scaling learning rate by world size: %f -> %f", 
+                        learning_rate / world_size, learning_rate)
+    
     max_epoch = args.maxEpoch if args.maxEpoch else param.maxEpoch
     task_num = 4 if add_indel_length else 2
     mini_epochs = args.mini_epochs
@@ -242,14 +333,16 @@ def train_model(args):
 
     bin_list = os.listdir(args.bin_fn)
     bin_list = [f for f in bin_list if '_20_' not in f and not exist_file_prefix(exclude_training_samples, f)]
-    logging.info("[INFO] total %d training bin files: %s", len(bin_list), ','.join(bin_list))
+    if is_main_process():
+        logging.info("[INFO] total %d training bin files: %s", len(bin_list), ','.join(bin_list))
 
     effective_label_num = None
     table_dataset_list, chunk_offset = populate_dataset_table(bin_list, args.bin_fn)
 
     if validation_fn:
         val_list = os.listdir(validation_fn)
-        logging.info("[INFO] total %d validation bin files: %s", len(val_list), ','.join(val_list))
+        if is_main_process():
+            logging.info("[INFO] total %d validation bin files: %s", len(val_list), ','.join(val_list))
         validate_table_dataset_list, validate_chunk_offset = populate_dataset_table(val_list, args.validation_fn)
 
         train_chunk_num = int(sum(chunk_offset))
@@ -275,30 +368,42 @@ def train_model(args):
 
     total_steps = max_epoch * (train_chunk_num // chunks_per_batch)
 
+    # Move model to device before wrapping with DDP
+    model.to(device)
+    
+    # Load checkpoint before wrapping with DDP
+    if args.chkpnt_fn is not None:
+        _load_checkpoint(model, args.chkpnt_fn, device, is_ddp=False)
+        if is_main_process():
+            logging.info("[INFO] Starting from model %s", args.chkpnt_fn)
+
+    # Wrap model with DDP for distributed training
+    if distributed:
+        model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
+        if is_main_process():
+            logging.info("[INFO] Using DistributedDataParallel with %d GPUs", world_size)
+
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=learning_rate, weight_decay=param.l2RegularizationLambda
     )
 
     loss_funcs = [FocalLoss(label_shape_cum, task, effective_label_num) for task in range(task_num)]
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-
-    if args.chkpnt_fn is not None:
-        _load_checkpoint(model, args.chkpnt_fn, device)
-        logging.info("[INFO] Starting from model %s", args.chkpnt_fn)
-
-    logging.info("[INFO] The size of dataset: %d", total_chunks * chunk_size)
-    logging.info("[INFO] The training batch size: %d", batch_size)
-    logging.info("[INFO] The training learning_rate: %f", learning_rate)
-    logging.info("[INFO] Total training steps: %d", total_steps)
-    logging.info("[INFO] Maximum training epoch: %d", max_epoch)
-    logging.info("[INFO] Mini-epochs per epoch: %d", mini_epochs)
-    logging.info("[INFO] Start training...")
+    if is_main_process():
+        logging.info("[INFO] The size of dataset: %d", total_chunks * chunk_size)
+        logging.info("[INFO] The training batch size: %d (per GPU)", batch_size)
+        if distributed:
+            logging.info("[INFO] Effective batch size: %d (total across %d GPUs)", batch_size * world_size, world_size)
+        logging.info("[INFO] The training learning_rate: %f", learning_rate)
+        logging.info("[INFO] Total training steps: %d", total_steps)
+        logging.info("[INFO] Maximum training epoch: %d", max_epoch)
+        logging.info("[INFO] Mini-epochs per epoch: %d", mini_epochs)
+        logging.info("[INFO] Start training...")
 
     log_path = "training.log"
-    with open(log_path, "w") as log_f:
-        log_f.write("epoch\tloss\tval_loss\n")
+    if is_main_process():
+        with open(log_path, "w") as log_f:
+            log_f.write("epoch\tloss\tval_loss\n")
 
     best_val_loss = None
     patience = 10 * mini_epochs
@@ -308,12 +413,19 @@ def train_model(args):
     chunks_per_epoch = max(1, len(train_shuffle_chunk_list) // mini_epochs)
 
     for epoch in range(total_epochs):
-        logging.info("[INFO] Epoch %d/%d", epoch + 1, total_epochs)
+        if is_main_process():
+            logging.info("[INFO] Epoch %d/%d", epoch + 1, total_epochs)
         if epoch % mini_epochs == 0:
             np.random.shuffle(train_shuffle_chunk_list)
             random_offset = np.random.randint(0, chunk_size)
         else:
             random_offset = np.random.randint(0, chunk_size)
+
+        # Broadcast random_offset to all processes to ensure consistency
+        if distributed:
+            random_offset_tensor = torch.tensor([random_offset], device=device)
+            dist.broadcast(random_offset_tensor, src=0)
+            random_offset = random_offset_tensor.item()
 
         start_idx = (epoch % mini_epochs) * chunks_per_epoch
         end_idx = start_idx + chunks_per_epoch
@@ -321,16 +433,39 @@ def train_model(args):
 
         train_dataset = BinChunkDataset(table_dataset_list, epoch_chunk_list, tensor_shape, bin_tensor_shape, chunk_size)
         train_dataset.set_random_offset(random_offset)
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=chunks_per_batch,
-            shuffle=True,
-            drop_last=True,
-            collate_fn=collate_chunks,
-            pin_memory=True,
-            num_workers=8,
-            prefetch_factor=2,
-        )
+        
+        # Use DistributedSampler for distributed training
+        if distributed:
+            train_sampler = DistributedSampler(
+                train_dataset, 
+                num_replicas=world_size, 
+                rank=local_rank, 
+                shuffle=True,
+                drop_last=True
+            )
+            train_sampler.set_epoch(epoch)
+            train_loader = DataLoader(
+                train_dataset,
+                batch_size=chunks_per_batch,
+                shuffle=False,  # Shuffle is handled by DistributedSampler
+                drop_last=True,
+                collate_fn=collate_chunks,
+                pin_memory=True,
+                num_workers=8,
+                prefetch_factor=2,
+                sampler=train_sampler,
+            )
+        else:
+            train_loader = DataLoader(
+                train_dataset,
+                batch_size=chunks_per_batch,
+                shuffle=True,
+                drop_last=True,
+                collate_fn=collate_chunks,
+                pin_memory=True,
+                num_workers=8,
+                prefetch_factor=2,
+            )
 
         train_loss = _run_epoch(
             model,
@@ -341,6 +476,7 @@ def train_model(args):
             device,
             train=True,
             desc="train",
+            distributed=distributed,
         )
 
         val_loss = None
@@ -348,16 +484,38 @@ def train_model(args):
             val_data = validate_table_dataset_list if validation_fn else table_dataset_list
             val_dataset = BinChunkDataset(val_data, validate_shuffle_chunk_list, tensor_shape, bin_tensor_shape, chunk_size)
             val_dataset.set_random_offset(0)
-            val_loader = DataLoader(
-                val_dataset,
-                batch_size=chunks_per_batch,
-                shuffle=False,
-                drop_last=True,
-                collate_fn=collate_chunks,
-                pin_memory=True,
-                num_workers=8,
-                prefetch_factor=2,
-            )
+            
+            # Use DistributedSampler for validation as well
+            if distributed:
+                val_sampler = DistributedSampler(
+                    val_dataset,
+                    num_replicas=world_size,
+                    rank=local_rank,
+                    shuffle=False,
+                    drop_last=True
+                )
+                val_loader = DataLoader(
+                    val_dataset,
+                    batch_size=chunks_per_batch,
+                    shuffle=False,
+                    drop_last=True,
+                    collate_fn=collate_chunks,
+                    pin_memory=True,
+                    num_workers=8,
+                    prefetch_factor=2,
+                    sampler=val_sampler,
+                )
+            else:
+                val_loader = DataLoader(
+                    val_dataset,
+                    batch_size=chunks_per_batch,
+                    shuffle=False,
+                    drop_last=True,
+                    collate_fn=collate_chunks,
+                    pin_memory=True,
+                    num_workers=8,
+                    prefetch_factor=2,
+                )
             val_loss = _run_epoch(
                 model,
                 val_loader,
@@ -367,25 +525,37 @@ def train_model(args):
                 device,
                 train=False,
                 desc="val",
+                distributed=distributed,
             )
 
-        checkpoint_path = f"{ochk_prefix}.{epoch + 1:02d}.pt" if ochk_prefix else f"epoch.{epoch + 1:02d}.pt"
-        torch.save(model.state_dict(), checkpoint_path)
+        # Only save checkpoints and logs on main process
+        if is_main_process():
+            checkpoint_path = f"{ochk_prefix}.{epoch + 1:02d}.pt" if ochk_prefix else f"epoch.{epoch + 1:02d}.pt"
+            # Save without 'module.' prefix for easier loading
+            state_dict = model.module.state_dict() if distributed else model.state_dict()
+            torch.save(state_dict, checkpoint_path)
 
-        val_loss_str = "" if val_loss is None else f"{val_loss:.6f}"
-        with open(log_path, "a") as log_f:
-            log_f.write(f"{epoch + 1}\t{train_loss:.6f}\t{val_loss_str}\n")
+            val_loss_str = "" if val_loss is None else f"{val_loss:.6f}"
+            with open(log_path, "a") as log_f:
+                log_f.write(f"{epoch + 1}\t{train_loss:.6f}\t{val_loss_str}\n")
 
         if val_loss is not None:
             if best_val_loss is None or val_loss < best_val_loss:
                 best_val_loss = val_loss
                 patience_count = 0
-                torch.save(model.state_dict(), "best_val_loss.pt")
+                if is_main_process():
+                    state_dict = model.module.state_dict() if distributed else model.state_dict()
+                    torch.save(state_dict, "best_val_loss.pt")
             else:
                 patience_count += 1
                 if patience_count >= patience:
-                    logging.info("[INFO] Early stopping at epoch %d", epoch + 1)
+                    if is_main_process():
+                        logging.info("[INFO] Early stopping at epoch %d", epoch + 1)
                     break
+
+        # Synchronize all processes at the end of each epoch
+        if distributed:
+            dist.barrier()
 
     for table_dataset in table_dataset_list:
         table_dataset.close()
@@ -394,7 +564,7 @@ def train_model(args):
         for table_dataset in validate_table_dataset_list:
             table_dataset.close()
 
-    if best_val_loss is not None:
+    if best_val_loss is not None and is_main_process():
         logging.info("[INFO] Best validation loss: %.6f", best_val_loss)
 
 
@@ -448,13 +618,35 @@ def main():
     vgrp.add_argument('--validation_fn', type=str, default=None,
                         help="Binary tensor input for use in validation: %(default)s")
 
+    # Distributed training options
+    parser.add_argument('--local_rank', type=int, default=-1,
+                        help="Local rank for distributed training (set by torchrun)")
+    parser.add_argument('--scale_lr', action='store_true',
+                        help="Scale learning rate by the number of GPUs, default: %(default)s")
+
     args = parser.parse_args()
 
     if len(sys.argv[1:]) == 0:
         parser.print_help()
         sys.exit(1)
 
-    train_model(args)
+    # Setup distributed training if local_rank is set
+    local_rank = None
+    if args.local_rank != -1:
+        local_rank = args.local_rank
+        # Get world_size from environment variable set by torchrun
+        world_size = int(os.environ.get('WORLD_SIZE', 1))
+        setup_distributed(local_rank, world_size)
+    elif 'LOCAL_RANK' in os.environ:
+        # torchrun sets LOCAL_RANK environment variable
+        local_rank = int(os.environ['LOCAL_RANK'])
+        world_size = int(os.environ.get('WORLD_SIZE', 1))
+        setup_distributed(local_rank, world_size)
+
+    try:
+        train_model(args, local_rank)
+    finally:
+        cleanup_distributed()
 
 
 if __name__ == "__main__":

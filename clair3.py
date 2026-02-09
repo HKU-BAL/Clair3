@@ -13,8 +13,6 @@ deep_learning_folder = [
     "Train",
     "CallVariantsFromCffi",
     "CallVariantsFromCffiGPU",
-    "Train_tfdata",
-    "Train_BF",
 ]
 
 data_preprocess_folder = [
