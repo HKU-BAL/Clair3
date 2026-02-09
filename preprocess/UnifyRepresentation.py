@@ -899,6 +899,7 @@ class RepresentationUnification(object):
             if match_pairs is None:
                 if not len(truths):
                     continue
+                print(len(truths))
                 # double check to rescue true variants
                 for truth in all_truths:
                     pos = truth.start
@@ -1331,6 +1332,7 @@ def UnifyRepresentation(args):
                              region_end=variant_dict[item].end + 2)], key=lambda x: x[0])
         truths = [item[1] for item in truths]
 
+        # print(len(truths), extend_split_start, extend_split_end)
         if not len(variants) and not len(truths):
             continue
         RU = RepresentationUnification(

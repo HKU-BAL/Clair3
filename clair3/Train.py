@@ -1,21 +1,71 @@
 import logging
-import random
-import numpy as np
-from argparse import ArgumentParser, SUPPRESS
-import tensorflow_addons as tfa
-import tensorflow as tf
-import tables
 import os
+import random
 import sys
+from argparse import ArgumentParser, SUPPRESS
 from itertools import accumulate
 
+import h5py
+import numpy as np
+import torch
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data.distributed import DistributedSampler
+try:
+    from tqdm import tqdm
+except Exception:
+    tqdm = None
+from torch import nn
+from torch.utils.data import DataLoader, Dataset
+
 import clair3.model as model_path
+from clair3.utils import ensure_hdf5_plugin_path
 from shared.utils import str2bool
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
-tables.set_blosc_max_threads(512)
-os.environ['NUMEXPR_MAX_THREADS'] = '64'
-os.environ['NUMEXPR_NUM_THREADS'] = '8'
+
+
+def setup_distributed(rank, world_size, backend='nccl'):
+    """Initialize the distributed environment."""
+    dist.init_process_group(backend, rank=rank, world_size=world_size)
+    torch.cuda.set_device(rank)
+
+
+def cleanup_distributed():
+    """Clean up the distributed environment."""
+    if dist.is_initialized():
+        dist.destroy_process_group()
+
+
+def is_main_process():
+    """Check if this is the main process (rank 0)."""
+    if not dist.is_initialized():
+        return True
+    return dist.get_rank() == 0
+
+
+def get_rank():
+    """Get the rank of the current process."""
+    if not dist.is_initialized():
+        return 0
+    return dist.get_rank()
+
+
+def get_world_size():
+    """Get the total number of processes."""
+    if not dist.is_initialized():
+        return 1
+    return dist.get_world_size()
+
+
+def reduce_tensor(tensor):
+    """Reduce tensor across all processes."""
+    if not dist.is_initialized():
+        return tensor
+    rt = tensor.clone()
+    dist.all_reduce(rt, op=dist.ReduceOp.SUM)
+    rt /= get_world_size()
+    return rt
 
 
 def get_label_task(label, label_shape_cum, task):
@@ -34,74 +84,59 @@ def cal_class_weight(samples_per_cls, no_of_classes, beta=0.999):
     return cls_weights
 
 
-class FocalLoss(tf.keras.losses.Loss):
-    """
-    updated version of focal loss function, for multi class classification, we remove alpha parameter, which the loss
-    more stable, and add gradient clipping to avoid gradient explosion and precision overflow.
-    """
+class FocalLoss(nn.Module):
+    """Multi-class focal loss using one-hot labels."""
 
     def __init__(self, label_shape_cum, task, effective_label_num=None, gamma=2):
-        super(FocalLoss, self).__init__()
+        super().__init__()
         self.gamma = gamma
         self.cls_weights = None
         if effective_label_num is not None:
             task_label_num = get_label_task(effective_label_num, label_shape_cum, task)
             cls_weights = cal_class_weight(task_label_num, len(task_label_num))
-            cls_weights = tf.constant(cls_weights, dtype=tf.float32)
-            cls_weights = tf.expand_dims(cls_weights, axis=0)
+            cls_weights = torch.tensor(cls_weights, dtype=torch.float32).unsqueeze(0)
             self.cls_weights = cls_weights
 
-    def call(self, y_true, y_pred):
-        y_pred = tf.clip_by_value(y_pred, clip_value_min=1e-9, clip_value_max=1 - 1e-9)
-        cross_entropy = -y_true * tf.math.log(y_pred)
+    def forward(self, y_true, y_pred):
+        y_pred = torch.clamp(y_pred, min=1e-9, max=1 - 1e-9)
+        cross_entropy = -y_true * torch.log(y_pred)
         weight = ((1 - y_pred) ** self.gamma) * y_true
-        FCLoss = cross_entropy * weight
+        focal_loss = cross_entropy * weight
         if self.cls_weights is not None:
-            FCLoss = FCLoss * self.cls_weights
-        reduce_fl = tf.reduce_sum(FCLoss, axis=-1)
-        return reduce_fl
+            focal_loss = focal_loss * self.cls_weights.to(y_pred.device)
+        return focal_loss.sum(dim=-1)
 
 
-class DataSequence(tf.keras.utils.Sequence):
-    def __init__(self, data, chunk_list, param, tensor_shape, mini_epochs=1, add_indel_length=False, validation=False):
+class BinChunkDataset(Dataset):
+    def __init__(self, data, chunk_list, tensor_shape, bin_tensor_shape, chunk_size):
         self.data = data
         self.chunk_list = chunk_list
-        self.batch_size = param.trainBatchSize
-        self.chunk_size = param.chunk_size
-        self.chunks_per_batch = self.batch_size // self.chunk_size
-        self.label_shape_cum = param.label_shape_cum[0:4 if add_indel_length else 2]
-        self.mini_epochs = mini_epochs
-        self.mini_epochs_count = -1
-        self.validation = validation
-        self.position_matrix = np.empty([self.batch_size] + tensor_shape, np.int32)
-        self.label = np.empty((self.batch_size, param.label_size), np.float32)
+        self.chunk_size = chunk_size
+        self.tensor_shape = list(tensor_shape)
+        self.bin_tensor_shape = list(bin_tensor_shape)
         self.random_offset = 0
-        self.on_epoch_end()
 
     def __len__(self):
-        return int((len(self.chunk_list) // self.chunks_per_batch) // self.mini_epochs)
+        return len(self.chunk_list)
+
+    def set_random_offset(self, offset):
+        self.random_offset = offset
 
     def __getitem__(self, index):
-        mini_epoch_offset = self.mini_epochs_count * self.__len__()
-        chunk_batch_list = self.chunk_list[(mini_epoch_offset + index) * self.chunks_per_batch:(mini_epoch_offset + index + 1) * self.chunks_per_batch]
-        for chunk_idx, (bin_id, chunk_id) in enumerate(chunk_batch_list):
-            start_pos = self.random_offset + chunk_id * self.chunk_size
-            self.position_matrix[chunk_idx * self.chunk_size:(chunk_idx + 1) * self.chunk_size] = \
-                self.data[bin_id].root.position_matrix[start_pos:start_pos + self.chunk_size]
-            self.label[chunk_idx * self.chunk_size:(chunk_idx + 1) * self.chunk_size] = \
-                self.data[bin_id].root.label[start_pos:start_pos + self.chunk_size]
+        bin_id, chunk_id = self.chunk_list[index]
+        start_pos = self.random_offset + chunk_id * self.chunk_size
+        end_pos = start_pos + self.chunk_size
+        position_matrix = self.data[bin_id]["position_matrix"][start_pos:end_pos]
+        label = self.data[bin_id]["label"][start_pos:end_pos]
+        if self.bin_tensor_shape[-1] != self.tensor_shape[-1]:
+            position_matrix = position_matrix[..., :self.tensor_shape[-1]]
+        return position_matrix, label
 
-        return self.position_matrix, tuple(
-                np.split(self.label, self.label_shape_cum, axis=1)[:len(self.label_shape_cum)]
-            )
 
-    def on_epoch_end(self):
-        self.mini_epochs_count += 1
-        if (self.mini_epochs_count % self.mini_epochs) == 0:
-            self.mini_epochs_count = 0
-            if not self.validation:
-                self.random_offset = np.random.randint(0, self.chunk_size)
-                np.random.shuffle(self.chunk_list)
+def collate_chunks(batch):
+    position_matrix = np.concatenate([item[0] for item in batch], axis=0)
+    label = np.concatenate([item[1] for item in batch], axis=0)
+    return position_matrix, label
 
 
 def get_chunk_list(chunk_offset, train_chunk_num, chunks_per_batch=10, training_dataset_percentage=None):
@@ -142,7 +177,87 @@ def exist_file_prefix(exclude_training_samples, f):
     return False
 
 
-def train_model(args):
+def _load_checkpoint(model, checkpoint_path, device, is_ddp=False):
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+        state_dict = checkpoint["state_dict"]
+    else:
+        state_dict = checkpoint
+    
+    # Handle DDP state dict prefix
+    if is_ddp:
+        # If loading a non-DDP checkpoint into a DDP model
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if not k.startswith('module.'):
+                new_state_dict['module.' + k] = v
+            else:
+                new_state_dict[k] = v
+        state_dict = new_state_dict
+    else:
+        # If loading a DDP checkpoint into a non-DDP model
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith('module.'):
+                new_state_dict[k[7:]] = v
+            else:
+                new_state_dict[k] = v
+        state_dict = new_state_dict
+    
+    model.load_state_dict(state_dict)
+
+
+def _run_epoch(model, loader, optimizer, loss_funcs, label_shapes, device, train=True, desc=None, distributed=False):
+    if train:
+        model.train()
+    else:
+        model.eval()
+
+    epoch_loss = 0.0
+    batches = 0
+    iterator = loader
+    # Only show progress bar on main process
+    if tqdm is not None and is_main_process():
+        iterator = tqdm(loader, desc=desc, unit="batch", leave=False)
+    for position_matrix, label in iterator:
+        position_matrix = torch.from_numpy(position_matrix).to(device)
+        label = torch.from_numpy(label).float().to(device)
+        if train:
+            optimizer.zero_grad()
+
+        with torch.set_grad_enabled(train):
+            outputs = model(position_matrix)
+            label_chunks = []
+            start_idx = 0
+            for chunk_size in label_shapes:
+                end_idx = start_idx + chunk_size
+                label_chunks.append(label[:, start_idx:end_idx])
+                start_idx = end_idx
+            task_losses = []
+            for task_id, output in enumerate(outputs):
+                task_loss = loss_funcs[task_id](label_chunks[task_id], output).mean()
+                task_losses.append(task_loss)
+            loss = sum(task_losses)
+
+            if train:
+                loss.backward()
+                optimizer.step()
+
+        # Reduce loss across all processes for logging
+        if distributed:
+            reduced_loss = reduce_tensor(loss.detach())
+            epoch_loss += reduced_loss.item()
+        else:
+            epoch_loss += loss.item()
+            
+        if tqdm is not None and hasattr(iterator, "set_postfix") and is_main_process():
+            iterator.set_postfix(loss=f"{loss.item():.4f}")
+        batches += 1
+
+    return epoch_loss / max(1, batches)
+
+
+def train_model(args, local_rank=None):
     platform = args.platform
     pileup = args.pileup
     add_indel_length = args.add_indel_length
@@ -151,22 +266,57 @@ def train_model(args):
     add_validation_dataset = args.random_validation or (args.validation_fn is not None)
     validation_fn = args.validation_fn
     ochk_prefix = args.ochk_prefix if args.ochk_prefix is not None else ""
+
+    # Distributed training setup
+    distributed = local_rank is not None
+    if distributed:
+        device = torch.device(f"cuda:{local_rank}")
+        world_size = get_world_size()
+    else:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        world_size = 1
+
+    ensure_hdf5_plugin_path()
     if pileup:
         import shared.param_p as param
-        model = model_path.Clair3_P()
     else:
         import shared.param_f as param
-        model = model_path.Clair3_F(add_indel_length=add_indel_length)
 
-    tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
+    base_tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
+    tensor_shape = list(base_tensor_shape)
+    if args.enable_dwell_time:
+        tensor_shape[-1] += 1
+
+    if pileup:
+        model = model_path.Clair3_P(add_indel_length=add_indel_length, input_channels=tensor_shape[-1])
+    else:
+        model = model_path.Clair3_F(add_indel_length=add_indel_length, input_channels=tensor_shape[-1])
+    bin_tensor_shape = list(tensor_shape)
+    if args.reuse_bin:
+        bin_tensor_shape[-1] += 1
+        if is_main_process():
+            logging.info("[INFO] Reusing %d-channel bin tensors -> %d-channel model inputs (dropping the last channel).",
+                         bin_tensor_shape[-1], tensor_shape[-1])
+
     label_shape = param.label_shape
+    label_shapes = label_shape[0:4 if add_indel_length else 2]
     label_shape_cum = param.label_shape_cum
     batch_size, chunk_size = param.trainBatchSize, param.chunk_size
     assert batch_size % chunk_size == 0
     chunks_per_batch = batch_size // chunk_size
     random.seed(param.RANDOM_SEED)
     np.random.seed(param.RANDOM_SEED)
+    if param.RANDOM_SEED is not None:
+        torch.manual_seed(param.RANDOM_SEED)
+
     learning_rate = args.learning_rate if args.learning_rate else param.initialLearningRate
+    # Scale learning rate by world size for distributed training
+    if distributed and args.scale_lr:
+        learning_rate = learning_rate * world_size
+        if is_main_process():
+            logging.info("[INFO] Scaling learning rate by world size: %f -> %f", 
+                        learning_rate / world_size, learning_rate)
+    
     max_epoch = args.maxEpoch if args.maxEpoch else param.maxEpoch
     task_num = 4 if add_indel_length else 2
     mini_epochs = args.mini_epochs
@@ -175,24 +325,24 @@ def train_model(args):
         chunk_offset = np.zeros(len(file_list), dtype=int)
         table_dataset_list = []
         for bin_idx, bin_file in enumerate(file_list):
-            table_dataset = tables.open_file(os.path.join(file_path, bin_file), 'r')
+            table_dataset = h5py.File(os.path.join(file_path, bin_file), 'r')
             table_dataset_list.append(table_dataset)
-            chunk_num = (len(table_dataset.root.label) - batch_size) // chunk_size
+            chunk_num = (len(table_dataset["label"]) - batch_size) // chunk_size
             chunk_offset[bin_idx] = chunk_num
         return table_dataset_list, chunk_offset
 
     bin_list = os.listdir(args.bin_fn)
-    # default we exclude sample hg003 and all chr20 for training
     bin_list = [f for f in bin_list if '_20_' not in f and not exist_file_prefix(exclude_training_samples, f)]
-    logging.info("[INFO] total {} training bin files: {}".format(len(bin_list), ','.join(bin_list)))
+    if is_main_process():
+        logging.info("[INFO] total %d training bin files: %s", len(bin_list), ','.join(bin_list))
 
     effective_label_num = None
-
     table_dataset_list, chunk_offset = populate_dataset_table(bin_list, args.bin_fn)
 
     if validation_fn:
         val_list = os.listdir(validation_fn)
-        logging.info("[INFO] total {} validation bin files: {}".format(len(val_list), ','.join(val_list)))
+        if is_main_process():
+            logging.info("[INFO] total %d validation bin files: %s", len(val_list), ','.join(val_list))
         validate_table_dataset_list, validate_chunk_offset = populate_dataset_table(val_list, args.validation_fn)
 
         train_chunk_num = int(sum(chunk_offset))
@@ -206,75 +356,206 @@ def train_model(args):
         training_dataset_percentage = param.trainingDatasetPercentage if add_validation_dataset else None
         if add_validation_dataset:
             total_batches = total_chunks // chunks_per_batch
-            validate_chunk_num = int(max(1., np.floor(total_batches * (1 - training_dataset_percentage))) * chunks_per_batch)
-            # +++++++++++++**----
-            # +:training *:buffer -:validation
-            # distribute one batch data as buffer for each bin file, avoiding shifting training data to validation data
+            validate_chunk_num = int(max(1.0, np.floor(total_batches * (1 - training_dataset_percentage))) * chunks_per_batch)
             train_chunk_num = int(total_chunks - validate_chunk_num)
         else:
             train_chunk_num = total_chunks
-        train_shuffle_chunk_list, validate_shuffle_chunk_list = get_chunk_list(chunk_offset, train_chunk_num, chunks_per_batch, training_dataset_percentage)
+        train_shuffle_chunk_list, validate_shuffle_chunk_list = get_chunk_list(
+            chunk_offset, train_chunk_num, chunks_per_batch, training_dataset_percentage
+        )
         train_chunk_num = len(train_shuffle_chunk_list)
         validate_chunk_num = len(validate_shuffle_chunk_list)
 
-    train_seq = DataSequence(table_dataset_list, train_shuffle_chunk_list, param, tensor_shape,
-        mini_epochs=mini_epochs, add_indel_length=add_indel_length)
-    if add_validation_dataset:
-        val_seq = DataSequence(validate_table_dataset_list if validation_fn else table_dataset_list, validate_shuffle_chunk_list, param, tensor_shape,
-            mini_epochs=1, add_indel_length=add_indel_length, validation=True)
-    else:
-        val_seq = None
-
     total_steps = max_epoch * (train_chunk_num // chunks_per_batch)
 
-    #RectifiedAdam with warmup start
-    optimizer = tfa.optimizers.Lookahead(tfa.optimizers.RectifiedAdam(
-        lr=learning_rate,
-        total_steps=total_steps,
-        warmup_proportion=0.1,
-        min_lr=learning_rate*0.75,
-    ))
-
-    loss_func = [FocalLoss(label_shape_cum, task, effective_label_num) for task in range(task_num)]
-    loss_task = {"output_{}".format(task + 1): loss_func[task] for task in range(task_num)}
-    metrics = {"output_{}".format(task + 1): tfa.metrics.F1Score(num_classes=label_shape[task], average='micro') for
-               task in range(task_num)}
-
-    model.compile(
-        loss=loss_task,
-        metrics=metrics,
-        optimizer=optimizer
-    )
-    early_stop_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10*mini_epochs, mode="min")
-    model_save_callback = tf.keras.callbacks.ModelCheckpoint(ochk_prefix + ".{epoch:02d}", period=1, save_weights_only=False)
-    model_best_callback = tf.keras.callbacks.ModelCheckpoint("best_val_loss", monitor='val_loss', save_best_only=True, mode="min")
-    train_log_callback = tf.keras.callbacks.CSVLogger("training.log", separator='\t')
-
-    # Use first 20 element to initialize tensorflow model using graph mode
-    output = model(np.array(table_dataset_list[0].root.position_matrix[:20]))
-    logging.info(model.summary(print_fn=logging.info))
-
-    logging.info("[INFO] The size of dataset: {}".format(total_chunks * chunk_size))
-    logging.info("[INFO] The training batch size: {}".format(batch_size))
-    logging.info("[INFO] The training learning_rate: {}".format(learning_rate))
-    logging.info("[INFO] Total training steps: {}".format(total_steps))
-    logging.info("[INFO] Maximum training epoch: {}".format(max_epoch))
-    logging.info("[INFO] Mini-epochs per epoch: {}".format(mini_epochs))
-    logging.info("[INFO] Start training...")
-
+    # Move model to device before wrapping with DDP
+    model.to(device)
+    
+    # Load checkpoint before wrapping with DDP
     if args.chkpnt_fn is not None:
-        model.load_weights(args.chkpnt_fn)
-        logging.info("[INFO] Starting from model {}".format(args.chkpnt_fn))
+        _load_checkpoint(model, args.chkpnt_fn, device, is_ddp=False)
+        if is_main_process():
+            logging.info("[INFO] Starting from model %s", args.chkpnt_fn)
 
-    train_history = model.fit(x=train_seq,
-                              epochs=max_epoch * mini_epochs,
-                              validation_data=val_seq,
-                              callbacks=[early_stop_callback,
-                                         model_save_callback,
-                                         model_best_callback,
-                                         train_log_callback],
-                              verbose=1,
-                              shuffle=False)
+    # Wrap model with DDP for distributed training
+    if distributed:
+        model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=False)
+        if is_main_process():
+            logging.info("[INFO] Using DistributedDataParallel with %d GPUs", world_size)
+
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=learning_rate, weight_decay=param.l2RegularizationLambda
+    )
+
+    loss_funcs = [FocalLoss(label_shape_cum, task, effective_label_num) for task in range(task_num)]
+
+    if is_main_process():
+        logging.info("[INFO] The size of dataset: %d", total_chunks * chunk_size)
+        logging.info("[INFO] The training batch size: %d (per GPU)", batch_size)
+        if distributed:
+            logging.info("[INFO] Effective batch size: %d (total across %d GPUs)", batch_size * world_size, world_size)
+        logging.info("[INFO] The training learning_rate: %f", learning_rate)
+        logging.info("[INFO] Total training steps: %d", total_steps)
+        logging.info("[INFO] Maximum training epoch: %d", max_epoch)
+        logging.info("[INFO] Mini-epochs per epoch: %d", mini_epochs)
+        logging.info("[INFO] Start training...")
+
+    log_path = "training.log"
+    if is_main_process():
+        with open(log_path, "w") as log_f:
+            log_f.write("epoch\tloss\tval_loss\n")
+
+    best_val_loss = None
+    patience = 10 * mini_epochs
+    patience_count = 0
+
+    total_epochs = max_epoch * mini_epochs
+    chunks_per_epoch = max(1, len(train_shuffle_chunk_list) // mini_epochs)
+
+    for epoch in range(total_epochs):
+        if is_main_process():
+            logging.info("[INFO] Epoch %d/%d", epoch + 1, total_epochs)
+        if epoch % mini_epochs == 0:
+            np.random.shuffle(train_shuffle_chunk_list)
+            random_offset = np.random.randint(0, chunk_size)
+        else:
+            random_offset = np.random.randint(0, chunk_size)
+
+        # Broadcast random_offset to all processes to ensure consistency
+        if distributed:
+            random_offset_tensor = torch.tensor([random_offset], device=device)
+            dist.broadcast(random_offset_tensor, src=0)
+            random_offset = random_offset_tensor.item()
+
+        start_idx = (epoch % mini_epochs) * chunks_per_epoch
+        end_idx = start_idx + chunks_per_epoch
+        epoch_chunk_list = train_shuffle_chunk_list[start_idx:end_idx]
+
+        train_dataset = BinChunkDataset(table_dataset_list, epoch_chunk_list, tensor_shape, bin_tensor_shape, chunk_size)
+        train_dataset.set_random_offset(random_offset)
+        
+        # Use DistributedSampler for distributed training
+        if distributed:
+            train_sampler = DistributedSampler(
+                train_dataset, 
+                num_replicas=world_size, 
+                rank=local_rank, 
+                shuffle=True,
+                drop_last=True
+            )
+            train_sampler.set_epoch(epoch)
+            train_loader = DataLoader(
+                train_dataset,
+                batch_size=chunks_per_batch,
+                shuffle=False,  # Shuffle is handled by DistributedSampler
+                drop_last=True,
+                collate_fn=collate_chunks,
+                pin_memory=True,
+                num_workers=8,
+                prefetch_factor=2,
+                sampler=train_sampler,
+            )
+        else:
+            train_loader = DataLoader(
+                train_dataset,
+                batch_size=chunks_per_batch,
+                shuffle=True,
+                drop_last=True,
+                collate_fn=collate_chunks,
+                pin_memory=True,
+                num_workers=8,
+                prefetch_factor=2,
+            )
+
+        train_loss = _run_epoch(
+            model,
+            train_loader,
+            optimizer,
+            loss_funcs,
+            label_shapes,
+            device,
+            train=True,
+            desc="train",
+            distributed=distributed,
+        )
+
+        val_loss = None
+        if add_validation_dataset:
+            val_data = validate_table_dataset_list if validation_fn else table_dataset_list
+            val_dataset = BinChunkDataset(val_data, validate_shuffle_chunk_list, tensor_shape, bin_tensor_shape, chunk_size)
+            val_dataset.set_random_offset(0)
+            
+            # Use DistributedSampler for validation as well
+            if distributed:
+                val_sampler = DistributedSampler(
+                    val_dataset,
+                    num_replicas=world_size,
+                    rank=local_rank,
+                    shuffle=False,
+                    drop_last=True
+                )
+                val_loader = DataLoader(
+                    val_dataset,
+                    batch_size=chunks_per_batch,
+                    shuffle=False,
+                    drop_last=True,
+                    collate_fn=collate_chunks,
+                    pin_memory=True,
+                    num_workers=8,
+                    prefetch_factor=2,
+                    sampler=val_sampler,
+                )
+            else:
+                val_loader = DataLoader(
+                    val_dataset,
+                    batch_size=chunks_per_batch,
+                    shuffle=False,
+                    drop_last=True,
+                    collate_fn=collate_chunks,
+                    pin_memory=True,
+                    num_workers=8,
+                    prefetch_factor=2,
+                )
+            val_loss = _run_epoch(
+                model,
+                val_loader,
+                optimizer,
+                loss_funcs,
+                label_shapes,
+                device,
+                train=False,
+                desc="val",
+                distributed=distributed,
+            )
+
+        # Only save checkpoints and logs on main process
+        if is_main_process():
+            checkpoint_path = f"{ochk_prefix}.{epoch + 1:02d}.pt" if ochk_prefix else f"epoch.{epoch + 1:02d}.pt"
+            # Save without 'module.' prefix for easier loading
+            state_dict = model.module.state_dict() if distributed else model.state_dict()
+            torch.save(state_dict, checkpoint_path)
+
+            val_loss_str = "" if val_loss is None else f"{val_loss:.6f}"
+            with open(log_path, "a") as log_f:
+                log_f.write(f"{epoch + 1}\t{train_loss:.6f}\t{val_loss_str}\n")
+
+        if val_loss is not None:
+            if best_val_loss is None or val_loss < best_val_loss:
+                best_val_loss = val_loss
+                patience_count = 0
+                if is_main_process():
+                    state_dict = model.module.state_dict() if distributed else model.state_dict()
+                    torch.save(state_dict, "best_val_loss.pt")
+            else:
+                patience_count += 1
+                if patience_count >= patience:
+                    if is_main_process():
+                        logging.info("[INFO] Early stopping at epoch %d", epoch + 1)
+                    break
+
+        # Synchronize all processes at the end of each epoch
+        if distributed:
+            dist.barrier()
 
     for table_dataset in table_dataset_list:
         table_dataset.close()
@@ -283,13 +564,8 @@ def train_model(args):
         for table_dataset in validate_table_dataset_list:
             table_dataset.close()
 
-    # show the parameter set with the smallest validation loss
-    if 'val_loss' in train_history.history:
-        best_validation_epoch = np.argmin(np.array(train_history.history["val_loss"])) + 1
-        logging.info("[INFO] Best validation loss at epoch: %d" % best_validation_epoch)
-    else:
-        best_train_epoch = np.argmin(np.array(train_history.history["loss"])) + 1
-        logging.info("[INFO] Best train loss at epoch: %d" % best_train_epoch)
+    if best_val_loss is not None and is_main_process():
+        logging.info("[INFO] Best validation loss: %.6f", best_val_loss)
 
 
 def main():
@@ -299,7 +575,7 @@ def main():
                         help="Sequencing platform of the input. Options: 'ont,hifi,ilmn', default: %(default)s")
 
     parser.add_argument('--bin_fn', type=str, default="", required=True,
-                        help="Binary tensor input generated by Tensor2Bin.py, support multiple bin readers using pytables")
+                        help="Binary tensor input generated by Tensor2Bin.py, supports HDF5 bin files")
 
     parser.add_argument('--chkpnt_fn', type=str, default=None,
                         help="Input a model to resume training or for fine-tuning")
@@ -313,7 +589,6 @@ def main():
 
     parser.add_argument('--learning_rate', type=float, default=1e-3,
                         help="Set the initial learning rate, default: %(default)s")
-
 
     parser.add_argument('--exclude_training_samples', type=str, default=None,
                         help="Define training samples to be excluded")
@@ -330,6 +605,11 @@ def main():
     parser.add_argument('--add_indel_length', type=str2bool, default=False,
                         help=SUPPRESS)
 
+    parser.add_argument('--enable_dwell_time', action='store_true',
+                        help="Enable dwell time for training, default: %(default)s")
+    parser.add_argument('--reuse_bin', action='store_true',
+                        help="Reuse 9-channel bin tensors by dropping the last channel before training, default: %(default)s")
+
     # mutually-incompatible validation options
     vgrp = parser.add_mutually_exclusive_group()
     vgrp.add_argument('--random_validation', action='store_true',
@@ -338,6 +618,11 @@ def main():
     vgrp.add_argument('--validation_fn', type=str, default=None,
                         help="Binary tensor input for use in validation: %(default)s")
 
+    # Distributed training options
+    parser.add_argument('--local_rank', type=int, default=-1,
+                        help="Local rank for distributed training (set by torchrun)")
+    parser.add_argument('--scale_lr', action='store_true',
+                        help="Scale learning rate by the number of GPUs, default: %(default)s")
 
     args = parser.parse_args()
 
@@ -345,7 +630,23 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    train_model(args)
+    # Setup distributed training if local_rank is set
+    local_rank = None
+    if args.local_rank != -1:
+        local_rank = args.local_rank
+        # Get world_size from environment variable set by torchrun
+        world_size = int(os.environ.get('WORLD_SIZE', 1))
+        setup_distributed(local_rank, world_size)
+    elif 'LOCAL_RANK' in os.environ:
+        # torchrun sets LOCAL_RANK environment variable
+        local_rank = int(os.environ['LOCAL_RANK'])
+        world_size = int(os.environ.get('WORLD_SIZE', 1))
+        setup_distributed(local_rank, world_size)
+
+    try:
+        train_model(args, local_rank)
+    finally:
+        cleanup_distributed()
 
 
 if __name__ == "__main__":

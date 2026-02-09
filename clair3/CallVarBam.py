@@ -121,6 +121,11 @@ def Run(args):
     enable_long_indel_mode = CommandOption('enable_long_indel', args.enable_long_indel)
     keep_iupac_bases_mode = CommandOption('keep_iupac_bases', args.keep_iupac_bases)
     enable_variant_calling_at_sequence_head_and_tail_mode = CommandOption('enable_variant_calling_at_sequence_head_and_tail', args.enable_variant_calling_at_sequence_head_and_tail)
+    
+    # enable_dwell_time is a flag without value
+    enable_dwell_time_mode = None
+    if args.enable_dwell_time:
+        enable_dwell_time_mode = CommandOptionWithNoValue('enable_dwell_time')
 
     ctgStart = None
     ctgEnd = None
@@ -139,10 +144,10 @@ def Run(args):
     else:
         sched_getaffinity_list = list(os.sched_getaffinity(0))
         maxCpus = len(sched_getaffinity_list)
-        if args.tensorflow_threads is None:
+        if args.torch_threads is None:
             numCpus = maxCpus
         else:
-            numCpus = args.tensorflow_threads if args.tensorflow_threads < maxCpus else maxCpus
+            numCpus = args.torch_threads if args.torch_threads < maxCpus else maxCpus
 
         _cpuSet = ",".join(str(x) for x in random.sample(sched_getaffinity_list, numCpus))
 
@@ -196,6 +201,8 @@ def Run(args):
         create_tensor_command_options.append(phasing_info_in_bam_mode)
         create_tensor_command_options.append(need_phasing_mode)
         create_tensor_command_options.append(CommandOption('full_aln_regions', full_aln_regions))
+        if enable_dwell_time_mode is not None:
+            create_tensor_command_options.append(enable_dwell_time_mode)
     else:
         create_tensor_command_options.append(CommandOption('snp_min_af', snp_min_af))
         create_tensor_command_options.append(CommandOption('indel_min_af', indel_min_af))
@@ -236,6 +243,9 @@ def Run(args):
         enable_long_indel_mode,
         keep_iupac_bases_mode,
     ]
+    
+    if enable_dwell_time_mode is not None:
+        call_variant_command_options.append(enable_dwell_time_mode)
 
     try:
         if need_realignment:
@@ -389,6 +399,9 @@ def main():
     parser.add_argument('--keep_iupac_bases', type=str2bool, default=False,
                         help="EXPERIMENTAL: Keep IUPAC (non ACGTN) reference and alternate bases, default: convert all IUPAC bases to N")
 
+    parser.add_argument('--enable_dwell_time', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Enable dwell time feature for full-alignment model calling, default: %(default)s")
+
     # options for debug purpose
     parser.add_argument('--phasing_info_in_bam', action='store_true',
                         help="DEBUG: Skip phasing and use the phasing info provided in the input BAM (HP tag), default: False")
@@ -405,8 +418,10 @@ def main():
     parser.add_argument('--use_gpu', type=str2bool, default=False,
                         help="DEBUG: Use GPU for calling. Speed up is mostly insignificant. Only use this for building your own pipeline")
 
-    parser.add_argument('--tensorflow_threads', type=int, default=param.tensorflow_threads,
-                        help="DEBUG: Number of threads per tensorflow job. Tune if you are building your own pipeline")
+    parser.add_argument('--torch_threads', type=int, default=param.torch_threads,
+                        help="DEBUG: Number of threads per torch job. Tune if you are building your own pipeline")
+    parser.add_argument('--tensorflow_threads', dest='torch_threads', type=int, default=param.torch_threads,
+                        help=SUPPRESS)
 
     parser.add_argument('--extend_bed', nargs='?', action="store", type=str, default=None,
                         help="DEBUG: Extend the regions in the --bed_fn by a few bp for tensor creation, default extend 16bp")
@@ -436,13 +451,13 @@ def main():
     parser.add_argument('--need_realignment', action='store_false',
                         help=SUPPRESS)
 
-    ## Use bin file from pytables to speed up calling.
+    ## Use bin file from HDF5 to speed up calling.
     parser.add_argument('--is_from_tables', action='store_true',
                         help=SUPPRESS)
 
     ## Wait a short while for no more than a few seconds to start the job. This is to avoid starting multiple jobs simultaneously
-    ## that might use up the maximum number of threads allowed, because Tensorflow will create more threads than needed at the beginning of running the program
-    ## Obseleted after adding --tensorflow_threads defaulted at 4
+    ## that might use up the maximum number of threads allowed, because torch may create more threads than needed at the beginning of running the program
+    ## Obsoleted after adding --torch_threads defaulted at 4
     parser.add_argument('--delay', type=int, default=5,
                         help=SUPPRESS)
 

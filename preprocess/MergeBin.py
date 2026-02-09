@@ -2,10 +2,9 @@ import sys
 import logging
 import numpy as np
 from argparse import ArgumentParser, SUPPRESS
-import tables
+import h5py
 
 import clair3.utils as utils
-FILTERS = tables.Filters(complib='blosc:lz4hc', complevel=5)
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 
@@ -14,7 +13,7 @@ def Run(args):
     out_fn = args.out_fn
     platform = args.platform
     pileup = args.pileup
-
+    enable_dwell_time = args.enable_dwell_time
     global param
     float_type = 'int32'
     if pileup:
@@ -23,32 +22,60 @@ def Run(args):
         import shared.param_f as param
         float_type = 'int8'
 
-    tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
+    tensor_shape = list(param.ont_input_shape if platform == 'ont' else param.input_shape)
+    if enable_dwell_time:
+        tensor_shape[2] += 1
 
     # select all match prefix if file path not exists
-    tables.set_blosc_max_threads(64)
-    int_atom = tables.Atom.from_dtype(np.dtype(float_type))
-    string_atom = tables.StringAtom(itemsize=param.no_of_positions + 50)
-    long_string_atom = tables.StringAtom(itemsize=5000)  # max alt_info length
-    table_file = tables.open_file(out_fn, mode='w', filters=FILTERS)
-    table_file.create_earray(where='/', name='position_matrix', atom=int_atom, shape=[0] + tensor_shape,
-                             filters=FILTERS)
-    table_file.create_earray(where='/', name='position', atom=string_atom, shape=(0, 1), filters=FILTERS)
-    table_file.create_earray(where='/', name='label', atom=int_atom, shape=(0, param.label_size), filters=FILTERS)
-    table_file.create_earray(where='/', name='alt_info', atom=long_string_atom, shape=(0, 1), filters=FILTERS)
+    utils.ensure_hdf5_plugin_path()
+    compression_kwargs = utils._hdf5_compression_kwargs()
+    table_file = h5py.File(out_fn, mode='w')
+    chunk_rows = 500
+    table_file.create_dataset(
+        "position_matrix",
+        shape=(0,) + tuple(tensor_shape),
+        maxshape=(None,) + tuple(tensor_shape),
+        chunks=(chunk_rows,) + tuple(tensor_shape),
+        dtype=np.dtype(float_type),
+        **compression_kwargs,
+    )
+    table_file.create_dataset(
+        "position",
+        shape=(0, 1),
+        maxshape=(None, 1),
+        chunks=(chunk_rows, 1),
+        dtype=f"S{param.no_of_positions + 50}",
+        **compression_kwargs,
+    )
+    table_file.create_dataset(
+        "label",
+        shape=(0, param.label_size),
+        maxshape=(None, param.label_size),
+        chunks=(chunk_rows, param.label_size),
+        dtype=np.dtype(float_type),
+        **compression_kwargs,
+    )
+    table_file.create_dataset(
+        "alt_info",
+        shape=(0, 1),
+        maxshape=(None, 1),
+        chunks=(chunk_rows, 1),
+        dtype="S5000",
+        **compression_kwargs,
+    )
 
     table_dict = utils.update_table_dict()
     total_compressed = 0
 
     for f in in_fn_list:
         print("[INFO] Merging file {}".format(f))
-        fi = tables.open_file(f, model='r')
-        assert (len(fi.root.label) == len(fi.root.position) == len(fi.root.position_matrix) == len(fi.root.alt_info))
-        for index in range(len(fi.root.label)):
-            table_dict['label'].append(fi.root.label[index])
-            table_dict['position'].append(fi.root.position[index])
-            table_dict['position_matrix'].append(fi.root.position_matrix[index])
-            table_dict['alt_info'].append(fi.root.alt_info[index])
+        fi = h5py.File(f, mode='r')
+        assert (len(fi["label"]) == len(fi["position"]) == len(fi["position_matrix"]) == len(fi["alt_info"]))
+        for index in range(len(fi["label"])):
+            table_dict['label'].append(fi["label"][index])
+            table_dict['position'].append(fi["position"][index])
+            table_dict['position_matrix'].append(fi["position_matrix"][index])
+            table_dict['alt_info'].append(fi["alt_info"][index])
 
             total_compressed += 1
 
@@ -81,7 +108,8 @@ def main():
     ## In pileup mode or not (full alignment mode), default: False
     parser.add_argument('--pileup', action='store_true',
                         help=SUPPRESS)
-
+    parser.add_argument('--enable_dwell_time', action='store_true',
+                        help="Enable dwell time, default: False")
     args = parser.parse_args()
 
     if len(sys.argv[1:]) == 0:
@@ -93,5 +121,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

@@ -16,7 +16,7 @@ print_help_messages()
     echo $'Required parameters:'
     echo $'  -b, --bam_fn=FILE             BAM file input. The input file must be samtools indexed.'
     echo $'  -f, --ref_fn=FILE             FASTA reference file input. The input file must be samtools indexed.'
-    echo $'  -m, --model_path=STR          The folder path containing a Clair3 model (requiring six files in the folder, including pileup.data-00000-of-00002, pileup.data-00001-of-00002 pileup.index, full_alignment.data-00000-of-00002, full_alignment.data-00001-of-00002 and full_alignment.index).'
+    echo $'  -m, --model_path=STR          The folder path containing a Clair3 model (supports TensorFlow checkpoints: pileup*.index/.data-* and full_alignment*.index/.data-*, or PyTorch .pt files like pileup.pt and full_alignment.pt).'
     echo $'  -t, --threads=INT             Max #threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The #chunks being processed simultaneously is ceil(#threads/4)*3. 3 is the overloading factor.'
     echo $'  -p, --platform=STR            Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.'
     echo $'  -o, --output=PATH             VCF/GVCF output directory.'
@@ -76,6 +76,7 @@ print_help_messages()
     echo $'      --keep_iupac_bases        EXPERIMENTAL: Keep IUPAC reference and alternate bases, default: convert all IUPAC bases to N.'
     echo $'      --base_err=FLOAT          EXPERIMENTAL: Estimated base error rate when enabling gvcf option, default: 0.001.'
     echo $'      --gq_bin_size=INT         EXPERIMENTAL: Default gq bin size for merge non-variant block when enabling gvcf option, default: 5.'
+    echo $'      --enable_dwell_time       EXPERIMENTAL: Enable dwell time feature (requires the C implementation with dwell support), default: disable.'
 
     echo $''
 }
@@ -95,7 +96,7 @@ ARGS=`getopt -o b:f:t:m:p:o:hv \
 bed_fn::,vcf_fn::,ctg_name::,sample_name::,qual::,samtools::,python::,pypy::,parallel::,whatshap::,chunk_num::,chunk_size::,var_pct_full::,ref_pct_full::,var_pct_phasing::,longphase::,device::,\
 min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,pileup_model_prefix::,fa_model_prefix::,base_err::,gq_bin_size::,fast_mode,gvcf,pileup_only,print_ref_calls,haploid_precise,haploid_sensitive,include_all_ctgs,\
 use_whatshap_for_intermediate_phasing,use_longphase_for_intermediate_phasing,use_whatshap_for_final_output_phasing,use_longphase_for_final_output_phasing,use_whatshap_for_final_output_haplotagging,keep_iupac_bases,\
-remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_variant_calling_at_sequence_head_and_tail,output_all_contigs_in_gvcf_header,enable_phasing,enable_long_indel,use_gpu,longphase_for_phasing,disable_c_impl,help,version -n 'run_clair3.sh' -- "$@"`
+remove_intermediate_dir,no_phasing_for_fa,call_snp_only,enable_variant_calling_at_sequence_head_and_tail,output_all_contigs_in_gvcf_header,enable_phasing,enable_long_indel,use_gpu,longphase_for_phasing,disable_c_impl,enable_dwell_time,help,version -n 'run_clair3.sh' -- "$@"`
 
 if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
@@ -145,6 +146,7 @@ USE_GPU=False
 DEVICE="EMPTY"
 USE_LONGPHASE=False
 ENABLE_C_IMPL=True
+ENABLE_DWELL_TIME=False
 CALL_HT=False
 OUTPUT_ALL_CONTIGS=False
 PILEUP_PREFIX="pileup"
@@ -207,6 +209,7 @@ while true; do
     --device ) DEVICE="$2"; shift 2 ;;
     --longphase_for_phasing ) USE_LONGPHASE=True; shift 1 ;;
     --disable_c_impl ) ENABLE_C_IMPL=False; shift 1 ;;
+    --enable_dwell_time ) ENABLE_DWELL_TIME=True; shift 1 ;;
 
     -- ) shift; break; ;;
     -h|--help ) print_help_messages; exit 0 ;;
@@ -323,6 +326,7 @@ echo "[INFO] ENABLE PHASING FINAL VCF OUTPUT USING LONGPHASE: ${FINAL_LP_PHASING
 echo "[INFO] ENABLE HAPLOTAGGING FINAL BAM: ${FINAL_WH_HAPLOTAG}"
 echo "[INFO] ENABLE LONG INDEL CALLING: ${ENABLE_LONG_INDEL}"
 echo "[INFO] ENABLE C_IMPLEMENT: ${ENABLE_C_IMPL}"
+echo "[INFO] ENABLE DWELL TIME: ${ENABLE_DWELL_TIME}"
 if [ "${USE_GPU}" != "False" ]; then echo "[INFO] USE GPU: ${USE_GPU}"; fi
 if [ "${DEVICE}" != "EMPTY" ]; then echo "[INFO] GPU DEVICE: ${DEVICE}"; fi
 
@@ -393,12 +397,38 @@ if [[ ! ${GQ_BIN_SIZE} =~ ^[\-0-9]+$ ]] || (( ${GQ_BIN_SIZE} < 0)); then echo -e
 # in genotyping mode, set --snp_min_af and --indel_min_af to 0.0
 if [ "${VCF_FILE_PATH}" != "EMPTY" ] && [ ! -z ${VCF_FILE_PATH} ] && [ -f ${VCF_FILE_PATH} ]; then SNP_AF=0.0; INDEL_AF=0.0; fi
 
-# model prefix detection
-if [ ! -f ${MODEL_PATH}/${PILEUP_PREFIX}.index ]; then echo -e "${ERROR} No pileup model found in provided model path and model prefix ${MODEL_PATH}/${PILEUP_PREFIX} ${NC}"; exit 1; fi
-if [ ! -f ${MODEL_PATH}/${FA_PREFIX}.index ]; then echo -e "${ERROR} No full-alignment model found in provided model path and model prefix ${MODEL_PATH}/${FA_PREFIX} ${NC}"; exit 1; fi
+# model prefix detection (accept TF checkpoints or .pt files)
+PILEUP_MODEL_CANDIDATE="${MODEL_PATH}/${PILEUP_PREFIX}"
+FA_MODEL_CANDIDATE="${MODEL_PATH}/${FA_PREFIX}"
+if [ ! -f "${PILEUP_MODEL_CANDIDATE}.pt" ] && [ ! -f "${PILEUP_MODEL_CANDIDATE}.index" ] && [ ! -f "${PILEUP_MODEL_CANDIDATE}" ]; then
+  echo -e "${ERROR} No pileup model found in provided model path and model prefix ${PILEUP_MODEL_CANDIDATE} ${NC}"
+  exit 1
+fi
+
+if [ "${PILEUP_ONLY}" = False ]; then
+    if [ ! -f "${FA_MODEL_CANDIDATE}.pt" ] && [ ! -f "${FA_MODEL_CANDIDATE}.index" ] && [ ! -f "${FA_MODEL_CANDIDATE}" ]; then
+        echo -e "${ERROR} No full-alignment model found in provided model path and model prefix ${FA_MODEL_CANDIDATE} ${NC}"
+        exit 1
+    fi
+fi
 
 CLAIR3_SCRIPT="clair3.sh"
-if [ "${ENABLE_C_IMPL}" = True ] && [ "${PLATFORM}" = "ilmn" ]; then echo -e "${WARNING} Illumina platform will disable C implement to support short read realignment process! ${NC}";  ENABLE_C_IMPL=False; fi
+
+if [ "${ENABLE_C_IMPL}" = True ] && [ "${PLATFORM}" = "ilmn" ]; then
+    echo -e "${WARNING} Illumina platform will disable C implement to support short read realignment process! ${NC}"
+    ENABLE_C_IMPL=False
+fi
+
+if [ "${ENABLE_DWELL_TIME}" = True ]; then
+    if [ "${PLATFORM}" = "ilmn" ]; then
+        echo -e "${WARNING} Dwell time is not supported for Illumina platform, disabling option! ${NC}"
+        ENABLE_DWELL_TIME=False
+    elif [ "${ENABLE_C_IMPL}" != True ]; then
+        echo -e "${WARNING} Dwell time requires the C implementation; re-enabling C implementation workflow. ${NC}"
+        ENABLE_C_IMPL=True
+    fi
+fi
+
 if [ "${ENABLE_C_IMPL}" = True ]; then CLAIR3_SCRIPT="clair3_c_impl.sh"; fi
 if [ "${ENABLE_C_IMPL}" != True ] && [ "${USE_GPU}" = True ]; then echo -e "${WARNING} GPU calling only support C implement for speedup! ${NC}";  USE_GPU=False; fi
 
@@ -461,6 +491,7 @@ ${SHELL_ENTRY} ${SCRIPT_PATH}/scripts/${CLAIR3_SCRIPT} \
     --use_longphase_for_intermediate_phasing=${USE_LONGPHASE} \
     --use_whatshap_for_final_output_phasing=${FINAL_WH_PHASING} \
     --use_longphase_for_final_output_phasing=${FINAL_LP_PHASING} \
-    --use_whatshap_for_final_output_haplotagging=${FINAL_WH_HAPLOTAG}
+    --use_whatshap_for_final_output_haplotagging=${FINAL_WH_HAPLOTAG} \
+    --enable_dwell_time=${ENABLE_DWELL_TIME}
 
 )) 2>&1 | tee ${OUTPUT_FOLDER}/run_clair3.log

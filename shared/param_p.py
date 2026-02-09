@@ -20,7 +20,8 @@ long_indel_distance_proportion = 0.1
 min_mq = 5
 min_bq = 0
 min_coverage = 2
-tensorflow_threads = 4
+torch_threads = 4
+tensorflow_threads = torch_threads
 
 #GVCF parameters
 base_err = 0.001

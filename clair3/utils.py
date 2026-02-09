@@ -5,14 +5,59 @@ import shlex
 import os
 import numpy as np
 from functools import partial
-
+import logging
 from clair3.task.main import *
 from shared.interval_tree import bed_tree_from, is_region_in
 from shared.utils import subprocess_popen, IUPAC_base_to_ACGT_base_dict as BASE2BASE, IUPAC_base_to_num_dict as BASE2NUM
 
 shuffle_bin_size = 50000
 PREFIX_CHAR_STR = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+logger = logging.getLogger(__name__)
 
+def ensure_hdf5_plugin_path():
+    plugin_path = os.environ.get("HDF5_PLUGIN_PATH")
+    if plugin_path and os.path.isdir(plugin_path):
+        return True
+    try:
+        import hdf5plugin
+    except Exception:
+        return False
+    candidates = []
+    for attr in ("PLUGIN_PATH", "plugin_path"):
+        value = getattr(hdf5plugin, attr, None)
+        if value:
+            candidates.append(value)
+    get_config = getattr(hdf5plugin, "get_config", None)
+    if callable(get_config):
+        config = get_config()
+        for attr in ("plugin_path", "PLUGIN_PATH"):
+            value = getattr(config, attr, None)
+            if value:
+                candidates.append(value)
+    for candidate in candidates:
+        if isinstance(candidate, (list, tuple)):
+            for item in candidate:
+                if item and os.path.isdir(item):
+                    os.environ["HDF5_PLUGIN_PATH"] = item
+                    return True
+        elif candidate and os.path.isdir(candidate):
+            os.environ["HDF5_PLUGIN_PATH"] = candidate
+            return True
+    return False
+
+def _hdf5_compression_kwargs():
+    ensure_hdf5_plugin_path()
+    try:
+        import hdf5plugin
+    except ImportError:
+        return {"compression": "lzf", "shuffle": True}
+    return hdf5plugin.Blosc(cname="lz4hc", clevel=5, shuffle=hdf5plugin.Blosc.SHUFFLE)
+
+def _append_hdf5_dataset(dataset, data):
+    start = dataset.shape[0]
+    end = start + data.shape[0]
+    dataset.resize((end,) + dataset.shape[1:])
+    dataset[start:end] = data
 
 def setup_environment():
     gc.enable()
@@ -31,7 +76,7 @@ def batches_from(iterable, item_from, batch_size=1):
         yield chunk
 
 
-def tensor_generator_from(tensor_file_path, batch_size, pileup, platform):
+def tensor_generator_from(tensor_file_path, batch_size, pileup, platform, enable_dwell_time=False):
     global param
     float_type = 'int32'
     if pileup:
@@ -47,7 +92,11 @@ def tensor_generator_from(tensor_file_path, batch_size, pileup, platform):
         fo = sys.stdin
 
     processed_tensors = 0
-    tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
+    tensor_shape = list(param.ont_input_shape if platform == 'ont' else param.input_shape)
+    # logger.info(f"Tensor shape: {tensor_shape}")
+    if enable_dwell_time:
+        tensor_shape[2] += 1
+        # logger.info(f"Tensor shape with dwell time: {tensor_shape}")
     prod_tensor_shape = np.prod(tensor_shape)
 
     def item_from(row):
@@ -243,26 +292,33 @@ def write_table_file(table_file, table_dict, tensor_shape, label_size, float_typ
     """
 
     position_matrix = np.array(table_dict['position_matrix'], np.dtype(float_type)).reshape([-1] + tensor_shape)
-    table_file.root.position_matrix.append(position_matrix)
+    position_dtype = table_file["position"].dtype
+    alt_info_dtype = table_file["alt_info"].dtype
+    position = np.array(table_dict['position'], dtype=position_dtype).reshape(-1, 1)
+    alt_info = np.array(table_dict['alt_info'], dtype=alt_info_dtype).reshape(-1, 1)
+    label = np.array(table_dict['label'], np.dtype(float_type)).reshape(-1, label_size)
 
-    table_file.root.alt_info.append(np.array(table_dict['alt_info']).reshape(-1, 1))
-    table_file.root.position.append(np.array(table_dict['position']).reshape(-1, 1))
-    table_file.root.label.append(np.array(table_dict['label'], np.dtype(float_type)).reshape(-1, label_size))
+    _append_hdf5_dataset(table_file["position_matrix"], position_matrix)
+    _append_hdf5_dataset(table_file["position"], position)
+    _append_hdf5_dataset(table_file["alt_info"], alt_info)
+    _append_hdf5_dataset(table_file["label"], label)
     table_dict = update_table_dict()
 
     return table_dict
 
 
 def print_bin_size(path, prefix=None):
-    import tables
+    import h5py
     import os
+    ensure_hdf5_plugin_path()
     total = 0
     for file_name in os.listdir(path):
         if prefix and not file_name.startswith(prefix):
             continue
-        table = tables.open_file(os.path.join(path, file_name), 'r')
-        print("[INFO] {} size is: {}".format(file_name, len(table.root.label)))
-        total += len(table.root.label)
+        with h5py.File(os.path.join(path, file_name), "r") as table:
+            label_size = table["label"].shape[0]
+        print("[INFO] {} size is: {}".format(file_name, label_size))
+        total += label_size
     print('[INFO] total: {}'.format(total))
 
 
@@ -354,15 +410,14 @@ def _filter_non_variants(X, ref_list, maximum_non_variant_ratio):
 
 
 def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow_duplicate_chr_pos=True, chunk_id=None,
-                       chunk_num=None, platform='ont', pileup=False, maximum_non_variant_ratio=None, candidate_details_fn_prefix=None):
+                       chunk_num=None, platform='ont', pileup=False, maximum_non_variant_ratio=None, candidate_details_fn_prefix=None, enable_dwell_time=False):
 
     """
-    Generate training array for training. here pytables with blosc:lz4hc are used for extreme fast compression and decompression,
-    which can meet the requirement of gpu utilization. lz4hc decompression allows speed up training array decompression 4~5x compared
-    with tensorflow tfrecord file format, current gpu utilization could reach over 85% with only 10G memory.
+    Generate training array for training. This uses HDF5 with Blosc/LZ4HC compression for fast
+    compression and decompression, keeping GPU utilization high without the TFRecord pipeline.
     tensor_fn: string format tensor acquired from CreateTensorPileup or CreateTensorFullAlign, include contig name position, tensor matrix, alternative information.
     var_fn: simplified variant(vcf) format from GetTruths, which include contig name, position, reference base, alternative base, genotype.
-    bin_fn: pytables format output bin file name.
+    bin_fn: HDF5 format output bin file name.
     shuffle: whether apply index shuffling when generating training data, default True, which would promote robustness.
     is_allow_duplicate_chr_pos: whether allow duplicate positions when training, if there exists downsampled data, lower depth will add a random prefix character.
     chunk_id: specific chunk id works with total chunk_num for parallel execution. Here will merge all tensor file with sampe prefix.
@@ -387,10 +442,12 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
         import shared.param_f as param
         float_type = 'int8'
 
-    import tables
-    FILTERS = tables.Filters(complib='blosc:lz4hc', complevel=5)
-    tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
-
+    import h5py
+    compression_kwargs = _hdf5_compression_kwargs()
+    # tensor_shape = param.ont_input_shape if platform == 'ont' else param.input_shape
+    tensor_shape = list(param.ont_input_shape if platform == 'ont' else param.input_shape)
+    if enable_dwell_time:
+        tensor_shape[2] += 1
     subprocess_list = []
     if tensor_fn == 'PIPE':
         subprocess_list.append(sys.stdin)
@@ -419,16 +476,40 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
             subprocess_list.append(
                 subprocess_popen(shlex.split("{} -fdc {}".format(param.zstd, os.path.join(directry, file_name)))).stdout)
 
-    tables.set_blosc_max_threads(64)
-    int_atom = tables.Atom.from_dtype(np.dtype(float_type))
-    string_atom = tables.StringAtom(itemsize=param.no_of_positions + 50)
-    long_string_atom = tables.StringAtom(itemsize=5000)  # max alt_info length
-    table_file = tables.open_file(bin_fn, mode='w', filters=FILTERS)
-    table_file.create_earray(where='/', name='position_matrix', atom=int_atom, shape=[0] + tensor_shape,
-                             filters=FILTERS)
-    table_file.create_earray(where='/', name='position', atom=string_atom, shape=(0, 1), filters=FILTERS)
-    table_file.create_earray(where='/', name='label', atom=int_atom, shape=(0, param.label_size), filters=FILTERS)
-    table_file.create_earray(where='/', name='alt_info', atom=long_string_atom, shape=(0, 1), filters=FILTERS)
+    table_file = h5py.File(bin_fn, mode='w')
+    chunk_rows = 500
+    table_file.create_dataset(
+        "position_matrix",
+        shape=(0,) + tuple(tensor_shape),
+        maxshape=(None,) + tuple(tensor_shape),
+        chunks=(chunk_rows,) + tuple(tensor_shape),
+        dtype=np.dtype(float_type),
+        **compression_kwargs,
+    )
+    table_file.create_dataset(
+        "position",
+        shape=(0, 1),
+        maxshape=(None, 1),
+        chunks=(chunk_rows, 1),
+        dtype=f"S{param.no_of_positions + 50}",
+        **compression_kwargs,
+    )
+    table_file.create_dataset(
+        "label",
+        shape=(0, param.label_size),
+        maxshape=(None, param.label_size),
+        chunks=(chunk_rows, param.label_size),
+        dtype=np.dtype(float_type),
+        **compression_kwargs,
+    )
+    table_file.create_dataset(
+        "alt_info",
+        shape=(0, 1),
+        maxshape=(None, 1),
+        chunks=(chunk_rows, 1),
+        dtype="S5000",
+        **compression_kwargs,
+    )
 
     table_dict = update_table_dict()
 
@@ -490,4 +571,3 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
 
     table_file.close()
     print("[INFO] Compressed %d/%d tensor" % (total_compressed, total), file=sys.stderr)
-

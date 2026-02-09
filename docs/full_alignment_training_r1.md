@@ -208,7 +208,7 @@ This section shows how to build multiple compressed tensor binary file for multi
 ```bash
 # Call variants using Clair3‘s pileup model with the --pileup_only option
 # Only select the candidates in the high-confident BED regions for model training (with --bed_fn)
-${PARALLEL} -j1 ${CLAIR3_PATH}/run_clair3.sh \
+${PARALLEL} -j1 python3 ${CLAIR3_PATH}/run_clair3.py \
   --bam_fn={3} \
   --ref_fn={4} \
   --threads=${THREADS} \

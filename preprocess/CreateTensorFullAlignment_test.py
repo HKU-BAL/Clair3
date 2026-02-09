@@ -71,6 +71,7 @@ class Position(object):
         self.genotype = genotype
         self.read_name_seq = defaultdict(str)
         self.enable_dwell_time = enable_dwell_time
+        self.read_info_detail = {}
 
     def update_infos(self):
         # only proceed when variant exists in candidate windows which greatly improves efficiency
@@ -83,6 +84,12 @@ class Position(object):
                                                 self.mapping_quality):
             read_channel, ins_base, query_base = get_tensor_info(base_info, bq, self.ref_base, mq, enable_dwell_time=self.enable_dwell_time)
             self.read_info[read_name] = (read_channel, ins_base)
+            self.read_info_detail[read_name] = {
+                "base": base_info[0],
+                "indel": base_info[1],
+                "bq": bq,
+                "mq": mq,
+            }
 
 
 class PhasingRead(object):
@@ -303,7 +310,9 @@ def get_alt_info(center_pos, pileup_dict, ref_seq, reference_sequence, reference
 
 
 def generate_tensor(ctg_name, center_pos, sorted_read_name_list, pileup_dict, ref_seq, reference_sequence,
-                    reference_start, platform, confident_bed_tree, add_no_phasing_data_training, enable_dwell_time=False, dwell_time_dict=None):
+                    reference_start, platform, confident_bed_tree, add_no_phasing_data_training,
+                    enable_dwell_time=False, dwell_time_dict=None, print_tensor_debug=False,
+                    dwell_debug_threshold=None):
     """
     Generate full alignment input tensor
     ctg_name: provided contig name.
@@ -380,6 +389,50 @@ def generate_tensor(ctg_name, center_pos, sorted_read_name_list, pileup_dict, re
                         # logger.info("TEST: dwell_time_dict[read_name][offset] is not available")
                         read_channel[-1] = 0  # Default to 0 if dwell time not available
                 tensor[read_idx][offset] = read_channel
+                if (
+                    enable_dwell_time
+                    and dwell_debug_threshold is not None
+                    and isinstance(read_channel[-1], (int, float))
+                    and read_channel[-1] > dwell_debug_threshold
+                ):
+                    detail = pileup_dict[p].read_info_detail.get(read_name, {})
+                    print(
+                        "[DWELL][TEST][THRESH] read={} ref_pos={} offset={} dwell={} base={} indel={}".format(
+                            read_name,
+                            p,
+                            offset,
+                            read_channel[-1],
+                            detail.get("base"),
+                            detail.get("indel"),
+                        ),
+                        flush=True,
+                    )
+                if print_tensor_debug:
+                    detail = pileup_dict[p].read_info_detail.get(read_name, {})
+                    ref_base_local = pileup_dict[p].ref_base
+                    base_symbol = detail.get("base")
+                    indel_symbol = detail.get("indel")
+                    mq = detail.get("mq")
+                    bq = detail.get("bq")
+                    if indel_symbol:
+                        cigar_reason = "insertion" if indel_symbol.startswith("+") else "deletion"
+                        cigar_desc = f"{cigar_reason}:{indel_symbol}"
+                    elif base_symbol and ref_base_local and base_symbol.upper() != ref_base_local.upper():
+                        cigar_desc = f"mismatch:{base_symbol}->{ref_base_local}"
+                    else:
+                        cigar_desc = "match"
+                    print(
+                        "[TENSOR][TEST] read={} ref_pos={} offset={} channel={} source={} mq={} bq={}".format(
+                            read_name,
+                            p,
+                            offset,
+                            read_channel,
+                            cigar_desc,
+                            mq,
+                            bq,
+                        ),
+                        flush=True,
+                    )
                 if ins_base != '' and p < end_pos - 1:
                     insert_tuple.append((read_idx, offset, ins_base, p))
 
@@ -506,6 +559,7 @@ def _parse_mv_tag_field(mv_field):
     mv_field example: 'mv:B:c,5,1,0,0,1,...'
     Returns (stride, move_list) or (None, None) on failure.
     """
+    print(f"MV FIELD: {mv_field}")
     if mv_field is None or not mv_field.startswith('mv:B:'):
         return None, None
     try:
@@ -519,6 +573,7 @@ def _parse_mv_tag_field(mv_field):
 
     try:
         values = [int(x) for x in values_str.split(',') if x != '']
+        print(f"VALUES: {values[0:10]} ... {values[-10:]}")
     except ValueError:
         return None, None
 
@@ -527,6 +582,8 @@ def _parse_mv_tag_field(mv_field):
 
     stride = values[0]
     moves = values[1:]
+    print(f"MOVES: {moves[0:10]} ... {moves[-10:]}")
+    print(f"STRIDE: {stride}")
     return stride, moves
 
 
@@ -548,10 +605,11 @@ def compute_dwell_times(mv_field, query_sequence, is_reverse_strand):
     Returns: list of dwell times per base in forward orientation
     """
     _, moves = _parse_mv_tag_field(mv_field)
+    print(f"MOVES: {moves[0:10]} ... {moves[-10:]}")
     if moves is None:
         return None
 
-    base_count = sum(1 for mv in moves if mv != 0)
+    base_count = len(query_sequence)
     if base_count == 0:
         return None
 
@@ -573,7 +631,8 @@ def compute_dwell_times(mv_field, query_sequence, is_reverse_strand):
 
     if is_reverse_strand:
         dwell_times = dwell_times[::-1]
-
+    print(f"DWELL TIMES: {dwell_times[0:10]} ... {dwell_times[-10:]}")
+    exit()
     return dwell_times
 def CreateTensorFullAlignment(args):
     ctg_start = args.ctgStart
@@ -611,6 +670,8 @@ def CreateTensorFullAlignment(args):
     is_known_vcf_file_provided = vcf_fn is not None
     enable_dwell_time = args.enable_dwell_time
     debug_read_ids_fn = args.debug_read_ids_fn
+    print_tensor_debug = getattr(args, "print_tensor_debug", False)
+    dwell_debug_threshold = getattr(args, "dwell_debug_threshold", None)
     global test_pos
     test_pos = None
     hete_snp_pos_dict = defaultdict()
@@ -632,6 +693,7 @@ def CreateTensorFullAlignment(args):
         ctg_start, ctg_end = float('inf'), 0
         for row in candidate_file_path_output:
             row = row.rstrip().split('\t')
+            print(row)
             if row[0] != ctg_name: continue
             position = int(row[1]) + 1
             end = int(row[2]) + 1
@@ -977,6 +1039,12 @@ def CreateTensorFullAlignment(args):
         ref_seq = get_flanked_sequence(reference_sequence, pos, flanking_base_num, reference_start)
         dwell_time_dict = defaultdict(list)
         if enable_dwell_time:
+            print(
+                "[DWELL][TEST] Building dwell window for {}:{} ({} reads)".format(
+                    ctg_name, pos, len(sorted_read_name_list)
+                ),
+                flush=True,
+            )
             left_start_pos = pos - flanking_base_num
             right_end_pos = pos + flanking_base_num
             read_name_set = set([read_name for (_, _, read_name) in sorted_read_name_list])
@@ -988,8 +1056,13 @@ def CreateTensorFullAlignment(args):
 
             # Identify missing reads that need to be fetched
             missing_reads = read_name_set.difference(active_read_mv_dict.keys())
-            # logger.info("TEST: missing_reads: %s", missing_reads)
             if len(missing_reads) > 0:
+                print(
+                    "[DWELL][TEST] Fetching {} missing reads for {}:{}-{}".format(
+                        len(missing_reads), ctg_name, left_start_pos, right_end_pos
+                    ),
+                    flush=True,
+                )
                 view_mq_option = ' -q {}'.format(min_mapping_quality) if min_mapping_quality > 0 else ""
                 view_flags_option = ' -F {}'.format(param.SAMTOOLS_VIEW_FILTER_FLAG)
                 view_regions_option = '{}:{}-{}'.format(ctg_name, left_start_pos, right_end_pos)
@@ -1025,6 +1098,12 @@ def CreateTensorFullAlignment(args):
                         'cigar': cigar_tuple,
                         'dwell_times': dwell_times
                     }
+                    print(
+                        "[DWELL][TEST] Cached dwell times for read {} ({} bases)".format(
+                            read_name, len(dwell_times)
+                        ),
+                        flush=True,
+                    )
             # else:
             #     logger.info("Save time !")
 
@@ -1032,23 +1111,61 @@ def CreateTensorFullAlignment(args):
             for read_name in read_name_set:
                 info = active_read_mv_dict.get(read_name)
                 if not info:
+                    print(
+                        "[DWELL][TEST] Missing cached dwell info for read {}, skipping".format(read_name),
+                        flush=True,
+                    )
                     continue
                 ref_pos_aln = info['pos']
                 query_pos = 0
                 cigar_tuple = info['cigar']
                 dwell_times = info['dwell_times']
                 current_dwell_time = [0] * (flanking_base_num * 2 + 1)
+                print(
+                    "[DWELL][TEST] Read {} CIGAR trace: {} (dwell len={})".format(
+                        read_name, cigar_tuple, len(dwell_times)
+                    ),
+                    flush=True,
+                )
 
                 for cigar_op, length in cigar_tuple:
                     if cigar_op in 'M=X':
+                        window_hits = 0
+                        signal_used = 0
+                        ref_start_snapshot = ref_pos_aln
+                        query_start_snapshot = query_pos
                         for _ in range(length):
                             if left_start_pos <= ref_pos_aln <= right_end_pos:
                                 idx = ref_pos_aln - left_start_pos
                                 if 0 <= idx < len(current_dwell_time) and query_pos < len(dwell_times):
                                     current_dwell_time[idx] = dwell_times[query_pos]
+                                    signal_used += 1
+                                    if (
+                                        dwell_debug_threshold is not None
+                                        and dwell_times[query_pos] > dwell_debug_threshold
+                                    ):
+                                        print(
+                                            "[DWELL][TEST][THRESH] read={} ref_pos={} cigar_op={} dwell={}".format(
+                                                read_name, ref_pos_aln, cigar_op, dwell_times[query_pos]
+                                            ),
+                                            flush=True,
+                                        )
+                                window_hits += 1
                             ref_pos_aln += 1
                             query_pos += 1
+                        print(
+                            "[DWELL][TEST]  op {} len {} | ref {}-{} | hits {} | signal {}".format(
+                                cigar_op,
+                                length,
+                                ref_start_snapshot,
+                                ref_pos_aln - 1,
+                                window_hits,
+                                signal_used,
+                            ),
+                            flush=True,
+                        )
                     elif cigar_op == 'I':
+                        insertion_signal = 0
                         if left_start_pos <= ref_pos_aln - 1 <= right_end_pos:
                             idx = ref_pos_aln - 1 - left_start_pos
                             if 0 <= idx < len(current_dwell_time):
@@ -1056,23 +1173,74 @@ def CreateTensorFullAlignment(args):
                                 for i in range(length):
                                     if query_pos + i < len(dwell_times):
                                         insertion_dwell_sum += dwell_times[query_pos + i]
+                                        insertion_signal += 1
+                                        if (
+                                            dwell_debug_threshold is not None
+                                            and dwell_times[query_pos + i] > dwell_debug_threshold
+                                        ):
+                                            print(
+                                                "[DWELL][TEST][THRESH] read={} ref_pos={} cigar_op=I dwell={}".format(
+                                                    read_name, ref_pos_aln - 1, dwell_times[query_pos + i]
+                                                ),
+                                                flush=True,
+                                            )
                                 current_dwell_time[idx] += insertion_dwell_sum
                         query_pos += length
+                        print(
+                            "[DWELL][TEST]  op I len {} | anchor ref {} | signal {}".format(
+                                length, ref_pos_aln - 1, insertion_signal
+                            ),
+                            flush=True,
+                        )
                     elif cigar_op == 'D':
+                        deleted = 0
+                        ref_start_snapshot = ref_pos_aln
                         for _ in range(length):
                             if left_start_pos <= ref_pos_aln <= right_end_pos:
                                 idx = ref_pos_aln - left_start_pos
                                 if 0 <= idx < len(current_dwell_time):
                                     current_dwell_time[idx] = 0
+                                    deleted += 1
                             ref_pos_aln += 1
+                        print(
+                            "[DWELL][TEST]  op D len {} | ref {}-{} | cleared {}".format(
+                                length, ref_start_snapshot, ref_pos_aln - 1, deleted
+                            ),
+                            flush=True,
+                        )
                     elif cigar_op == 'N':
+                        skip_start = ref_pos_aln
                         ref_pos_aln += length
+                        print(
+                            "[DWELL][TEST]  op N len {} | skipped ref {}-{}".format(
+                                length, skip_start, ref_pos_aln - 1
+                            ),
+                            flush=True,
+                        )
                     elif cigar_op == 'S':
+                        soft_consumed = length
                         query_pos += length
+                        print(
+                            "[DWELL][TEST]  op S len {} | signal consumed {}".format(
+                                length, soft_consumed
+                            ),
+                            flush=True,
+                        )
                     elif cigar_op == 'H' or cigar_op == 'P':
-                        pass
+                        print(
+                            "[DWELL][TEST]  op {} len {} | no signal impact".format(
+                                cigar_op, length
+                            ),
+                            flush=True,
+                        )
 
                 dwell_time_dict[read_name] = current_dwell_time
+                print(
+                    "[DWELL][TEST] Finalized dwell profile for read {} ({} positions)".format(
+                        read_name, len(current_dwell_time)
+                    ),
+                    flush=True,
+                )
 
         if not unify_repre:
             tensor, alt_info = generate_tensor(ctg_name=ctg_name,
@@ -1086,7 +1254,9 @@ def CreateTensorFullAlignment(args):
                                                confident_bed_tree=confident_bed_tree,
                                                add_no_phasing_data_training=add_no_phasing_data_training,
                                                enable_dwell_time=enable_dwell_time,
-                                               dwell_time_dict=dwell_time_dict)
+                                               dwell_time_dict=dwell_time_dict,
+                                               print_tensor_debug=print_tensor_debug,
+                                               dwell_debug_threshold=dwell_debug_threshold)
             if not tensor:
                 continue
 
@@ -1264,6 +1434,10 @@ def main():
                         help=SUPPRESS)
 
     parser.add_argument('--enable_dwell_time', action='store_true',
+                        help=SUPPRESS)
+    parser.add_argument('--print_tensor_debug', action='store_true',
+                        help=SUPPRESS)
+    parser.add_argument('--dwell_debug_threshold', type=float, default=None,
                         help=SUPPRESS)
     args = parser.parse_args()
 
