@@ -2,7 +2,7 @@ import sys
 import os
 import copy
 import csv
-import tensorflow as tf
+import torch
 import logging
 from time import time
 import numpy as np
@@ -14,8 +14,42 @@ from shared.utils import str2bool, log_error, log_warning, str_none, get_header
 from shared.interval_tree import bed_tree_from
 from clair3.CallVariants import OutputConfig, output_utilties_from, batch_output
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.basicConfig(format='%(message)s', level=logging.INFO)
+
+def _load_torch_checkpoint(model, checkpoint_path, device):
+    #add .pt extension if not present
+    if not checkpoint_path.endswith('.pt'):
+        checkpoint_path = checkpoint_path + '.pt'
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+        state_dict = checkpoint["state_dict"]
+    else:
+        state_dict = checkpoint
+    model.load_state_dict(state_dict)
+
+
+def _select_device(use_gpu):
+    if use_gpu and torch.cuda.is_available():
+        return torch.device("cuda")
+    return torch.device("cpu")
+
+
+def _limit_gpu_memory(memory_mb, device):
+    if device.type != "cuda":
+        return
+    total_mb = torch.cuda.get_device_properties(device).total_memory / (1024 * 1024)
+    fraction = min(1.0, memory_mb / total_mb)
+    try:
+        torch.cuda.set_per_process_memory_fraction(fraction, device=device)
+    except Exception:
+        pass
+
+
+def _torch_predict(model, device, X):
+    with torch.inference_mode():
+        X_tensor = torch.from_numpy(X).to(device)
+        Y = model(X_tensor)
+    return Y.detach().cpu().numpy()
 
 
 def Run(args):
@@ -25,13 +59,8 @@ def Run(args):
     os.environ["MKL_NUM_THREADS"] = f"{threads}"
     os.environ["NUMEXPR_NUM_THREADS"] = f"{threads}"
 
-    # https://stackoverflow.com/a/54832345
-    tf.config.threading.set_intra_op_parallelism_threads(threads)
-    tf.config.threading.set_inter_op_parallelism_threads(2 if threads > 1 else 1)
-
-    if not args.use_gpu:
-        # https://www.intel.com/content/www/us/en/developer/articles/technical/maximize-tensorflow-performance-on-cpu-considerations-and-recommendations-for-inference.html
-        os.environ["TF_ENABLE_ONEDNN_OPTS"] = "1"
+    torch.set_num_threads(threads)
+    torch.set_num_interop_threads(2 if threads > 1 else 1)
 
     global test_pos
     test_pos = None
@@ -154,36 +183,42 @@ def batch_output_worker(position, alt_info_list, shm_name, shape, dtype,
             shm.unlink()
 
 def call_variants_from_cffi(args, output_config, output_utilities):
+    if args.enable_dwell_time and args.pileup:
+        sys.exit(log_error("[ERROR] --enable_dwell_time is only supported in full-alignment mode"))
+
     if args.pileup:
         from preprocess.CreateTensorPileupFromCffi import CreateTensorPileup as CT
     else:
-        from preprocess.CreateTensorFullAlignmentFromCffi import CreateTensorFullAlignment as CT
+        if args.enable_dwell_time:
+            from preprocess.CreateTensorFullAlignmentFromCffiWithDwell import CreateTensorFullAlignment as CT
+        else:
+            from preprocess.CreateTensorFullAlignmentFromCffi import CreateTensorFullAlignment as CT
 
     if args.output_tensor_can_fn_list is None and args.use_gpu:
         CT(args)
         return
 
     use_triton_gpu = args.use_triton_gpu
+    triton_client = None
+    device = torch.device("cpu")
     if use_triton_gpu:
         import tritonclient.grpc as tritongrpcclient
         server_url = 'localhost:8001'
         try:
             triton_client = tritongrpcclient.InferenceServerClient(
-            url=server_url,
-            verbose=False
-        )
+                url=server_url,
+                verbose=False
+            )
         except Exception as e:
             print("channel creation failed: " + str(e))
             sys.exit()
     elif args.use_gpu:
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        for gpu in gpus:
-            tf.config.experimental.set_virtual_device_configuration(gpu, [
-                tf.config.experimental.VirtualDeviceConfiguration(memory_limit=args.max_gpu_memory)])
-
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id) if args.gpu_id else ""
+        device = _select_device(True)
+        _limit_gpu_memory(args.max_gpu_memory, device)
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        device = _select_device(False)
 
     global param
     if args.pileup:
@@ -193,7 +228,8 @@ def call_variants_from_cffi(args, output_config, output_utilities):
             input_dtype = 'INT32'
         else:
             from clair3.model import Clair3_P
-            m = Clair3_P(add_indel_length=args.add_indel_length, predict=True)
+            input_channels = (param.ont_input_shape if args.platform == 'ont' else param.input_shape)[-1]
+            m = Clair3_P(add_indel_length=args.add_indel_length, predict=True, input_channels=input_channels)
     else:
         import shared.param_f as param
         if use_triton_gpu:
@@ -201,10 +237,15 @@ def call_variants_from_cffi(args, output_config, output_utilities):
             input_dtype = 'INT8'
         else:
             from clair3.model import Clair3_F
-            m = Clair3_F(add_indel_length=args.add_indel_length, predict=True)
+            input_channels = (param.ont_input_shape if args.platform == 'ont' else param.input_shape)[-1]
+            if args.enable_dwell_time:
+                input_channels += 1
+            m = Clair3_F(add_indel_length=args.add_indel_length, predict=True, input_channels=input_channels)
 
     if not use_triton_gpu:
-        m.load_weights(args.chkpnt_fn)
+        m.to(device)
+        m.eval()
+        _load_torch_checkpoint(m, args.chkpnt_fn, device)
     args.output_file = open(args.call_fn, 'w') if args.call_fn != 'PIPE' else sys.stdout
 
     header_str = get_header(reference_file_path=args.ref_fn, cmd_fn=args.cmd_fn, sample_name=args.sampleName)
@@ -252,36 +293,64 @@ def call_variants_from_cffi(args, output_config, output_utilities):
                 results = triton_client.infer(model_name=model_name, inputs=inputs, outputs=outputs)
                 Y = results.as_numpy('output_1')
             else:
-                Y = m.predict_on_batch(X)
+                Y = _torch_predict(m, device, X)
 
             output = batch_output_method(position, alt_info_list, Y, output_config, output_utilities, args)
     else:
         from multiprocessing import shared_memory
+        max_pending = args.cpu_threads * 2  # Limit concurrent tasks to bound memory
         with ProcessPoolExecutor(max_workers=args.cpu_threads) as executor:
-            futures = []
-            for X, position, alt_info_list in batch_gen:
-                total += len(X)
-                Y = m.predict_on_batch(X)
-                shm = shared_memory.SharedMemory(create=True, size=Y.nbytes)
-                shared_Y = np.ndarray(Y.shape, dtype=Y.dtype, buffer=shm.buf)
-                np.copyto(shared_Y, Y)
+            pending_futures = {}  # future -> shm_name for cleanup tracking
+            batch_iter = iter(batch_gen)
+            finished = False
 
-                future = executor.submit(
-                    batch_output_worker,
-                    position, alt_info_list,
-                    shm.name, Y.shape, Y.dtype,
-                    output_config, output_utilities
-                )
-                futures.append(future)
+            while pending_futures or not finished:
+                # Submit new tasks up to max_pending limit
+                while len(pending_futures) < max_pending and not finished:
+                    try:
+                        X, position, alt_info_list = next(batch_iter)
+                    except StopIteration:
+                        finished = True
+                        break
 
-                shm.close()
+                    total += len(X)
+                    Y = _torch_predict(m, device, X)
+                    shm = shared_memory.SharedMemory(create=True, size=Y.nbytes)
+                    shared_Y = np.ndarray(Y.shape, dtype=Y.dtype, buffer=shm.buf)
+                    np.copyto(shared_Y, Y)
 
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                    args.output_file.write(result)
-                except Exception as e:
-                    print(f"[Error] Task failed: {e}", flush=True)
+                    future = executor.submit(
+                        batch_output_worker,
+                        position, alt_info_list,
+                        shm.name, Y.shape, Y.dtype,
+                        output_config, output_utilities
+                    )
+                    pending_futures[future] = shm.name
+                    shm.close()
+
+                if not pending_futures:
+                    break
+
+                # Wait for at least one task to complete
+                done_futures = []
+                for future in as_completed(pending_futures.keys()):
+                    done_futures.append(future)
+                    break  # Process one at a time to submit new tasks promptly
+
+                for future in done_futures:
+                    shm_name = pending_futures.pop(future)
+                    try:
+                        result = future.result()
+                        args.output_file.write(result)
+                    except Exception as e:
+                        print(f"[Error] Task failed: {e}", flush=True)
+                        # Cleanup shared memory if worker failed before unlink
+                        try:
+                            orphan_shm = shared_memory.SharedMemory(name=shm_name)
+                            orphan_shm.close()
+                            orphan_shm.unlink()
+                        except FileNotFoundError:
+                            pass  # Already cleaned up by worker
 
     if chunk_id is not None:
         logging.info("Total processed positions in {} (chunk {}/{}) : {}".format(args.ctgName, chunk_id+1, chunk_num, total))
@@ -410,7 +479,7 @@ def main():
     parser.add_argument('--output_for_ensemble', action='store_true',
                         help=SUPPRESS)
 
-    ## Use bin file from pytables to speed up calling.
+    ## Use bin file from HDF5 to speed up calling.
     parser.add_argument('--is_from_tables', action='store_true',
                         help=SUPPRESS)
 
@@ -470,6 +539,9 @@ def main():
 
     parser.add_argument('--no_phasing_for_fa', type=str2bool, default=False,
                         help="EXPERIMENTAL: Call variants without whatshap or longphase phasing in full alignment calling")
+
+    parser.add_argument('--enable_dwell_time', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Enable dwell time channel when generating full-alignment tensors")
 
     ## Provide the regions to be included in full-alignment based calling
     parser.add_argument('--full_aln_regions', type=str, default=None,

@@ -2,7 +2,7 @@
 
 # Clair3 GPU quick start guide
 
-Starting from v1.2, Clair3 natively support using GPU with CUDA or Apple Silicon to speed up calling. In Linux with CUDA, Clair3 automatically uses as many GPUs that are exposes to it to speed up calling. For **Apple Silicons** (we tested in M1/M2/M3), Clair3 uses the [**TensorFlow-Metal**](https://developer.apple.com/metal/tensorflow-plugin/) library for GPU acceleration. Using a single GPU or Apple Silicon, Clair3 can complete a ONT WGS 30x whole-genome variant calling in ~20 minutes, using either a Linux server with 32 CPU threads and an NVIDIA GeForce RTX 4090 GPU, or a Mac Studio with a 32-core M3 Ultra.
+Starting from v1.2, Clair3 natively supports using GPU with CUDA or Apple Silicon to speed up calling. In Linux with CUDA, Clair3 automatically uses as many GPUs that are exposed to it. For **Apple Silicons** (we tested in M1/M2/M3), Clair3 uses PyTorch with Metal (MPS) for GPU acceleration. Using a single GPU or Apple Silicon, Clair3 can complete a ONT WGS 30x whole-genome variant calling in ~20 minutes, using either a Linux server with 32 CPU threads and an NVIDIA GeForce RTX 4090 GPU, or a Mac Studio with a 32-core M3 Ultra.
 
 ## Installation on Linux 
 
@@ -44,7 +44,7 @@ docker run -it --gpus all \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3-gpu:latest \
-  /opt/bin/run_clair3.sh \
+  python3 /opt/bin/run_clair3.py \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -72,7 +72,7 @@ conda create -n clair3 -c bioconda clair3 cudatoolkit cudnn python=3.9.0 -y
 conda activate clair3
 
 # run clair3 like this afterward
-run_clair3.sh \
+python3 run_clair3.py \
   --bam_fn=input.bam \                 ## change your bam file name here
   --ref_fn=ref.fa \                    ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -98,10 +98,10 @@ Then install Clair3 envrionment step by step:
 #step 1: install the envrionment using brew
 brew install gnu-getopt bash llvm micromamba pypy3 samtools
 
-#step 2: install tensorflow and other dependecies using mamba
-mamba create -n clair3 python=3.9 autoconf automake zlib libdeflate cffi parallel -y
+#step 2: install PyTorch and other dependencies using mamba
+mamba create -n clair3 python=3.11 autoconf automake zlib libdeflate cffi parallel -y
 mamba activate clair3
-python -m pip install tensorflow-macos tensorflow-metal
+python -m pip install torch==2.2.* torchvision==0.17.* torchaudio==2.2.*
 
 #step 3: build the dependecies
 git clone https://github.com/HKU-BAL/Clair3.git && cd Clair3
@@ -109,7 +109,7 @@ make PREFIX=${CONDA_PREFIX}
 
 # Then run clair3 like this afterward
 export PATH="/opt/homebrew/opt/gnu-getopt/bin:$PATH"
-./run_clair3.sh \
+python3 run_clair3.py \
   --bam_fn=input.bam \                 ## change your bam file name here
   --ref_fn=ref.fa \                    ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used

@@ -13,7 +13,7 @@ from shared.interval_tree import bed_tree_from
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 no_of_positions = param.no_of_positions
 flanking_base_num = param.flankingBaseNum
-channel_size = param.channel_size
+BASE_CHANNEL_SIZE = param.channel_size
 
 
 def CreateTensorFullAlignment(args):
@@ -30,13 +30,18 @@ def CreateTensorFullAlignment(args):
     min_mapping_quality = args.minMQ
     min_base_quality = args.minBQ
     enable_long_indel = args.enable_long_indel
+    enable_dwell_time = getattr(args, 'enable_dwell_time', False)
     extend_bed = file_path_from(args.extend_bed)
     is_extend_bed_file_given = extend_bed is not None
     confident_bed_fn = file_path_from(args.bed_fn)
     is_confident_bed_file_given = confident_bed_fn is not None
 
+    # Adjust channel size dynamically when dwell time is enabled
+    channel_size = BASE_CHANNEL_SIZE + 1 if enable_dwell_time else BASE_CHANNEL_SIZE
+
     # we would't haplotag reads if --no_phasing_for_fa option is enabled
-    need_haplotagging = args.no_phasing_for_fa is not True
+    no_phasing_for_fa = getattr(args, 'no_phasing_for_fa', False)
+    need_haplotagging = no_phasing_for_fa is not True
     candidates_set = set()
     matrix_depth = param.matrix_depth_dict[platform]
     max_indel_length = param.maximum_variant_length_that_need_infer if not enable_long_indel else param.maximum_variant_length_that_need_infer_include_long_indel
@@ -112,17 +117,32 @@ def CreateTensorFullAlignment(args):
 
     candidates = libclair3.ffi.new("size_t [{}]".format(candidate_num), candidates_list)
 
-    fa_data = libclair3.lib.calculate_clair3_full_alignment(region_str, bam_file_path.encode(), fasta_file_path.encode(),
-                                                      Variants, variant_num, candidates, candidate_num, need_haplotagging,
-                                                            min_mapping_quality, min_base_quality, matrix_depth, max_indel_length)
+    fa_data = libclair3.lib.calculate_clair3_full_alignment(
+        region_str,
+        bam_file_path.encode(),
+        fasta_file_path.encode(),
+        Variants,
+        variant_num,
+        candidates,
+        candidate_num,
+        need_haplotagging,
+        min_mapping_quality,
+        min_base_quality,
+        matrix_depth,
+        max_indel_length,
+        enable_dwell_time
+    )
 
     # use np buffer to get the matrix
     matrix_depth = param.matrix_depth_dict[platform]
     ffi = libclair3.ffi
     _dtype = np.int8
     size_sizet = np.dtype(_dtype).itemsize
-    np_fa_data = np.frombuffer(ffi.buffer(
-        fa_data.matrix, size_sizet * matrix_depth * no_of_positions * channel_size * candidate_num),
+    np_fa_data = np.frombuffer(
+        ffi.buffer(
+            fa_data.matrix,
+            size_sizet * matrix_depth * no_of_positions * channel_size * candidate_num
+        ),
         dtype=_dtype
     ).reshape(candidate_num, matrix_depth, no_of_positions, channel_size).copy()
 
@@ -143,6 +163,8 @@ def CreateTensorFullAlignment(args):
             for idx, pos_info in enumerate(all_position_info):
                 info_file.write(f"{pos_info}\t{all_alt_info[idx]}\n")
         print("[INFO] Total processed positions in {} : {}".format(args.ctgName, len(all_position_info)))
+        if enable_dwell_time:
+            print("[INFO] Dwell time channel is enabled ({} total channels)".format(channel_size))
         return None, None, None
 
     return np_fa_data, all_position_info, all_alt_info
@@ -190,6 +212,9 @@ def main():
     parser.add_argument('--gvcf', type=str2bool, default=False,
                         help="Enable GVCF output, default: disabled")
 
+    parser.add_argument('--no_phasing_for_fa', type=str2bool, default=False,
+                        help="Disable haplotagging when generating full-alignment tensors, default: %(default)s")
+
     parser.add_argument('--sampleName', type=str, default="SAMPLE",
                         help="Define the sample name to be shown in the GVCF file")
 
@@ -208,6 +233,8 @@ def main():
 
     parser.add_argument('--max_depth', type=int, default=param.max_depth,
                         help="EXPERIMENTAL: Maximum full alignment depth to be processed. default: %(default)s")
+    parser.add_argument('--enable_dwell_time', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Enable nanopore dwell time channel for full-alignment tensors")
 
     # options for debug purpose
     parser.add_argument('--phasing_info_in_bam', action='store_true',

@@ -1,5 +1,8 @@
-#ifndef _CLAIR3_FULL_ALIGNMENT_H
-#define _CLAIR3_FULL_ALIGNMENT_H
+#ifndef _CLAIR3_FULL_ALIGNMENT_DWELL_H
+#define _CLAIR3_FULL_ALIGNMENT_DWELL_H
+
+#include <stdbool.h>
+#include <stdint.h>
 
 #define HAP_UNPHASED 0
 #define HAP_1 1
@@ -19,6 +22,7 @@ static const size_t expand_reference_region = 2000000;
 static const size_t flanking_base_num = 16;
 static const size_t no_of_positions = 33;
 static const size_t channel_size = 8;
+static const size_t channel_size_dwell = 9;
 static const size_t min_bq = 0;
 static const size_t SAMTOOLS_VIEW_FILTER_FLAG = 2316;
 static const size_t MAX_READ_COUNT = 1000;
@@ -138,6 +142,7 @@ typedef struct Pos_info
     int alt_base;
     size_t del_length;
     int8_t bq;
+    int32_t signal_length;
 } Pos_info;
 
 /*! @typedef
@@ -248,6 +253,6 @@ int haplotag_read(Variants_info *variants_info, Read *read, char *ref_seq, size_
  *  The return value can be freed with destroy_fa_data
  *
  */
-fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging, size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length);
+fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging, size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool enable_dwell_time);
 
 #endif

@@ -5,8 +5,6 @@ import subprocess
 import os
 
 from shared.utils import str2bool, log_error, log_warning, str_none
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 
 file_directory = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -21,12 +19,11 @@ def get_gpu_memory(gpu_id):
     return memory_free_values
 
 def check_gpu_memory(memory, device_ids=None, print_log=True):
-    import tensorflow as tf
-    gpus = tf.config.list_physical_devices('GPU')
-    all_device_ids = [int(x.name.split(':')[-1]) for x in gpus]
+    import torch
+    all_device_ids = list(range(torch.cuda.device_count()))
     if device_ids is None:
         device_ids = all_device_ids
-    if not gpus:
+    if not all_device_ids:
         return
     gpu_id_list = []
     detect_gpu = False
@@ -51,8 +48,9 @@ def Run(args):
         time = 'time '
     except subprocess.CalledProcessError as e:
         time = ''
-
+    full_alignment_cpu_threads = max(args.cpu_threads//4, 1)
     prefix = "full_alignment" if not args.pileup else "pileup"
+    dwell_flag = ' --enable_dwell_time True' if args.enable_dwell_time else ''
 
     pileup_per_thread_gpu_memory = 5000  # GB
     full_alignment_per_thread_gpu_memory = 8000  # GB
@@ -77,7 +75,7 @@ def Run(args):
     if args.pileup:
         cp_command = time + args.parallel + ' -C " " '
         cp_command += ' --joblog ' + args.output_dir + '/log/parallel_1_pileup_create_tensor.log'
-        cp_command += ' -j ' + str(args.cpu_threads)
+        cp_command += ' -j ' + str(args.cpu_threads*2)
         cp_command += ' --retries 4'
         cp_command += ' ' + args.python + ' ' + main_entry + " CallVariantsFromCffi"
         cp_command += ' --chkpnt_fn ' + args.chkpnt_fn
@@ -218,7 +216,7 @@ def Run(args):
         # create full-alignment tensor
         ct_command = '(' + time + args.parallel + ' -C " "'
         ct_command += ' --joblog ' + args.output_dir + '/log/parallel_6_full_alignment_create_tensor.log'
-        ct_command += ' -j ' + str(args.cpu_threads)
+        ct_command += ' -j ' + str(args.threads)
         ct_command += ' --retries 4'
         ct_command += ' ' + args.python + ' ' + main_entry + " CallVariantsFromCffi"
         ct_command += ' --chkpnt_fn ' + args.chkpnt_fn
@@ -241,7 +239,7 @@ def Run(args):
         ct_command += ' --keep_iupac_bases ' + str(args.keep_iupac_bases)
         ct_command += ' --cmd_fn ' + args.cmd_fn if args.cmd_fn else ''
         ct_command += ' --platform ' + args.platform
-        ct_command += ' --use_gpu ' + str(args.use_gpu)
+        ct_command += dwell_flag
         ct_command += " --tensor_can_fn " + args.output_dir + "/tmp/full_alignment_output/{1/}"
         ct_command += ' :::: ' + args.full_aln_files
         ct_command += ' ) 2>&1 | tee ' + args.output_dir + '/log/6_full_alignment_create_tensor.log'
@@ -313,8 +311,9 @@ def Run(args):
         ct_command += ' --cmd_fn ' + args.cmd_fn if args.cmd_fn else ''
         ct_command += ' --platform ' + args.platform
         ct_command += ' --gpu_id {2}'
-        ct_command += ' --cpu_threads ' + str(args.cpu_threads)
+        ct_command += ' --cpu_threads ' + str(full_alignment_cpu_threads)
         ct_command += ' --use_gpu ' + str(args.use_gpu)
+        ct_command += dwell_flag
         ct_command += ' --output_tensor_can_fn_list {3} '
         ct_command += ' :::: ' + all_gpu_chunk_file_list
         ct_command += ' ) 2>&1 | tee ' + args.output_dir + '/log/6_full_alignment_call_variant.log'
@@ -394,6 +393,9 @@ def main():
     parser.add_argument('--keep_iupac_bases', type=str2bool, default=False,
                         help="EXPERIMENTAL: Keep IUPAC (non ACGTN) reference and alternate bases, default: convert all IUPAC bases to N")
 
+    parser.add_argument('--enable_dwell_time', type=str2bool, default=False,
+                        help="EXPERIMENTAL: Enable dwell time channel for full-alignment tensors")
+
     # options for debug purpose
     parser.add_argument('--use_gpu', type=str2bool, default=True,
                         help="Use GPU for calling")
@@ -438,7 +440,7 @@ def main():
     parser.add_argument('--output_for_ensemble', action='store_true',
                         help=SUPPRESS)
 
-    ## Use bin file from pytables to speed up calling.
+    ## Use bin file from HDF5 to speed up calling.
     parser.add_argument('--is_from_tables', action='store_true',
                         help=SUPPRESS)
 

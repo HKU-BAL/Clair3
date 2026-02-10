@@ -1,55 +1,78 @@
-FROM continuumio/miniconda3:latest
+# syntax=docker/dockerfile:1.4
+FROM condaforge/miniforge3:latest
 
-ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PATH=/opt/bin:/opt/conda/bin:$PATH
-
-# update ubuntu packages
-RUN apt-get update --fix-missing && \
-    yes|apt-get upgrade && \
-    apt-get install -y \
-        wget \
-        bzip2 \
-        make \
-        g++ \
-        libboost-graph-dev && \
-    rm -rf /bar/lib/apt/lists/*
-
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 WORKDIR /opt/bin
 
-# install anaconda
-RUN  conda config --add channels defaults && \
-conda config --add channels bioconda && \
-conda config --add channels conda-forge && \
-conda create -n clair3 python=3.9.0 -y
+# Step 1 in README: create a conda env with bioinformatics/build dependencies.
+RUN mamba create -n clair3_v2 \
+      -c conda-forge \
+      -c bioconda \
+      python=3.11 \
+      samtools \
+      whatshap \
+      parallel \
+      zstd \
+      xz \
+      zlib \
+      bzip2 \
+      automake \
+      make \
+      gcc \
+      gxx \
+      binutils \
+      curl \
+      pigz \
+      boost-cpp \
+      -y && \
+    mamba clean --all -y
 
-ENV PATH /opt/conda/envs/clair3/bin:$PATH
-ENV CONDA_DEFAULT_ENV clair3
+ENV CONDA_PREFIX=/opt/conda/envs/clair3_v2
+ENV CONDA_DEFAULT_ENV=clair3_v2
+ENV PATH=${CONDA_PREFIX}/bin:/opt/bin:/opt/conda/bin:${PATH}
 
-RUN /bin/bash -c "source activate clair3" && \
-    conda install -c conda-forge pypy3.6 -y && \
-    pypy3 -m ensurepip && \
-    pypy3 -m pip install mpmath==1.2.1 && \
-    conda install -c conda-forge tensorflow-cpu==2.8.0 && \
-    conda install -c conda-forge pytables && \
-    pip install tensorflow-addons && \
-    conda install -c anaconda pigz -y && \
-    conda install -c anaconda cffi=1.14.4 -y && \
-    conda install -c conda-forge parallel=20191122 zstd -y && \
-    conda install -c conda-forge -c bioconda samtools=1.15.1 -y && \
-    conda install -c conda-forge -c bioconda whatshap=1.7 -y && \
-    conda install -c conda-forge xz zlib bzip2 -y && \
-    conda install -c conda-forge automake curl -y && \
-    rm -rf /opt/conda/pkgs/* && \
-    rm -rf /root/.cache/pip && \
-    echo "source activate clair3" > ~/.bashrc
+# Step 2 & Step 4 in README: install uv, PyTorch (CPU), and Python dependencies.
+RUN pip install --no-cache-dir uv && \
+    uv pip install --python ${CONDA_PREFIX}/bin/python \
+      torch torchvision \
+      --index-url https://download.pytorch.org/whl/cpu && \
+    uv pip install --python ${CONDA_PREFIX}/bin/python \
+      numpy \
+      h5py \
+      hdf5plugin \
+      numexpr \
+      tqdm \
+      cffi \
+      torchmetrics
 
-COPY . .
+# Clair3 source tree
+COPY . /opt/bin
 
-RUN cd /opt/bin/preprocess/realign && \
+# Build Clair3 native components.
+RUN make PREFIX=${CONDA_PREFIX} PYTHON=${CONDA_PREFIX}/bin/python && \
+    cd /opt/bin/preprocess/realign && \
     g++ -std=c++14 -O1 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c realigner.cpp && \
     g++ -std=c++11 -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp && \
-    wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz -P /opt/models && \
-    tar -zxvf /opt/models/clair3_models.tar.gz -C /opt/models && \
-    rm /opt/models/clair3_models.tar.gz && \
-    cd /opt/bin && \
-    make PREFIX=/opt/conda/envs/clair3 PYTHON=/opt/conda/envs/clair3/bin/python && \
     rm -rf /opt/bin/samtools-* /opt/bin/longphase-*
+
+# Step 5 in README: install pypy3.11 and mpmath for pypy.
+RUN wget -q https://downloads.python.org/pypy/pypy3.11-v7.3.20-linux64.tar.bz2 && \
+    tar -xjf pypy3.11-v7.3.20-linux64.tar.bz2 && \
+    rm pypy3.11-v7.3.20-linux64.tar.bz2 && \
+    ln -sf /opt/bin/pypy3.11-v7.3.20-linux64/bin/pypy3 ${CONDA_PREFIX}/bin/pypy3 && \
+    ln -sf /opt/bin/pypy3.11-v7.3.20-linux64/bin/pypy3 ${CONDA_PREFIX}/bin/pypy && \
+    pypy3 -m ensurepip && \
+    pypy3 -m pip install --no-cache-dir mpmath==1.2.1
+
+# Step 6 in README: recursively download pre-trained PyTorch models from a directory URL.
+ARG CLAIR3_MODELS_URL=https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/
+RUN set -eux; \
+    mkdir -p /opt/models /tmp/clair3-models; \
+    base_url="${CLAIR3_MODELS_URL%/}"; \
+    wget -r -np -nH --cut-dirs=2 -R "index.html*" -P /tmp/clair3-models "${base_url}/"; \
+    if [ -d /tmp/clair3-models/clair3_models_pytorch ]; then \
+        cp -a /tmp/clair3-models/clair3_models_pytorch/. /opt/models/; \
+    else \
+        cp -a /tmp/clair3-models/. /opt/models/; \
+    fi; \
+    rm -rf /tmp/clair3-models

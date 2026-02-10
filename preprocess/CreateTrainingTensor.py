@@ -119,6 +119,8 @@ def Run(args):
         chunk_num = CommandOption('chunk_num', args.chunk_num)
 
     CT_Bin = CTP_Bin if pileup else CTFA_Bin
+    if args.test_signal:
+        CT_Bin += "_test"
     create_tensor_command_options = [
         pypyBin,
         CT_Bin,
@@ -144,7 +146,10 @@ def Run(args):
         create_tensor_command_options.append(phasing_info_mode)
         create_tensor_command_options.append(add_no_phasing_mode)
         create_tensor_command_options.append(CommandOption('full_aln_regions', full_aln_regions))
-
+        if args.enable_dwell_time:
+            create_tensor_command_options.append(CommandOptionWithNoValue('enable_dwell_time'))
+        if args.test_signal:
+            create_tensor_command_options.append(CommandOptionWithNoValue('test_signal'))
     compress_tensor_command_options = [
         pythonBin,
         T2B_Bin,
@@ -160,7 +165,8 @@ def Run(args):
     ]
     if pileup:
         compress_tensor_command_options.append(pileup_mode)
-
+    if args.enable_dwell_time:
+        compress_tensor_command_options.append(CommandOptionWithNoValue('enable_dwell_time'))
     try:
         c.create_tensor = subprocess_popen(
             shlex.split(command_string_from(create_tensor_command_options)),
@@ -295,8 +301,13 @@ def main():
 
     ## Wait a short while for no more than a few seconds to start the job. This is to avoid starting multiple jobs simultaneously
     ## that might use up the maximum number of threads allowed, because Tensorflow will create more threads than needed at the beginning of running the program
-    ## Obseleted after adding --tensorflow_threads defaulted at 4
+    ## Obsoleted after adding --torch_threads defaulted at 4
     parser.add_argument('--delay', type=int, default=5,
+                        help=SUPPRESS)
+
+    parser.add_argument('--enable_dwell_time', action='store_true',
+                        help=SUPPRESS)
+    parser.add_argument('--test_signal', action='store_true',
                         help=SUPPRESS)
 
     args = parser.parse_args()

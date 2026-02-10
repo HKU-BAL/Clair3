@@ -24,7 +24,8 @@ def Run(args):
         pileup=args.pileup,
         platform=args.platform,
         maximum_non_variant_ratio=args.maximum_non_variant_ratio,
-        candidate_details_fn_prefix=args.candidate_details_fn_prefix)
+        candidate_details_fn_prefix=args.candidate_details_fn_prefix,
+        enable_dwell_time=args.enable_dwell_time)
     logging.info("Finish!")
 
 
@@ -71,6 +72,13 @@ def main():
     ## Maximum non-variant ratio against variant in the training data
     parser.add_argument('--maximum_non_variant_ratio', type=float, default=None,
                         help=SUPPRESS)
+    
+    parser.add_argument('--enable_dwell_time', action='store_true',
+                        help=SUPPRESS)
+    # parser.add_argument('--test_signal', action='store_true',
+    #                     help=SUPPRESS)
+    
+
 
     args = parser.parse_args()
 

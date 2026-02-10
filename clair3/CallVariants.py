@@ -1,7 +1,7 @@
 import sys
 import os
 import math
-import tensorflow as tf
+import torch
 import numpy as np
 import logging
 from time import time
@@ -21,7 +21,6 @@ from clair3.task.genotype import Genotype, genotype_string_from, genotype_enum_f
 from shared.utils import IUPAC_base_to_ACGT_base_dict as BASE2ACGT, BASIC_BASES, str2bool, file_path_from, \
     log_error, log_warning, convert_iupac_to_n, get_header, str_none
 from clair3.task.variant_length import VariantLength
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 minimum_variant_length_that_need_infer = VariantLength.max
 ACGT = 'ACGT'
@@ -50,6 +49,42 @@ OutputUtilities = namedtuple('OutputUtilities', [
     'close_opened_files',
     'gen_output_file'
 ])
+
+
+def _load_torch_checkpoint(model, checkpoint_path, device):
+    #add .pt extension if not present
+    if not checkpoint_path.endswith('.pt'):
+        checkpoint_path = checkpoint_path + '.pt'
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+        state_dict = checkpoint["state_dict"]
+    else:
+        state_dict = checkpoint
+    model.load_state_dict(state_dict)
+
+
+def _select_device(use_gpu):
+    if use_gpu and torch.cuda.is_available():
+        return torch.device("cuda")
+    return torch.device("cpu")
+
+
+def _limit_gpu_memory(memory_mb):
+    if not torch.cuda.is_available():
+        return
+    total_mb = torch.cuda.get_device_properties(0).total_memory / (1024 * 1024)
+    fraction = min(1.0, memory_mb / total_mb)
+    try:
+        torch.cuda.set_per_process_memory_fraction(fraction, device=0)
+    except Exception:
+        pass
+
+
+def _torch_predict(model, device, X):
+    with torch.inference_mode():
+        X_tensor = torch.from_numpy(X).to(device)
+        Y = model(X_tensor)
+    return Y.detach().cpu().numpy()
 
 
 def homo_SNP_bases_from(homo_SNP_probabilities):
@@ -172,8 +207,8 @@ def Run(args):
     os.environ["MKL_NUM_THREADS"] = "1"
     os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
-    tf.config.threading.set_intra_op_parallelism_threads(1)
-    tf.config.threading.set_inter_op_parallelism_threads(1)
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
 
     global test_pos
     test_pos = None
@@ -1420,23 +1455,29 @@ def compute_PL(genotype_string, genotype_probabilities, gt21_probabilities, refe
 
 def call_variants(args, output_config, output_utilities):
     use_gpu = args.use_gpu
+    device = _select_device(use_gpu)
     if use_gpu:
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        tf.config.experimental.set_virtual_device_configuration(gpus[0], [
-            tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)])
+        _limit_gpu_memory(1024)
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
     global param
     if args.pileup:
         import shared.param_p as param
         from clair3.model import Clair3_P
-        m = Clair3_P(add_indel_length=args.add_indel_length, predict=True)
+        input_channels = (param.ont_input_shape if args.platform == 'ont' else param.input_shape)[-1]
+        m = Clair3_P(add_indel_length=args.add_indel_length, predict=True, input_channels=input_channels)
     else:
         import shared.param_f as param
         from clair3.model import Clair3_F
-        m = Clair3_F(add_indel_length=args.add_indel_length, predict=True)
+        # enable_dwell_time changes tensor shape but model adapts automatically
+        input_channels = (param.ont_input_shape if args.platform == 'ont' else param.input_shape)[-1]
+        if args.enable_dwell_time:
+            input_channels += 1
+        m = Clair3_F(add_indel_length=args.add_indel_length, predict=True, input_channels=input_channels)
 
-    m.load_weights(args.chkpnt_fn)
+    m.to(device)
+    m.eval()
+    _load_torch_checkpoint(m, args.chkpnt_fn, device)
 
     args.output_file = open(args.call_fn, 'w') if args.call_fn != 'PIPE' else sys.stdout
     header_str = get_header(reference_file_path=args.ref_fn, cmd_fn=args.cmd_fn, sample_name=args.sampleName)
@@ -1446,8 +1487,10 @@ def call_variants(args, output_config, output_utilities):
     chunk_id = args.chunk_id - 1 if args.chunk_id else None  # 1-base to 0-base
     chunk_num = args.chunk_num
     full_alignment_mode = not args.pileup
-
-    tensor_generator = utils.tensor_generator_from(args.tensor_fn, param.predictBatchSize, args.pileup, args.platform)
+    if args.enable_dwell_time:
+        tensor_generator = utils.tensor_generator_from(args.tensor_fn, param.predictBatchSize, args.pileup, args.platform, True)
+    else:
+        tensor_generator = utils.tensor_generator_from(args.tensor_fn, param.predictBatchSize, args.pileup, args.platform)
     logging.info("Calling variants ...")
     variant_call_start_time = time()
 
@@ -1472,7 +1515,7 @@ def call_variants(args, output_config, output_utilities):
                 if len(mini_batches_to_output) > 0:
                     mini_batch = mini_batches_to_output.pop(0)
                     X, position, alt_info_list = mini_batch
-                    prediction = m.predict_on_batch(X)
+                    prediction = _torch_predict(m, device, X)
                     total += len(X)
                     thread_pool.append(Thread(
                         target=batch_output_method,
@@ -1502,7 +1545,7 @@ def call_variants(args, output_config, output_utilities):
                 if len(mini_batches_to_output) > 0:
                     mini_batch = mini_batches_to_output.pop(0)
                     X, position, alt_info_list = mini_batch
-                    prediction = m.predict_on_batch(X)
+                    prediction = _torch_predict(m, device, X)
                     total += len(X)
                     batch_output_method(position, alt_info_list, prediction, output_config, output_utilities)
 
@@ -1533,10 +1576,11 @@ def call_variants(args, output_config, output_utilities):
         if full_alignment_mode and total == 0:
             logging.info(log_error("[ERROR] No full-alignment output for file {}/{}".format(args.ctgName, args.call_fn)))
     else:
-        import tables
-        dataset = tables.open_file(args.tensor_fn, 'r').root
+        import h5py
+        utils.ensure_hdf5_plugin_path()
+        dataset = h5py.File(args.tensor_fn, 'r')
         batch_size = param.predictBatchSize
-        dataset_size = len(dataset.label)
+        dataset_size = dataset["label"].shape[0]
         chunk_start_pos = 0
         # process by chunk windows
         if chunk_id is not None and chunk_num is not None:
@@ -1546,16 +1590,24 @@ def call_variants(args, output_config, output_utilities):
         num_epoch = dataset_size // batch_size if dataset_size % batch_size == 0 else dataset_size // batch_size + 1
 
         for idx in range(num_epoch):
-            position_matrix = dataset.position_matrix[
-                              chunk_start_pos + idx * batch_size:chunk_start_pos + (idx + 1) * batch_size]
+            position_matrix = dataset["position_matrix"][
+                chunk_start_pos + idx * batch_size:chunk_start_pos + (idx + 1) * batch_size
+            ]
             position = list(
-                dataset.position[chunk_start_pos + idx * batch_size:chunk_start_pos + (idx + 1) * batch_size].flatten())
+                dataset["position"][
+                    chunk_start_pos + idx * batch_size:chunk_start_pos + (idx + 1) * batch_size
+                ].flatten()
+            )
             alt_info_list = list(
-                dataset.alt_info[chunk_start_pos + idx * batch_size:chunk_start_pos + (idx + 1) * batch_size].flatten())
+                dataset["alt_info"][
+                    chunk_start_pos + idx * batch_size:chunk_start_pos + (idx + 1) * batch_size
+                ].flatten()
+            )
 
-            prediction = m.predict_on_batch(position_matrix)
+            prediction = _torch_predict(m, device, position_matrix)
             batch_output_method(position, alt_info_list, prediction, output_config, output_utilities)
             total += len(position_matrix)
+        dataset.close()
 
     logging.info("Total time elapsed: %.2f s" % (time() - variant_call_start_time))
 
@@ -1637,9 +1689,9 @@ def DataGenerator(dataset, num_epoch, batch_size, chunk_start_pos, chunk_end_pos
     for idx in range(num_epoch):
         start_pos = chunk_start_pos + idx * batch_size
         end_pos = min(chunk_start_pos + (idx + 1) * batch_size, chunk_end_pos)
-        position_matrix = dataset.position_matrix[start_pos:end_pos]
-        position = dataset.position[start_pos:end_pos]  # .flatten()
-        alt_info_list = dataset.alt_info[start_pos:end_pos]  # .flatten()
+        position_matrix = dataset["position_matrix"][start_pos:end_pos]
+        position = dataset["position"][start_pos:end_pos]
+        alt_info_list = dataset["alt_info"][start_pos:end_pos]
         yield position_matrix, position, alt_info_list
 
 
@@ -1652,22 +1704,28 @@ def predict(args, output_config, output_utilities):
     variant_call_start_time = time()
     add_indel_length = args.add_indel_length
 
+    device = _select_device(use_gpu)
     if use_gpu:
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        tf.config.experimental.set_virtual_device_configuration(gpus[0], [
-            tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)])
+        _limit_gpu_memory(1024)
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
     if args.pileup:
         from clair3.model import Clair3_P
-        m = Clair3_P(add_indel_length=args.add_indel_length, predict=True)
+        input_channels = (param.ont_input_shape if args.platform == 'ont' else param.input_shape)[-1]
+        m = Clair3_P(add_indel_length=args.add_indel_length, predict=True, input_channels=input_channels)
     else:
         from clair3.model import Clair3_F
-        m = Clair3_F(add_indel_length=args.add_indel_length, predict=True)
+        # enable_dwell_time changes tensor shape but model adapts automatically
+        input_channels = (param.ont_input_shape if args.platform == 'ont' else param.input_shape)[-1]
+        if args.enable_dwell_time:
+            input_channels += 1
+        m = Clair3_F(add_indel_length=args.add_indel_length, predict=True, input_channels=input_channels)
 
     batch_output_method = batch_output_for_ensemble if output_config.is_output_for_ensemble else batch_output
-    m.load_weights(args.chkpnt_fn)
+    m.to(device)
+    m.eval()
+    _load_torch_checkpoint(m, args.chkpnt_fn, device)
 
     total = 0
     if not args.is_from_tables:
@@ -1681,15 +1739,17 @@ def predict(args, output_config, output_utilities):
                 mini_batches_loaded.append(next(tensor_generator))
             except StopIteration:
                 return
+        if args.enable_dwell_time:  
+            tensor_generator = utils.tensor_generator_from(args.tensor_fn, param.predictBatchSize, args.pileup, args.platform, True)
+        else:
+            tensor_generator = utils.tensor_generator_from(args.tensor_fn, param.predictBatchSize, args.pileup, args.platform)
 
-        tensor_generator = utils.tensor_generator_from(args.tensor_fn, param.predictBatchSize, args.pileup,
-                                                       args.platform)
         while True:
             thread_pool = []
             if len(mini_batches_to_output) > 0:
                 mini_batch = mini_batches_to_output.pop(0)
                 X, position, alt_info_list = mini_batch
-                prediction = m.predict_on_batch(X)
+                prediction = _torch_predict(m, device, X)
                 total += len(X)
                 thread_pool.append(Thread(
                     target=batch_output_method,
@@ -1717,16 +1777,20 @@ def predict(args, output_config, output_utilities):
         logging.info("Total process positions: {}".format(total))
 
     else:
-        import tables
+        import h5py
+        utils.ensure_hdf5_plugin_path()
         if not os.path.exists(args.tensor_fn):
             logging.info("skip {}, not existing chunk_id".format(args.tensor_fn))
             return
-        dataset = tables.open_file(args.tensor_fn, 'r').root
+        dataset = h5py.File(args.tensor_fn, 'r')
         batch_size = param.predictBatchSize
-        dataset_size = len(dataset.label)
+        dataset_size = dataset["label"].shape[0]
         chunk_start_pos, chunk_end_pos = 0, dataset_size
         tensor_shape = param.ont_input_shape if args.platform == 'ont' else param.input_shape
-        # process by chunk windows
+        if args.enable_dwell_time and not args.pileup:
+            tensor_shape = list(tensor_shape)
+            tensor_shape[-1] += 1
+            tensor_shape = tuple(tensor_shape)
         if chunk_id is not None and chunk_num is not None:
             chunk_dataset_size = dataset_size // chunk_num if dataset_size % chunk_num == 0 else dataset_size // chunk_num + 1
             chunk_start_pos = chunk_id * chunk_dataset_size
@@ -1734,30 +1798,31 @@ def predict(args, output_config, output_utilities):
             chunk_end_pos = min(chunk_start_pos + dataset_size, chunk_end_pos)
         num_epoch = dataset_size // batch_size if dataset_size % batch_size == 0 else dataset_size // batch_size + 1
         label_size = sum(param.label_shape) if add_indel_length else sum(param.label_shape[:2])
-        prediction_memmap = np.lib.format.open_memmap(predict_fn + '.prediction', dtype=np.float, mode='w+',
+        prediction_memmap = np.lib.format.open_memmap(predict_fn + '.prediction', dtype=np.float32, mode='w+',
                                                       shape=(dataset_size, label_size))
         position_memmap = np.lib.format.open_memmap(predict_fn + '.position', dtype='S100', mode='w+',
                                                     shape=(dataset_size, 1))
         alt_info_memmap = np.lib.format.open_memmap(predict_fn + '.alt_info', dtype='S2000', mode='w+',
                                                     shape=(dataset_size, 1))
-        TensorShape = (tf.TensorShape([None] + tensor_shape), tf.TensorShape([None, 1]), tf.TensorShape([None, 1]))
-        TensorDtype = (tf.int32, tf.string, tf.string)
 
-        predict_dataset = tf.data.Dataset.from_generator(
-            lambda: DataGenerator(dataset, num_epoch, batch_size, chunk_start_pos, chunk_end_pos), TensorDtype,
-            TensorShape).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-        dataset_iter = iter(predict_dataset)
         for idx in range(num_epoch):
-            position_matrix, position, alt_info_list = next(dataset_iter)
-            prediction = m.predict_on_batch(position_matrix)
-            start_pos = idx * batch_size
-            end_pos = min((idx + 1) * batch_size, dataset_size)
-            prediction_memmap[start_pos:end_pos] = prediction
-            position_memmap[start_pos:end_pos] = position.numpy()
-            alt_info_memmap[start_pos:end_pos] = alt_info_list.numpy()
+            local_start = idx * batch_size
+            local_end = min((idx + 1) * batch_size, dataset_size)
+            global_start = chunk_start_pos + local_start
+            global_end = chunk_start_pos + local_end
+
+            position_matrix = dataset["position_matrix"][global_start:global_end]
+            position = dataset["position"][global_start:global_end]
+            alt_info_list = dataset["alt_info"][global_start:global_end]
+
+            prediction = _torch_predict(m, device, position_matrix)
+            prediction_memmap[local_start:local_end] = prediction
+            position_memmap[local_start:local_end] = position
+            alt_info_memmap[local_start:local_end] = alt_info_list
 
             total += len(position_matrix)
-        logging.info("Total processed positions/bin file size: {}/{}".format(total, len(dataset.label)))
+        logging.info("Total processed positions/bin file size: {}/{}".format(total, dataset["label"].shape[0]))
+        dataset.close()
     logging.info("Total time elapsed: %.2f s" % (time() - variant_call_start_time))
 
 
@@ -1819,6 +1884,9 @@ def main():
     parser.add_argument('--keep_iupac_bases', type=str2bool, default=False,
                         help="EXPERIMENTAL: Keep IUPAC (non ACGTN) reference and alternate bases, default: convert all IUPAC bases to N")
 
+    parser.add_argument('--enable_dwell_time', action='store_true',
+                        help="EXPERIMENTAL: Enable dwell time feature, which changes tensor shape by adding one dimension")
+
     # options for debug purpose
     parser.add_argument('--use_gpu', type=str2bool, default=False,
                         help="DEBUG: Use GPU for calling. Speed up is mostly insignficiant. Only use this for building your own pipeline")
@@ -1857,7 +1925,7 @@ def main():
     parser.add_argument('--output_for_ensemble', action='store_true',
                         help=SUPPRESS)
 
-    ## Use bin file from pytables to speed up calling.
+    ## Use bin file from HDF5 to speed up calling.
     parser.add_argument('--is_from_tables', action='store_true',
                         help=SUPPRESS)
 

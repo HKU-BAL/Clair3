@@ -22,10 +22,10 @@ major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] 
                                                                                    list(range(1, 23)) + ["X", "Y"]]
 
 required_tool_version = {
-    'python': LooseVersion('3.6.10'),
-    'pypy': LooseVersion('3.6'),
-    'samtools': LooseVersion('1.10'),
-    'whatshap': LooseVersion('1.0'),
+    'python': LooseVersion('3.10.0'),
+    'pypy': LooseVersion('3.10'),
+    'samtools': LooseVersion('1.15.1'),
+    'whatshap': LooseVersion('1.7'),
 }
 
 def check_version(tool, pos=None, is_pypy=False):
@@ -226,7 +226,7 @@ def CheckEnvs(args):
     chunk_list = os.path.join(tmp_file_path, 'CHUNK_LIST')
     cmd_fn = args.cmd_fn
 
-    legal_range_from(param_name="qual", x=qual, min_num=0, exit_out_of_range=True)
+    legal_range_from(param_name="qual", x=int(qual), min_num=0, exit_out_of_range=True)
     legal_range_from(param_name="var_pct_full", x=var_pct_full, min_num=0, max_num=1, exit_out_of_range=True)
     legal_range_from(param_name="ref_pct_full", x=ref_pct_full, min_num=0, max_num=1, exit_out_of_range=True)
     legal_range_from(param_name="snp_min_af", x=snp_min_af, min_num=0, max_num=1, exit_out_of_range=True)

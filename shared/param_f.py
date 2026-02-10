@@ -17,6 +17,7 @@ long_indel_distance_proportion = 0.1
 min_mq = 5
 min_bq = 0
 min_coverage = 2
+torch_threads = 4
 
 # Full alignment input feature list
 channel = (

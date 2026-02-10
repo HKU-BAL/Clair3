@@ -14,8 +14,64 @@
 #include "medaka_bamiter.h"
 #include "medaka_common.h"
 #include "medaka_khcounter.h"
-#include "clair3_full_alignment.h"
+#include "clair3_full_alignment_dwell.h"
 #include "levenshtein.h"
+
+static int32_t *compute_signal_lengths_from_mv_tag(const bam1_t *alignment, bool is_reverse_strand)
+{
+    if (alignment == NULL)
+        return NULL;
+
+    uint8_t *mv_tag = bam_aux_get(alignment, "mv");
+    if (mv_tag == NULL || mv_tag[0] != 'B')
+        return NULL;
+
+    int64_t encoded_len = bam_auxB_len(mv_tag);
+    if (encoded_len <= 1)
+        return NULL;
+
+    size_t read_len = alignment->core.l_qseq;
+    if (read_len == 0)
+        return NULL;
+
+    int32_t *signals = calloc(read_len, sizeof(int32_t));
+    if (signals == NULL)
+        return NULL;
+
+    int64_t base_index = -1;
+
+    for (int64_t idx = 1; idx < encoded_len; ++idx)
+    {
+        int64_t movement = bam_auxB2i(mv_tag, idx);
+        if (movement != 0)
+        {
+            base_index++;
+            if (base_index >= (int64_t)read_len)
+                break;
+            signals[base_index] += 1;
+        }
+        else
+        {
+            if (base_index < 0)
+                continue;
+            if (base_index >= (int64_t)read_len)
+                break;
+            signals[base_index] += 1;
+        }
+    }
+
+    if (is_reverse_strand)
+    {
+        for (size_t i = 0, j = read_len - 1; i < j; ++i, --j)
+        {
+            int32_t tmp = signals[i];
+            signals[i] = signals[j];
+            signals[j] = tmp;
+        }
+    }
+
+    return signals;
+}
 
 typedef struct Pos_alt_info
 {
@@ -379,7 +435,7 @@ size_t get_overlap_candidate_num(size_t read_start, size_t read_end, size_t cand
 }
 
 fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging, \
-size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
+size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool enable_dwell_time)
 {
 
     int start, end;
@@ -394,9 +450,11 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
     int len = 0;
     char *ref_seq = NULL;
 
-    const size_t offset_can = no_of_positions * matrix_depth * channel_size;
-    const size_t offset_row = no_of_positions * channel_size;
-    const size_t offset_col = channel_size;
+    const size_t feature_channels = enable_dwell_time ? channel_size_dwell : channel_size;
+    const size_t offset_can = no_of_positions * matrix_depth * feature_channels;
+    const size_t offset_row = no_of_positions * feature_channels;
+    const size_t offset_col = feature_channels;
+    const size_t signal_channel_offset = feature_channels - 1;
 
     int ref_start = max(0, start - expand_reference_region); // 0-index
     int ref_end = end + expand_reference_region;
@@ -500,7 +558,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
             continue;
         }
 
-        bool is_fwd_strand = (flag & 16) == 16;
+        bool is_reverse_strand = bam_is_rev(alignment);
         int32_t pos = alignment->core.pos;
         uint32_t l_qseq = alignment->core.l_qseq;
         uint32_t *cigartuples = bam_get_cigar(alignment);
@@ -514,11 +572,34 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
             .cigartuples = cigartuples,
             .seqi = seqi,
             .qual = qual,
-            .strand = normalize_strand(is_fwd_strand),
+            .strand = normalize_strand(is_reverse_strand),
             .n_cigar = n_cigar,
             .l_qseq = l_qseq,
             .pos_info = NULL,
             .haplotype = HAP_UNPHASED};
+
+        int32_t *signal_lengths = NULL;
+        if (enable_dwell_time)
+        {
+            signal_lengths = compute_signal_lengths_from_mv_tag(alignment, is_reverse_strand);
+            // if (strcmp(q_name, "0ee2bb3b-ddc5-479b-b63d-1fd5f6f36aa5") == 0)
+            // {
+            //     FILE *fp = fopen("debug", "w");
+            //     if (fp)
+            //     {
+            //         fprintf(fp, "%s\n", q_name);
+            //         if (signal_lengths)
+            //         {
+            //             for (int i = 0; i < l_qseq; i++)
+            //             {
+            //                 fprintf(fp, "%d ", signal_lengths[i]);
+            //             }
+            //         }
+            //         fprintf(fp, "\n");
+            //         fclose(fp);
+            //     }
+            // }
+        }
 
         while (variant_current_pos < variant_num && variants[variant_current_pos]->position < pos) {
             variant_current_pos++;
@@ -536,6 +617,11 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
         if (read.overlap_candidates_num == 0)
         {
             read_no_overlap_num++;
+            if (signal_lengths != NULL)
+            {
+                free(signal_lengths);
+                signal_lengths = NULL;
+            }
             continue;
         }
 
@@ -563,12 +649,15 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
         // into pos_alt_info struct
         size_t ref_pos = read.read_start;
         size_t query_pos = 0;
+
+
         for (size_t i = 0; i < n_cigar; i++)
         {
             size_t cigar_op = bam_cigar_op(cigartuples[i]);
             size_t length = bam_cigar_oplen(cigartuples[i]);
             if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF)
-            {
+            {   
+
                 for (size_t p = ref_pos; p < ref_pos + length; p++)
                 {
                     int flanking_index = kh_int_counter_val(flanking_candidates_p, p);
@@ -577,6 +666,12 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
                         size_t offset = flanking_index - flanking_start;
                         pos_info[offset].alt_base = bam_seqi(seqi, query_pos);
                         pos_info[offset].bq = normalize_bq(qual[query_pos]);
+                        if (enable_dwell_time && signal_lengths != NULL && query_pos < read.l_qseq)
+                        {
+                            pos_info[offset].signal_length = signal_lengths[query_pos];
+                        }
+
+
 
                         int center_pos_index = kh_int_counter_val(candidates_p, p);
                         if (center_pos_index != -1)
@@ -584,6 +679,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
                             char alt_base = seq_nt16_str[pos_info[offset].alt_base];
                             pos_alt_info[center_pos_index].acgt_count[acgt2num[alt_base - 'A']]++;
                             pos_alt_info[center_pos_index].depth++;
+
                         }
                     }
                     query_pos++;
@@ -599,9 +695,11 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
                     size_t offset = flanking_index - flanking_start;
                     pos_info[offset].del_length = length;
                     int center_pos_index = kh_int_counter_val(candidates_p, ref_pos - 1);
+
                     if (center_pos_index != -1)
                     {
                         kh_int_counter_add(pos_alt_info[center_pos_index].del_counter, length, 1);
+
                     }
                 }
                 for (size_t p = ref_pos; p < ref_pos + length; p++)
@@ -612,9 +710,11 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
                         size_t offset = flanking_index - flanking_start;
                         pos_info[offset].alt_base = -1;
                         int center_pos_index = kh_int_counter_val(candidates_p, p);
+
                         if (center_pos_index != -1)
                         {
                             pos_alt_info[center_pos_index].depth++;
+
                         }
                     }
                 }
@@ -627,17 +727,29 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
                 {
                     size_t offset = flanking_index - flanking_start;
                     pos_info[offset].ins_bases = calloc(length + 1, sizeof(char));
+                    int32_t ins_signal_sum = 0;
                     for (size_t ins_idx = 0; ins_idx < length; ins_idx++)
                     {
                         pos_info[offset].ins_bases[ins_idx] = seq_nt16_str[bam_seqi(read.seqi, query_pos + ins_idx)];
+                        if (enable_dwell_time && signal_lengths != NULL)
+                        {
+                            size_t qp = query_pos + ins_idx;
+                            if (qp < read.l_qseq)
+                                ins_signal_sum += signal_lengths[qp];
+                        }
                     }
                     pos_info[offset].ins_bases[length] = '\0';
                     pos_info[offset].ins_length = length;
+                    if (enable_dwell_time && signal_lengths != NULL)
+                        pos_info[offset].signal_length += ins_signal_sum;
 
                     int center_pos_index = kh_int_counter_val(candidates_p, ref_pos - 1);
+
+
                     if (center_pos_index != -1)
                     {
                         kh_counter_add(pos_alt_info[center_pos_index].ins_counter, pos_info[offset].ins_bases, 1);
+
                     }
                 }
                 query_pos += length;
@@ -652,10 +764,13 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
             }
         }
 
+
         //update the read array
         read.pos_info = pos_info;
         reads_num++;
         kv_push(Read, read_array, read);
+        if (signal_lengths != NULL)
+            free(signal_lengths);
     }
 
     // allocate memory of the input matrix of all candidates
@@ -666,7 +781,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
     // allocate output
     fa_data data = calloc(1, sizeof(_fa_data));
     char **alt_info_p = calloc(candidate_num, sizeof(char*));
-    int8_t *matrix = calloc(candidate_num * matrix_depth * no_of_positions * channel_size, sizeof(int8_t));
+    int8_t *matrix = calloc(candidate_num * matrix_depth * no_of_positions * feature_channels, sizeof(int8_t));
 
     // loop each candiate and generate full-alignment input matrix
     for (size_t i = 0; i < candidate_num; i++)
@@ -787,6 +902,13 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length)
                 matrix[i * offset_can + d * offset_row + p * offset_col + 3] = mq_v;
                 matrix[i * offset_can + d * offset_row + p * offset_col + 4] = bq_v;
                 matrix[i * offset_can + d * offset_row + p * offset_col + 7] = hap_v;
+                if (enable_dwell_time)
+                {
+                    int32_t raw_signal = read.pos_info[offset].signal_length;
+                    if (read.pos_info[offset].alt_base < 0)
+                        raw_signal = 0;
+                    matrix[i * offset_can + d * offset_row + p * offset_col + signal_channel_offset] = (int8_t)raw_signal;
+                }
             }
         }
 

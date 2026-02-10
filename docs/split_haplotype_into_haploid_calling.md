@@ -32,7 +32,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:latest \
-  /opt/bin/run_clair3.sh \
+  python3 /opt/bin/run_clair3.py \
   --bam_fn=${INPUT_DIR}/input.bam \    
   --ref_fn=${INPUT_DIR}/ref.fa \      
   --threads=${THREADS} \               
@@ -77,7 +77,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:latest \
-  /opt/bin/run_clair3.sh \
+  python3 /opt/bin/run_clair3.py \
   --bam_fn=${OUTPUT_DIR}/${SAMPLE}.h1.bam \    
   --ref_fn=${INPUT_DIR}/ref.fa \      
   --threads=${THREADS} \               
@@ -91,7 +91,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:latest \
-  /opt/bin/run_clair3.sh \
+  python3 /opt/bin/run_clair3.py \
   --bam_fn=${OUTPUT_DIR}/${SAMPLE}.h1.bam \    
   --ref_fn=${INPUT_DIR}/ref.fa \      
   --threads=${THREADS} \               
