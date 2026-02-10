@@ -65,6 +65,8 @@ If the output shows a line starting with `mv:B:c,`, your BAM file contains the r
 
 The key difference from standard ONT calling is the `--enable_dwell_time` flag and the dwelling-time-aware model `r1041_e82_400bps_hac_with_mv`.
 
+**Docker:**
+
 ```bash
 OUTPUT_DIR_DWELL="${INPUT_DIR}/output_dwell"
 mkdir -p ${OUTPUT_DIR_DWELL}
@@ -73,7 +75,7 @@ docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR_DWELL}:${OUTPUT_DIR_DWELL} \
   hkubal/clair3:v2.0.0 \
-  python3 /opt/bin/run_clair3.py \
+  /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
@@ -85,11 +87,34 @@ docker run \
   --enable_dwell_time
 ```
 
+**Mamba/Conda:**
+
+```bash
+OUTPUT_DIR_DWELL="${INPUT_DIR}/output_dwell"
+mkdir -p ${OUTPUT_DIR_DWELL}
+
+cd Clair3
+./run_clair3.sh \
+  --bam_fn=${INPUT_DIR}/${BAM} \
+  --ref_fn=${INPUT_DIR}/${REF} \
+  --threads=${THREADS} \
+  --platform=${PLATFORM} \
+  --model_path=$(pwd)"/models/r1041_e82_400bps_hac_with_mv" \
+  --output=${OUTPUT_DIR_DWELL} \
+  --bed_fn=${INPUT_DIR}/quick_demo.bed \
+  --sample_name="HG003" \
+  --enable_dwell_time
+```
+
+**Note**: You can also use `python3 /opt/bin/run_clair3.py` (Docker) or `python3 run_clair3.py` (Conda) instead of `run_clair3.sh` with the same arguments.
+
 **Note**: If the BAM file does not contain `mv` tags, Clair3 will still run but the dwell time channel will contain zero values, which may reduce accuracy. Ensure your BAM files were produced by Dorado with `--emit-moves`.
 
 ### Option 2. Run Clair3 without dwelling time
 
 For comparison, run with the standard model `r1041_e82_400bps_hac_v500` without the `--enable_dwell_time` flag.
+
+**Docker:**
 
 ```bash
 OUTPUT_DIR_NO_DWELL="${INPUT_DIR}/output_no_dwell"
@@ -99,12 +124,30 @@ docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR_NO_DWELL}:${OUTPUT_DIR_NO_DWELL} \
   hkubal/clair3:v2.0.0 \
-  python3 /opt/bin/run_clair3.py \
+  /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
   --platform=${PLATFORM} \
   --model_path="/opt/models/r1041_e82_400bps_hac_v500" \
+  --output=${OUTPUT_DIR_NO_DWELL} \
+  --bed_fn=${INPUT_DIR}/quick_demo.bed \
+  --sample_name="HG003"
+```
+
+**Mamba/Conda:**
+
+```bash
+OUTPUT_DIR_NO_DWELL="${INPUT_DIR}/output_no_dwell"
+mkdir -p ${OUTPUT_DIR_NO_DWELL}
+
+cd Clair3
+./run_clair3.sh \
+  --bam_fn=${INPUT_DIR}/${BAM} \
+  --ref_fn=${INPUT_DIR}/${REF} \
+  --threads=${THREADS} \
+  --platform=${PLATFORM} \
+  --model_path=$(pwd)"/models/r1041_e82_400bps_hac_v500" \
   --output=${OUTPUT_DIR_NO_DWELL} \
   --bed_fn=${INPUT_DIR}/quick_demo.bed \
   --sample_name="HG003"

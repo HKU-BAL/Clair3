@@ -139,7 +139,7 @@ Dennis Hendriksen](https://github.com/dennishendriksen)).
 
 ### HKU-provided Models
 
-Download models from [here](http://www.bio8.cs.hku.hk/clair3/clair3_models/) or click on the links below.
+Download models from [here](https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/) or click on the links below.
 
 In a docker installation, models are in `/opt/models/`. In a bioconda installation, models are in `{CONDA_PREFIX}/bin/models/`.
 
@@ -316,12 +316,13 @@ pypy3 -m pip install mpmath==1.2.1
 If you haven't downloaded the pre-trained models yet:
 
 ```bash
-# Download pre-trained models
+# Download pre-trained PyTorch models
 cd ${CLAIR3_PATH}
 mkdir -p models
-wget http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz
-tar -zxvf clair3_models.tar.gz -C ./models
+wget -r -np -nH --cut-dirs=2 -R "index.html*" -P ./models https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/
 ```
+
+Individual models can also be downloaded from [here](https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/).
 
 **Step 7: Run Clair3**
 
@@ -329,7 +330,7 @@ After completing the installation, you can run Clair3 using:
 
 ```bash
 MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
-python ${CLAIR3_PATH}/run_clair3.py \
+${CLAIR3_PATH}/run_clair3.sh \
   --bam_fn=input.bam \
   --ref_fn=ref.fa \
   --threads=${THREADS} \
@@ -337,6 +338,8 @@ python ${CLAIR3_PATH}/run_clair3.py \
   --model_path="${CLAIR3_PATH}/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR}
 ```
+
+**Note**: You can also run Clair3 directly using `python3 ${CLAIR3_PATH}/run_clair3.py` with the same arguments.
 
 ### Option 2.  Docker pre-built image
 
@@ -356,7 +359,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  python3 /opt/bin/run_clair3.py \
+  /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -364,6 +367,8 @@ docker run -it \
   --model_path="/opt/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
+
+**Note**: You can also use `python3 /opt/bin/run_clair3.py` instead of `/opt/bin/run_clair3.sh` in the Docker command above.
 
 Check [Usage](#Usage) for more options.
 
@@ -390,7 +395,7 @@ singularity pull docker://hkubal/clair3:v2.0.0
 singularity exec \
   -B ${INPUT_DIR},${OUTPUT_DIR} \
   clair3_v2.0.0.sif \
-  python3 /opt/bin/run_clair3.py \
+  /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -398,6 +403,8 @@ singularity exec \
   --model_path="/opt/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
+
+**Note**: You can also use `python3 /opt/bin/run_clair3.py` instead of `/opt/bin/run_clair3.sh` in the Singularity command above.
 
 ----
 
@@ -408,7 +415,7 @@ singularity exec \
 **Caution**:  Use `=value` to assign parameter value, e.g. `--bed_fn=fn.bed` instead of `--bed_fn fn.bed`.
 
 ```bash
-python run_clair3.py \
+./run_clair3.sh \
   --bam_fn=${BAM} \
   --ref_fn=${REF} \
   --threads=${THREADS} \
@@ -422,7 +429,7 @@ python run_clair3.py \
 ## If --include_all_ctgs, --ctg_name, --bed_fn are not used, variants in chr{1..22,X,Y} and {1..22,X,Y} are called.
 ```
 
-**Note**: The legacy `run_clair3.sh` bash script is still available for backward compatibility.
+**Note**: You can also use `python3 run_clair3.py` instead of `./run_clair3.sh` with the same arguments.
 
 ### Options
 
@@ -513,7 +520,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  python3 /opt/bin/run_clair3.py \
+  /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -536,7 +543,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  python3 /opt/bin/run_clair3.py \
+  /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -571,7 +578,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  python3 /opt/bin/run_clair3.py \
+  /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -593,7 +600,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  python3 /opt/bin/run_clair3.py \
+  /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -614,7 +621,7 @@ Clair3 v2.0 introduces signal-aware variant calling for Oxford Nanopore data. Wh
 **Quick usage:**
 
 ```bash
-python run_clair3.py \
+./run_clair3.sh \
   --bam_fn=input.bam \
   --ref_fn=ref.fa \
   --threads=8 \

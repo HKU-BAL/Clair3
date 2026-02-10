@@ -1,7 +1,0 @@
-python ~/softwares/Clair3_no_change_v1.2/clair3.py Train \
---bin_fn ~/bins/hg002_sup/ \
---ochk_prefix ~/train/hg002_sup \
---add_indel_length True \
---random_validation \
---platform ont \
---enable_dwell_time

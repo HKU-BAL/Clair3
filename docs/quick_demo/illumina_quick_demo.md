@@ -74,7 +74,7 @@ g++ -std=c++11 -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp -I ${CONDA
 THREADS=4
 
 cd Clair3
-python run_clair3.py \
+./run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
@@ -83,6 +83,8 @@ python run_clair3.py \
   --output=${OUTPUT_DIR} \
   --bed_fn=${INPUT_DIR}/quick_demo.bed
 ```
+
+**Note**: You can also use `python3 run_clair3.py` instead of `./run_clair3.sh` with the same arguments.
 
 **Run hap.py for benchmarking (optional)**
 
@@ -128,7 +130,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  python3 /opt/bin/run_clair3.py \
+  /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
@@ -137,6 +139,8 @@ docker run -it \
   --output=${OUTPUT_DIR} \
   --bed_fn=${INPUT_DIR}/quick_demo.bed
 ```
+
+**Note**: You can also use `python3 /opt/bin/run_clair3.py` instead of `/opt/bin/run_clair3.sh` in the Docker command above.
 
 **Run hap.py for benchmarking (optional)**
 
