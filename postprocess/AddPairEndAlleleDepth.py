@@ -23,9 +23,9 @@ def compress_index_vcf(input_vcf):
 def str2bool(v):
     if isinstance(v, bool):
         return v
-    if v.lower() in ('yes', 'ture', 'true', 't', 'y', '1'):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
-    elif v.lower() in ('no', 'flase', 'false', 'f', 'n', '0'):
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
@@ -69,7 +69,7 @@ class Position(object):
 
         self.alternate_bases = [alt_base] if ',' not in alt_base else alt_base.split(',')
         self.genotype1 = genotype1
-        self.genotype2 = genotype1
+        self.genotype2 = genotype2
         self.genotype = [genotype1, genotype2]
         self.depth = depth
         self.af = af
