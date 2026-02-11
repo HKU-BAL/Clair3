@@ -372,7 +372,7 @@ class variantInfoCalculator(object):
         else:
             self.vcf_writer = sys.stdout
         self.writePath = gvcfWritePath
-        self.sampleName = sample_name.split('.')[0]
+        self.sampleName = sample_name.rsplit('.', 3)[0]
         self.bp_resolution = bp_resolution
         self.reference_file_path = ref_path
 
