@@ -63,7 +63,7 @@ For somatic variant calling using **tumor-only** samples, please try [ClairS-TO]
 ----
 
 ## Latest Updates
-*v2.0.0 (Feb 9, 2026)* : 1. Shifted the deep learning framework from TensorFlow to PyTorch. 2. ONT model now supports signal-aware variant calling using Dorado move tables. Use `--enable_dwell_time` for BAM files with `mv` tags (requires Dorado with `--emit-moves`). See [Dwelling Time Feature](docs/dwelling_time.md) for details. 3. Reconstructed the `run_clair3.sh` script in Python (`run_clair3.py`) for improved user experience. 4. Model checkpoint format changed from TensorFlow (`.index`/`.data`) to PyTorch (`.pt`). Pre-trained PyTorch models are available for download.
+*v2.0.0 (Feb 9, 2026)* : 1. Shifted the deep learning framework from TensorFlow to PyTorch (Caveat: all v1 tensorflow models are incompatible with v2, including those tensorflow models provided in rerio by ONT, we are working with ONT to provide also pytorch models for use with v2, stay tuned. Considering that ONT models are fine-tuned and perform consistently better than the HKU baseline models, please wait until ONT provide v2 models before upgrading to v2.). 2. ONT model now supports signal-aware variant calling using Dorado move tables. Use `--enable_dwell_time` for BAM files with `mv` tags (requires Dorado with `--emit-moves`). See [Dwelling Time Feature](docs/dwelling_time.md) for details. 3. Reconstructed the `run_clair3.sh` script in Python (`run_clair3.py`) for improved user experience. 4. Model checkpoint format changed from TensorFlow (`.index`/`.data`) to PyTorch (`.pt`). Pre-trained PyTorch models are available for download.
 
 *v1.2.0 (Aug 1, 2025)* : 1. Clair3 now natively supports GPU on Linux and Apple Silicon. Please refer to the  [GPU quick start guide](docs/gpu_quick_start.md) for usage. Clair3 on GPU runs ~5 times compared CPU. Below is quick speed comparison. 
 
@@ -157,6 +157,8 @@ In a docker installation, models are in `/opt/models/`. In a bioconda installati
 | r1041_e82_400bps_hac_with_mv | ONT R10.4.1 E8.2 (5kHz) | `ont` | HG001,2,5 (chr20 excluded), `--enable_dwell_time` | | Yes | 20260206 |
 
 ### ONT-provided Models
+
+*Caveat: all v1 tensorflow models are incompatible with v2, including those tensorflow models provided in rerio by ONT, we are working with ONT to provide also pytorch models for use with v2, stay tuned. Considering that ONT models are fine-tuned and perform consistently better than the HKU baseline models, please wait until ONT provide v2 models before upgrading to v2.*
 
 ONT provides models for some latest or specific chemistries and basecallers (including both Guppy and Dorado) through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers.
 
