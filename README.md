@@ -4,7 +4,7 @@
   </a>
 </div>
 
-# Clair3 - Symphonizing pileup and full-alignment for high-performance long-read variant calling
+# Clair3 - Symphonizing pileup and full-alignment for deep learning-based long-read variant calling
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)  [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/clair3/README.html)
 
