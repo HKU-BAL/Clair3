@@ -38,6 +38,7 @@ For somatic variant calling using **tumor-only** samples, please try [ClairS-TO]
   * [R10.4 with the Kit 12 chemistry (Q20) Models](#ont-provided-models)
   * [Guppy3,4 Model](#pre-trained-models)
   * [Guppy2 Model](docs/guppy2.md)
+  * [Model Migration (TensorFlow to PyTorch)](docs/model_migration_guide.md)
 * [What's New in Clair3](#whats-new-in-clair3)
 * [Installation](#installation)
   + [Option 1. Build an environment with Mamba/Conda](#option-1-build-an-environment-with-mambaconda)
@@ -158,7 +159,7 @@ In a docker installation, models are in `/opt/models/`. In a bioconda installati
 
 ### ONT-provided Models
 
-*Caveat: all v1 tensorflow models are incompatible with v2, including those tensorflow models provided in rerio by ONT, we are working with ONT to provide also pytorch models for use with v2, stay tuned. Considering that ONT models are fine-tuned and perform consistently better than the HKU baseline models, please wait until ONT provide v2 models before upgrading to v2.*
+*Caveat: all v1 TensorFlow models are incompatible with v2, including those TensorFlow models provided in Rerio by ONT. We have converted all ONT Rerio models to PyTorch format for use with Clair3 v2, which can be downloaded from [https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/](https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/). Considering that ONT models are fine-tuned and generally perform better than the HKU baseline models, we recommend using the converted ONT models for best results. We are collaborating with ONT to make official PyTorch models available in the near future.*
 
 ONT provides models for some latest or specific chemistries and basecallers (including both Guppy and Dorado) through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers.
 
@@ -171,6 +172,9 @@ We have also added the latest version of ONT-provided models in Docker and Bioco
 | r1041_e82_400bps_sup_v410 |   R10.4.1 E8.2 (4kHz)   | v4.1.0 SUP              |          `ont`           | Trained by ONT  EPI2ME Lab |               Yes                |             Yes              |
 | r1041_e82_400bps_hac_v410 |   R10.4.1 E8.2 (4kHz)   | v4.1.0 HAC              |          `ont`           | Trained by ONT  EPI2ME Lab |                                  |             Yes              |
 
+### Model Migration (TensorFlow to PyTorch)
+
+If you have custom TensorFlow models from Clair3 v1 that you need to convert to PyTorch format for use with Clair3 v2, please refer to the [Model Migration Guide](docs/model_migration_guide.md).
 
 ----
 
