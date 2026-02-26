@@ -159,7 +159,7 @@ In a docker installation, models are in `/opt/models/`. In a bioconda installati
 
 ### ONT-provided Models
 
-*Caveat: all v1 TensorFlow models are incompatible with v2, including those TensorFlow models provided in Rerio by ONT. We have converted all ONT Rerio models to PyTorch format for use with Clair3 v2, which can be downloaded from [https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/](https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/). Considering that ONT models are fine-tuned and generally perform better than the HKU baseline models, we recommend using the converted ONT models for best results. We are collaborating with ONT to make official PyTorch models available in the near future.*
+*Caveat: all v1 TensorFlow models are incompatible with v2, including those TensorFlow models provided in Rerio by ONT. We have converted all ONT Rerio models to PyTorch format for use with Clair3 v2, which can be downloaded from [Converted Rerio Clair3 Models](https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/). Considering that ONT models are fine-tuned and generally perform better than the HKU baseline models, we recommend using the converted ONT models for best results. We are collaborating with ONT to make official PyTorch models available in the near future.*
 
 ONT provides models for some latest or specific chemistries and basecallers (including both Guppy and Dorado) through [Rerio](https://github.com/nanoporetech/rerio). These models are tested and supported by the ONT developers.
 
