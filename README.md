@@ -27,6 +27,8 @@ For somatic variant calling using **paired tumor/normal** samples, please try [C
 
 For somatic variant calling using **tumor-only** samples, please try [ClairS-TO](https://github.com/HKU-BAL/ClairS-TO).
 
+**Agentic skill** which can be used in claude code, codex, cursor etc. for Clair series variant callers is out! Please try [Clair-skill](https://github.com/HKU-BAL/Clair-skills)
+
 ----
 
 ## Contents
