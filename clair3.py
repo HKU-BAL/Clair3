@@ -21,7 +21,6 @@ data_preprocess_folder = [
     'RealignReads',
     'CreateTensorPileup',
     "CreateTensorFullAlignment",
-    "CreateTensorFullAlignment_test",
     'CreateTrainingTensor',
     'SplitExtendBed',
     'MergeBin',
