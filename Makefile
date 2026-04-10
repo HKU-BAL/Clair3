@@ -39,7 +39,7 @@ libhts.a: samtools-$(SAMVER)/Makefile
 	@echo "\x1b[1;33mMaking $(@F)\x1b[0m"
 	cd samtools-${SAMVER}/htslib-${SAMVER}; \
 	if [ "$(OS)" = "Darwin" ]; then \
-		cp -f ${BUILD_PREFIX}/share/gnuconfig/config.* . && autoheader && autoconf -Wno-syntax && CC=${CC_PATH} CPPFLAGS="" CFLAGS="" LDFLAGS="" ./configure; \
+		cp -f ${BUILD_PREFIX}/share/gnuconfig/config.* . && autoheader && autoconf -Wno-syntax && CC=${CC_PATH} CPPFLAGS="" CFLAGS="-O3 -fpic" LDFLAGS="" ./configure; \
 	else \
 		CFLAGS="${CFLAGS}" LDFLAGS="${LDFLAGS}" ./configure; \
 	fi; \
