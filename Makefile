@@ -61,13 +61,6 @@ longphase:
 		rm longphase-${LPVER}.tar.xz; \
 	fi
 
-models:
-	if [ "$(OS)" = "Darwin" ]; then \
-        curl -L -o clair3_models.tar.gz http://www.bio8.cs.hku.hk/clair3/clair3_models/clair3_models.tar.gz; \
-        mkdir -p ${PREFIX}/bin/models && tar -zxvf clair3_models.tar.gz -C ${PREFIX}/bin/models; \
-        rm clair3_models.tar.gz; \
-    fi
-
 libclair3.so: samtools-${SAMVER}/htslib-${SAMVER} libhts.a
 	${PYTHON} build.py
 
