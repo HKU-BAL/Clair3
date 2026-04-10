@@ -16,6 +16,7 @@ if os.path.isdir(htslib_dir):
 src_dir = os.path.join(file_directory, 'src')
 
 extra_compile_args = ['-std=c99', '-O3']
+libraries.append('deflate')
 if platform.machine() in {"aarch64", "arm64"}:
     if platform.system() == "Darwin":
         pass
@@ -23,7 +24,6 @@ if platform.machine() in {"aarch64", "arm64"}:
         extra_compile_args.append("-march=armv8-a+simd")
 else:
     extra_compile_args.append("-mtune=haswell")
-    libraries.append('deflate')
     try:
         conda_path = os.environ['CONDA_PREFIX']
         extra_link_args = ['-Wl,-rpath={}/lib'.format(conda_path)]
