@@ -7,6 +7,8 @@ import argparse
 import shlex
 from subprocess import PIPE
 from os.path import isfile, isdir
+
+from shared.version import __version__
 # A->A
 # C->C
 # G->G
@@ -248,7 +250,7 @@ def samtools_view_process_from(
         shlex.split("%s view -F 2318 %s %s" % (samtools, bam_file_path, region_str))
     )
 
-def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", version='1.2.0', gvcf=False, return_contig_length=False):
+def get_header(reference_file_path=None, cmd_fn=None, sample_name="SAMPLE", version=__version__, gvcf=False, return_contig_length=False):
     from textwrap import dedent
 
     contig_length_dict = {}

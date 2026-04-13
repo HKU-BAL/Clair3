@@ -10,8 +10,9 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 from shared.utils import str2bool
+from shared.version import __version__
 
-VERSION = "v2.0.0"
+VERSION = f"v{__version__}"
 ERROR = "\033[31m[ERROR]\033[0m"
 WARNING = "\033[33m[WARNING]\033[0m"
 
