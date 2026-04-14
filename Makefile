@@ -3,7 +3,7 @@ ARCH := $(shell arch)
 
 PYTHON ?= python3
 
-all : libhts.a longphase libclair3.so models
+all : libhts.a longphase libclair3.so
 clean : clean_htslib clean_longphase clean_libclair3
 
 SAMVER	=	1.15.1
