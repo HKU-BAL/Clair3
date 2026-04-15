@@ -33,6 +33,8 @@ data_preprocess_folder = [
     'SelectQual',
     "CreateTensorPileupFromCffi",
     "CreateTensorFullAlignmentFromCffi",
+    "CreateTrainingTensorDirect",
+    "BuildPangenomeTensor",
     "CheckExitCode",
 ]
 

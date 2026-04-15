@@ -150,7 +150,8 @@ def CreateTensorFullAlignment(args):
         min_base_quality, 
         matrix_depth, 
         max_indel_length,
-        enable_dwell_time  # NEW: Enable dwell time extraction
+        enable_dwell_time,  # Enable dwell time extraction
+        False  # output_variant_matrix
     )
 
     # use np buffer to get the matrix with correct channel size

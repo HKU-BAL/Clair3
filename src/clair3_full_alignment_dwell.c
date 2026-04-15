@@ -111,6 +111,9 @@ void destroy_fa_data(fa_data data)
        free(data->all_alt_info[i]);
     }
     free(data->all_alt_info);
+    if (data->allele_matrix != NULL) free(data->allele_matrix);
+    if (data->hp_labels != NULL) free(data->hp_labels);
+    if (data->num_nearby_variants != NULL) free(data->num_nearby_variants);
     free(data);
 }
 
@@ -435,7 +438,7 @@ size_t get_overlap_candidate_num(size_t read_start, size_t read_end, size_t cand
 }
 
 fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging, \
-size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool enable_dwell_time)
+size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool enable_dwell_time, bool output_variant_matrix)
 {
 
     int start, end;
@@ -497,6 +500,12 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
     // a kvec vector to store all read struct
     kvec_t(Read) read_array;
     kv_init(read_array);
+
+    // per-read allele states at variant positions (for variant matrix output)
+    // allele_states_array[read_idx] is a int8_t* of size variant_num, or NULL
+    typedef int8_t* int8_ptr;
+    kvec_t(int8_ptr) allele_states_array;
+    kv_init(allele_states_array);
 
     for (size_t i = 0; i < candidate_num; i++)
     {
@@ -629,6 +638,68 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
         if (need_haplotagging && alignment->core.qual >= min_haplotag_mq)
         {
             read.haplotype = haplotag_read(&variants_info, &read, ref_seq, ref_start);
+        }
+
+        // Compute per-variant allele states for this read (for variant matrix output)
+        // Must be done NOW while cigartuples/seqi pointers are still valid
+        if (output_variant_matrix && need_haplotagging && variant_num > 0)
+        {
+            int8_t *ras = calloc(variant_num, sizeof(int8_t));
+            size_t v_j = 0;
+            while (v_j < variant_num && (size_t)variants[v_j]->position < read.read_start)
+                v_j++;
+            size_t r_ref_pos = read.read_start;
+            size_t r_query_pos = 0;
+            for (size_t ci = 0; ci < read.n_cigar; ci++)
+            {
+                size_t cop = bam_cigar_op(read.cigartuples[ci]);
+                size_t clen = bam_cigar_oplen(read.cigartuples[ci]);
+                if (cop == BAM_CMATCH || cop == BAM_CEQUAL || cop == BAM_CDIFF)
+                {
+                    while (v_j < variant_num && (size_t)variants[v_j]->position < r_ref_pos + clen)
+                    {
+                        int al = realign_read(variants[v_j], &read, ci,
+                                              variants[v_j]->position - r_ref_pos,
+                                              r_query_pos + variants[v_j]->position - r_ref_pos,
+                                              ref_seq, ref_start);
+                        ras[v_j] = (al == 0) ? 3 : (al == 1) ? 1 : 2;
+                        v_j++;
+                    }
+                    r_query_pos += clen; r_ref_pos += clen;
+                }
+                else if (cop == BAM_CINS)
+                {
+                    if (v_j < variant_num && (size_t)variants[v_j]->position == r_ref_pos)
+                    {
+                        int al = realign_read(variants[v_j], &read, ci, 0, r_query_pos, ref_seq, ref_start);
+                        ras[v_j] = (al == 0) ? 3 : (al == 1) ? 1 : 2;
+                        v_j++;
+                    }
+                    r_query_pos += clen;
+                }
+                else if (cop == BAM_CDEL)
+                {
+                    while (v_j < variant_num && (size_t)variants[v_j]->position < r_ref_pos + clen)
+                    {
+                        int al = realign_read(variants[v_j], &read, ci,
+                                              variants[v_j]->position - r_ref_pos, r_query_pos, ref_seq, ref_start);
+                        ras[v_j] = (al == 0) ? 3 : (al == 1) ? 1 : 2;
+                        v_j++;
+                    }
+                    r_ref_pos += clen;
+                }
+                else if (cop == BAM_CREF_SKIP)
+                {
+                    while (v_j < variant_num && (size_t)variants[v_j]->position < r_ref_pos + clen) v_j++;
+                    r_ref_pos += clen;
+                }
+                else if (cop == BAM_CSOFT_CLIP) { r_query_pos += clen; }
+            }
+            kv_push(int8_ptr, allele_states_array, ras);
+        }
+        else if (output_variant_matrix)
+        {
+            kv_push(int8_ptr, allele_states_array, NULL);
         }
 
         pos_info = calloc(overlap_candidates_num, sizeof(Pos_info));
@@ -778,10 +849,23 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
     HAP *read_hap_array = malloc(reads_num * sizeof(HAP));
     int *matrix_read_index_array = malloc(matrix_depth * sizeof(int));
 
+    // read_allele_states were filled inline during BAM iteration into allele_states_array
+
     // allocate output
     fa_data data = calloc(1, sizeof(_fa_data));
     char **alt_info_p = calloc(candidate_num, sizeof(char*));
     int8_t *matrix = calloc(candidate_num * matrix_depth * no_of_positions * feature_channels, sizeof(int8_t));
+
+    // Variant matrix output arrays
+    int8_t *allele_matrix = NULL;
+    int8_t *hp_labels_out = NULL;
+    int16_t *num_nearby_variants = NULL;
+    if (output_variant_matrix && need_haplotagging && variant_num > 0 && reads_num > 0)
+    {
+        allele_matrix = calloc(candidate_num * matrix_depth * MAX_NEARBY_HETE_SNPS, sizeof(int8_t));
+        hp_labels_out = calloc(candidate_num * matrix_depth, sizeof(int8_t));
+        num_nearby_variants = calloc(candidate_num, sizeof(int16_t));
+    }
 
     // loop each candiate and generate full-alignment input matrix
     for (size_t i = 0; i < candidate_num; i++)
@@ -814,6 +898,67 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
         }
 
         sort_read_name_by_haplotype(read_hap_array, matrix_read_index_array, matrix_depth, overlap_read_num);
+
+        // --- Fill variant matrix for this candidate ---
+        if (allele_matrix != NULL)
+        {
+            size_t candidate_pos = candidates[i];
+            // Find nearby het SNPs within PHASING_WINDOW_SIZE of candidate
+            // Variants are sorted by position, use binary search bounds
+            size_t v_start = 0, v_end = 0;
+            for (size_t v = 0; v < variant_num; v++)
+            {
+                if ((size_t)variants[v]->position + PHASING_WINDOW_SIZE >= candidate_pos &&
+                    candidate_pos + PHASING_WINDOW_SIZE >= (size_t)variants[v]->position)
+                {
+                    if (v_start == 0 && v == 0) v_start = 0;
+                    else if (v_start == 0) v_start = v;
+                    v_end = v + 1;
+                }
+                if ((size_t)variants[v]->position > candidate_pos + PHASING_WINDOW_SIZE)
+                    break;
+            }
+            // Correct v_start search
+            v_start = 0;
+            while (v_start < variant_num &&
+                   candidate_pos > (size_t)variants[v_start]->position + PHASING_WINDOW_SIZE)
+                v_start++;
+            v_end = v_start;
+            while (v_end < variant_num &&
+                   (size_t)variants[v_end]->position <= candidate_pos + PHASING_WINDOW_SIZE)
+                v_end++;
+
+            size_t nearby_count = v_end - v_start;
+            if (nearby_count > MAX_NEARBY_HETE_SNPS)
+                nearby_count = MAX_NEARBY_HETE_SNPS;
+            num_nearby_variants[i] = (int16_t)nearby_count;
+
+            size_t am_offset = i * matrix_depth * MAX_NEARBY_HETE_SNPS;
+            size_t hp_offset = i * matrix_depth;
+
+            for (size_t d = 0; d < matrix_depth; d++)
+            {
+                int read_index = matrix_read_index_array[d];
+                if (read_index == -1)
+                {
+                    hp_labels_out[hp_offset + d] = 0; // padding
+                    continue;
+                }
+                Read read = kv_A(read_array, read_index);
+                hp_labels_out[hp_offset + d] = normalize_hap(read.haplotype);
+
+                // Fill allele states for nearby variants
+                int8_t *ras = kv_A(allele_states_array, read_index);
+                if (ras != NULL)
+                {
+                    for (size_t v = 0; v < nearby_count; v++)
+                    {
+                        size_t var_idx = v_start + v;
+                        allele_matrix[am_offset + d * MAX_NEARBY_HETE_SNPS + v] = ras[var_idx];
+                    }
+                }
+            }
+        }
 
         // loop each overlapped read of a candidate
         for (size_t d = 0; d < matrix_depth; d++)
@@ -1011,6 +1156,18 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
     data->matrix = matrix;
     data->all_alt_info = alt_info_p;
     data->candidates_num = candidate_num;
+    data->allele_matrix = allele_matrix;
+    data->hp_labels = hp_labels_out;
+    data->num_nearby_variants = num_nearby_variants;
+    data->has_variant_matrix = (allele_matrix != NULL);
+
+    // free per-read allele states (no longer needed, data is in allele_matrix)
+    for (size_t j = 0; j < kv_size(allele_states_array); j++)
+    {
+        if (kv_A(allele_states_array, j) != NULL)
+            free(kv_A(allele_states_array, j));
+    }
+    kv_destroy(allele_states_array);
 
     // free all allocated memory
     for (size_t j = 0; j < reads_num; j++)

@@ -130,7 +130,8 @@ def CreateTensorFullAlignment(args):
         min_base_quality,
         matrix_depth,
         max_indel_length,
-        enable_dwell_time
+        enable_dwell_time,
+        False
     )
 
     # use np buffer to get the matrix

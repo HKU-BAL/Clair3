@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
         variants.variants, variants.num_variants,
         candidates.candidates, candidates.num_candidates,
         need_haplotagging,
-        min_mq, min_bq, matrix_depth, max_indel_length);
+        min_mq, min_bq, matrix_depth, max_indel_length, false, false);
     // TODO: do something with the data?
     destroy_fa_data(data);
 

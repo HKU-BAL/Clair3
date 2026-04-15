@@ -55,3 +55,11 @@ trainingDatasetPercentage = 0.9
 maxEpoch = 30
 OPERATION_SEED = None
 RANDOM_SEED = None
+
+# Neural phasing parameters
+MAX_NEARBY_HETE_SNPS = 64
+phasing_window_size_for_matrix = 50000
+
+# Pangenome parameters
+PANGENOME_NUM_HAPLOTYPES = 32
+PANGENOME_MARKER_VALUE = 25

@@ -64,30 +64,84 @@ def Run(args):
         **compression_kwargs,
     )
 
+    # Detect phasing datasets from the first input file
+    has_phasing = False
+    if len(in_fn_list) > 0:
+        with h5py.File(in_fn_list[0], mode='r') as probe:
+            has_phasing = "phasing_matrix" in probe
+
+    if has_phasing:
+        # Probe shapes from first file
+        with h5py.File(in_fn_list[0], mode='r') as probe:
+            pm_shape = probe["phasing_matrix"].shape[1:]   # (matrix_depth, MAX_NEARBY_HETE_SNPS)
+            hp_shape = probe["hp_labels"].shape[1:]         # (matrix_depth,)
+        table_file.create_dataset(
+            "phasing_matrix",
+            shape=(0,) + pm_shape, maxshape=(None,) + pm_shape,
+            chunks=(chunk_rows,) + pm_shape, dtype=np.int8, **compression_kwargs)
+        table_file.create_dataset(
+            "hp_labels",
+            shape=(0,) + hp_shape, maxshape=(None,) + hp_shape,
+            chunks=(chunk_rows,) + hp_shape, dtype=np.int8, **compression_kwargs)
+        table_file.create_dataset(
+            "phasing_num_variants",
+            shape=(0,), maxshape=(None,),
+            chunks=(chunk_rows,), dtype=np.int16, **compression_kwargs)
+        print("[INFO] Phasing datasets detected, will merge phasing_matrix/hp_labels/phasing_num_variants")
+
     table_dict = utils.update_table_dict()
+    if has_phasing:
+        table_dict['phasing_matrix'] = []
+        table_dict['hp_labels'] = []
+        table_dict['phasing_num_variants'] = []
     total_compressed = 0
+
+    def flush_to_hdf5():
+        nonlocal table_dict
+        table_dict = utils.write_table_file(table_file, table_dict, tensor_shape, param.label_size, float_type)
+        if has_phasing:
+            for key in ('phasing_matrix', 'hp_labels', 'phasing_num_variants'):
+                if len(table_dict.get(key, [])) == 0 and key in table_file:
+                    pass  # already flushed by write_table_file or handled below
+            # Flush phasing buffers that write_table_file doesn't know about
+            for key in ('phasing_matrix', 'hp_labels', 'phasing_num_variants'):
+                buf = table_dict.get(key, [])
+                if len(buf) > 0:
+                    arr = np.array(buf)
+                    ds = table_file[key]
+                    old_len = ds.shape[0]
+                    ds.resize(old_len + len(arr), axis=0)
+                    ds[old_len:] = arr
+                table_dict[key] = []
 
     for f in in_fn_list:
         print("[INFO] Merging file {}".format(f))
         fi = h5py.File(f, mode='r')
         assert (len(fi["label"]) == len(fi["position"]) == len(fi["position_matrix"]) == len(fi["alt_info"]))
+        file_has_phasing = has_phasing and "phasing_matrix" in fi
+        if has_phasing and not file_has_phasing:
+            print("[WARN] File {} missing phasing datasets, skipping phasing for this file".format(f))
         for index in range(len(fi["label"])):
             table_dict['label'].append(fi["label"][index])
             table_dict['position'].append(fi["position"][index])
             table_dict['position_matrix'].append(fi["position_matrix"][index])
             table_dict['alt_info'].append(fi["alt_info"][index])
+            if file_has_phasing:
+                table_dict['phasing_matrix'].append(fi["phasing_matrix"][index])
+                table_dict['hp_labels'].append(fi["hp_labels"][index])
+                table_dict['phasing_num_variants'].append(fi["phasing_num_variants"][index])
 
             total_compressed += 1
 
             if total_compressed % 500 == 0 and total_compressed > 0:
-                table_dict = utils.write_table_file(table_file, table_dict, tensor_shape, param.label_size, float_type)
+                flush_to_hdf5()
 
             if total_compressed % 50000 == 0:
                 print("[INFO] Compressed %d tensor" % (total_compressed), file=sys.stderr)
         fi.close()
 
     if total_compressed % 500 != 0 and total_compressed > 0:
-        table_dict = utils.write_table_file(table_file, table_dict, tensor_shape, param.label_size, float_type)
+        flush_to_hdf5()
         print("[INFO] Compressed %d tensor" % (total_compressed), file=sys.stderr)
 
     table_file.close()

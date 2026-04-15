@@ -108,13 +108,16 @@ class FocalLoss(nn.Module):
 
 
 class BinChunkDataset(Dataset):
-    def __init__(self, data, chunk_list, tensor_shape, bin_tensor_shape, chunk_size):
+    def __init__(self, data, chunk_list, tensor_shape, bin_tensor_shape, chunk_size,
+                 load_phasing=False, pangenome_data=None):
         self.data = data
         self.chunk_list = chunk_list
         self.chunk_size = chunk_size
         self.tensor_shape = list(tensor_shape)
         self.bin_tensor_shape = list(bin_tensor_shape)
         self.random_offset = 0
+        self.load_phasing = load_phasing
+        self.pangenome_data = pangenome_data  # list of h5py.File or None
 
     def __len__(self):
         return len(self.chunk_list)
@@ -130,13 +133,33 @@ class BinChunkDataset(Dataset):
         label = self.data[bin_id]["label"][start_pos:end_pos]
         if self.bin_tensor_shape[-1] != self.tensor_shape[-1]:
             position_matrix = position_matrix[..., :self.tensor_shape[-1]]
-        return position_matrix, label
+
+        # Pangenome haplotype rows
+        pg_matrix = None
+        if self.pangenome_data is not None and self.pangenome_data[bin_id] is not None:
+            pg_matrix = self.pangenome_data[bin_id]["pangenome_matrix"][start_pos:end_pos]
+
+        # Phasing data
+        phasing_matrix, hp_labels = None, None
+        if self.load_phasing and "phasing_matrix" in self.data[bin_id]:
+            phasing_matrix = self.data[bin_id]["phasing_matrix"][start_pos:end_pos]
+            hp_labels = self.data[bin_id]["hp_labels"][start_pos:end_pos]
+
+        result = [position_matrix, label]
+        if phasing_matrix is not None:
+            result.extend([phasing_matrix, hp_labels])
+        if pg_matrix is not None:
+            result.append(pg_matrix)
+        return tuple(result)
 
 
 def collate_chunks(batch):
-    position_matrix = np.concatenate([item[0] for item in batch], axis=0)
-    label = np.concatenate([item[1] for item in batch], axis=0)
-    return position_matrix, label
+    # Determine what fields are present from the first item
+    n_fields = len(batch[0])
+    result = []
+    for i in range(n_fields):
+        result.append(np.concatenate([item[i] for item in batch], axis=0))
+    return tuple(result)
 
 
 def get_chunk_list(chunk_offset, train_chunk_num, chunks_per_batch=10, training_dataset_percentage=None):
@@ -207,54 +230,187 @@ def _load_checkpoint(model, checkpoint_path, device, is_ddp=False):
     model.load_state_dict(state_dict)
 
 
-def _run_epoch(model, loader, optimizer, loss_funcs, label_shapes, device, train=True, desc=None, distributed=False):
+def _run_epoch(model, loader, optimizer, loss_funcs, label_shapes, device,
+               train=True, desc=None, distributed=False,
+               phasing_mode='baseline', phasing_model=None, phasing_optimizer=None,
+               phasing_loss_func=None,
+               has_phasing=False, has_pangenome=False):
+    """
+    Run one epoch of training or validation.
+
+    Training modes:
+        pileup:     Train pileup model (standard, no phasing)
+        baseline:   Train FA model with existing HP channel (standard, no phasing)
+        phasing:    Train phasing model only (supervised), FA model frozen
+        frozen:     Train FA model with frozen phasing model predictions replacing HP channel
+        end2end:    End-to-end training, genotype loss gradient flows back through
+                    inject_hp_channel to optimize phasing model (no explicit phasing loss)
+    """
     if train:
         model.train()
+        if phasing_model is not None:
+            if phasing_mode == 'phasing':
+                phasing_model.train()
+            elif phasing_mode == 'frozen':
+                phasing_model.eval()
+            elif phasing_mode == 'end2end':
+                phasing_model.train()
     else:
         model.eval()
+        if phasing_model is not None:
+            phasing_model.eval()
+
+    from clair3.phasing_model import inject_hp_channel, clear_hp_channel
 
     epoch_loss = 0.0
     batches = 0
+    compute_f1 = phasing_mode != 'phasing'
+    task_correct = [0] * len(label_shapes)
+    task_total = [0] * len(label_shapes)
     iterator = loader
-    # Only show progress bar on main process
     if tqdm is not None and is_main_process():
         iterator = tqdm(loader, desc=desc, unit="batch", leave=False)
-    for position_matrix, label in iterator:
+
+    for batch_data in iterator:
+        # Unpack batch fields based on what was loaded
+        # Always: (position_matrix, label, [phasing_matrix, hp_labels], [pangenome_matrix])
+        position_matrix = batch_data[0]
+        label = batch_data[1]
+        field_idx = 2
+
+        phasing_matrix, hp_gt, read_mask = None, None, None
+        pangenome_matrix_np = None
+
+        if has_phasing and field_idx + 1 < len(batch_data):
+            phasing_matrix = torch.from_numpy(batch_data[field_idx]).long().to(device)
+            hp_labels_raw = torch.from_numpy(batch_data[field_idx + 1]).to(device)
+            hp_gt = torch.zeros_like(hp_labels_raw)
+            hp_gt[hp_labels_raw == 30] = 1
+            hp_gt[hp_labels_raw == 90] = 2
+            read_mask = (hp_labels_raw == 0)
+            field_idx += 2
+
+        if has_pangenome and field_idx < len(batch_data):
+            pangenome_matrix_np = batch_data[field_idx]
+            field_idx += 1
+
+        # Shuffle reads along the depth (read) dimension for end2end/frozen modes.
+        # This prevents the FA model from exploiting haplotype-based spatial ordering
+        # that exists in training data but is unavailable during inference without
+        # external phasing. Each sample gets an independent random permutation.
+        if phasing_mode in ('end2end', 'frozen') and train:
+            batch_size, read_depth = position_matrix.shape[0], position_matrix.shape[1]
+            # Generate per-sample permutations: [B, R]
+            perms = np.argsort(np.random.rand(batch_size, read_depth), axis=1)
+            # Shuffle position_matrix (numpy): [B, R, P, C]
+            batch_idx = np.arange(batch_size)[:, None]
+            position_matrix = position_matrix[batch_idx, perms]
+            # Shuffle phasing tensors (torch, on device)
+            if has_phasing and phasing_matrix is not None:
+                perm_torch = torch.from_numpy(perms).to(device)
+                batch_idx_torch = torch.arange(batch_size, device=device).unsqueeze(1)
+                phasing_matrix = phasing_matrix[batch_idx_torch, perm_torch]
+                hp_gt = hp_gt[batch_idx_torch, perm_torch]
+                read_mask = read_mask[batch_idx_torch, perm_torch]
+
+        # Concatenate pangenome rows to position_matrix along depth dimension
+        if pangenome_matrix_np is not None:
+            position_matrix = np.concatenate([position_matrix, pangenome_matrix_np], axis=1)
+
         position_matrix = torch.from_numpy(position_matrix).to(device)
         label = torch.from_numpy(label).float().to(device)
+
         if train:
             optimizer.zero_grad()
+            if phasing_optimizer is not None and phasing_mode in ('phasing', 'end2end'):
+                phasing_optimizer.zero_grad()
 
         with torch.set_grad_enabled(train):
-            outputs = model(position_matrix)
-            label_chunks = []
-            start_idx = 0
-            for chunk_size in label_shapes:
-                end_idx = start_idx + chunk_size
-                label_chunks.append(label[:, start_idx:end_idx])
-                start_idx = end_idx
-            task_losses = []
-            for task_id, output in enumerate(outputs):
-                task_loss = loss_funcs[task_id](label_chunks[task_id], output).mean()
-                task_losses.append(task_loss)
-            loss = sum(task_losses)
+            # --- Mode-specific forward pass ---
+
+            if phasing_mode == 'phasing':
+                # Train phasing model only, FA model is not used
+                H = phasing_model(phasing_matrix, read_mask=read_mask)
+                loss = phasing_loss_func(H, hp_gt, read_mask=read_mask)
+
+            elif phasing_mode == 'frozen':
+                # Use frozen phasing model to predict HP, then train FA model
+                tensor_float = position_matrix.float()
+                with torch.no_grad():
+                    H = phasing_model(phasing_matrix, read_mask=read_mask)
+                tensor_float = clear_hp_channel(tensor_float)
+                tensor_float = inject_hp_channel(tensor_float, H)
+                outputs = model(tensor_float)
+                label_chunks = _split_label(label, label_shapes)
+                loss = sum(loss_funcs[t](label_chunks[t], o).mean() for t, o in enumerate(outputs))
+
+            elif phasing_mode == 'end2end':
+                # End-to-end: phasing model predicts HP, gradient flows back
+                # through inject_hp_channel -> phasing model via genotype loss only
+                tensor_float = position_matrix.float()
+                H = phasing_model(phasing_matrix, read_mask=read_mask)
+                tensor_float = clear_hp_channel(tensor_float)
+                tensor_float = inject_hp_channel(tensor_float, H)
+                outputs = model(tensor_float)
+                label_chunks = _split_label(label, label_shapes)
+                loss = sum(loss_funcs[t](label_chunks[t], o).mean() for t, o in enumerate(outputs))
+
+            else:
+                # baseline / pileup: standard forward pass
+                outputs = model(position_matrix)
+                label_chunks = _split_label(label, label_shapes)
+                loss = sum(loss_funcs[t](label_chunks[t], o).mean() for t, o in enumerate(outputs))
 
             if train:
                 loss.backward()
                 optimizer.step()
+                if phasing_optimizer is not None and phasing_mode in ('phasing', 'end2end'):
+                    phasing_optimizer.step()
 
-        # Reduce loss across all processes for logging
+        # Compute per-task F1 (micro-averaged, equivalent to accuracy for single-label)
+        if compute_f1:
+            with torch.no_grad():
+                for t in range(len(label_shapes)):
+                    pred = torch.argmax(outputs[t].detach(), dim=-1)
+                    true = torch.argmax(label_chunks[t].detach(), dim=-1)
+                    task_correct[t] += (pred == true).sum().item()
+                    task_total[t] += pred.numel()
+
         if distributed:
             reduced_loss = reduce_tensor(loss.detach())
             epoch_loss += reduced_loss.item()
         else:
             epoch_loss += loss.item()
-            
+
         if tqdm is not None and hasattr(iterator, "set_postfix") and is_main_process():
             iterator.set_postfix(loss=f"{loss.item():.4f}")
         batches += 1
 
-    return epoch_loss / max(1, batches)
+    # Aggregate F1 counts across processes for distributed training
+    f1_scores = []
+    if compute_f1:
+        if distributed:
+            for t in range(len(label_shapes)):
+                correct_t = torch.tensor([task_correct[t]], dtype=torch.float64, device=device)
+                total_t = torch.tensor([task_total[t]], dtype=torch.float64, device=device)
+                dist.all_reduce(correct_t, op=dist.ReduceOp.SUM)
+                dist.all_reduce(total_t, op=dist.ReduceOp.SUM)
+                f1_scores.append(correct_t.item() / max(1, total_t.item()))
+        else:
+            for t in range(len(label_shapes)):
+                f1_scores.append(task_correct[t] / max(1, task_total[t]))
+
+    return epoch_loss / max(1, batches), f1_scores
+
+
+def _split_label(label, label_shapes):
+    """Split concatenated label tensor into per-task chunks."""
+    chunks = []
+    start = 0
+    for size in label_shapes:
+        chunks.append(label[:, start:start + size])
+        start += size
+    return chunks
 
 
 def train_model(args, local_rank=None):
@@ -266,6 +422,12 @@ def train_model(args, local_rank=None):
     add_validation_dataset = args.random_validation or (args.validation_fn is not None)
     validation_fn = args.validation_fn
     ochk_prefix = args.ochk_prefix if args.ochk_prefix is not None else ""
+
+    # Training mode
+    phasing_mode = getattr(args, 'phasing_mode', 'baseline')
+    if pileup:
+        phasing_mode = 'pileup'
+    load_phasing = phasing_mode in ('phasing', 'frozen', 'end2end')
 
     # Distributed training setup
     distributed = local_rank is not None
@@ -297,6 +459,40 @@ def train_model(args, local_rank=None):
         if is_main_process():
             logging.info("[INFO] Reusing %d-channel bin tensors -> %d-channel model inputs (dropping the last channel).",
                          bin_tensor_shape[-1], tensor_shape[-1])
+
+    # --- Phasing model setup ---
+    phasing_model_obj = None
+    phasing_optimizer = None
+    phasing_loss_func = None
+
+    if load_phasing:
+        from clair3.phasing_model import PhasingModel, PhasingLoss
+        phasing_model_obj = PhasingModel(
+            max_variants=param.MAX_NEARBY_HETE_SNPS,
+            matrix_depth=tensor_shape[0],
+        )
+        phasing_model_obj.to(device)
+        phasing_loss_func = PhasingLoss()
+
+        # Load pre-trained phasing model if provided
+        phasing_chkpnt = getattr(args, 'phasing_model_fn', None)
+        if phasing_chkpnt and os.path.exists(phasing_chkpnt):
+            _load_checkpoint(phasing_model_obj, phasing_chkpnt, device, is_ddp=False)
+            if is_main_process():
+                logging.info("[INFO] Loaded phasing model from %s", phasing_chkpnt)
+
+        if phasing_mode in ('phasing', 'end2end'):
+            phasing_optimizer = torch.optim.AdamW(
+                phasing_model_obj.parameters(), lr=args.learning_rate or param.initialLearningRate,
+                weight_decay=param.l2RegularizationLambda
+            )
+
+        if distributed:
+            phasing_model_obj = DDP(phasing_model_obj, device_ids=[local_rank],
+                                    output_device=local_rank, find_unused_parameters=False)
+
+    if is_main_process():
+        logging.info("[INFO] Training mode: %s", phasing_mode)
 
     label_shape = param.label_shape
     label_shapes = label_shape[0:4 if add_indel_length else 2]
@@ -338,6 +534,28 @@ def train_model(args, local_rank=None):
 
     effective_label_num = None
     table_dataset_list, chunk_offset = populate_dataset_table(bin_list, args.bin_fn)
+
+    # Load pangenome tensors if provided
+    pangenome_fn = getattr(args, 'pangenome_fn', None)
+    pangenome_data_list = None
+    validate_pangenome_data_list = None
+    use_pangenome = pangenome_fn is not None and os.path.isdir(pangenome_fn)
+
+    if use_pangenome:
+        pangenome_data_list = []
+        for bin_file in bin_list:
+            # Match pangenome file by replacing "bin_" prefix with "pg_"
+            pg_name = bin_file.replace("bin_", "pg_", 1)
+            pg_path = os.path.join(pangenome_fn, pg_name)
+            if os.path.exists(pg_path):
+                pangenome_data_list.append(h5py.File(pg_path, 'r'))
+            else:
+                pangenome_data_list.append(None)
+                if is_main_process():
+                    logging.warning("[WARN] Pangenome file not found: %s", pg_path)
+        if is_main_process():
+            n_loaded = sum(1 for d in pangenome_data_list if d is not None)
+            logging.info("[INFO] Loaded %d/%d pangenome tensor files", n_loaded, len(bin_list))
 
     if validation_fn:
         val_list = os.listdir(validation_fn)
@@ -401,9 +619,10 @@ def train_model(args, local_rank=None):
         logging.info("[INFO] Start training...")
 
     log_path = "training.log"
+    f1_header = "".join(f"\tf1_task{t+1}\tval_f1_task{t+1}" for t in range(task_num))
     if is_main_process():
         with open(log_path, "w") as log_f:
-            log_f.write("epoch\tloss\tval_loss\n")
+            log_f.write(f"epoch\tloss\tval_loss{f1_header}\n")
 
     best_val_loss = None
     patience = 10 * mini_epochs
@@ -431,7 +650,7 @@ def train_model(args, local_rank=None):
         end_idx = start_idx + chunks_per_epoch
         epoch_chunk_list = train_shuffle_chunk_list[start_idx:end_idx]
 
-        train_dataset = BinChunkDataset(table_dataset_list, epoch_chunk_list, tensor_shape, bin_tensor_shape, chunk_size)
+        train_dataset = BinChunkDataset(table_dataset_list, epoch_chunk_list, tensor_shape, bin_tensor_shape, chunk_size, load_phasing=load_phasing, pangenome_data=pangenome_data_list)
         train_dataset.set_random_offset(random_offset)
         
         # Use DistributedSampler for distributed training
@@ -467,7 +686,7 @@ def train_model(args, local_rank=None):
                 prefetch_factor=2,
             )
 
-        train_loss = _run_epoch(
+        train_loss, train_f1 = _run_epoch(
             model,
             train_loader,
             optimizer,
@@ -477,12 +696,24 @@ def train_model(args, local_rank=None):
             train=True,
             desc="train",
             distributed=distributed,
+            phasing_mode=phasing_mode,
+            phasing_model=phasing_model_obj,
+            phasing_optimizer=phasing_optimizer,
+            phasing_loss_func=phasing_loss_func,
+            has_phasing=load_phasing,
+            has_pangenome=use_pangenome,
         )
 
+        if is_main_process():
+            f1_str = " ".join(f"f1_task{t+1}={v:.4f}" for t, v in enumerate(train_f1)) if train_f1 else ""
+            logging.info("[INFO] Epoch %d/%d - train_loss: %.6f %s", epoch + 1, total_epochs, train_loss, f1_str)
+
         val_loss = None
+        val_f1 = []
         if add_validation_dataset:
             val_data = validate_table_dataset_list if validation_fn else table_dataset_list
-            val_dataset = BinChunkDataset(val_data, validate_shuffle_chunk_list, tensor_shape, bin_tensor_shape, chunk_size)
+            val_pg_data = validate_pangenome_data_list if validation_fn and validate_pangenome_data_list else pangenome_data_list
+            val_dataset = BinChunkDataset(val_data, validate_shuffle_chunk_list, tensor_shape, bin_tensor_shape, chunk_size, load_phasing=load_phasing, pangenome_data=val_pg_data if use_pangenome else None)
             val_dataset.set_random_offset(0)
             
             # Use DistributedSampler for validation as well
@@ -516,7 +747,7 @@ def train_model(args, local_rank=None):
                     num_workers=8,
                     prefetch_factor=2,
                 )
-            val_loss = _run_epoch(
+            val_loss, val_f1 = _run_epoch(
                 model,
                 val_loader,
                 optimizer,
@@ -526,26 +757,58 @@ def train_model(args, local_rank=None):
                 train=False,
                 desc="val",
                 distributed=distributed,
+                phasing_mode=phasing_mode,
+                phasing_model=phasing_model_obj,
+                phasing_optimizer=phasing_optimizer,
+                phasing_loss_func=phasing_loss_func,
+                has_phasing=load_phasing,
+                has_pangenome=use_pangenome,
             )
+
+            if is_main_process():
+                val_f1_str = " ".join(f"val_f1_task{t+1}={v:.4f}" for t, v in enumerate(val_f1)) if val_f1 else ""
+                logging.info("[INFO] Epoch %d/%d - val_loss: %.6f %s", epoch + 1, total_epochs, val_loss, val_f1_str)
 
         # Only save checkpoints and logs on main process
         if is_main_process():
-            checkpoint_path = f"{ochk_prefix}.{epoch + 1:02d}.pt" if ochk_prefix else f"epoch.{epoch + 1:02d}.pt"
-            # Save without 'module.' prefix for easier loading
-            state_dict = model.module.state_dict() if distributed else model.state_dict()
-            torch.save(state_dict, checkpoint_path)
+            if phasing_mode == 'phasing':
+                # Save phasing model only
+                checkpoint_path = f"{ochk_prefix}.phasing.{epoch + 1:02d}.pt" if ochk_prefix else f"phasing.{epoch + 1:02d}.pt"
+                pm = phasing_model_obj.module if distributed else phasing_model_obj
+                torch.save(pm.state_dict(), checkpoint_path)
+            else:
+                checkpoint_path = f"{ochk_prefix}.{epoch + 1:02d}.pt" if ochk_prefix else f"epoch.{epoch + 1:02d}.pt"
+                state_dict = model.module.state_dict() if distributed else model.state_dict()
+                torch.save(state_dict, checkpoint_path)
+                # Also save phasing model if in end2end mode
+                if phasing_mode == 'end2end' and phasing_model_obj is not None:
+                    phasing_path = f"{ochk_prefix}.phasing.{epoch + 1:02d}.pt" if ochk_prefix else f"phasing.{epoch + 1:02d}.pt"
+                    pm = phasing_model_obj.module if distributed else phasing_model_obj
+                    torch.save(pm.state_dict(), phasing_path)
 
             val_loss_str = "" if val_loss is None else f"{val_loss:.6f}"
+            f1_data = ""
+            for t in range(task_num):
+                train_f1_val = f"{train_f1[t]:.6f}" if t < len(train_f1) else ""
+                val_f1_val = f"{val_f1[t]:.6f}" if t < len(val_f1) else ""
+                f1_data += f"\t{train_f1_val}\t{val_f1_val}"
             with open(log_path, "a") as log_f:
-                log_f.write(f"{epoch + 1}\t{train_loss:.6f}\t{val_loss_str}\n")
+                log_f.write(f"{epoch + 1}\t{train_loss:.6f}\t{val_loss_str}{f1_data}\n")
 
         if val_loss is not None:
             if best_val_loss is None or val_loss < best_val_loss:
                 best_val_loss = val_loss
                 patience_count = 0
                 if is_main_process():
-                    state_dict = model.module.state_dict() if distributed else model.state_dict()
-                    torch.save(state_dict, "best_val_loss.pt")
+                    if phasing_mode == 'phasing':
+                        pm = phasing_model_obj.module if distributed else phasing_model_obj
+                        torch.save(pm.state_dict(), "best_val_loss.phasing.pt")
+                    else:
+                        state_dict = model.module.state_dict() if distributed else model.state_dict()
+                        torch.save(state_dict, "best_val_loss.pt")
+                        if phasing_mode == 'end2end' and phasing_model_obj is not None:
+                            pm = phasing_model_obj.module if distributed else phasing_model_obj
+                            torch.save(pm.state_dict(), "best_val_loss.phasing.pt")
             else:
                 patience_count += 1
                 if patience_count >= patience:
@@ -596,6 +859,10 @@ def main():
     parser.add_argument('--mini_epochs', type=int, default=1,
                         help="Number of mini-epochs per epoch")
 
+    parser.add_argument('--pangenome_fn', type=str, default=None,
+                        help="Directory containing pangenome tensor HDF5 files (from BuildPangenomeTensor). "
+                             "Files should match bin files with 'pg_' prefix instead of 'bin_'.")
+
     # Internal process control
     ## In pileup training mode or not
     parser.add_argument('--pileup', action='store_true',
@@ -618,6 +885,14 @@ def main():
     vgrp.add_argument('--validation_fn', type=str, default=None,
                         help="Binary tensor input for use in validation: %(default)s")
 
+    # Neural phasing training options
+    parser.add_argument('--phasing_mode', type=str, default='baseline',
+                        choices=['baseline', 'phasing', 'frozen', 'end2end'],
+                        help="Training mode: 'baseline' (standard FA), 'phasing' (train phasing model only), "
+                             "'frozen' (FA with frozen phasing model), 'end2end' (joint FA + phasing). "
+                             "Default: %(default)s")
+    parser.add_argument('--phasing_model_fn', type=str, default=None,
+                        help="Pre-trained phasing model checkpoint (required for 'frozen' mode, optional for others)")
     # Distributed training options
     parser.add_argument('--local_rank', type=int, default=-1,
                         help="Local rank for distributed training (set by torchrun)")
