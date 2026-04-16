@@ -12,15 +12,7 @@
     <a href="http://bioconda.github.io/recipes/clair3/README.html"><img src="https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat" alt="install with bioconda"></a>
     <a href="https://hub.docker.com/r/hkubal/clair3"><img src="https://img.shields.io/badge/docker-hkubal%2Fclair3-blue.svg" alt="Docker"></a>
   </p>
-
-  <p><b>Papers</b></p>
 </div>
-
-| Paper | Venue | Topic |
-| --- | --- | --- |
-| Symphonizing pileup and full-alignment for deep learning-based long-read variant calling | [Nature Computational Science](https://rdcu.be/c1TPa) · [bioRxiv preprint](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v2) | Original Clair3 |
-| Accelerated long-read variant calling with Clair3 for whole-genome sequencing | [Bioinformatics, 2026](https://doi.org/10.1093/bioinformatics/btag181) | GPU-accelerated Clair3 |
-| Leveraging ONT move table values for signal aware variant calling | [bioRxiv preprint, 2026](https://www.biorxiv.org/content/10.64898/2026.02.13.705285v1) | ONT `mv`-tag (move-table) signal-aware tuning |
 
 ---
 
@@ -46,19 +38,23 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 | Germline on **long-read RNA-seq** | [Clair3-RNA](https://github.com/HKU-BAL/Clair3-RNA) |
 | Somatic, **paired tumor/normal** | [ClairS](https://github.com/HKU-BAL/ClairS) |
 | Somatic, **tumor-only** | [ClairS-TO](https://github.com/HKU-BAL/ClairS-TO) |
-| **Agentic AI skill** (Claude Code, Cursor, Codex…) for the Clair suite | [Clair-skills](https://github.com/HKU-BAL/Clair-skills) |
+
+### Agent Skill
+
+[Clair-skills](https://github.com/HKU-BAL/Clair-skills) is a plug-in for agentic AI coding assistants (Claude Code, Cursor, Codex, …) that covers the entire Clair suite. It helps the agent pick the right tool and model, generate ready-to-run commands, and analyze results.
 
 ---
 
 ## Contents
 
 - [Latest Updates](#latest-updates)
+- [Installation](#installation) — [Docker](#option-1-docker) · [Singularity](#option-2-singularity) · [Bioconda](#option-3-bioconda) · [Step-by-step (Conda)](#option-4-step-by-step-conda)
 - [Pre-trained Models](#pre-trained-models)
-- [Installation](#installation) — [Conda](#option-1-build-an-environment-with-mambaconda) · [Docker (CPU)](#option-2-docker-pre-built-image) · [Docker (GPU)](#option-3-docker-gpu-image) · [Singularity (CPU)](#option-4-singularity) · [Singularity (GPU)](#option-5-singularity-gpu-image)
 - [Quick Demo](#quick-demo)
 - [Usage](#usage)
 - [Advanced Topics](#advanced-topics) — [Dwelling time](#dwelling-time-feature) · [Amplicon data](#dealing-with-amplicon-data) · [Postprocessing](#postprocessing-scripts)
 - [Reference](#reference) — [Folder structure](#folder-structure-and-submodules) · [Training data](#training-data) · [VCF/GVCF formats](#vcfgvcf-output-formats) · [Model training guides](#model-training-guides)
+- [Citation](#citation)
 
 ---
 
@@ -154,63 +150,149 @@ Native GPU support on Linux and Apple Silicon. Clair3 on GPU runs **~5× faster 
 
 ---
 
-## Pre-trained Models
-
-> **Important: v1 TensorFlow models are not compatible with Clair3 v2** (including the TF models ONT provides via Rerio). Convert your own with the [Model Migration Guide](docs/model_migration_guide.md), or use the pre-converted models below.
-
-**Download:**
-
-- HKU-provided: <https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/>
-- Converted ONT Rerio: <https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/>
-
-**Bundled locations:** `/opt/models/` (Docker) · `${CONDA_PREFIX}/bin/models/` (Bioconda).
-
-### HKU-provided models
-
-Listed at <https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/>.
-
-| Model | Platform | `--platform` | Training samples / Notes | Bioconda | Docker |
-| --- | --- | :-: | --- | :-: | :-: |
-| **`r1041_e82_400bps_hac_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), HAC | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | ✓ |
-| **`r1041_e82_400bps_sup_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), SUP | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | ✓ |
-| `r1041_e82_400bps_sup_v430_bacteria_finetuned` | ONT R10.4.1 | `ont` | Fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) | | ✓ |
-| `r941_prom_sup_g5014` | ONT R9.4.1, Guppy5 SUP | `ont` | HG002,4,5; also usable on HAC reads ([benchmarks](docs/guppy5_20220113.md)) | ✓ | ✓ |
-| `r941_prom_hac_g360+g422` | ONT R9.4.1, Guppy3/4 HAC | `ont` | HG001,2,4,5 | | |
-| `hifi_revio` | PacBio HiFi Revio | `hifi` | HG002,4 | ✓ | ✓ |
-| `hifi_sequel2` | PacBio HiFi Sequel II | `hifi` | HG001,2,4,5 | ✓ | ✓ |
-| `ilmn` | Illumina | `ilmn` | HG001,2,4,5 | ✓ | ✓ |
-
-> **Recommendation for modern ONT R10.4.1 data:** when your BAM has Dorado `mv` tags, use the dwell-time model (`..._with_mv`) for the best accuracy; otherwise, use an ONT-trained model below.
-
-### ONT-provided models (bundled)
-
-> ONT's models are fine-tuned to specific chemistries / basecallers and **typically outperform the HKU baselines** — we recommend using them for best results. Official PyTorch distributions from ONT are in progress; in the meantime, use the [converted Rerio models](#converted-rerio-models) below.
-
-The following ONT-trained models are bundled with Clair3 Docker / Bioconda since v1.1.1:
-
-| Model | Chemistry | Dorado model | Bioconda | Docker |
-| --- | --- | --- | :-: | :-: |
-| `r1041_e82_400bps_sup_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 SUP | ✓ | ✓ |
-| `r1041_e82_400bps_hac_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 HAC | | ✓ |
-| `r1041_e82_400bps_sup_v410` | R10.4.1 E8.2 (4 kHz) | v4.1.0 SUP | ✓ | ✓ |
-| `r1041_e82_400bps_hac_v410` | R10.4.1 E8.2 (4 kHz) | v4.1.0 HAC | | ✓ |
-
-### Converted Rerio models
-
-The full ONT [Rerio](https://github.com/nanoporetech/rerio) catalog converted to PyTorch for Clair3 v2 is available at <https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/>. Pick the model matching your chemistry (R10.4.1 E8.2 400 bps / 260 bps, or R10.4 E8.1) and basecaller (Dorado / Guppy) version.
-
----
-
 ## Installation
 
 > **Pick the right install method for your hardware:**
-> - **CPU** → Docker (Option 2) or Singularity (Option 4).
-> - **NVIDIA GPU (Linux)** → Docker GPU (Option 3) or Singularity GPU (Option 5); fall back to Conda (Option 1) if unsupported.
-> - **Apple Silicon (M1/M2/M3/M4)** → Conda (Option 1).
+> - **CPU** → Docker (Option 1), Singularity (Option 2), or Bioconda (Option 3).
+> - **NVIDIA GPU (Linux)** → Docker GPU (Option 1) or Singularity GPU (Option 2); fall back to Step-by-step (Option 4) if unsupported.
+> - **Apple Silicon (M1/M2/M3/M4)** → Step-by-step (Option 4).
 >
 > See the [GPU Quick Start](docs/gpu_quick_start.md) for tuned settings.
 
-### Option 1. Build an environment with Mamba/Conda
+### Option 1. Docker
+
+Pre-built image: [hkubal/clair3](https://hub.docker.com/r/hkubal/clair3).
+
+> **Use absolute paths** for `INPUT_DIR` and `OUTPUT_DIR`.
+
+#### CPU
+
+```bash
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path)
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path)
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
+
+docker run -it \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  hkubal/clair3:v2.0.0 \
+  /opt/bin/run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \                       ## {ont,hifi,ilmn}
+    --model_path=/opt/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR}
+```
+
+> `python3 /opt/bin/run_clair3.py` can replace `/opt/bin/run_clair3.sh` in the command above.
+
+#### GPU (NVIDIA CUDA on Linux)
+
+Image: `hkubal/clair3:v2.0.0_gpu` (built on CUDA 12.1).
+
+**Requirements**
+
+- NVIDIA driver ≥ 530.30.02.
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host.
+
+```bash
+docker run -it --gpus all \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  hkubal/clair3:v2.0.0_gpu \
+  /opt/bin/run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \                       ## {ont,hifi,ilmn}
+    --model_path=/opt/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR} \
+    --use_gpu
+```
+
+**Notes**
+
+- Select specific GPUs with `--gpus '"device=0,1"'` (Docker) and `--device=cuda:0,1` (Clair3).
+- If the image does not work on your setup (unsupported driver/CUDA, no NVIDIA Container Toolkit, Apple Silicon, etc.), fall back to [Step-by-step (Option 4)](#option-4-step-by-step-conda).
+
+### Option 2. Singularity
+
+> **Use absolute paths** for `INPUT_DIR` and `OUTPUT_DIR`.
+
+#### CPU
+
+```bash
+conda config --add channels defaults
+conda create -n singularity-env -c conda-forge singularity -y
+conda activate singularity-env
+
+singularity pull docker://hkubal/clair3:v2.0.0
+
+singularity exec \
+  -B ${INPUT_DIR},${OUTPUT_DIR} \
+  clair3_v2.0.0.sif \
+  /opt/bin/run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \                       ## {ont,hifi,ilmn}
+    --model_path=/opt/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR}
+```
+
+#### GPU (NVIDIA CUDA on Linux)
+
+**Requirements**
+
+- NVIDIA driver ≥ 530.30.02.
+- Singularity (or Apptainer) with `--nv` support.
+
+```bash
+singularity pull docker://hkubal/clair3:v2.0.0_gpu
+
+singularity exec --nv --cleanenv --env TMPDIR=/tmp \
+  -B ${INPUT_DIR},${OUTPUT_DIR} \
+  clair3_v2.0.0_gpu.sif \
+  /opt/bin/run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \                       ## {ont,hifi,ilmn}
+    --model_path=/opt/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR} \
+    --use_gpu
+```
+
+**Notes**
+
+- `--nv` injects the host NVIDIA driver and libraries into the container (equivalent of Docker's `--gpus all`); no NVIDIA Container Toolkit needed.
+- `--cleanenv --env TMPDIR=/tmp` avoids `parallel` failing when the host `TMPDIR` points to a path not visible inside the container.
+- If the image does not work on your setup, fall back to [Step-by-step (Option 4)](#option-4-step-by-step-conda).
+
+### Option 3. Bioconda
+
+Clair3 is available on [Bioconda](https://bioconda.github.io/recipes/clair3/README.html). The recipe bundles PyPy, samtools, parallel, whatshap, LongPhase, and the pre-trained models under `${CONDA_PREFIX}/bin/models/`. See [bioconda-recipes#64260](https://github.com/bioconda/bioconda-recipes/pull/64260) for the v2 (PyTorch) recipe.
+
+```bash
+mamba create -n clair3 -c conda-forge -c bioconda -y clair3
+mamba activate clair3
+
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
+
+run_clair3.sh \
+  --bam_fn=input.bam \
+  --ref_fn=ref.fa \
+  --threads=${THREADS} \
+  --platform=ont \                 ## {ont,hifi,ilmn}
+  --model_path=${CONDA_PREFIX}/bin/models/${MODEL_NAME} \
+  --output=${OUTPUT_DIR}
+```
+
+> **Note.** The Bioconda package ships a CPU-only PyTorch build. For NVIDIA GPU or Apple Silicon, use [Step-by-step (Option 4)](#option-4-step-by-step-conda).
+
+### Option 4. Step-by-step (Conda)
 
 Install Mamba or Conda from [miniforge](https://github.com/conda-forge/miniforge) (Mamba is much faster).
 
@@ -293,126 +375,52 @@ ${CLAIR3_PATH}/run_clair3.sh \
 
 > `python3 ${CLAIR3_PATH}/run_clair3.py` accepts the same arguments and can be used interchangeably.
 
-### Option 2. Docker pre-built image
+---
 
-> **CPU only.** For NVIDIA GPU, use [Option 3](#option-3-docker-gpu-image); for Apple Silicon, use [Option 1](#option-1-build-an-environment-with-mambaconda).
-> **Use absolute paths** for `INPUT_DIR` and `OUTPUT_DIR`.
+## Pre-trained Models
 
-Pre-built image: [hkubal/clair3](https://hub.docker.com/r/hkubal/clair3).
+> **Important: v1 TensorFlow models are not compatible with Clair3 v2** (including the TF models ONT provides via Rerio). Convert your own with the [Model Migration Guide](docs/model_migration_guide.md), or use the pre-converted models below.
 
-```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path)
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path)
-THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
+**Download:**
 
-docker run -it \
-  -v ${INPUT_DIR}:${INPUT_DIR} \
-  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
-  /opt/bin/run_clair3.sh \
-    --bam_fn=${INPUT_DIR}/input.bam \
-    --ref_fn=${INPUT_DIR}/ref.fa \
-    --threads=${THREADS} \
-    --platform=ont \                       ## {ont,hifi,ilmn}
-    --model_path=/opt/models/${MODEL_NAME} \
-    --output=${OUTPUT_DIR}
-```
+- HKU-provided: <https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/>
+- Converted ONT Rerio: <https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/>
 
-> `python3 /opt/bin/run_clair3.py` can replace `/opt/bin/run_clair3.sh` in the command above.
+**Bundled locations:** `/opt/models/` (Docker) · `${CONDA_PREFIX}/bin/models/` (Bioconda).
 
-### Option 3. Docker GPU image
+### HKU-provided models
 
-> **NVIDIA CUDA on Linux only.** For Apple Silicon, use [Option 1](#option-1-build-an-environment-with-mambaconda).
-> **Use absolute paths** for `INPUT_DIR` and `OUTPUT_DIR`.
+Listed at <https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/>.
 
-Pre-built image: `hkubal/clair3:v2.0.0_gpu` (built on CUDA 12.1).
+| Model | Platform | `--platform` | Training samples / Notes | Bioconda | Docker |
+| --- | --- | :-: | --- | :-: | :-: |
+| **`r1041_e82_400bps_hac_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), HAC | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | ✓ |
+| **`r1041_e82_400bps_sup_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), SUP | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | ✓ |
+| `r1041_e82_400bps_sup_v430_bacteria_finetuned` | ONT R10.4.1 | `ont` | Fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) | | ✓ |
+| `r941_prom_sup_g5014` | ONT R9.4.1, Guppy5 SUP | `ont` | HG002,4,5; also usable on HAC reads ([benchmarks](docs/guppy5_20220113.md)) | ✓ | ✓ |
+| `r941_prom_hac_g360+g422` | ONT R9.4.1, Guppy3/4 HAC | `ont` | HG001,2,4,5 | | |
+| `hifi_revio` | PacBio HiFi Revio | `hifi` | HG002,4 | ✓ | ✓ |
+| `hifi_sequel2` | PacBio HiFi Sequel II | `hifi` | HG001,2,4,5 | ✓ | ✓ |
+| `ilmn` | Illumina | `ilmn` | HG001,2,4,5 | ✓ | ✓ |
 
-**Requirements**
+> **Recommendation for modern ONT R10.4.1 data:** when your BAM has Dorado `mv` tags, use the dwell-time model (`..._with_mv`) for the best accuracy; otherwise, use an ONT-trained model below.
 
-- NVIDIA driver ≥ 530.30.02.
-- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host.
+### ONT-provided models (bundled)
 
-```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path)
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path)
-THREADS="[MAXIMUM_THREADS]"            # e.g. 8
-MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
+> ONT's models are fine-tuned to specific chemistries / basecallers and **typically outperform the HKU baselines** — we recommend using them for best results. Official PyTorch distributions from ONT are in progress; in the meantime, use the [converted Rerio models](#converted-rerio-models) below.
 
-docker run -it --gpus all \
-  -v ${INPUT_DIR}:${INPUT_DIR} \
-  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0_gpu \
-  /opt/bin/run_clair3.sh \
-    --bam_fn=${INPUT_DIR}/input.bam \
-    --ref_fn=${INPUT_DIR}/ref.fa \
-    --threads=${THREADS} \
-    --platform=ont \                       ## {ont,hifi,ilmn}
-    --model_path=/opt/models/${MODEL_NAME} \
-    --output=${OUTPUT_DIR} \
-    --use_gpu
-```
+The following ONT-trained models are bundled with Clair3 Docker / Bioconda since v1.1.1:
 
-**Notes**
+| Model | Chemistry | Dorado model | Bioconda | Docker |
+| --- | --- | --- | :-: | :-: |
+| `r1041_e82_400bps_sup_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 SUP | ✓ | ✓ |
+| `r1041_e82_400bps_hac_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 HAC | | ✓ |
+| `r1041_e82_400bps_sup_v410` | R10.4.1 E8.2 (4 kHz) | v4.1.0 SUP | ✓ | ✓ |
+| `r1041_e82_400bps_hac_v410` | R10.4.1 E8.2 (4 kHz) | v4.1.0 HAC | | ✓ |
 
-- Select specific GPUs with `--gpus '"device=0,1"'` (Docker) and `--device=cuda:0,1` (Clair3).
-- If the image does not work on your setup (unsupported driver/CUDA, no NVIDIA Container Toolkit, Apple Silicon, etc.), fall back to the [Conda install (Option 1)](#option-1-build-an-environment-with-mambaconda).
+### Converted Rerio models
 
-### Option 4. Singularity
-
-> **CPU only.** For NVIDIA GPU, use [Option 5](#option-5-singularity-gpu-image); for Apple Silicon, use [Option 1](#option-1-build-an-environment-with-mambaconda).
-> **Use absolute paths** for `INPUT_DIR` and `OUTPUT_DIR`.
-
-```bash
-conda config --add channels defaults
-conda create -n singularity-env -c conda-forge singularity -y
-conda activate singularity-env
-
-singularity pull docker://hkubal/clair3:v2.0.0
-
-singularity exec \
-  -B ${INPUT_DIR},${OUTPUT_DIR} \
-  clair3_v2.0.0.sif \
-  /opt/bin/run_clair3.sh \
-    --bam_fn=${INPUT_DIR}/input.bam \
-    --ref_fn=${INPUT_DIR}/ref.fa \
-    --threads=${THREADS} \
-    --platform=ont \                       ## {ont,hifi,ilmn}
-    --model_path=/opt/models/${MODEL_NAME} \
-    --output=${OUTPUT_DIR}
-```
-
-### Option 5. Singularity GPU image
-
-> **NVIDIA CUDA on Linux only.** For Apple Silicon, use [Option 1](#option-1-build-an-environment-with-mambaconda).
-> **Use absolute paths** for `INPUT_DIR` and `OUTPUT_DIR`.
-
-**Requirements**
-
-- NVIDIA driver ≥ 530.30.02.
-- Singularity (or Apptainer) with `--nv` support.
-
-```bash
-singularity pull docker://hkubal/clair3:v2.0.0_gpu
-
-singularity exec --nv --cleanenv --env TMPDIR=/tmp \
-  -B ${INPUT_DIR},${OUTPUT_DIR} \
-  clair3_v2.0.0_gpu.sif \
-  /opt/bin/run_clair3.sh \
-    --bam_fn=${INPUT_DIR}/input.bam \
-    --ref_fn=${INPUT_DIR}/ref.fa \
-    --threads=${THREADS} \
-    --platform=ont \                       ## {ont,hifi,ilmn}
-    --model_path=/opt/models/${MODEL_NAME} \
-    --output=${OUTPUT_DIR} \
-    --use_gpu
-```
-
-**Notes**
-
-- `--nv` injects the host NVIDIA driver and libraries into the container (equivalent of Docker's `--gpus all`); no NVIDIA Container Toolkit needed.
-- `--cleanenv --env TMPDIR=/tmp` avoids `parallel` failing when the host `TMPDIR` points to a path not visible inside the container.
-- If the image does not work on your setup, fall back to the [Conda install (Option 1)](#option-1-build-an-environment-with-mambaconda).
+The full ONT [Rerio](https://github.com/nanoporetech/rerio) catalog converted to PyTorch for Clair3 v2 is available at <https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/>. Pick the model matching your chemistry (R10.4.1 E8.2 400 bps / 260 bps, or R10.4 E8.1) and basecaller (Dorado / Guppy) version.
 
 ---
 
@@ -751,3 +759,13 @@ GVCF output is **GATK-compatible** and passes GATK `ValidateVariants`. Clair3 us
 
 - [Model input visualization](docs/model_input_visualization.md)
 - [Representation unification visualization](docs/representation_unification_visualization.md)
+
+---
+
+## Citation
+
+| Paper | Venue | Topic |
+| --- | --- | --- |
+| Symphonizing pileup and full-alignment for deep learning-based long-read variant calling | [Nature Computational Science](https://rdcu.be/c1TPa) · [bioRxiv preprint](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v2) | Original Clair3 |
+| Accelerated long-read variant calling with Clair3 for whole-genome sequencing | [Bioinformatics, 2026](https://doi.org/10.1093/bioinformatics/btag181) | GPU-accelerated Clair3 |
+| Leveraging ONT move table values for signal aware variant calling | [bioRxiv preprint, 2026](https://www.biorxiv.org/content/10.64898/2026.02.13.705285v1) | ONT `mv`-tag (move-table) signal-aware tuning |

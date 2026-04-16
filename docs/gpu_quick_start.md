@@ -1,89 +1,123 @@
-
-
 # Clair3 GPU quick start guide
 
-Starting from v1.2, Clair3 natively supports using GPU with CUDA or Apple Silicon to speed up calling. In Linux with CUDA, Clair3 automatically uses as many GPUs that are exposed to it. For **Apple Silicons** (we tested in M1/M2/M3), Clair3 uses PyTorch with Metal (MPS) for GPU acceleration. Using a single GPU or Apple Silicon, Clair3 can complete a ONT WGS 30x whole-genome variant calling in ~20 minutes, using either a Linux server with 32 CPU threads and an NVIDIA GeForce RTX 4090 GPU, or a Mac Studio with a 32-core M3 Ultra.
+Starting from v1.2, Clair3 natively supports NVIDIA GPU acceleration. Using a single GPU, Clair3 can complete an ONT WGS 30x whole-genome variant calling in ~20 minutes on a Linux server with 32 CPU threads and an NVIDIA GeForce RTX 4090.
 
-## Installation on Linux 
+The quickest way to run Clair3 on GPU is the pre-built Docker / Singularity image `hkubal/clair3:v2.0.0_gpu` (built on CUDA 12.1, bundled with all pre-trained models).
 
-### Option 1.  NVIDIA Docker pre-built image
+## Requirements
 
-To use Clair3 in GPU-accelerated mode within Docker, install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) to enable GPU support in Docker containers. Then, test if Docker can access your GPU by running:
+- NVIDIA driver ≥ 530.30.02 on the host.
+  - CUDA 12.1 is chosen for broad driver compatibility; newer drivers (including those for RTX 50-series / Blackwell) are backward compatible and work with this image.
+- For Docker: [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host.
+- For Singularity: `--nv` support (no NVIDIA Container Toolkit required).
+
+Verify GPU passthrough works:
 
 ```shell
-docker run --rm --gpus all hkubal/clair3-gpu:latest nvidia-smi
+docker run --rm --gpus all hkubal/clair3:v2.0.0_gpu nvidia-smi
 ```
 
-Expected output should display your GPU information similar to:
+Expected output shows your GPU:
 
-```shell
+```
 +-----------------------------------------------------------------------------------------+
-| NVIDIA-SMI 555.42.02              Driver Version: 555.42.02      CUDA Version: 12.5     |
+| NVIDIA-SMI 580.82.09              Driver Version: 580.82.09      CUDA Version: 12.1     |
 |-----------------------------------------+------------------------+----------------------+
-| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
-|                                         |                        |               MIG M. |
-|=========================================+========================+======================|
 |   0  NVIDIA GeForce RTX 4090        On  |   00000000:CA:00.0 Off |                  Off |
-|  0%   32C    P8             27W /  450W |       4MiB /  24564MiB |      0%      Default |
-|                                         |                        |                  N/A |
 +-----------------------------------------+------------------------+----------------------+
 ```
 
-With a correct environment, you can run Clair3 GPU using a single command.
+## Option 1. Docker (NVIDIA GPU)
 
 ```bash
-INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input (absolute path needed)
-OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path needed)
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path)
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path)
 THREADS="[MAXIMUM_THREADS]"            # e.g. 8
 MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 
-#--gpus is 1-index in docker
 docker run -it --gpus all \
-  -u $(id -u):$(id -g) \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3-gpu:latest \
-  python3 /opt/bin/run_clair3.py \
-  --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
-  --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
-  --threads=${THREADS} \               ## maximum threads to be used
-  --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path="/opt/models/${MODEL_NAME}" \
-  --use_longphase_for_intermediate_phasing \
-  --use_gpu \                          ## use gpu for variant calling
-  --device='cuda:0,1' \                ## select the GPU device (0-index) for calling, default: use all visual GPUs
-  --output=${OUTPUT_DIR}               ## absolute output path prefix 
+  hkubal/clair3:v2.0.0_gpu \
+  /opt/bin/run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \                       ## {ont,hifi,ilmn}
+    --model_path=/opt/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR} \
+    --use_gpu                              ## enable GPU-accelerated calling
 ```
 
-**Caution**: Absolute path is needed for both `INPUT_DIR` and `OUTPUT_DIR`. 
+**Notes**
 
-### Option 2.  Bioconda
+- Absolute paths are required for `INPUT_DIR` and `OUTPUT_DIR`.
+- Select specific GPUs with `--gpus '"device=0,1"'` (Docker) and `--device=cuda:0,1` (Clair3). By default all visible GPUs are used.
+- `python3 /opt/bin/run_clair3.py` can replace `/opt/bin/run_clair3.sh` in the command above.
+
+## Option 2. Singularity (NVIDIA GPU)
 
 ```bash
-# make sure channels are added in conda
-conda config --add channels defaults
-conda config --add channels bioconda
-conda config --add channels conda-forge
+singularity pull docker://hkubal/clair3:v2.0.0_gpu
 
-# create conda environment named "clair3"
-# install clair3 and cudatoolkit cudnn using one command in the machine with GPU 
-conda create -n clair3 -c bioconda clair3 cudatoolkit cudnn python=3.9.0 -y
-conda activate clair3
-
-# run clair3 like this afterward
-python3 run_clair3.py \
-  --bam_fn=input.bam \                 ## change your bam file name here
-  --ref_fn=ref.fa \                    ## change your reference file name here
-  --threads=${THREADS} \               ## maximum threads to be used
-  --platform="ont" \                   ## options: {ont,hifi,ilmn}
-  --model_path="${CONDA_PREFIX}/bin/models/${MODEL_NAME}" \ 
-  --use_gpu \                          ## use gpu for variant calling
-  --use_longphase_for_intermediate_phasing \
-  --device='cuda:0,1' \                ## select the GPU device for calling, default: use all Nvidia GPUs
-  --output=${OUTPUT_DIR}               ## output path prefix 
+singularity exec --nv --cleanenv --env TMPDIR=/tmp \
+  -B ${INPUT_DIR},${OUTPUT_DIR} \
+  clair3_v2.0.0_gpu.sif \
+  /opt/bin/run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \                       ## {ont,hifi,ilmn}
+    --model_path=/opt/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR} \
+    --use_gpu
 ```
 
+**Notes**
+
+- `--nv` injects the host NVIDIA driver and libraries into the container (equivalent of Docker's `--gpus all`); no NVIDIA Container Toolkit required.
+- `--cleanenv --env TMPDIR=/tmp` avoids `parallel` failing when the host `TMPDIR` points to a path not visible inside the container.
+
+## Option 3. Step-by-step (Conda with CUDA PyTorch)
+
+Use this option when the Docker/Singularity image does not fit your environment (older driver, custom CUDA runtime, HPC cluster without container toolkit, etc.).
+
+```bash
+# Step 1: create conda environment
+mamba create -n clair3_v2 -c conda-forge -c bioconda -y \
+  python=3.11 samtools whatshap parallel \
+  zstd xz zlib bzip2 automake make gcc gxx curl pigz
+mamba activate clair3_v2
+pip install uv
+
+# Step 2: install PyTorch with CUDA support
+# Pick the right CUDA version for your driver from https://pytorch.org/get-started/locally/
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# Step 3: build Clair3
+git clone https://github.com/HKU-BAL/Clair3.git
+cd Clair3
+export CLAIR3_PATH=$(pwd)
+uv pip install numpy h5py hdf5plugin numexpr tqdm cffi torchmetrics
+make PREFIX=${CONDA_PREFIX}
+
+# Step 4: install PyPy (see main README for the full PyPy step)
+
+# Step 5: run Clair3 with GPU
+python3 ${CLAIR3_PATH}/run_clair3.py \
+  --bam_fn=input.bam \
+  --ref_fn=ref.fa \
+  --threads=${THREADS} \
+  --platform=ont \
+  --model_path=${CLAIR3_PATH}/models/${MODEL_NAME} \
+  --use_gpu \
+  --device=cuda:0 \
+  --output=${OUTPUT_DIR}
+```
+
+See the [main README](../README.md#option-4-step-by-step-conda) for the complete step-by-step instructions (PyPy install, model download, etc.).
+
+<!--
 ## Installation on Apple Silicon
 
 Install brew from https://brew.sh/ or using command below:
@@ -115,6 +149,7 @@ python3 run_clair3.py \
   --threads=${THREADS} \               ## maximum threads to be used
   --platform="ont" \                   ## options: {ont,hifi,ilmn}
   --model_path="${CONDA_PREFIX}/bin/models/${MODEL_NAME}" \
-  --use_longphase_for_intermediate_phasing \            
-  --output=${OUTPUT_DIR}               ## output path prefix 
+  --use_longphase_for_intermediate_phasing \
+  --output=${OUTPUT_DIR}               ## output path prefix
 ```
+-->
