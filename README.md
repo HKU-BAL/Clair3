@@ -54,7 +54,7 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 
 - [Latest Updates](#latest-updates)
 - [Pre-trained Models](#pre-trained-models)
-- [Installation](#installation) — [Conda](#option-1-build-an-environment-with-mambaconda) · [Docker](#option-2-docker-pre-built-image) · [Singularity](#option-3-singularity)
+- [Installation](#installation) — [Conda](#option-1-build-an-environment-with-mambaconda) · [Docker (CPU)](#option-2-docker-pre-built-image) · [Docker (GPU)](#option-3-docker-gpu-image) · [Singularity (CPU)](#option-4-singularity) · [Singularity (GPU)](#option-5-singularity-gpu-image)
 - [Quick Demo](#quick-demo)
 - [Usage](#usage)
 - [Advanced Topics](#advanced-topics) — [Dwelling time](#dwelling-time-feature) · [Amplicon data](#dealing-with-amplicon-data) · [Postprocessing](#postprocessing-scripts)
@@ -172,7 +172,7 @@ Listed at <https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/>.
 | Model | Platform | `--platform` | Training samples / Notes | Bioconda | Docker |
 | --- | --- | :-: | --- | :-: | :-: |
 | **`r1041_e82_400bps_hac_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), HAC | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | ✓ |
-| `r1041_e82_400bps_sup_with_mv` | ONT R10.4.1 E8.2 (5 kHz), SUP | `ont` | Signal-aware SUP counterpart — **coming soon** | — | — |
+| **`r1041_e82_400bps_sup_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), SUP | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | ✓ |
 | `r1041_e82_400bps_sup_v430_bacteria_finetuned` | ONT R10.4.1 | `ont` | Fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) | | ✓ |
 | `r941_prom_sup_g5014` | ONT R9.4.1, Guppy5 SUP | `ont` | HG002,4,5; also usable on HAC reads ([benchmarks](docs/guppy5_20220113.md)) | ✓ | ✓ |
 | `r941_prom_hac_g360+g422` | ONT R9.4.1, Guppy3/4 HAC | `ont` | HG001,2,4,5 | | |
@@ -204,9 +204,11 @@ The full ONT [Rerio](https://github.com/nanoporetech/rerio) catalog converted to
 ## Installation
 
 > **Pick the right install method for your hardware:**
-> - **CPU only** → Docker or Singularity (simplest).
-> - **GPU (NVIDIA CUDA)** or **Apple Silicon (M1/M2/M3/M4)** → use Conda (Option 1) to install the correct PyTorch build.
->   See the [GPU Quick Start](docs/gpu_quick_start.md) for tuned settings.
+> - **CPU** → Docker (Option 2) or Singularity (Option 4).
+> - **NVIDIA GPU (Linux)** → Docker GPU (Option 3) or Singularity GPU (Option 5); fall back to Conda (Option 1) if unsupported.
+> - **Apple Silicon (M1/M2/M3/M4)** → Conda (Option 1).
+>
+> See the [GPU Quick Start](docs/gpu_quick_start.md) for tuned settings.
 
 ### Option 1. Build an environment with Mamba/Conda
 
@@ -293,7 +295,7 @@ ${CLAIR3_PATH}/run_clair3.sh \
 
 ### Option 2. Docker pre-built image
 
-> **CPU only.** For GPU / Apple Silicon, use [Option 1](#option-1-build-an-environment-with-mambaconda).
+> **CPU only.** For NVIDIA GPU, use [Option 3](#option-3-docker-gpu-image); for Apple Silicon, use [Option 1](#option-1-build-an-environment-with-mambaconda).
 > **Use absolute paths** for `INPUT_DIR` and `OUTPUT_DIR`.
 
 Pre-built image: [hkubal/clair3](https://hub.docker.com/r/hkubal/clair3).
@@ -319,9 +321,46 @@ docker run -it \
 
 > `python3 /opt/bin/run_clair3.py` can replace `/opt/bin/run_clair3.sh` in the command above.
 
-### Option 3. Singularity
+### Option 3. Docker GPU image
 
-> **CPU only.** For GPU / Apple Silicon, use [Option 1](#option-1-build-an-environment-with-mambaconda).
+> **NVIDIA CUDA on Linux only.** For Apple Silicon, use [Option 1](#option-1-build-an-environment-with-mambaconda).
+> **Use absolute paths** for `INPUT_DIR` and `OUTPUT_DIR`.
+
+Pre-built image: `hkubal/clair3:v2.0.0_gpu` (built on CUDA 12.1).
+
+**Requirements**
+
+- NVIDIA driver ≥ 530.30.02.
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host.
+
+```bash
+INPUT_DIR="[YOUR_INPUT_FOLDER]"        # e.g. /home/user1/input  (absolute path)
+OUTPUT_DIR="[YOUR_OUTPUT_FOLDER]"      # e.g. /home/user1/output (absolute path)
+THREADS="[MAXIMUM_THREADS]"            # e.g. 8
+MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
+
+docker run -it --gpus all \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  hkubal/clair3:v2.0.0_gpu \
+  /opt/bin/run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \                       ## {ont,hifi,ilmn}
+    --model_path=/opt/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR} \
+    --use_gpu
+```
+
+**Notes**
+
+- Select specific GPUs with `--gpus '"device=0,1"'` (Docker) and `--device=cuda:0,1` (Clair3).
+- If the image does not work on your setup (unsupported driver/CUDA, no NVIDIA Container Toolkit, Apple Silicon, etc.), fall back to the [Conda install (Option 1)](#option-1-build-an-environment-with-mambaconda).
+
+### Option 4. Singularity
+
+> **CPU only.** For NVIDIA GPU, use [Option 5](#option-5-singularity-gpu-image); for Apple Silicon, use [Option 1](#option-1-build-an-environment-with-mambaconda).
 > **Use absolute paths** for `INPUT_DIR` and `OUTPUT_DIR`.
 
 ```bash
@@ -342,6 +381,38 @@ singularity exec \
     --model_path=/opt/models/${MODEL_NAME} \
     --output=${OUTPUT_DIR}
 ```
+
+### Option 5. Singularity GPU image
+
+> **NVIDIA CUDA on Linux only.** For Apple Silicon, use [Option 1](#option-1-build-an-environment-with-mambaconda).
+> **Use absolute paths** for `INPUT_DIR` and `OUTPUT_DIR`.
+
+**Requirements**
+
+- NVIDIA driver ≥ 530.30.02.
+- Singularity (or Apptainer) with `--nv` support.
+
+```bash
+singularity pull docker://hkubal/clair3:v2.0.0_gpu
+
+singularity exec --nv --cleanenv --env TMPDIR=/tmp \
+  -B ${INPUT_DIR},${OUTPUT_DIR} \
+  clair3_v2.0.0_gpu.sif \
+  /opt/bin/run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \                       ## {ont,hifi,ilmn}
+    --model_path=/opt/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR} \
+    --use_gpu
+```
+
+**Notes**
+
+- `--nv` injects the host NVIDIA driver and libraries into the container (equivalent of Docker's `--gpus all`); no NVIDIA Container Toolkit needed.
+- `--cleanenv --env TMPDIR=/tmp` avoids `parallel` failing when the host `TMPDIR` points to a path not visible inside the container.
+- If the image does not work on your setup, fall back to the [Conda install (Option 1)](#option-1-build-an-environment-with-mambaconda).
 
 ---
 

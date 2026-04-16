@@ -65,8 +65,11 @@ RUN wget -q https://downloads.python.org/pypy/pypy3.11-v7.3.20-linux64.tar.bz2 &
     pypy3 -m pip install --no-cache-dir mpmath==1.2.1
 
 # Step 6 in README: recursively download pre-trained PyTorch models from a directory URL.
+# Pass --build-arg MODEL_CACHE_BUST=$(date +%s) to force a re-download without --no-cache.
 ARG CLAIR3_MODELS_URL=https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/
+ARG MODEL_CACHE_BUST=0
 RUN set -eux; \
+    echo "MODEL_CACHE_BUST=${MODEL_CACHE_BUST}"; \
     mkdir -p /opt/models /tmp/clair3-models; \
     base_url="${CLAIR3_MODELS_URL%/}"; \
     wget -r -np -nH --cut-dirs=2 -R "index.html*" -P /tmp/clair3-models "${base_url}/"; \
