@@ -2,7 +2,7 @@
 
 Starting from v1.2, Clair3 natively supports NVIDIA GPU acceleration. Using a single GPU, Clair3 can complete an ONT WGS 30x whole-genome variant calling in ~20 minutes on a Linux server with 32 CPU threads and an NVIDIA GeForce RTX 4090.
 
-The quickest way to run Clair3 on GPU is the pre-built Docker / Singularity image `hkubal/clair3:v2.0.0_gpu` (built on CUDA 12.1, bundled with all pre-trained models).
+The quickest way to run Clair3 on GPU is the pre-built Docker / Singularity image `hkubal/clair3:v2.0.1_gpu` (built on CUDA 12.1, bundled with all pre-trained models).
 
 ## Requirements
 
@@ -14,7 +14,7 @@ The quickest way to run Clair3 on GPU is the pre-built Docker / Singularity imag
 Verify GPU passthrough works:
 
 ```shell
-docker run --rm --gpus all hkubal/clair3:v2.0.0_gpu nvidia-smi
+docker run --rm --gpus all hkubal/clair3:v2.0.1_gpu nvidia-smi
 ```
 
 Expected output shows your GPU:
@@ -38,7 +38,7 @@ MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 docker run -it --gpus all \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0_gpu \
+  hkubal/clair3:v2.0.1_gpu \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -58,11 +58,11 @@ docker run -it --gpus all \
 ## Option 2. Singularity (NVIDIA GPU)
 
 ```bash
-singularity pull docker://hkubal/clair3:v2.0.0_gpu
+singularity pull docker://hkubal/clair3:v2.0.1_gpu
 
 singularity exec --nv --cleanenv --env TMPDIR=/tmp \
   -B ${INPUT_DIR},${OUTPUT_DIR} \
-  clair3_v2.0.0_gpu.sif \
+  clair3_v2.0.1_gpu.sif \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \

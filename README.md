@@ -60,6 +60,13 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 
 ## Latest Updates
 
+### v2.0.1 — *Apr 27, 2026*
+
+- Added the ONT `r1041_e82_400bps_sup_v520_with_mv` signal-aware (move-table) model for Dorado v5.2 SUP basecalled data ([#428](https://github.com/HKU-BAL/Clair3/issues/428)).
+- Added a pre-built **GPU Docker image** `hkubal/clair3:v2.0.1_gpu` (CUDA 12.1, PyTorch). See [GPU (NVIDIA CUDA on Linux)](#gpu-nvidia-cuda-on-linux) ([#433](https://github.com/HKU-BAL/Clair3/issues/433)).
+- Fixed `clair3_version` shown in VCF headers — previously stuck at `1.2.0` regardless of installed version ([#432](https://github.com/HKU-BAL/Clair3/issues/432)).
+- Fixed `SortVcf` writing pileup `RefCall` entries when no variants were found, instead of an empty VCF ([#436](https://github.com/HKU-BAL/Clair3/issues/436)).
+
 ### v2.0.0 — *Feb 9, 2026* &nbsp; **(Major release)**
 
 A preprint describing the performance of Clair3 v2 is available on [bioRxiv](https://www.biorxiv.org/content/10.64898/2026.02.13.705285v1).
@@ -176,7 +183,7 @@ MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
+  hkubal/clair3:v2.0.1 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -190,7 +197,7 @@ docker run -it \
 
 #### GPU (NVIDIA CUDA on Linux)
 
-Image: `hkubal/clair3:v2.0.0_gpu` (built on CUDA 12.1).
+Image: `hkubal/clair3:v2.0.1_gpu` (built on CUDA 12.1).
 
 **Requirements**
 
@@ -201,7 +208,7 @@ Image: `hkubal/clair3:v2.0.0_gpu` (built on CUDA 12.1).
 docker run -it --gpus all \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0_gpu \
+  hkubal/clair3:v2.0.1_gpu \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -228,11 +235,11 @@ conda config --add channels defaults
 conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
 
-singularity pull docker://hkubal/clair3:v2.0.0
+singularity pull docker://hkubal/clair3:v2.0.1
 
 singularity exec \
   -B ${INPUT_DIR},${OUTPUT_DIR} \
-  clair3_v2.0.0.sif \
+  clair3_v2.0.1.sif \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -250,11 +257,11 @@ singularity exec \
 - Singularity (or Apptainer) with `--nv` support.
 
 ```bash
-singularity pull docker://hkubal/clair3:v2.0.0_gpu
+singularity pull docker://hkubal/clair3:v2.0.1_gpu
 
 singularity exec --nv --cleanenv --env TMPDIR=/tmp \
   -B ${INPUT_DIR},${OUTPUT_DIR} \
-  clair3_v2.0.0_gpu.sif \
+  clair3_v2.0.1_gpu.sif \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -576,7 +583,7 @@ CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
+  hkubal/clair3:v2.0.1 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -595,7 +602,7 @@ KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. /home/user1/known_variants.vcf.gz
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
+  hkubal/clair3:v2.0.1 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -619,7 +626,7 @@ BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
+  hkubal/clair3:v2.0.1 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -636,7 +643,7 @@ docker run -it \
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
+  hkubal/clair3:v2.0.1 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
