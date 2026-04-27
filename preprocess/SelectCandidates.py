@@ -25,6 +25,12 @@ def discrete_gaussian_pro(entropy_windnow):
 
 def print_calling_step(output_fn=""):
 
+    # Only fall back to using pileup.vcf.gz as the final merge_output.vcf.gz when
+    # the caller hands us pileup.vcf(.gz). Guard against being invoked with a
+    # non-pileup output so we never overwrite a real per-step output.
+    if os.path.basename(output_fn) not in ('pileup.vcf', 'pileup.vcf.gz'):
+        return
+
     merge_output = os.path.join(os.path.dirname(output_fn), 'merge_output.vcf.gz')
     pileup_output = os.path.join(os.path.dirname(output_fn), 'pileup.vcf.gz')
 

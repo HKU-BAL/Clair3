@@ -26,6 +26,14 @@ def output_header(output_fn, reference_file_path, cmd_fn=None, sample_name='SAMP
 
 def print_calling_step(output_fn=""):
 
+    # Only fall back to using pileup.vcf.gz as the final merge_output.vcf.gz when
+    # this step's own output IS pileup.vcf(.gz). For other steps (merge sort,
+    # gvcf sort, phased_merge sort) the empty VCF just written is the real output
+    # and must not be clobbered by pileup content (which can contain RefCall rows
+    # when --print_ref_calls is enabled).
+    if os.path.basename(output_fn) not in ('pileup.vcf', 'pileup.vcf.gz'):
+        return
+
     merge_output = os.path.join(os.path.dirname(output_fn), 'merge_output.vcf.gz')
     pileup_output = os.path.join(os.path.dirname(output_fn), 'pileup.vcf.gz')
 
