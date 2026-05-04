@@ -34,6 +34,7 @@ data_preprocess_folder = [
     "CreateTensorPileupFromCffi",
     "CreateTensorFullAlignmentFromCffi",
     "CheckExitCode",
+    "CreateTrainingTensorDirect",
 ]
 
 post_process_scripts_folder = [

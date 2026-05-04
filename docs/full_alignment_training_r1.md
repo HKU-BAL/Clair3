@@ -18,20 +18,23 @@ This document shows how to train and fine-tune a deep learning model for Clair3 
 
 ## Contents
 
-* [I. Training data phasing and haplotaging](#i-training-data-phasing-and-haplotaging)
-    - [1. Setup variables](#1-setup-variables)
-    - [2.  Phase VCF file using WhatsHap](#2--phase-vcf-file-using-whatshap)
-    - [3.  Haplotag read alignments using WhatsHap](#3--haplotag-read-alignments-using-whatshap)
-* [II. Build compressed binary files for full-alignment model training](#ii-build-compressed-binary-files-for-full-alignment-model-training)
-    - [1. Run Clair3 pileup model](#1-run-Clair3-pileup-model)
-    - [2. Select low-quality pileup candidates](#2-Select-low-quality-pileup-candidates-using-the-SelectHetSnp-submodule)
-    - [3. Split and extend bed regions](#3-split-and-extend-bed-regions-using-the-splitextendbed-submodule)
-    - [4. Get truth variants from unified VCF file](#4-get-truth-variants-from-unified-vcf-using-the-gettruth-submodule)
-    - [5. Create full-alignment tensor](#5-create-full-alignment-tensor-using-the-createtrainingtensor-submodule)
-    - [6. Merge compressed binaries](#6-merge-compressed-binaries-using-the-mergebin-submodule)
-* [III. Model training](#iii-model-training)
-    - [1. full-alignment model training](#1-full-alignment-model-training)
-    - [2. full-alignment model fine-tune using pre-trained model (optional)](#2-full-alignment-model-fine-tune-using-pre-trained-model-optional)
+- [Train a model for Clair3 full-alignment calling (revision 1)](#train-a-model-for-clair3-full-alignment-calling-revision-1)
+  - [Prerequisites](#prerequisites)
+  - [Contents](#contents)
+  - [I. Training data phasing and haplotaging](#i-training-data-phasing-and-haplotaging)
+      - [1. Setup variables](#1-setup-variables)
+      - [2.  Phase VCF file using WhatsHap](#2--phase-vcf-file-using-whatshap)
+      - [3.  Haplotag read alignments using WhatsHap](#3--haplotag-read-alignments-using-whatshap)
+  - [II. Build compressed binary files for full-alignment model training](#ii-build-compressed-binary-files-for-full-alignment-model-training)
+      - [1. Run Clair3 pileup model](#1-run-clair3-pileup-model)
+      - [2. Select low-quality pileup candidates using the `SelectHetSnp` submodule](#2-select-low-quality-pileup-candidates-using-the-selecthetsnp-submodule)
+      - [3. Split and extend bed regions using the `SplitExtendBed` submodule](#3-split-and-extend-bed-regions-using-the-splitextendbed-submodule)
+      - [4. Get truth variants from unified VCF using the `GetTruth` submodule](#4-get-truth-variants-from-unified-vcf-using-the-gettruth-submodule)
+      - [5. Create full-alignment tensor using `CreateTrainingTensorDirect` (move table / ONT `mv`)](#5-create-full-alignment-tensor-using-createtrainingtensordirect-move-table--ont-mv)
+      - [6. Merge compressed binaries using the `MergeBin` submodule](#6-merge-compressed-binaries-using-the-mergebin-submodule)
+  - [III. Model training](#iii-model-training)
+      - [1. full-alignment model training](#1-full-alignment-model-training)
+      - [2. full-alignment model fine-tune using pre-trained model (optional)](#2-full-alignment-model-fine-tune-using-pre-trained-model-optional)
 
 ---
 
@@ -56,6 +59,7 @@ WHATSHAP="[WHATSHAP_BIN_PATH]"                       # e.g. whatshap
 PARALLEL="[PARALLEL_BIN_PATH]"                       # e.g. parallel
 SAMTOOLS="[SAMTOOLS_BIN_PATH]"                       # e.g. samtools
 TABIX="[TABIX_BIN_PATH]"                             # e.g. tabix
+PYTHON3="[PYTHON3_BIN_PATH]"                        # Python 3 for CreateTrainingTensorDirect / MergeBin / Train (e.g. clair3-torch env)
 
 # Input parameters
 PLATFORM="[SEQUENCING_PLATFORM]"                     # e.g. {ont, hifi, ilmn}
@@ -127,6 +131,13 @@ CHUNK_LIST=`seq 1 ${chunk_num}`
 
 # Maximum non-variant ratio for full-alignment model training, for full-alignment model training, we use variant :non-variant = 1 : 1
 MAXIMUM_NON_VARIANT_RATIO=1
+
+# Set DWELL_TIME_FLAG depending on whether to use dwell time
+ENABLE_DWELL_TIME=1  # Set to 1 to enable dwell time, 0 to disable
+DWELL_TIME_FLAG=""
+if [ "$ENABLE_DWELL_TIME" -eq 1 ]; then
+    DWELL_TIME_FLAG="--enable_dwell_time"  # Signal-aware model training using via Dorado mv tags
+fi
 
 # Temporary working directory
 DATASET_FOLDER_PATH="${OUTPUT_DIR}/build"
@@ -259,34 +270,32 @@ ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
     --var_fn ${VAR_OUTPUT_PATH}/var_{2}_{3}_{1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${UNIFIED_VCF_FILE_PATH[@]}
 ```
 
-#### 5. Create full-alignment tensor using the `CreateTrainingTensor` submodule
+#### 5. Create full-alignment tensor using `CreateTrainingTensorDirect` (move table / ONT `mv`)
 
 ```bash
-# Create full-alignment tensors for model training
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_full_alignment.log -j${THREADS_LOW} \
-"${PYPY} ${CLAIR3} CreateTrainingTensor \
+"${PYTHON3} ${CLAIR3} CreateTrainingTensorDirect \
     --bam_fn ${PHASE_BAM_PATH}/{2}_{3}_{1}.bam \
     --ref_fn {5} \
     --var_fn ${VAR_OUTPUT_PATH}/var_{2}_{3}_{1} \
     --bin_fn ${TENSOR_CANDIDATE_PATH}/tensor_{2}_{3}_{1}_{7} \
     --ctgName ${CHR_PREFIX}{1} \
-    --samtools ${SAMTOOLS} \
     --extend_bed ${SPLIT_BED_PATH}/{2}_{3}_{1} \
     --full_aln_regions ${CANDIDATE_BED_PATH}/{2}_{3}_{1}_{7} \
     --bed_fn {6} \
-    --phasing_info_in_bam \
+    --phased_vcf_fn ${PHASE_VCF_PATH}/phased_{2}_{3}_{1}.vcf.gz \
     --add_no_phasing_data_training \
     --allow_duplicate_chr_pos \
     --platform ${PLATFORM} \
     --shuffle \
     --maximum_non_variant_ratio ${MAXIMUM_NON_VARIANT_RATIO} \
     --chunk_id {7} \
-    --chunk_num ${chunk_num}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${ALL_UNPHASED_BAM_FILE_PATH[@]} :::+ ${ALL_REFERENCE_FILE_PATH[@]} :::+ ${ALL_BED_FILE_PATH[@]} ::: ${CHUNK_LIST[@]}
+    --chunk_num ${chunk_num} ${DWELL_TIME_FLAG}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${ALL_UNPHASED_BAM_FILE_PATH[@]} :::+ ${ALL_REFERENCE_FILE_PATH[@]} :::+ ${ALL_BED_FILE_PATH[@]} ::: ${CHUNK_LIST[@]}
 ```
 
 **Options**
 
- - `--phasing_info_in_bam` : enabled by default, indicating the input BAM is phased using WhatsHap's `haplotag` module, and phased alignments are having a `HP` tag with haplotype details. 
+ - `--phased_vcf_fn` : phased variant file for haplotagging (matches WhatsHap output in §I.2–I.3; `CreateTrainingTensorDirect` replaces the older `--phasing_info_in_bam` + Python pileup tensor path).
  - `--allow_duplicate_chr_pos` : for multiple coverages training, this option is required to to allow different coverage training samples at the same variant site.
  - `--shuffle` :  as the input tensors are created in the order of starting positions, this option shuffles the training data in each chunk. During the training process, we also apply index reshuffling in each epoch.
  - `--maximum_non_variant_ratio` :  we set a maximum non-variant ratio (variant:non-variant = 1:1) for full-alignment model training, non-variants are randomly selected from the candidate set if the ratio is exceeded, or all non-variants will be used for training otherwise. 
@@ -301,7 +310,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/mergeBin.log -j${THREADS} \
 "${PYTHON3} ${CLAIR3} MergeBin \
     ${TENSOR_CANDIDATE_PATH}/tensor_{2}_{3}_{1}_* \
     --platform ${PLATFORM} \
-    --out_fn ${BINS_FOLDER_PATH}/bin_{2}_{3}_{1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]}
+    --out_fn ${BINS_FOLDER_PATH}/bin_{2}_{3}_{1} ${DWELL_TIME_FLAG}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]}
 ```
 
 ----
@@ -332,7 +341,8 @@ ${PYTHON3} ${CLAIR3} Train \
     --ochk_prefix ${MODEL_FOLDER_PATH}/full_alignment \
     --add_indel_length True \
     --random_validation \
-    --platform ${PLATFORM}
+    --platform ${PLATFORM} \
+    ${DWELL_TIME_FLAG}
 ```
 
 **Options**
@@ -357,7 +367,9 @@ ${PYTHON3} ${CLAIR3} Train \
     --random_validation \
     --platform ${PLATFORM} \
     --learning_rate 0.0001 \
-    --chkpnt_fn "[YOUR_PRETRAINED_MODEL]"  ## use pre-trained full-alignment model here
+    --chkpnt_fn "[YOUR_PRETRAINED_MODEL]" \
+    ${DWELL_TIME_FLAG}
+# use pre-trained full-alignment model path in --chkpnt_fn above
 ```
 
 We experimentally offer full-alignment model fine tuning using a pre-trained Clair3 full-alignment model, by using a smaller `learning_rate` and a pre-trained model `chkpnt_fn`. We recommend starting with a smaller learning rate such as `1e-4` to fine-tune a pre-trained full-alignment model.
