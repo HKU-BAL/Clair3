@@ -222,12 +222,12 @@ ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
 
 ```
 
-#### 5. Create pileup tensor using the `CreateTrainingTensor` submodule
+#### 5. Create pileup tensor using the `CreateTrainingTensorDirect` submodule
 
 ```bash
 # Create pileup tensor for model training
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS_LOW} \
-"${PYPY} ${CLAIR3} CreateTrainingTensor \
+"${PYTHON3} ${CLAIR3} CreateTrainingTensorDirect \
     --bam_fn {4} \
     --ref_fn {5} \
     --var_fn ${VAR_OUTPUT_PATH}/var_{2}_{3}_{1} \
@@ -238,6 +238,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_pileup.log -j${THREADS
     --indel_min_af ${MIN_INDEL_AF} \
     --extend_bed ${SPLIT_BED_PATH}/{2}_{3}_{1} \
     --bed_fn {6} \
+    --allow_duplicate_chr_pos \
     --pileup \
     --platform ${PLATFORM} \
     --shuffle \
