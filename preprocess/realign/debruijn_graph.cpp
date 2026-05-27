@@ -428,7 +428,7 @@ extern "C" {
 }
 
 extern "C" {
-    void free_memory(struct_str_arr* pointer, int size) {
+    static void free_memory(struct_str_arr* pointer, int size) {
         for (int i=0; i< size; i++) {
             delete [] pointer->consensus[i];
         }
