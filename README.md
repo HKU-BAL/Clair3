@@ -433,8 +433,9 @@ The full ONT [Rerio](https://github.com/nanoporetech/rerio) catalog converted to
 
 | Model | Chemistry | Dorado model |
 | --- | --- | --- |
+| `r1041_e82_400bps_hac_v600` *(latest)* | R10.4.1 E8.2 (5 kHz) | v6.0.0 HAC |
 | `r1041_e82_400bps_sup_v520` *(latest)* | R10.4.1 E8.2 (5 kHz) | v5.2.0 SUP |
-| `r1041_e82_400bps_hac_v520` *(latest)* | R10.4.1 E8.2 (5 kHz) | v5.2.0 HAC |
+| `r1041_e82_400bps_hac_v520` | R10.4.1 E8.2 (5 kHz) | v5.2.0 HAC |
 | `r1041_e82_400bps_sup_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 SUP |
 | `r1041_e82_400bps_hac_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 HAC |
 | `r1041_e82_400bps_sup_v430` | R10.4.1 E8.2 (5 kHz) | v4.3.0 SUP |
