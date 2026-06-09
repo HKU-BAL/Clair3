@@ -401,7 +401,7 @@ Listed at <https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/>.
 
 | Model | Platform | `--platform` | Training samples / Notes | Bioconda | Docker |
 | --- | --- | :-: | --- | :-: | :-: |
-| **`r1041_e82_400bps_hac_v600_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), HAC | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | ✓ |
+| **`r1041_e82_400bps_hac_v600_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), HAC | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | |
 | **`r1041_e82_400bps_hac_v520_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), HAC | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | ✓ |
 | **`r1041_e82_400bps_sup_v520_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), SUP | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | ✓ |
 | `r1041_e82_400bps_sup_v430_bacteria_finetuned` | ONT R10.4.1 | `ont` | Fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) | | ✓ |
