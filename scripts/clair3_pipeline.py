@@ -62,6 +62,24 @@ def vcf_has_records(vcf_gz_path):
     return False
 
 
+def ensure_merge_output(output_folder):
+    """Guarantee a valid, tabix-indexed merge_output.vcf.gz exists.
+
+    The no-variant / no-candidate early-exit branches return before the 7/7
+    merge that normally produces and indexes the final VCF. Fall back to the
+    pileup calls so a real, indexed VCF is always emitted -- including an empty,
+    header-only one when there are no variants at all.
+    """
+    merge_output = output_folder / "merge_output.vcf.gz"
+    pileup_output = output_folder / "pileup.vcf.gz"
+    if not merge_output.exists():
+        if not pileup_output.exists():
+            return
+        print(f"[INFO] No merged VCF produced, finalizing pileup output as {merge_output}")
+        shutil.copy(pileup_output, merge_output)
+    run_command(f"tabix -f -p vcf {q(merge_output)}")
+
+
 def read_contigs(contigs_path):
     if not os.path.exists(contigs_path):
         return []
@@ -280,6 +298,7 @@ def main():
 
     if not vcf_has_records(output_folder / "pileup.vcf.gz"):
         print("[INFO] Exit in pileup variant calling")
+        ensure_merge_output(output_folder)
         return 0
 
     if args.pileup_only:
@@ -427,6 +446,7 @@ def main():
     candidate_files = sorted(candidate_bed_path.glob("FULL_ALN_FILE_*") )
     if len(candidate_files) == 0:
         print("[INFO] No Candidate found! Exit in selecting full-alignment candidates")
+        ensure_merge_output(output_folder)
         return 0
     full_aln_files_path = candidate_bed_path / "FULL_ALN_FILES"
     with open(full_aln_files_path, "w", encoding="utf-8") as handle:
@@ -477,6 +497,7 @@ def main():
 
     if not vcf_has_records(output_folder / "full_alignment.vcf.gz"):
         print("[INFO] Exit in full-alignment variant calling")
+        ensure_merge_output(output_folder)
         return 0
 
     if args.gvcf:

@@ -280,11 +280,18 @@ def SelectCandidates(args):
                          split_output]) + '\n')  # bed format
 
 
+            if len(all_full_aln_regions) == 0:
+                # No full-alignment candidate in this contig. Do NOT write a
+                # FULL_ALN_FILE -- an empty one (a lone newline) would later be
+                # globbed as a candidate and spawn a bogus empty-region job
+                # (full_alignment_.vcf). Fall back to the pileup calls as the
+                # output; the pipeline indexes them on the no-candidate exit.
+                print_calling_step(output_fn=pileup_vcf_fn)
+                return
+
             all_full_aln_regions_path = os.path.join(split_folder, 'FULL_ALN_FILE_{}'.format(contig_name))
             with open(all_full_aln_regions_path, 'w') as output_file:
                 output_file.write('\n'.join(all_full_aln_regions) + '\n')
-            if len(all_full_aln_regions) == 0:
-                print_calling_step(output_fn=pileup_vcf_fn)
             return
 
         for pos, qual in low_qual_ref_list:
