@@ -1,0 +1,28 @@
+# Keep the Docker build context small and reproducible.
+# Native components are rebuilt inside the image by `make`, so host build
+# artifacts must NOT be copied in.
+
+# VCS / CI / tooling
+.git
+.gitignore
+.dockerignore
+.github
+.claude
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Clair3 build artifacts (regenerated in-image by `make`)
+libclair3.c
+*.so
+*.o
+*.a
+longphase
+longphase-*/
+samtools-*/
+fa_test
+
+# misc
+*.sif

@@ -14,7 +14,7 @@ Feature:    Dwelling time (signal-aware calling)
 ### Prerequisites
 
 - Docker installed and running
-- Clair3 Docker image: `hkubal/clair3:v2.0.1`
+- Clair3 Docker image: `hkubal/clair3:v2.0.2`
 - hap.py Docker image: `jmcdani20/hap.py:v0.3.12`
 - BAM file must contain `mv` tags (produced by Dorado with `--emit-moves`)
 
@@ -74,7 +74,7 @@ mkdir -p ${OUTPUT_DIR_DWELL}
 docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR_DWELL}:${OUTPUT_DIR_DWELL} \
-  hkubal/clair3:v2.0.1 \
+  hkubal/clair3:v2.0.2 \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
@@ -123,7 +123,7 @@ mkdir -p ${OUTPUT_DIR_NO_DWELL}
 docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR_NO_DWELL}:${OUTPUT_DIR_NO_DWELL} \
-  hkubal/clair3:v2.0.1 \
+  hkubal/clair3:v2.0.2 \
   /opt/bin/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \

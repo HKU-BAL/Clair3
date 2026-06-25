@@ -60,6 +60,12 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 
 ## Latest Updates
 
+### v2.0.2 — *Jun 25, 2026*
+
+- Always emit a valid, indexed VCF/gVCF when no variants are found ([#447](https://github.com/HKU-BAL/Clair3/issues/447)).
+- Fail early with clear guidance, instead of crashing, when a move-table `*_with_mv` model is run without `--enable_dwell_time` ([#437](https://github.com/HKU-BAL/Clair3/issues/437)).
+- The same fixes will also land in the Bioconda `clair3` package.
+
 ### v2.0.1 — *Apr 27, 2026*
 
 - Added the ONT `r1041_e82_400bps_sup_v520_with_mv` signal-aware (move-table) model for Dorado v5.2 SUP basecalled data ([#428](https://github.com/HKU-BAL/Clair3/issues/428)).
@@ -183,7 +189,7 @@ MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.1 \
+  hkubal/clair3:v2.0.2 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -197,7 +203,7 @@ docker run -it \
 
 #### GPU (NVIDIA CUDA on Linux)
 
-Image: `hkubal/clair3:v2.0.1_gpu` (built on CUDA 12.1).
+Image: `hkubal/clair3:v2.0.2_gpu` (built on CUDA 12.1).
 
 **Requirements**
 
@@ -208,7 +214,7 @@ Image: `hkubal/clair3:v2.0.1_gpu` (built on CUDA 12.1).
 docker run -it --gpus all \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.1_gpu \
+  hkubal/clair3:v2.0.2_gpu \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -235,11 +241,11 @@ conda config --add channels defaults
 conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
 
-singularity pull docker://hkubal/clair3:v2.0.1
+singularity pull docker://hkubal/clair3:v2.0.2
 
 singularity exec \
   -B ${INPUT_DIR},${OUTPUT_DIR} \
-  clair3_v2.0.1.sif \
+  clair3_v2.0.2.sif \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -257,11 +263,11 @@ singularity exec \
 - Singularity (or Apptainer) with `--nv` support.
 
 ```bash
-singularity pull docker://hkubal/clair3:v2.0.1_gpu
+singularity pull docker://hkubal/clair3:v2.0.2_gpu
 
 singularity exec --nv --cleanenv --env TMPDIR=/tmp \
   -B ${INPUT_DIR},${OUTPUT_DIR} \
-  clair3_v2.0.1_gpu.sif \
+  clair3_v2.0.2_gpu.sif \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -417,16 +423,19 @@ Listed at <https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/>.
 
 > ONT's models are fine-tuned to specific chemistries / basecallers and **typically outperform the HKU baselines** — we recommend using them for best results. Official PyTorch distributions from ONT are in progress; in the meantime, use the [converted Rerio models](#converted-rerio-models) below.
 
-The following ONT-trained models are bundled with Clair3 Docker / Bioconda since v1.1.1:
+The following ONT-trained models are bundled with Clair3 Docker / Bioconda since v1.1.1 (the Dorado v5.2.0 / v6.0.0 models were added to the Docker image in v2.0.2):
 
 | Model | Chemistry | Dorado model | Bioconda | Docker |
 | --- | --- | --- | :-: | :-: |
+| `r1041_e82_400bps_hac_v600` *(latest)* | R10.4.1 E8.2 (5 kHz) | v6.0.0 HAC | | ✓ |
+| `r1041_e82_400bps_sup_v520` *(latest)* | R10.4.1 E8.2 (5 kHz) | v5.2.0 SUP | | ✓ |
+| `r1041_e82_400bps_hac_v520` | R10.4.1 E8.2 (5 kHz) | v5.2.0 HAC | | ✓ |
 | `r1041_e82_400bps_sup_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 SUP | ✓ | ✓ |
 | `r1041_e82_400bps_hac_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 HAC | | ✓ |
 | `r1041_e82_400bps_sup_v410` | R10.4.1 E8.2 (4 kHz) | v4.1.0 SUP | ✓ | ✓ |
 | `r1041_e82_400bps_hac_v410` | R10.4.1 E8.2 (4 kHz) | v4.1.0 HAC | | ✓ |
 
-> **ONT has released newer Dorado v5.2.0 models** (`r1041_e82_400bps_sup_v520` / `hac_v520`). They are not yet bundled in Docker / Bioconda — download them from the [Converted Rerio models](#converted-rerio-models) section below.
+> The Dorado v5.2.0 (`r1041_e82_400bps_sup_v520` / `hac_v520`) and v6.0.0 (`hac_v600`) models are bundled in the Docker image since v2.0.2. They are not yet in the Bioconda package — for Bioconda or manual setups, download them from the [Converted Rerio models](#converted-rerio-models) section below.
 
 ### Converted Rerio models
 
@@ -585,7 +594,7 @@ CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.1 \
+  hkubal/clair3:v2.0.2 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -604,7 +613,7 @@ KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. /home/user1/known_variants.vcf.gz
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.1 \
+  hkubal/clair3:v2.0.2 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -628,7 +637,7 @@ BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.1 \
+  hkubal/clair3:v2.0.2 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -645,7 +654,7 @@ docker run -it \
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.1 \
+  hkubal/clair3:v2.0.2 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \

@@ -67,6 +67,9 @@ RUN wget -q https://downloads.python.org/pypy/pypy3.11-v7.3.20-linux64.tar.bz2 &
 # Step 6 in README: recursively download pre-trained PyTorch models from a directory URL.
 # Pass --build-arg MODEL_CACHE_BUST=$(date +%s) to force a re-download without --no-cache.
 ARG CLAIR3_MODELS_URL=https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/
+# Recent ONT-provided (Rerio-converted) models bundled on top of the HKU baseline.
+ARG CLAIR3_RERIO_MODELS_URL=https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/
+ARG CLAIR3_BUNDLED_RERIO_MODELS="r1041_e82_400bps_sup_v520 r1041_e82_400bps_hac_v520 r1041_e82_400bps_hac_v600"
 ARG MODEL_CACHE_BUST=0
 RUN set -eux; \
     echo "MODEL_CACHE_BUST=${MODEL_CACHE_BUST}"; \
@@ -78,4 +81,11 @@ RUN set -eux; \
     else \
         cp -a /tmp/clair3-models/. /opt/models/; \
     fi; \
-    rm -rf /tmp/clair3-models
+    rm -rf /tmp/clair3-models; \
+    rerio_url="${CLAIR3_RERIO_MODELS_URL%/}"; \
+    for m in ${CLAIR3_BUNDLED_RERIO_MODELS}; do \
+        echo "Bundling ONT/Rerio model: ${m}"; \
+        rm -rf "/opt/models/${m}"; mkdir -p "/opt/models/${m}"; \
+        wget -r -np -nd -R "index.html*" -P "/opt/models/${m}" "${rerio_url}/${m}/"; \
+        test -f "/opt/models/${m}/pileup.pt" -a -f "/opt/models/${m}/full_alignment.pt"; \
+    done
