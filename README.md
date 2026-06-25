@@ -62,9 +62,10 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 
 ### v2.0.2 — *Jun 25, 2026*
 
-- Always emit a valid, indexed VCF/gVCF when no variants are found ([#447](https://github.com/HKU-BAL/Clair3/issues/447)).
-- Fail early with clear guidance, instead of crashing, when a move-table `*_with_mv` model is run without `--enable_dwell_time` ([#437](https://github.com/HKU-BAL/Clair3/issues/437)).
-- The same fixes will also land in the Bioconda `clair3` package.
+- Always emit a valid, indexed VCF/gVCF when no variants are found ([Issue#447](https://github.com/HKU-BAL/Clair3/issues/447)).
+- Fail early with clear guidance, instead of crashing, when a move-table `*_with_mv` model is run without `--enable_dwell_time` ([Issue#437](https://github.com/HKU-BAL/Clair3/issues/437)).
+- Use the longphase conda package on all platforms (longphase now supports linux-aarch64) instead of compiling it at build time ([PR#64876](https://github.com/bioconda/bioconda-recipes/pull/64876)). 
+- Re-bundle pre-trained models (single pre-packaged archive extracted to \${PREFIX}/bin/models/), restoring bundled models removed since v2.0.0 ([Issue#446](https://github.com/HKU-BAL/Clair3/issues/446)). 
 
 ### v2.0.1 — *Apr 27, 2026*
 
@@ -90,18 +91,12 @@ Native GPU support on Linux and Apple Silicon. Clair3 on GPU runs **~5× faster 
   <img src="docs/images/clair3_gpu_benchmark.png" width="400" alt="Clair3 GPU benchmark">
 </div>
 
-### v1.1.2 — *Jul 10, 2025*
-
-- Boundary check for an insertion immediately followed by soft-clipping ([#394](https://github.com/HKU-BAL/Clair3/issues/394), @[dpryan79](https://github.com/dpryan79)).
-- Parallel-job exit-code checking; pipeline now exits immediately on any job failure ([#392](https://github.com/HKU-BAL/Clair3/issues/392), @[SamStudio8](https://github.com/SamStudio8)).
-
-### v1.1.1 — *May 19, 2025*
-
-- Fixed the malformed VCF header on AWS ([#380](https://github.com/HKU-BAL/Clair3/issues/380)).
-- Added an R10.4.1 model fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) ([notes](docs/fine-tuning_Clair3_with_12_bacteria_samples.pdf), @[wshropshire](https://github.com/wshropshire)).
-
 <details>
-<summary><b>Earlier versions</b> (click to expand)</summary>
+<summary><b>Earlier versions</b> (v1.1.x and older — click to expand)</summary>
+
+**v1.1.2 — Jul 10, 2025.** Boundary check for an insertion immediately followed by soft-clipping ([#394](https://github.com/HKU-BAL/Clair3/issues/394), @[dpryan79](https://github.com/dpryan79)). Parallel-job exit-code checking; pipeline now exits immediately on any job failure ([#392](https://github.com/HKU-BAL/Clair3/issues/392), @[SamStudio8](https://github.com/SamStudio8)).
+
+**v1.1.1 — May 19, 2025.** Fixed the malformed VCF header on AWS ([#380](https://github.com/HKU-BAL/Clair3/issues/380)). Added an R10.4.1 model fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) ([notes](docs/fine-tuning_Clair3_with_12_bacteria_samples.pdf), @[wshropshire](https://github.com/wshropshire)).
 
 **v1.1.0 — Apr 8, 2025.** Removed `parallel` version checking ([#377](https://github.com/HKU-BAL/Clair3/issues/377)).
 
@@ -407,12 +402,12 @@ Listed at <https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/>.
 
 | Model | Platform | `--platform` | Training samples / Notes | Bioconda | Docker |
 | --- | --- | :-: | --- | :-: | :-: |
-| **`r1041_e82_400bps_hac_v600_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), HAC | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | |
-| **`r1041_e82_400bps_hac_v520_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), HAC | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | ✓ |
-| **`r1041_e82_400bps_sup_v520_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), SUP | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | | ✓ |
-| `r1041_e82_400bps_sup_v430_bacteria_finetuned` | ONT R10.4.1 | `ont` | Fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) | | ✓ |
+| **`r1041_e82_400bps_hac_v600_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), HAC | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | ✓ | ✓ |
+| **`r1041_e82_400bps_hac_v520_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), HAC | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | ✓ | ✓ |
+| **`r1041_e82_400bps_sup_v520_with_mv`** *(latest)* | ONT R10.4.1 E8.2 (5 kHz), SUP | `ont` | HG001,2,5 (chr20 excluded) — **signal-aware**, use `--enable_dwell_time` | ✓ | ✓ |
+| `r1041_e82_400bps_sup_v430_bacteria_finetuned` | ONT R10.4.1 | `ont` | Fine-tuned on 12 [bacterial genomes](https://elifesciences.org/reviewed-preprints/98300) | ✓ | ✓ |
 | `r941_prom_sup_g5014` | ONT R9.4.1, Guppy5 SUP | `ont` | HG002,4,5; also usable on HAC reads ([benchmarks](docs/guppy5_20220113.md)) | ✓ | ✓ |
-| `r941_prom_hac_g360+g422` | ONT R9.4.1, Guppy3/4 HAC | `ont` | HG001,2,4,5 | | |
+| `r941_prom_hac_g360+g422` | ONT R9.4.1, Guppy3/4 HAC | `ont` | HG001,2,4,5 | ✓ | ✓ |
 | `hifi_revio` | PacBio HiFi Revio | `hifi` | HG002,4 | ✓ | ✓ |
 | `hifi_sequel2` | PacBio HiFi Sequel II | `hifi` | HG001,2,4,5 | ✓ | ✓ |
 | `ilmn` | Illumina | `ilmn` | HG001,2,4,5 | ✓ | ✓ |
@@ -423,19 +418,19 @@ Listed at <https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/>.
 
 > ONT's models are fine-tuned to specific chemistries / basecallers and **typically outperform the HKU baselines** — we recommend using them for best results. Official PyTorch distributions from ONT are in progress; in the meantime, use the [converted Rerio models](#converted-rerio-models) below.
 
-The following ONT-trained models are bundled with Clair3 Docker / Bioconda since v1.1.1 (the Dorado v5.2.0 / v6.0.0 models were added to the Docker image in v2.0.2):
+The following ONT-trained models are bundled in **both** the Clair3 Docker image and the Bioconda package. Since v2.0.2 the full set below — including the Dorado v5.2.0 and v6.0.0 models — ships in both, re-packaged into a single archive:
 
 | Model | Chemistry | Dorado model | Bioconda | Docker |
 | --- | --- | --- | :-: | :-: |
-| `r1041_e82_400bps_hac_v600` *(latest)* | R10.4.1 E8.2 (5 kHz) | v6.0.0 HAC | | ✓ |
-| `r1041_e82_400bps_sup_v520` *(latest)* | R10.4.1 E8.2 (5 kHz) | v5.2.0 SUP | | ✓ |
-| `r1041_e82_400bps_hac_v520` | R10.4.1 E8.2 (5 kHz) | v5.2.0 HAC | | ✓ |
+| `r1041_e82_400bps_hac_v600` *(latest)* | R10.4.1 E8.2 (5 kHz) | v6.0.0 HAC | ✓ | ✓ |
+| `r1041_e82_400bps_sup_v520` *(latest)* | R10.4.1 E8.2 (5 kHz) | v5.2.0 SUP | ✓ | ✓ |
+| `r1041_e82_400bps_hac_v520` | R10.4.1 E8.2 (5 kHz) | v5.2.0 HAC | ✓ | ✓ |
 | `r1041_e82_400bps_sup_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 SUP | ✓ | ✓ |
-| `r1041_e82_400bps_hac_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 HAC | | ✓ |
+| `r1041_e82_400bps_hac_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 HAC | ✓ | ✓ |
 | `r1041_e82_400bps_sup_v410` | R10.4.1 E8.2 (4 kHz) | v4.1.0 SUP | ✓ | ✓ |
-| `r1041_e82_400bps_hac_v410` | R10.4.1 E8.2 (4 kHz) | v4.1.0 HAC | | ✓ |
+| `r1041_e82_400bps_hac_v410` | R10.4.1 E8.2 (4 kHz) | v4.1.0 HAC | ✓ | ✓ |
 
-> The Dorado v5.2.0 (`r1041_e82_400bps_sup_v520` / `hac_v520`) and v6.0.0 (`hac_v600`) models are bundled in the Docker image since v2.0.2. They are not yet in the Bioconda package — for Bioconda or manual setups, download them from the [Converted Rerio models](#converted-rerio-models) section below.
+> Only recent R10.4.1 E8.2 models are bundled here. For other chemistries or basecaller versions, download from the [Converted Rerio models](#converted-rerio-models) catalog below.
 
 ### Converted Rerio models
 
