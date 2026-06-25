@@ -406,6 +406,29 @@ def main():
         warn("Illumina platform will disable C implement to support short read realignment process!")
         enable_c_impl = False
 
+    # Move-table (signal-aware) models are named "*_with_mv": they consume the
+    # Dorado move table as a dwell-time input channel, so they are ONT-only,
+    # need a BAM that carries 'mv' tags, and require --enable_dwell_time. Fail
+    # early with actionable guidance when a prerequisite is missing; the 'mv'
+    # tag itself is verified by the enable_dwell_time check below.
+    is_move_table_model = any(
+        "with_mv" in name.lower() or "with_move" in name.lower()
+        for name in (model_path.name, args.pileup_model_prefix, args.fa_model_prefix)
+    )
+    if is_move_table_model:
+        if args.platform != "ont":
+            error_exit(
+                f"Model '{model_path.name}' is a move-table (signal-aware) model and is ONT-only, "
+                f"but --platform is '{args.platform}'. Use '--platform ont' with ONT data, or choose a "
+                f"non move-table model for this platform."
+            )
+        if not args.enable_dwell_time:
+            error_exit(
+                f"Model '{model_path.name}' is a move-table (signal-aware) model and requires the dwell-time "
+                f"feature. Please add '--enable_dwell_time'. The input BAM must also contain Dorado 'mv' tags "
+                f"(basecalled with '--emit-moves'); if it has none, use a non move-table ONT model instead."
+            )
+
     enable_dwell_time = args.enable_dwell_time
     if enable_dwell_time:
         if not args.platform == "ont":
