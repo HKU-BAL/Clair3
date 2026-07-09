@@ -327,7 +327,7 @@ class gvcfGenerator(object):
 
             else:
                 print("[ERROR] CurVarStart", curVarStart, 'curVarEnd', curVarEnd, 'curNonVarStart', curNonVarStart,
-                      'curNonVarEnd', curNonVarEnd)
+                      'curNonVarEnd', curNonVarEnd, file=sys.stderr)
 
         # printout the remain content
         if (not varCallStop):

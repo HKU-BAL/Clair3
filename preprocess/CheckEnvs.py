@@ -58,13 +58,13 @@ def check_tools_version(tool_version, required_tool_version):
         if platform.system() == "Darwin" and tool == 'whatshap':
             continue
         if version is None:
-            print(log_error("[ERROR] {} not found, please check you are in clair3 virtual environment".format(tool)))
+            print(log_error("[ERROR] {} not found, please check you are in clair3 virtual environment".format(tool)), file=sys.stderr)
             check_python_path()
         elif version < required_version:
-            print(log_error("[ERROR] Tool version not match, please check you are in clair3 virtual environment"))
-            print(' '.join([str(item).ljust(10) for item in ["Tool", "Version", "Required"]]))
+            print(log_error("[ERROR] Tool version not match, please check you are in clair3 virtual environment"), file=sys.stderr)
+            print(' '.join([str(item).ljust(10) for item in ["Tool", "Version", "Required"]]), file=sys.stderr)
             error_info = ' '.join([str(item).ljust(10) for item in [tool, version, '>=' + str(required_version)]])
-            print(error_info)
+            print(error_info, file=sys.stderr)
             check_python_path()
     return
 
@@ -84,7 +84,7 @@ def check_contig_in_bam(bam_fn, sorted_contig_list, samtools):
     for contig_name in sorted_contig_list:
         if contig_name not in contig_with_read_support_set:
             print(log_warning(
-                "[WARNING] Contig name {} provided but no mapped reads in BAM, skip!".format(contig_name)))
+                "[WARNING] Contig name {} provided but no mapped reads in BAM, skip!".format(contig_name)), file=sys.stderr)
     filtered_sorted_contig_list = [item for item in sorted_contig_list if item in contig_with_read_support_set]
 
     found_contig = True
@@ -92,7 +92,7 @@ def check_contig_in_bam(bam_fn, sorted_contig_list, samtools):
         found_contig = False
         print(log_warning(
             "[WARNING] No mapped reads support in BAM for provided contigs set {}".format(
-                ' '.join(sorted_contig_list))))
+                ' '.join(sorted_contig_list))), file=sys.stderr)
     return filtered_sorted_contig_list, found_contig
 
 
@@ -233,7 +233,7 @@ def CheckEnvs(args):
     legal_range_from(param_name="indel_min_af", x=indel_min_af, min_num=0, max_num=1, exit_out_of_range=True)
     if ref_pct_full > 0.3:
         print(log_warning(
-            "[WARNING] For efficiency, we use a maximum 30% reference candidates for full-alignment calling"))
+            "[WARNING] For efficiency, we use a maximum 30% reference candidates for full-alignment calling"), file=sys.stderr)
     tool_version = {
         'python': LooseVersion(sys.version.split()[0]),
         'pypy': check_version(tool=pypy, pos=0, is_pypy=True),
@@ -256,10 +256,10 @@ def CheckEnvs(args):
     contig_set = set(ctg_name_list.split(',')) if is_ctg_name_list_provided else set()
 
     if is_ctg_name_list_provided and is_bed_file_provided:
-        print(log_warning("[WARNING] both --ctg_name and --bed_fn provided, will only proceed contigs in intersection"))
+        print(log_warning("[WARNING] both --ctg_name and --bed_fn provided, will only proceed contigs in intersection"), file=sys.stderr)
 
     if is_ctg_name_list_provided and is_known_vcf_file_provided:
-        print(log_warning("[WARNING] both --ctg_name and --vcf_fn provided, will only proceed contigs in intersection"))
+        print(log_warning("[WARNING] both --ctg_name and --vcf_fn provided, will only proceed contigs in intersection"), file=sys.stderr)
 
     if is_ctg_name_list_provided:
 
@@ -299,7 +299,7 @@ def CheckEnvs(args):
 
             if min_contig_size > 0 and contig_length < min_contig_size:
                 print(log_warning(
-                    "[WARNING] {} contig length {} is smaller than minimum contig size {}, will skip it!".format(contig_name, contig_length, min_contig_size)))
+                    "[WARNING] {} contig length {} is smaller than minimum contig size {}, will skip it!".format(contig_name, contig_length, min_contig_size)), file=sys.stderr)
                 if contig_name in contig_set:
                     contig_set.remove(contig_name)
                 continue
@@ -322,18 +322,18 @@ def CheckEnvs(args):
     if not len(contig_set):
         if is_bed_file_provided:
             all_contig_in_bed = ' '.join(list(tree.keys()))
-            print(log_warning("[WARNING] No contig intersection found by --bed_fn, contigs in BED {}: {}".format(bed_fn, all_contig_in_bed)))
+            print(log_warning("[WARNING] No contig intersection found by --bed_fn, contigs in BED {}: {}".format(bed_fn, all_contig_in_bed)), file=sys.stderr)
         if is_known_vcf_file_provided:
             all_contig_in_vcf = ' '.join(list(know_vcf_contig_set))
-            print(log_warning("[WARNING] No contig intersection found by --vcf_fn, contigs in VCF {}: {}".format(vcf_fn, all_contig_in_vcf)))
+            print(log_warning("[WARNING] No contig intersection found by --vcf_fn, contigs in VCF {}: {}".format(vcf_fn, all_contig_in_vcf)), file=sys.stderr)
         if is_ctg_name_list_provided:
             all_contig_in_ctg_name = ' '.join(ctg_name_list.split(','))
-            print(log_warning("[WARNING] No contig intersection found by --ctg_name, contigs in contigs list: {}".format(all_contig_in_ctg_name)))
+            print(log_warning("[WARNING] No contig intersection found by --ctg_name, contigs in contigs list: {}".format(all_contig_in_ctg_name)), file=sys.stderr)
         found_contig = False
     else:
         for c in sorted_contig_list:
             if c not in contig_chunk_num:
-                print(log_warning(("[WARNING] Contig {} given but not found in reference fai file".format(c))))
+                print(log_warning(("[WARNING] Contig {} given but not found in reference fai file".format(c))), file=sys.stderr)
 
         # check contig in bam have support reads
         sorted_contig_list, found_contig = check_contig_in_bam(bam_fn=bam_fn, sorted_contig_list=sorted_contig_list,
@@ -345,7 +345,7 @@ def CheckEnvs(args):
         output_header(output_fn=output_fn, reference_file_path=ref_fn, cmd_fn=cmd_fn, sample_name=sample_name)
         compress_index_vcf(output_fn)
         print(log_warning(
-            ("[WARNING] No contig intersection found, output header only in {}").format(output_fn + ".gz")))
+            ("[WARNING] No contig intersection found, output header only in {}").format(output_fn + ".gz")), file=sys.stderr)
         with open(contig_name_list, 'w') as output_file:
             output_file.write("")
         return
@@ -360,17 +360,17 @@ def CheckEnvs(args):
     if default_chunk_num > 0 and max_chunk_length > MAX_CHUNK_LENGTH:
         print(log_warning(
             '[WARNING] Current maximum chunk size {} is larger than default maximum chunk size {}, You may set a larger chunk_num by setting --chunk_num=$ for better parallelism.'.format(
-                min_chunk_length, MAX_CHUNK_LENGTH)))
+                min_chunk_length, MAX_CHUNK_LENGTH)), file=sys.stderr)
 
     elif default_chunk_num > 0 and min_chunk_length < MIN_CHUNK_LENGTH:
         print(log_warning(
             '[WARNING] Current minimum chunk size {} is smaller than default minimum chunk size {}, You may set a smaller chunk_num by setting --chunk_num=$.'.format(
-                min_chunk_length, MIN_CHUNK_LENGTH)))
+                min_chunk_length, MIN_CHUNK_LENGTH)), file=sys.stderr)
 
     if default_chunk_num == 0 and max(contig_length_list) < DEFAULT_CHUNK_SIZE / 5:
         print(log_warning(
             '[WARNING] Current maximum contig length {} is much smaller than default chunk size {}, You may set a smaller chunk size by setting --chunk_size=$ for better parallelism.'.format(
-                max(contig_length_list), DEFAULT_CHUNK_SIZE)))
+                max(contig_length_list), DEFAULT_CHUNK_SIZE)), file=sys.stderr)
 
     if is_bed_file_provided and default_chunk_num > -1:
         split_extend_bed(bed_fn=bed_fn, output_fn=split_bed_path, contig_set=contig_set)
@@ -478,7 +478,7 @@ def main():
     elif args.include_all_ctgs:
         print("[INFO] --include_all_ctgs enabled")
         if not args.no_phasing_for_fa:
-            print(log_warning("[WARNING] Please enable --no_phasing_for_fa if calling variant in non-diploid organisms"))
+            print(log_warning("[WARNING] Please enable --no_phasing_for_fa if calling variant in non-diploid organisms"), file=sys.stderr)
 
     CheckEnvs(args)
 

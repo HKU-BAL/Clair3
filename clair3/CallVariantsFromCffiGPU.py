@@ -35,10 +35,10 @@ def check_gpu_memory(memory, device_ids=None, print_log=True):
         if print_log:
             print(f"GPU {device_id} free memory: {free_mem} MB, assigning {memory} MB per thread, {gpu_threads} threads available")
     if len(device_ids) == 0 or not detect_gpu:
-        print(log_error("No GPU available, Please disabling --use_gpu for variant calling, exiting."))
+        print(log_error("No GPU available, Please disabling --use_gpu for variant calling, exiting."), file=sys.stderr)
         sys.exit(1)
     if len(gpu_id_list) == 0:
-        print(log_error("No memory in GPU, Please assign GPU memory first, exiting."))
+        print(log_error("No memory in GPU, Please assign GPU memory first, exiting."), file=sys.stderr)
         sys.exit(1)
     return gpu_id_list
 
@@ -59,7 +59,7 @@ def Run(args):
 
     if args.device and args.device != "EMPTY":
         if not args.device.startswith('cuda:'):
-            print(log_error("Please specify the device as '--device=cuda:0' or '--device=cuda:0,1'"))
+            print(log_error("Please specify the device as '--device=cuda:0' or '--device=cuda:0,1'"), file=sys.stderr)
             sys.exit(1)
         device_ids = [int(x) for x in args.device.split("cuda:")[-1].split(",")]
         os.environ["CUDA_VISIBLE_DEVICES"] = ','.join([str(item) for item in device_ids])

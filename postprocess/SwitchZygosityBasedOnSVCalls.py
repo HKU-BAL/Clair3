@@ -393,7 +393,7 @@ def Run(args):
             if use_sv_qual:
                 sv_qual = get_sv_qual(sv_input_variant_dict, sv_bed_tree, contig, ctg_name, int(pos))
                 if sv_qual is None:
-                    print("SV QUAL not found, skip switching QUAL!")
+                    print("SV QUAL not found, skip switching QUAL!", file=sys.stderr)
                     continue
                 columns = row_str.rstrip().split('\t')
                 clair3_qual = columns[5]

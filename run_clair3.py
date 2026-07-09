@@ -93,12 +93,12 @@ def parse_args():
 
 
 def error_exit(msg):
-    print(f"{ERROR} {msg}")
+    print(f"{ERROR} {msg}", file=sys.stderr)
     raise SystemExit(1)
 
 
 def warn(msg):
-    print(f"{WARNING} {msg}")
+    print(f"{WARNING} {msg}", file=sys.stderr)
 
 
 def file_exists(path):
@@ -281,17 +281,17 @@ def main():
     output_folder = Path(args.output)
 
     if not bam_path.is_absolute() and bam_path.is_file():
-        bam_path = bam_path.resolve()
+        bam_path = bam_path.absolute()
     if not ref_path.is_absolute() and ref_path.is_file():
-        ref_path = ref_path.resolve()
+        ref_path = ref_path.absolute()
     if not model_path.is_absolute() and model_path.is_dir():
         model_path = model_path.resolve()
     bed_path = Path(args.bed_fn) if args.bed_fn != "EMPTY" else None
     vcf_path = Path(args.vcf_fn) if args.vcf_fn != "EMPTY" else None
     if bed_path and not bed_path.is_absolute() and bed_path.is_file():
-        bed_path = bed_path.resolve()
+        bed_path = bed_path.absolute()
     if vcf_path and not vcf_path.is_absolute() and vcf_path.is_file():
-        vcf_path = vcf_path.resolve()
+        vcf_path = vcf_path.absolute()
     if not output_folder.is_absolute():
         warn("No absolute output path provided, using current directory as prefix")
         output_folder = (cwd / output_folder).resolve()

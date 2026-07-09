@@ -1,3 +1,4 @@
+import sys
 from sys import stdin
 from argparse import ArgumentParser, SUPPRESS
 import os
@@ -36,8 +37,8 @@ def select_phase_qual_from_stdin(args):
     if len(low_phase_qual_list) == 0:
         print(log_warning(
             "[WARNING] Cannot find any 0/1 variant in pileup output using variant quality cut-off proportion: {}, total heterozygous variants: {}".format(
-                low_qual_hete_var_pct, len(low_phase_qual_list))))
-        print(log_warning("[WARNING] Set low variant quality score cut-off to 0.0"))
+                low_qual_hete_var_pct, len(low_phase_qual_list))), file=sys.stderr)
+        print(log_warning("[WARNING] Set low variant quality score cut-off to 0.0"), file=sys.stderr)
         qual_cut_off = 0.0
     else:
         qual_cut_off = low_phase_qual_list[-1]
@@ -87,8 +88,8 @@ def select_qual_from_stdin(args):
     if len(low_variant_qual_list) == 0:
         print(log_warning(
             "[WARNING] Cannot find any low-quality 0/1 or 1/1 variant in pileup output using variant quality cut-off proportion: {}, total variants: {}".format(
-                var_pct_full, len(variant_qual_list))))
-        print(log_warning("[WARNING] Set low variant quality score cut-off to 0.0"))
+                var_pct_full, len(variant_qual_list))), file=sys.stderr)
+        print(log_warning("[WARNING] Set low variant quality score cut-off to 0.0"), file=sys.stderr)
         var_qual_cut_off = 0.0
     else:
         var_qual_cut_off = low_variant_qual_list[-1]
@@ -98,8 +99,8 @@ def select_qual_from_stdin(args):
     if len(low_ref_qual_list) == 0:
         print(log_warning(
             "[WARNING] Cannot find any low-quality 0/0 reference calls in pileup output using reference quality cut-off proportion: {}, total reference calls: {}".format(
-                ref_pct_full, len(ref_qual_list))))
-        print(log_warning("[WARNING] Set low reference quality score cut-off to 0.0"))
+                ref_pct_full, len(ref_qual_list))), file=sys.stderr)
+        print(log_warning("[WARNING] Set low reference quality score cut-off to 0.0"), file=sys.stderr)
         ref_qual_cut_off = 0.0
     else:
         ref_qual_cut_off = low_ref_qual_list[-1]

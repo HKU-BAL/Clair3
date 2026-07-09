@@ -210,7 +210,7 @@ def call_variants_from_cffi(args, output_config, output_utilities):
                 verbose=False
             )
         except Exception as e:
-            print("channel creation failed: " + str(e))
+            print("channel creation failed: " + str(e), file=sys.stderr)
             sys.exit()
     elif args.use_gpu:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id) if args.gpu_id else ""
@@ -343,7 +343,7 @@ def call_variants_from_cffi(args, output_config, output_utilities):
                         result = future.result()
                         args.output_file.write(result)
                     except Exception as e:
-                        print(f"[Error] Task failed: {e}", flush=True)
+                        print(f"[Error] Task failed: {e}", flush=True, file=sys.stderr)
                         # Cleanup shared memory if worker failed before unlink
                         try:
                             orphan_shm = shared_memory.SharedMemory(name=shm_name)

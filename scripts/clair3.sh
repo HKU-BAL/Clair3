@@ -11,7 +11,7 @@ min_mq::,min_coverage::,min_contig_size::,snp_min_af::,indel_min_af::,ref_pct_fu
 use_whatshap_for_intermediate_phasing::,use_longphase_for_intermediate_phasing::,use_whatshap_for_final_output_phasing::,use_longphase_for_final_output_phasing::,use_whatshap_for_final_output_haplotagging::,keep_iupac_bases::,\
 no_phasing_for_fa::,pileup_model_prefix::,fa_model_prefix::,call_snp_only::,enable_variant_calling_at_sequence_head_and_tail::,output_all_contigs_in_gvcf_header::,remove_intermediate_dir::,enable_phasing::,enable_long_indel::,use_gpu::,longphase_for_phasing::,longphase::,base_err::,gq_bin_size::,enable_dwell_time:: -n 'run_clair3.sh' -- "$@"`
 
-if [ $? != 0 ] ; then echo"No input. Terminating...">&2 ; exit 1 ; fi
+if [ $? != 0 ] ; then echo "No input. Terminating..." >&2 ; exit 1 ; fi
 eval set -- "${ARGS}"
 
 while true; do

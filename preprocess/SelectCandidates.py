@@ -34,7 +34,7 @@ def print_calling_step(output_fn=""):
     merge_output = os.path.join(os.path.dirname(output_fn), 'merge_output.vcf.gz')
     pileup_output = os.path.join(os.path.dirname(output_fn), 'pileup.vcf.gz')
 
-    print (log_warning("[WARNING] Copying pileup.vcf.gz to {}".format(merge_output)))
+    print (log_warning("[WARNING] Copying pileup.vcf.gz to {}".format(merge_output)), file=sys.stderr)
     subprocess.run('cp {} {}'.format(pileup_output, merge_output), shell=True, stdout=subprocess.PIPE,
                    stderr=subprocess.PIPE)
 
@@ -250,7 +250,7 @@ def SelectCandidates(args):
 
             if len(need_phasing_row_list) == 0:
                 print(log_warning(
-                    "[WARNING] Cannot find any low-quality 0/0, 0/1 or 1/1 variant in pileup output in contig {}".format(contig_name)))
+                    "[WARNING] Cannot find any low-quality 0/0, 0/1 or 1/1 variant in pileup output in contig {}".format(contig_name)), file=sys.stderr)
 
             region_num = len(need_phasing_row_list) // split_bed_size + 1 if len(
                 need_phasing_row_list) % split_bed_size else len(need_phasing_row_list) // split_bed_size

@@ -1,6 +1,7 @@
 import itertools
 import os
 import platform
+import sys
 from subprocess import run
 from cffi import FFI
 
@@ -26,7 +27,7 @@ else:
         extra_link_args = ['-Wl,-rpath={}/lib'.format(conda_path)]
         library_dirs.append(os.path.join(conda_path, 'lib'))
     except KeyError:
-        print("[WARNING] Conda prefix not found, please activate clair3 conda environment first!\n")
+        print("[WARNING] Conda prefix not found, please activate clair3 conda environment first!\n", file=sys.stderr)
 
 htslib_static = os.path.join(htslib_dir, 'libhts.a')
 extra_objects = []

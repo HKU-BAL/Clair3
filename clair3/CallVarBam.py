@@ -79,7 +79,7 @@ def Run(args):
         bam_fn = file_path_from(args.bam_fn)
         if bam_fn is None or bam_fn == "":
             print(log_warning(
-                "[WARNING] Skip full-alignment variant calling for empty full-alignment regions"))
+                "[WARNING] Skip full-alignment variant calling for empty full-alignment regions"), file=sys.stderr)
             return
     ref_fn = file_path_from(args.ref_fn, exit_on_not_found=True)
     bed_fn = file_path_from(args.bed_fn)
@@ -281,26 +281,26 @@ def Run(args):
             c.realign_reads.stdout.close()
             c.realign_reads.wait()
     except KeyboardInterrupt as e:
-        print("KeyboardInterrupt received when waiting at CallVarBam, terminating all scripts.")
+        print("KeyboardInterrupt received when waiting at CallVarBam, terminating all scripts.", file=sys.stderr)
         try:
             c.call_variant.terminate()
             c.create_tensor.terminate()
             if need_realignment:
                 c.realign_reads.terminate()
         except Exception as e:
-            print(e)
+            print(e, file=sys.stderr)
 
         raise KeyboardInterrupt
     except Exception as e:
-        print("Exception received when waiting at CallVarBam, terminating all scripts.")
-        print(e)
+        print("Exception received when waiting at CallVarBam, terminating all scripts.", file=sys.stderr)
+        print(e, file=sys.stderr)
         try:
             c.call_variant.terminate()
             c.create_tensor.terminate()
             if need_realignment:
                 c.realign_reads.terminate()
         except Exception as e:
-            print(e)
+            print(e, file=sys.stderr)
 
         raise e
 

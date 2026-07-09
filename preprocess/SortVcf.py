@@ -1,6 +1,7 @@
 import os
 import subprocess
 import shlex
+import sys
 from sys import stdin, exit
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -37,7 +38,7 @@ def print_calling_step(output_fn=""):
     merge_output = os.path.join(os.path.dirname(output_fn), 'merge_output.vcf.gz')
     pileup_output = os.path.join(os.path.dirname(output_fn), 'pileup.vcf.gz')
 
-    print (log_warning("[WARNING] Copying pileup.vcf.gz to {}".format(merge_output)))
+    print (log_warning("[WARNING] Copying pileup.vcf.gz to {}".format(merge_output)), file=sys.stderr)
     subprocess.run('cp {} {}'.format(pileup_output, merge_output), shell=True, stdout=subprocess.PIPE,
                    stderr=subprocess.PIPE)
 
@@ -58,7 +59,7 @@ def check_header_in_gvcf(header, contigs_list):
 def check_malformed_records(row, file, contig=None, check_header=False, sample_name=None):
     if check_header:
         if row.startswith("#CHROM") and len(row.split('\t')) != 10:
-            print(log_warning("[WARNING] Malformed header line:\n {} in {}, split into two lines").format(row, file))
+            print(log_warning("[WARNING] Malformed header line:\n {} in {}, split into two lines").format(row, file), file=sys.stderr)
             if sample_name is not None:
                 # add sample name to the header
                 chr_pos = row.find(sample_name) + len(sample_name)
@@ -81,10 +82,10 @@ def check_malformed_records(row, file, contig=None, check_header=False, sample_n
             return row, None
         if len(row.split('\t')) > 19:
             #multiple malformed, skip the row
-            print(log_warning("[WARNING] Malformed header line:\n {} in {}, skip!").format(row, file))
+            print(log_warning("[WARNING] Malformed header line:\n {} in {}, skip!").format(row, file), file=sys.stderr)
             return None, None
         else:
-            print(log_warning("[WARNING] Malformed VCF line:\n {} in {}, split into two lines").format(row, file))
+            print(log_warning("[WARNING] Malformed VCF line:\n {} in {}, split into two lines").format(row, file), file=sys.stderr)
             #the second position
             chr_pos = row[len(contig):].find(contig) + len(contig)
             first_row = row[:chr_pos] + '\n'
@@ -133,9 +134,9 @@ def sort_vcf_from_stdin(args):
         contig_dict[ctg_name][int(pos)] = row
         no_vcf_output = False
     if row_count == 0:
-        print(log_warning("[WARNING] No vcf file found, please check the setting"))
+        print(log_warning("[WARNING] No vcf file found, please check the setting"), file=sys.stderr)
     if no_vcf_output:
-        print(log_warning("[WARNING] No variant found, please check the setting"))
+        print(log_warning("[WARNING] No variant found, please check the setting"), file=sys.stderr)
 
     contigs_order = major_contigs_order + list(contig_dict.keys())
     contigs_order_list = sorted(contig_dict.keys(), key=lambda x: contigs_order.index(x))
@@ -170,7 +171,7 @@ def sort_vcf_from(args):
         if len(all_files) == 0:
             output_header(output_fn=output_fn, reference_file_path=ref_fn, cmd_fn=cmd_fn, sample_name=sample_name)
             print (log_warning(
-                "[WARNING] No vcf file found with prefix:{}/{}, output empty vcf file".format(input_dir,vcf_fn_prefix)))
+                "[WARNING] No vcf file found with prefix:{}/{}, output empty vcf file".format(input_dir,vcf_fn_prefix)), file=sys.stderr)
             compress_index_vcf(output_fn)
             print_calling_step(output_fn=output_fn)
             return
@@ -180,7 +181,7 @@ def sort_vcf_from(args):
         if len(all_files) == 0:
             output_header(output_fn=output_fn, reference_file_path=ref_fn, cmd_fn=cmd_fn, sample_name=sample_name)
             print (log_warning(
-                "[WARNING] No vcf file found with suffix:{}/{}, output empty vcf file".format(input_dir,vcf_fn_prefix)))
+                "[WARNING] No vcf file found with suffix:{}/{}, output empty vcf file".format(input_dir,vcf_fn_prefix)), file=sys.stderr)
             compress_index_vcf(output_fn)
             print_calling_step(output_fn=output_fn)
             return
@@ -369,14 +370,14 @@ def sort_vcf_from(args):
         output.close()
 
     if row_count == 0:
-        print (log_warning("[WARNING] No vcf file found, output empty vcf file"))
+        print (log_warning("[WARNING] No vcf file found, output empty vcf file"), file=sys.stderr)
         output_header(output_fn=output_fn, reference_file_path=ref_fn, cmd_fn=cmd_fn, sample_name=sample_name)
         compress_index_vcf(output_fn)
         print_calling_step(output_fn=output_fn)
         return
     if no_vcf_output:
         output_header(output_fn=output_fn, reference_file_path=ref_fn, cmd_fn=cmd_fn, sample_name=sample_name)
-        print (log_warning("[WARNING] No variant found, output empty vcf file"))
+        print (log_warning("[WARNING] No variant found, output empty vcf file"), file=sys.stderr)
         compress_index_vcf(output_fn)
         print_calling_step(output_fn=output_fn)
         return
