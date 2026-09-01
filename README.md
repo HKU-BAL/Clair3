@@ -445,8 +445,8 @@ The full ONT [Rerio](https://github.com/nanoporetech/rerio) catalog converted to
 | `r1041_e82_400bps_hac_v500` | R10.4.1 E8.2 (5 kHz) | v5.0.0 HAC |
 | `r1041_e82_400bps_sup_v430` | R10.4.1 E8.2 (5 kHz) | v4.3.0 SUP |
 | `r1041_e82_400bps_hac_v430` | R10.4.1 E8.2 (5 kHz) | v4.3.0 HAC |
-| `r1041_e82_400bps_sup_v410` | R10.4.1 E8.2 (5 kHz) | v4.1.0 SUP |
-| `r1041_e82_400bps_hac_v410` | R10.4.1 E8.2 (5 kHz) | v4.1.0 HAC |
+| `r1041_e82_400bps_sup_v410` | R10.4.1 E8.2 (4 kHz) | v4.1.0 SUP |
+| `r1041_e82_400bps_hac_v410` | R10.4.1 E8.2 (4 kHz) | v4.1.0 HAC |
 
 For other chemistries and basecaller versions (R10.4.1 E8.2 260 bps, R10.4 E8.1, earlier Guppy `g6xx` / `g5015`, v4.0.0 / v4.2.0), browse the full [model directory](https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/) and pick the one matching your chemistry and basecaller (Dorado / Guppy) version.
 
