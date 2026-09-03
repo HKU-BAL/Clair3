@@ -136,6 +136,10 @@ def parse_args():
     add_bool_arg(parser, "--gvcf", False)
     add_bool_arg(parser, "--haploid_precise", False)
     add_bool_arg(parser, "--haploid_sensitive", False)
+    # Gender-aware calling (issue #66), passed through to CheckEnvs/SortVcf/MergeVcf.
+    parser.add_argument("--gender", default="unknown", choices=["unknown", "male", "female"])
+    # Optional pseudo-autosomal region (PAR) BED; only meaningful with --gender male.
+    parser.add_argument("--par_regions_bed", default="EMPTY")
     add_bool_arg(parser, "--include_all_ctgs", False)
     add_bool_arg(parser, "--no_phasing_for_fa", False)
     add_bool_arg(parser, "--remove_intermediate_dir", False)
@@ -211,6 +215,7 @@ def main():
         f"--indel_min_af {q(args.indel_min_af)} "
         f"--cmd_fn {q(tmp_path / 'CMD')} "
         f"--min_contig_size {q(args.min_contig_size)} "
+        f"--gender {q(args.gender)} "
         f"--no_phasing_for_fa {q(args.no_phasing_for_fa)}"
     )
     run_command(cmd)
@@ -292,6 +297,8 @@ def main():
         f"--print_ref_calls {q(args.print_ref_calls)} "
         f"--haploid_precise {q(args.haploid_precise)} "
         f"--haploid_sensitive {q(args.haploid_sensitive)} "
+        f"--gender {q(args.gender)} "
+        f"--par_regions_bed {q(args.par_regions_bed)} "
         f"--qual {q(args.qual)} "
         f"--contigs_fn {q(tmp_path / 'CONTIGS')}"
     )
@@ -527,6 +534,8 @@ def main():
         f"--gvcf {q(args.gvcf)} "
         f"--haploid_precise {q(args.haploid_precise)} "
         f"--haploid_sensitive {q(args.haploid_sensitive)} "
+        f"--gender {q(args.gender)} "
+        f"--par_regions_bed {q(args.par_regions_bed)} "
         f"--gvcf_fn {q(tmp_path / 'merge_output/merge_{1}.gvcf')} "
         f"--non_var_gvcf_fn {q(gvcf_tmp_path / 'non_var.gvcf')} "
         f"--ref_fn {q(args.ref_fn)} "
