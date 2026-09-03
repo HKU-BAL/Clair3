@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from collections import defaultdict
 
 import shared.param_p as param
-from preprocess.MergeVcf import update_haploid_precise_genotype, update_haploid_sensitive_genotype, MarkLowQual
+from preprocess.MergeVcf import update_haploid_precise_genotype, update_haploid_sensitive_genotype, MarkLowQual, haploid_mode_decider
 from shared.utils import log_error, log_warning, file_path_from, subprocess_popen, get_header, str_none, str2bool
 major_contigs_order = ["chr" + str(a) for a in list(range(1, 23)) + ["X", "Y"]] + [str(a) for a in
                                                                                    list(range(1, 23)) + ["X", "Y"]]
@@ -91,10 +91,10 @@ def check_malformed_records(row, file, contig=None, check_header=False, sample_n
             first_row = row[:chr_pos] + '\n'
             second_row = row[chr_pos:]
             return first_row, second_row
-def postprocess_row_with_params(args, row):
+def postprocess_row_with_params(args, row, decide):
     # apply the user-specific filtering if only output pileup variants
-    is_haploid_precise_mode_enabled = args.haploid_precise
-    is_haploid_sensitive_mode_enabled = args.haploid_sensitive
+    # `decide` is the per-record haploid decider (global flags > --gender male on sex
+    # chromosomes, outside PAR), built once in sort_vcf_from to avoid re-reading PAR BED.
     print_ref = args.print_ref_calls
     QUAL = args.qual
 
@@ -102,9 +102,10 @@ def postprocess_row_with_params(args, row):
     ref_base, alt_base = columns[3], columns[4]
     qual = float(columns[5])
     is_reference = (alt_base == "." or ref_base == alt_base)
-    if is_haploid_precise_mode_enabled:
+    mode = decide(columns[0], int(columns[1]))
+    if mode == 'precise':
         row = update_haploid_precise_genotype(columns)
-    if is_haploid_sensitive_mode_enabled:
+    elif mode == 'sensitive':
         row = update_haploid_sensitive_genotype(columns)
     if not is_reference:
         row = MarkLowQual(row, QUAL, qual)
@@ -161,6 +162,10 @@ def sort_vcf_from(args):
     contigs_fn = args.contigs_fn
     cmd_fn = args.cmd_fn
     output_all_contigs_in_gvcf_header = args.output_all_contigs_in_gvcf_header
+
+    # Build the per-record haploid decider once (only used by the --pileup_only path
+    # below). Reusing it avoids re-reading the PAR BED for every record.
+    decide = haploid_mode_decider(args)
 
     if not os.path.exists(input_dir):
         exit(log_error("[ERROR] Input directory: {} not exists!").format(input_dir))
@@ -283,7 +288,7 @@ def sort_vcf_from(args):
             for pos in all_pos:
                 if args.pileup_only:
                     row = contig_dict[pos]
-                    row = postprocess_row_with_params(args, row)
+                    row = postprocess_row_with_params(args, row, decide)
                     if row is not None:
                         output.write(contig_dict[pos])
                 else:
@@ -355,7 +360,7 @@ def sort_vcf_from(args):
             for pos in all_pos:
                 if args.pileup_only:
                     row = all_contigs_dict[contig][pos]
-                    row = postprocess_row_with_params(args, row)
+                    row = postprocess_row_with_params(args, row, decide)
                     if row is not None:
                         output.write(row)
                 else:
@@ -433,6 +438,16 @@ def main():
 
     parser.add_argument('--haploid_sensitive', type=str2bool, default=False,
                         help="EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1 are considered as a variant")
+
+    # Gender-aware calling (issue #66). 'male' applies haploid mode to chrX/chrY only.
+    parser.add_argument('--gender', type=str, default='unknown',
+                        choices=['unknown', 'male', 'female'],
+                        help="Sample gender. 'male' applies haploid mode to chrX/chrY. default: unknown")
+
+    # Optional pseudo-autosomal region (PAR) BED; within these regions on chrX/chrY,
+    # haploid mode is NOT applied. Only meaningful with --gender male.
+    parser.add_argument('--par_regions_bed', type=str, default='EMPTY',
+                        help="BED of pseudo-autosomal regions (PAR). Only meaningful when --gender male is set. default: EMPTY (par_regions operation will be disabled, haploid mode will be applied to whole chrX/chrY)")
 
     parser.add_argument('--qual', type=int, default=2,
                         help="If set, variants with >$qual will be marked 'PASS', or 'LowQual' otherwise, optional")

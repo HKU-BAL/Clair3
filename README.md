@@ -59,6 +59,8 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 ---
 
 ## Latest Updates
+### v2.0.3 — *Sep 3, 2026*
+- Adds a `--gender` option so that variant calling handles the sex chromosomes (chrX/chrY) with the correct ploidy. For details on X,Y support, please see ([gender_option](https://github.com/HKU-BAL/Clair3/blob/main/docs/gender_option.md)).
 
 ### v2.0.2 — *Jun 25, 2026*
 

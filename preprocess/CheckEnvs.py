@@ -339,6 +339,12 @@ def CheckEnvs(args):
         sorted_contig_list, found_contig = check_contig_in_bam(bam_fn=bam_fn, sorted_contig_list=sorted_contig_list,
                                                                samtools=samtools)
 
+        # --gender female: drop chrY/Y from the contig list (both 'chr'-prefixed and bare forms).
+        # The explicit --ctg_name=chrY contradiction is already rejected in run_clair3.py;
+        # here we silently remove chrY that came from the default whitelist / --include_all_ctgs.
+        if args.gender == 'female':
+            sorted_contig_list = [c for c in sorted_contig_list if c not in ('chrY', 'Y')]
+
     if not found_contig:
         # output header only to merge_output.vcf.gz
         output_fn = os.path.join(output_fn_prefix, "merge_output.vcf")
@@ -400,6 +406,12 @@ def main():
 
     parser.add_argument('--ctg_name', type=str, default='EMPTY',
                         help="The name of sequence to be processed, separated by comma")
+
+    # Gender-aware calling (issue #66). Only used here to remove chrY/Y for 'female';
+    # 'male' haploid is applied later in MergeVcf/SortVcf, not in this module.
+    parser.add_argument('--gender', type=str, default='unknown',
+                        choices=['unknown', 'male', 'female'],
+                        help="Sample gender. 'female' removes chrY from the contig list. default: unknown")
 
     parser.add_argument('--bed_fn', type=str, nargs='?', action="store", default=None,
                         help="Call variant only in these regions. Will take an intersection if --ctg_name is set")

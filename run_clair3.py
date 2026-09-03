@@ -85,6 +85,19 @@ def parse_args():
     add_bool_arg(parser, "--no_phasing_for_fa", False)
     add_bool_arg(parser, "--haploid_precise", False)
     add_bool_arg(parser, "--haploid_sensitive", False)
+    # Gender-aware calling (issue #66): 'male' applies haploid mode to chrX/chrY,
+    # 'female' removes chrY from the contig list. Default keeps current behavior.
+    parser.add_argument(
+        "--gender",
+        default="unknown",
+        choices=["unknown", "male", "female"],
+        help="Sample gender. 'male' automatically applies haploid (precise) mode to "
+        "chrX/chrY (no need to also pass --haploid_precise); 'female' removes chrY "
+        "from the contig list. Default: unknown.",
+    )
+    # Optional pseudo-autosomal region (PAR) BED; only meaningful with --gender male.
+    # Within these regions on chrX/chrY, haploid mode is NOT applied.
+    parser.add_argument("--par_regions_bed", default="EMPTY")
     add_bool_arg(parser, "--enable_dwell_time", False)
 
     parser.add_argument("-v", "--version", action="version", version=f"Clair3 {VERSION}")
@@ -260,6 +273,13 @@ def tee_command(cmd, log_path):
 def main():
     args = parse_args()
 
+    # --gender female: if chrY/Y is explicitly requested via --ctg_name, warn that it
+    # will be removed from the contig list (non-fatal). The actual removal happens in
+    # CheckEnvs after the contig list is built.
+    if args.gender == "female" and args.ctg_name not in ("", "EMPTY"):
+        if set(args.ctg_name.split(",")) & {"chrY", "Y"}:
+            warn("--gender female: chrY/Y in --ctg_name will be removed from the contig list")
+
     cwd = Path.cwd()
     if str(cwd) == "/opt/bin":
         for label, value in (
@@ -359,6 +379,27 @@ def main():
         error_exit(f"Conda prefix not found, please activate clair3 conda environment first, model path: {model_path}")
     if not folder_exists(model_path):
         error_exit("Model path not found")
+
+    # --gender male: validate the optional --par_regions_bed (non-fatal). If it is set
+    # but missing/empty/unreadable, warn and fall back to "no PAR" (whole chrX/chrY haploid).
+    if args.gender == "male":
+        if args.par_regions_bed != "EMPTY":
+            par_bed = Path(args.par_regions_bed)
+            if not par_bed.is_absolute() and par_bed.is_file():
+                par_bed = par_bed.absolute()
+                args.par_regions_bed = str(par_bed)
+            if not par_bed.is_file() or par_bed.stat().st_size == 0:
+                warn(
+                    f"--par_regions_bed {args.par_regions_bed} is missing or empty; "
+                    f"proceeding WITHOUT PAR (chrX/chrY PAR regions will be treated as haploid)"
+                )
+                args.par_regions_bed = "EMPTY"
+        else:
+            print(
+                "[INFO] --gender male without --par_regions_bed: chrX/chrY PAR regions "
+                "will be treated as haploid. Consider providing --par_regions_bed for "
+                "pseudo-autosomal regions."
+            )
 
     max_detected = max_threads()
     if args.threads <= 0:
@@ -506,6 +547,8 @@ def main():
     print(f"[INFO] ENABLE OUTPUT GVCF: {args.gvcf}")
     print(f"[INFO] ENABLE HAPLOID PRECISE MODE: {args.haploid_precise}")
     print(f"[INFO] ENABLE HAPLOID SENSITIVE MODE: {args.haploid_sensitive}")
+    print(f"[INFO] GENDER: {args.gender}")
+    print(f"[INFO] PAR REGIONS BED: {args.par_regions_bed}")
     print(f"[INFO] ENABLE INCLUDE ALL CTGS CALLING: {args.include_all_ctgs}")
     print(f"[INFO] ENABLE NO PHASING FOR FULL ALIGNMENT: {args.no_phasing_for_fa}")
     print(f"[INFO] ENABLE REMOVING INTERMEDIATE FILES: {args.remove_intermediate_dir}")
@@ -569,6 +612,8 @@ def main():
         f"--print_ref_calls {shlex.quote(str(args.print_ref_calls))} "
         f"--haploid_precise {shlex.quote(str(args.haploid_precise))} "
         f"--haploid_sensitive {shlex.quote(str(args.haploid_sensitive))} "
+        f"--gender {shlex.quote(args.gender)} "
+        f"--par_regions_bed {shlex.quote(args.par_regions_bed)} "
         f"--include_all_ctgs {shlex.quote(str(args.include_all_ctgs))} "
         f"--no_phasing_for_fa {shlex.quote(str(args.no_phasing_for_fa))} "
         f"--pileup_model_prefix {shlex.quote(args.pileup_model_prefix)} "
