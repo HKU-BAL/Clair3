@@ -48,7 +48,7 @@ def variant_map_from(var_fn, tree, is_tree_empty):
     if var_fn is None:
         return Y, miss_variant_set, truth_alt_dict
 
-    f = subprocess_popen(shlex.split("gzip -fdc %s" % (var_fn)))
+    f = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (var_fn)))
     for row in f.stdout:
         if row[0] == "#":
             continue
@@ -320,7 +320,7 @@ def create_training_tensor_fa(args):
     # --- Step 3: Parse phased VCF → Variant structs for C haplotagging ---
     variant_list = []
     if need_haplotagging and phased_vcf_fn and os.path.exists(phased_vcf_fn):
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (phased_vcf_fn)))
+        unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (phased_vcf_fn)))
         for row in unzip_process.stdout:
             row = row.rstrip()
             if row[0] == '#':

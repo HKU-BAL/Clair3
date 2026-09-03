@@ -20,7 +20,7 @@ def split_extend_bed(args):
     if bed_fn is None:
         return
     output = []
-    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (bed_fn)))
+    unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (bed_fn)))
     pre_end, pre_start = -1, -1
 
     for row in unzip_process.stdout:

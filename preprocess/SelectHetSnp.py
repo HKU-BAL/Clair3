@@ -31,7 +31,7 @@ def FiterHeteSnpPhasing(args):
         phase_qual_cut_off = float(open(f_qual, 'r').read().rstrip())
         found_qual_cut_off = True
 
-    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (vcf_fn)))
+    unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (vcf_fn)))
     for row in unzip_process.stdout:
         row = row.rstrip()
         if row[0] == '#':
@@ -89,7 +89,7 @@ def FiterHeteSnp_FP(args):
     chr_prefix = args.chr_prefix
     contig_name = args.ctgName
     phasing_window_size = param.phasing_window_size
-    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (vcf_fn)))
+    unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (vcf_fn)))
     split_bed_size = args.split_bed_size
     split_folder = args.split_folder
     output = []
@@ -188,7 +188,7 @@ def FiterHeteSnp(args):
     candidate_positions = set()
 
     if vcf_fn and os.path.exists(vcf_fn):
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (vcf_fn)))
+        unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (vcf_fn)))
         for row in unzip_process.stdout:
             row =row.rstrip()
             if row[0] == '#':
@@ -209,7 +209,7 @@ def FiterHeteSnp(args):
 
     if alt_fn is not None:
         # vcf format
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (alt_fn)))
+        unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (alt_fn)))
         for row in unzip_process.stdout:
             if row[0] == '#':
                 continue
@@ -283,7 +283,7 @@ def FiterHeteSnp(args):
 
     # train or call in all_pos
     elif args.all_alt_fn is not None:
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (args.all_alt_fn)))
+        unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (args.all_alt_fn)))
         for row in unzip_process.stdout:
             if row[0] == '#':
                 continue

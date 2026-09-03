@@ -384,7 +384,7 @@ def main():
         print("")
         print("[INFO] 2/7 Select heterozygous SNP variants for Whatshap phasing and haplotagging")
         run_command(
-            f"gzip -fdc {q(output_folder / 'pileup.vcf.gz')} | {q(args.pypy)} {q(clair3)} SelectQual "
+            f"pigz -fdc -p 2 {q(output_folder / 'pileup.vcf.gz')} | {q(args.pypy)} {q(clair3)} SelectQual "
             f"--phase --output_fn {q(phase_vcf_path)} --var_pct_phasing {q(args.var_pct_phasing)}",
             log_path=log_path / "2_select_hetero_snp.log",
         )
@@ -444,7 +444,7 @@ def main():
     print("")
     print("[INFO] 5/7 Select candidates for full-alignment calling")
     run_command(
-        f"gzip -fdc {q(output_folder / 'pileup.vcf.gz')} | {q(args.pypy)} {q(clair3)} SelectQual "
+        f"pigz -fdc -p 2 {q(output_folder / 'pileup.vcf.gz')} | {q(args.pypy)} {q(clair3)} SelectQual "
         f"--output_fn {q(candidate_bed_path)} --var_pct_full {q(args.var_pct_full)} "
         f"--ref_pct_full {q(args.ref_pct_full)} --platform {q(args.platform)} --vcf_fn {q(args.vcf_fn)}",
         log_path=log_path / "5_select_candidate.log",

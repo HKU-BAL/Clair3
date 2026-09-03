@@ -188,7 +188,7 @@ def variant_map_from(var_fn, tree, is_tree_empty):
     if var_fn is None:
         return Y, miss_variant_set, truth_alt_dict
 
-    f = subprocess_popen(shlex.split("gzip -fdc %s" % (var_fn)))
+    f = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (var_fn)))
     for row in f.stdout:
         if row[0] == "#":
             continue

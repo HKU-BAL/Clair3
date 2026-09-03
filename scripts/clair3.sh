@@ -197,7 +197,7 @@ ${PYPY} ${CLAIR3} SortVcf \
     --qual ${QUAL} \
     --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
-if [ "$( gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in pileup variant calling"; exit 0; fi
+if [ "$( pigz -fdc -p 2 ${OUTPUT_FOLDER}/pileup.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in pileup variant calling"; exit 0; fi
 if [ ${PILEUP_ONLY} == True ]; then
     if [ ${RM_TMP_DIR} == True ]; then echo "[INFO] Removing intermediate files in ${OUTPUT_FOLDER}/tmp"; rm -rf ${OUTPUT_FOLDER}/tmp; fi
     echo "[INFO] Only call pileup output with --pileup_only, output file: ${OUTPUT_FOLDER}/pileup.vcf.gz"
@@ -216,7 +216,7 @@ then
 else
     echo $''
     echo "[INFO] 2/7 Select heterozygous SNP variants for Whatshap phasing and haplotagging"
-    gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --phase --output_fn ${PHASE_VCF_PATH} --var_pct_phasing ${PHASING_PCT}
+    pigz -fdc -p 2 ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --phase --output_fn ${PHASE_VCF_PATH} --var_pct_phasing ${PHASING_PCT}
     time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_2_select_hetero_snp.log -j${THREADS} \
     "${PYPY} ${CLAIR3} SelectHetSnp \
         --vcf_fn ${OUTPUT_FOLDER}/pileup.vcf.gz \
@@ -271,7 +271,7 @@ fi
 #-----------------------------------------------------------------------------------------------------------------------
 echo $''
 echo "[INFO] 5/7 Select candidates for full-alignment calling"
-gzip -fdc ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --output_fn ${CANDIDATE_BED_PATH} \
+pigz -fdc -p 2 ${OUTPUT_FOLDER}/pileup.vcf.gz | ${PYPY} ${CLAIR3} SelectQual --output_fn ${CANDIDATE_BED_PATH} \
 --var_pct_full ${PRO} --ref_pct_full ${REF_PRO} --platform ${PLATFORM} --vcf_fn ${VCF_FILE_PATH}
 time ${PARALLEL} --retries ${RETRIES} --joblog ${LOG_PATH}/parallel_5_select_candidate.log -j${THREADS} \
 "${PYPY} ${CLAIR3} SelectCandidates \
@@ -321,7 +321,7 @@ ${PYPY} ${CLAIR3} SortVcf \
     --ref_fn ${REFERENCE_FILE_PATH} \
     --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
-if [ "$( gzip -fdc ${OUTPUT_FOLDER}/full_alignment.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in full-alignment variant calling"; exit 0; fi
+if [ "$( pigz -fdc -p 2 ${OUTPUT_FOLDER}/full_alignment.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in full-alignment variant calling"; exit 0; fi
 # Compress GVCF output using lz4
 if [ ${GVCF} == True ]
 then
@@ -366,7 +366,7 @@ ${PYPY} ${CLAIR3} SortVcf \
     --cmd_fn ${OUTPUT_FOLDER}/tmp/CMD \
     --contigs_fn ${TMP_FILE_PATH}/CONTIGS
 
-if [ "$( gzip -fdc ${OUTPUT_FOLDER}/merge_output.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in variant merging"; exit 0; fi
+if [ "$( pigz -fdc -p 2 ${OUTPUT_FOLDER}/merge_output.vcf.gz | grep -v '#' | wc -l )" -eq 0 ]; then echo "[INFO] Exit in variant merging"; exit 0; fi
 if [ ${GVCF} == True ]
 then
     ${PYPY} ${CLAIR3} SortVcf \

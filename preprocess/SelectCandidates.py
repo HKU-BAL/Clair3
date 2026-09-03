@@ -167,7 +167,7 @@ def SelectCandidates(args):
 
     all_full_aln_regions = []
     if phased_vcf_fn and os.path.exists(phased_vcf_fn):
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (phased_vcf_fn)))
+        unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (phased_vcf_fn)))
         for row in unzip_process.stdout:
             row = row.rstrip()
             if row[0] == '#':
@@ -188,7 +188,7 @@ def SelectCandidates(args):
 
     if pileup_vcf_fn and os.path.exists(pileup_vcf_fn):
         # vcf format
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (pileup_vcf_fn)))
+        unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (pileup_vcf_fn)))
         for row in unzip_process.stdout:
             if row[0] == '#':
                 continue
@@ -299,7 +299,7 @@ def SelectCandidates(args):
 
     # Call variant in all candidate position
     elif args.all_alt_fn is not None:
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (args.all_alt_fn)))
+        unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (args.all_alt_fn)))
         for row in unzip_process.stdout:
             if row[0] == '#':
                 continue
