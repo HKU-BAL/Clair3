@@ -188,7 +188,7 @@ def reference_sequence_from(samtools_execute_command, fasta_file_path, regions):
 def vcf_candidates_from(vcf_fn, contig_name=None):
 
     known_variants_set =  set()
-    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (vcf_fn)))
+    unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (vcf_fn)))
 
     start_pos, end_pos = float('inf'), 0
     for row in unzip_process.stdout:

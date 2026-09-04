@@ -116,7 +116,7 @@ def MergeVcf_illumina(args):
     print_ref = args.print_ref_calls
 
     tree = bed_tree_from(bed_file_path=bed_fn, padding=param.no_of_positions, contig_name=contig_name)
-    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (pileup_vcf_fn)))
+    unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (pileup_vcf_fn)))
     output_dict = {}
     header = []
     pileup_count = 0
@@ -151,7 +151,7 @@ def MergeVcf_illumina(args):
     unzip_process.stdout.close()
     unzip_process.wait()
 
-    realigned_vcf_unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (full_alignment_vcf_fn)))
+    realigned_vcf_unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (full_alignment_vcf_fn)))
     realiged_read_num = 0
     for row in realigned_vcf_unzip_process.stdout:
         if row[0] == '#':
@@ -205,7 +205,7 @@ def MergeVcf(args):
     # Per-record haploid decision: global flags first, then --gender male on sex chromosomes (outside PAR).
     decide = haploid_mode_decider(args)
     print_ref = args.print_ref_calls
-    full_alignment_vcf_unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (full_alignment_vcf_fn)))
+    full_alignment_vcf_unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (full_alignment_vcf_fn)))
 
     full_alignment_output = []
     full_alignment_output_set = set()
@@ -242,7 +242,7 @@ def MergeVcf(args):
     full_alignment_vcf_unzip_process.stdout.close()
     full_alignment_vcf_unzip_process.wait()
 
-    pileup_vcf_unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (pileup_vcf_fn)))
+    pileup_vcf_unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (pileup_vcf_fn)))
 
     output_file = open(output_fn, 'w')
     output_file.write(''.join(header))

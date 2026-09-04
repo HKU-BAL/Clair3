@@ -32,7 +32,7 @@ def Cal(args):
         output_file = open(output_fn, 'w')
     else:
         output_file = None
-    happy_vcf_unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (happy_vcf_fn)))
+    happy_vcf_unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (happy_vcf_fn)))
 
     truth_all_tp, query_all_tp, query_all_fp, truth_all_fn = 0, 0, 0, 0
     truth_snp_tp, query_snp_tp, query_snp_fp, truth_snp_fn = 0, 0, 0, 0

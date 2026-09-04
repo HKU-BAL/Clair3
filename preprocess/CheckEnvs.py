@@ -99,7 +99,7 @@ def check_contig_in_bam(bam_fn, sorted_contig_list, samtools):
 def split_extend_vcf(vcf_fn, output_fn):
     expand_region_size = param.no_of_positions
     output_ctg_dict = defaultdict(list)
-    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (vcf_fn)))
+    unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (vcf_fn)))
 
     for row_id, row in enumerate(unzip_process.stdout):
         if row[0] == '#':
@@ -136,7 +136,7 @@ def split_extend_vcf(vcf_fn, output_fn):
 def split_extend_bed(bed_fn, output_fn, contig_set=None):
     expand_region_size = param.no_of_positions
     output_ctg_dict = defaultdict(list)
-    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (bed_fn)))
+    unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (bed_fn)))
     for row_id, row in enumerate(unzip_process.stdout):
         if row[0] == '#':
             continue

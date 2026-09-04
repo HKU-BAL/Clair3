@@ -339,7 +339,7 @@ def reads_realignment(args):
     global test_pos
     test_pos = None
     if is_bed_file_given:
-        candidate_file_path_process = subprocess_popen(shlex.split("gzip -fdc %s" % (bed_file_path)))
+        candidate_file_path_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (bed_file_path)))
         candidate_file_path_output = candidate_file_path_process.stdout
 
         ctg_start, ctg_end = float('inf'), 0

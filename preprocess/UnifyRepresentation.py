@@ -1010,7 +1010,7 @@ class RepresentationUnification(object):
 
 def parse_candidates_file(candidate_details_fn, contig_name=None):
     candidate_details_list = []
-    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % candidate_details_fn))
+    unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % candidate_details_fn))
     for row in unzip_process.stdout:
         candidate_details_list.append(row)
     return candidate_details_list
@@ -1142,7 +1142,7 @@ def UnifyRepresentation(args):
         regions=ref_regions
     )
 
-    unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (var_fn)))
+    unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (var_fn)))
     variant_dict = defaultdict(list)
     for row in unzip_process.stdout:
         if row[0] == '#':

@@ -148,7 +148,7 @@ class VcfReader(object):
             vcf_fp = open(self.vcf_fn)
             vcf_fo = vcf_fp
         else:
-            vcf_fp = subprocess_popen(shlex.split("gzip -fdc %s" % (self.vcf_fn)))
+            vcf_fp = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (self.vcf_fn)))
             vcf_fo = vcf_fp.stdout
         for row in vcf_fo:
             columns = row.strip().split()

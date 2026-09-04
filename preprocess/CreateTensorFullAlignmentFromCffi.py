@@ -80,7 +80,7 @@ def CreateTensorFullAlignment(args):
     variant_list = []
     if need_haplotagging and phased_vcf_fn and os.path.exists(phased_vcf_fn):
         # if need_haplotagging option enables, scan the phased vcf file and store the heterozygous SNP candidates from each phase set
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (phased_vcf_fn)))
+        unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (phased_vcf_fn)))
         for row in unzip_process.stdout:
             row = row.rstrip()
             if row[0] == '#':

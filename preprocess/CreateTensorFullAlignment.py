@@ -626,7 +626,7 @@ def CreateTensorFullAlignment(args):
         haplotag, which is faster than whatshap haplotag with more memory occupation.
         """
 
-        candidate_file_path_process = subprocess_popen(shlex.split("gzip -fdc %s" % (full_aln_regions)))
+        candidate_file_path_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (full_aln_regions)))
         candidate_file_path_output = candidate_file_path_process.stdout
 
         ctg_start, ctg_end = float('inf'), 0
@@ -706,7 +706,7 @@ def CreateTensorFullAlignment(args):
 
     if need_phasing and phased_vcf_fn and os.path.exists(phased_vcf_fn):
         # if need_phasing option enables, scan the phased vcf file and store the heterozygous snp candidates from each phase set
-        unzip_process = subprocess_popen(shlex.split("gzip -fdc %s" % (phased_vcf_fn)))
+        unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (phased_vcf_fn)))
         for row in unzip_process.stdout:
             row = row.rstrip()
             if row[0] == '#':

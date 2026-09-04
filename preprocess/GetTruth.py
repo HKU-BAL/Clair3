@@ -25,13 +25,13 @@ def OutputVariant(args):
         truth_vcf_set = set(vcf_candidates_from(vcf_fn=truth_vcf_fn, contig_name=ctg_name))
     if args.var_fn != "PIPE":
         var_fpo = open(var_fn, "wb")
-        var_fp = subprocess_popen(shlex.split("gzip -c"), stdin=PIPE, stdout=var_fpo)
+        var_fp = subprocess_popen(shlex.split("pigz -c -p 2"), stdin=PIPE, stdout=var_fpo)
     else:
         var_fp = TruthStdout(sys.stdout)
 
     is_ctg_region_provided = ctg_start is not None and ctg_end is not None
 
-    vcf_fp = subprocess_popen(shlex.split("gzip -fdc %s" % (vcf_fn)))
+    vcf_fp = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (vcf_fn)))
 
     for row in vcf_fp.stdout:
         columns = row.strip().split()
