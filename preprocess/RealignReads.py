@@ -633,6 +633,10 @@ def reads_realignment(args):
             save_file_fp.wait()
     samtools_view_process.stdout.close()
     samtools_view_process.wait()
+    # Fail loudly if samtools could not read the BAM/CRAM (e.g. CRAM decode error),
+    if samtools_view_process.returncode != 0:
+        print("[ERROR] samtools view failed (BAM/CRAM read error), exit code {}".format(samtools_view_process.returncode), file=sys.stderr)
+        sys.exit(1)
 
     if test_pos:
         save_file_fp = subprocess_popen(shlex.split("samtools index {}".format(

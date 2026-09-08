@@ -15,7 +15,13 @@ int read_bam(void *data, bam1_t *b) {
     int ret;
     while (1) {
         ret = aux->iter ? sam_itr_next(aux->fp, aux->iter, b) : sam_read1(aux->fp, aux->hdr, b);
-        if (ret<0) break;
+        if (ret < -1) {
+            // Read/decode error (not EOF, which is -1): propagate as a hard failure
+            // so the caller exits non-zero instead of silently treating it as EOF.
+            fprintf(stderr, "[ERROR] Failed to read alignment record (BAM/CRAM decode error).\n");
+            exit(1);
+        }
+        if (ret < 0) break;
         // only take primary alignments
         if (b->core.flag & (BAM_FUNMAP | BAM_FSECONDARY | BAM_FSUPPLEMENTARY | BAM_FQCFAIL | BAM_FDUP)) continue;
         // filter by mapping quality

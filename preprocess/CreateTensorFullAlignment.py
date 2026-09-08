@@ -1117,6 +1117,9 @@ def CreateTensorFullAlignment(args):
 
     samtools_mpileup_process.stdout.close()
     samtools_mpileup_process.wait()
+    if samtools_mpileup_process.returncode != 0:
+        print("[ERROR] samtools mpileup failed (BAM/CRAM read error), exit code {}".format(samtools_mpileup_process.returncode), file=sys.stderr)
+        sys.exit(1)
 
     if not unify_repre and tensor_can_output_path != "PIPE":
         tensor_can_fp.stdin.close()

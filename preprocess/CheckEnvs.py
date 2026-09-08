@@ -81,6 +81,12 @@ def check_contig_in_bam(bam_fn, sorted_contig_list, samtools):
             continue
         if int(mapped_reads) > 0:
             contig_with_read_support_set.add(contig_name)
+    bai_process.wait()
+    # Fail loudly if samtools could not read the BAM/CRAM (e.g. CRAM decode error),
+    # instead of silently proceeding with an empty contig list and exiting 0.
+    if bai_process.returncode != 0:
+        print("[ERROR] samtools idxstats failed (BAM/CRAM read error), exit code {}".format(bai_process.returncode), file=sys.stderr)
+        sys.exit(1)
     for contig_name in sorted_contig_list:
         if contig_name not in contig_with_read_support_set:
             print(log_warning(
