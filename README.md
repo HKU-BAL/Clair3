@@ -61,6 +61,8 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 ## Latest Updates
 ### v2.0.3 — *Sep 3, 2026*
 - Adds a `--gender` option so that variant calling handles the sex chromosomes (chrX/chrY) with the correct ploidy. For details on X,Y support, please see ([gender_option](https://github.com/HKU-BAL/Clair3/blob/main/docs/gender_option.md)).
+- Replaces shell calls to `gzip` with `pigz`, which is already an explicit dependency, so decompression/compression no longer fails in minimal environments where `gzip` is missing ([Issue#455](https://github.com/HKU-BAL/Clair3/issues/455)).
+- Returns a non-zero exit code when BAM/CRAM input cannot be decoded (e.g., a CRAM decode error) instead of silently emitting an empty VCF with exit code 0 ([Issue#453](https://github.com/HKU-BAL/Clair3/issues/453)).
 
 ### v2.0.2 — *Jun 25, 2026*
 
