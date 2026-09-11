@@ -15,7 +15,7 @@ This update lets the user specify the sample gender so that chrX/chrY are called
 | Value | Effect |
 |---|---|
 | `unknown` | Existing behavior: chrX and chrY are both called as diploid (backward compatible, no change). |
-| `male` | Automatically applies haploid precise mode to chrX/chrY: `0/1` is dropped and `1/1` becomes haploid `1`. 
+| `male` | Automatically applies haploid precise mode to chrX/chrY: `0/1` is dropped and `1/1` becomes haploid `1`. |
 | `female` | Removes chrY from the calling contig list; chrX remains diploid. |
 
 ### `--par_regions_bed=FILE` (optional)
@@ -28,10 +28,22 @@ This is only meaningful when `--gender male` is set.
 **Note**: PAR coordinates differ between reference builds. Please use the BED file that matches
 your reference:
 
-| Reference | Official PAR BED|
+| Reference | PAR BED |
 |---|---|
-| GRCh38 (hg38) | https://www.ncbi.nlm.nih.gov/grc/human|
+| GRCh38 (hg38) | [`docs/par_regions/GRCh38_PAR.bed`](par_regions/GRCh38_PAR.bed) in this repository |
 | CHM13 (T2T) | https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/analysis_set/chm13v2.0_PAR.bed |
+
+The GRCh38 BED is bundled in the repository (the GRC publishes the PAR coordinates as a table
+on its website, not as a downloadable BED). Download it with:
+
+```bash
+wget https://raw.githubusercontent.com/HKU-BAL/Clair3/main/docs/par_regions/GRCh38_PAR.bed
+```
+
+`--par_regions_bed` takes a **local path only** (a URL is not accepted), so download the file
+first. The bundled BED uses `chr`-prefixed contig names; if your reference uses Ensembl-style
+names (`X`/`Y` without the `chr` prefix), rename the contigs to match your reference, otherwise
+the PAR exemption will silently not apply.
 
 ---
 
@@ -62,7 +74,7 @@ your reference:
 ## Accuracy benefit (GRCh38 HG002 chrX/chrY, 20x sample (ONT platform), against the GIAB chrXY truth set)
 
 | Condition | SNP Recall | SNP Precision | SNP F1 |
-|---|---|---|
+|---|---|---|---|
 | `--gender unknown`  | 0.967 | 0.810 | 0.882 |
 | `--gender male` | 0.935 | 0.979 | 0.973 |
 | `--gender male --par_regions_bed` | 0.967 | 0.978 | 0.973 |

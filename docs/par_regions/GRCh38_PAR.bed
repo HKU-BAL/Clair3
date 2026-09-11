@@ -1,0 +1,11 @@
+# GRCh38 (hg38) pseudo-autosomal regions (PAR), for use with:
+#   run_clair3.py --gender male --par_regions_bed=GRCh38_PAR.bed
+#
+# Columns are BED format: 0-based, half-open [start, end).
+# Source: GRC PAR table, https://www.ncbi.nlm.nih.gov/grc/human (retrieved 2026-09-11).
+# The GRC table lists 1-based inclusive ranges; start has been decremented by 1 here.
+# Contig names use the 'chr' prefix (GRC/UCSC convention).
+chrX	10000	2781479
+chrX	155701382	156030895
+chrY	10000	2781479
+chrY	56887902	57217415
