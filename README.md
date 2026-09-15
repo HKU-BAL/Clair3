@@ -800,4 +800,4 @@ GVCF output is **GATK-compatible** and passes GATK `ValidateVariants`. Clair3 us
 | --- | --- | --- |
 | Symphonizing pileup and full-alignment for deep learning-based long-read variant calling | [Nature Computational Science](https://rdcu.be/c1TPa) · [bioRxiv preprint](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v2) | Original Clair3 |
 | Accelerated long-read variant calling with Clair3 for whole-genome sequencing | [Bioinformatics, 2026](https://doi.org/10.1093/bioinformatics/btag181) | GPU-accelerated Clair3 |
-| Leveraging ONT move table values for signal aware variant calling | [bioRxiv preprint, 2026](https://www.biorxiv.org/content/10.64898/2026.02.13.705285v1) | ONT `mv`-tag (move-table) signal-aware tuning |
+| Leveraging ONT move table values for signal aware variant calling | [Bioinformatics, 2026](https://doi.org/10.1093/bioinformatics/btag376) | ONT `mv`-tag (move-table) signal-aware tuning |
