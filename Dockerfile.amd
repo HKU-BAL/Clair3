@@ -32,7 +32,9 @@
 ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 
-# GPU architecture for the PyTorch [device-gfx*] extra; override with --build-arg.
+# GPU architecture(s) for the PyTorch [device-gfx*] extras. Accepts one arch or a
+# comma/semicolon-separated list (e.g. "gfx942;gfx950") to bundle kernels for
+# multiple GPUs in a single image; override with --build-arg.
 ARG GFX_ARCH=gfx950
 
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
@@ -66,9 +68,11 @@ ENV PATH=${VIRTUAL_ENV}/bin:/opt/bin:${PATH}
 # setuptools/wheel: Python 3.12+ venvs omit setuptools, which cffi needs to build
 # libclair3.so.
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    TORCH_EXTRAS="$(echo "${GFX_ARCH}" | tr ',;' '\n\n' | sed '/^$/d; s/^/device-/' | paste -sd, -)" && \
+    echo "GFX_ARCH=${GFX_ARCH} -> torch[${TORCH_EXTRAS}]" && \
     pip install --no-cache-dir \
       --index-url https://stable.repo.amd.com/rocm/whl-next/ \
-      "torch[device-${GFX_ARCH}]" && \
+      "torch[${TORCH_EXTRAS}]" && \
     pip install --no-cache-dir \
       numpy \
       h5py \
