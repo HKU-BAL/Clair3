@@ -22,6 +22,7 @@ def split_extend_bed(args):
     output = []
     unzip_process = subprocess_popen(shlex.split("pigz -fdc -p 2 %s" % (bed_fn)))
     pre_end, pre_start = -1, -1
+    pre_ctg_name = contig_name
 
     for row in unzip_process.stdout:
 
@@ -39,14 +40,20 @@ def split_extend_bed(args):
         if pre_start == -1:
             pre_start = ctg_start - expand_region_size
             pre_end = ctg_end + expand_region_size
+            pre_ctg_name = ctg_name
             continue
         if pre_end >= ctg_start - expand_region_size:
             pre_end = ctg_end + expand_region_size
             continue
         else:
-            output.append(' '.join([contig_name, str(pre_start), str(pre_end)]))
+            output.append(' '.join([pre_ctg_name, str(pre_start), str(pre_end)]))
             pre_start = ctg_start - expand_region_size
             pre_end = ctg_end + expand_region_size
+            pre_ctg_name = ctg_name
+
+    # flush the region still pending after the loop (issue #466)
+    if pre_start != -1:
+        output.append(' '.join([pre_ctg_name, str(pre_start), str(pre_end)]))
 
     with open(output_fn, 'w') as output_file:
         output_file.write('\n'.join(output))

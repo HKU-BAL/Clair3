@@ -534,8 +534,12 @@ def get_training_array(tensor_fn, var_fn, bed_fn, bin_fn, shuffle=True, is_allow
             except StopIteration:
                 completed = True
         
-            if X is None or not len(X):
+            if X is None:
                 break
+            if not len(X):
+                # a batch with zero truth variants is emptied by _filter_non_variants();
+                # keep reading instead of abandoning the rest of the tensor stream (issue #468)
+                continue
             all_chr_pos = sorted(X.keys())
             if shuffle == True:
                 np.random.shuffle(all_chr_pos)
