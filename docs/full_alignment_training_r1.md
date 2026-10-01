@@ -118,6 +118,9 @@ UNIFIED_VCF_FILE_PATH=(
 CHR_PREFIX="chr"
 
 # array of chromosomes (do not include "chr"-prefix) to training in all sample
+## keeping a chromosome out of this array means its bins are never generated -- this is how
+## the pre-trained models hold out chr20. The 'Train' step has no implicit hold-out; pass
+## --exclude_training_contigs if you need one as well (see section III).
 CHR=(21 22)
 
 # Number of threads to be used
@@ -349,6 +352,14 @@ ${PYTHON3} ${CLAIR3} Train \
 
  - `--add_indel_length` :  enable or disable the two indel-length tasks. In the pre-trained models, the two tasks are enabled in full-alignment calling.
  - `--random_validation`: randomly holdout 10% from all candidate sites as validation data, the best-performing epoch on the validation data are selected as our pre-trained model.
+ - `--exclude_training_contigs` : comma-separated contig names whose bin files are held out of training, matched against the **contig field** (the last `_`-separated token, with an optional `chr` prefix) of the bin filename, so `20` matches `bin_S_1000_20` and `bin_S_1000_chr20`. **Nothing is held out unless this is set** -- out of the box, `Train` uses every bin in the directory. Every held-out bin is reported in the training log.
+ - `--exclude_training_samples` : comma-separated substrings; any bin whose filename contains one of them is held out of training (e.g. `--exclude_training_samples hg003`).
+
+> **Note on holding out chromosomes.** A bin filename alone cannot say whether the last token is a contig or a depth -- `bin_S_1000_20` may mean contig 20, while `bin_S_20` means depth 20 -- so `Train` has **no implicit hold-out**: guessing here would silently drop training data. The pre-trained Clair3 models keep chromosome 20 aside upstream, by leaving it out of the `CHR` array in section I (a chromosome absent from that array never has its bins generated) and by using a training BED without chr20. If you also need to hold a contig out at training time -- for example when reusing bins from an earlier run -- pass `--exclude_training_contigs`.
+>
+> Every bin held out by either option is reported in the training log, so bins are never dropped silently. Earlier releases instead used a hardcoded substring check for `_20_`. That check never matched the documented `bin_<sample>_<depth>_<contig>` naming (the contig is the last token, so `bin_S_1000_20` does not contain `_20_`), yet it **did** drop bins whose *depth* token was 20 -- e.g. bins from 20% downsampling or a 20x run. That behaviour is gone: nothing is excluded unless you ask for it.
+>
+> If your bin names carry **no contig field** (`bin_<sample>_<depth>`, as in some example pipelines), the last token is the depth, so `--exclude_training_contigs 20` would also match a depth of 20. Prefer naming bins `bin_<sample>_<depth>_<contig>`, and check the log -- every held-out bin is listed.
 
 #### 2. full-alignment model fine-tune using pre-trained model (optional)
 
