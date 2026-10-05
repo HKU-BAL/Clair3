@@ -195,7 +195,7 @@ MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2 \
+  hkubal/clair3:v2.0.4 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -209,7 +209,7 @@ docker run -it \
 
 #### GPU (NVIDIA CUDA on Linux)
 
-Image: `hkubal/clair3:v2.0.2_gpu` (built on CUDA 12.1).
+Image: `hkubal/clair3:v2.0.4_gpu` (built on CUDA 12.1).
 
 **Requirements**
 
@@ -220,7 +220,7 @@ Image: `hkubal/clair3:v2.0.2_gpu` (built on CUDA 12.1).
 docker run -it --gpus all \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2_gpu \
+  hkubal/clair3:v2.0.4_gpu \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -247,11 +247,11 @@ conda config --add channels defaults
 conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
 
-singularity pull docker://hkubal/clair3:v2.0.2
+singularity pull docker://hkubal/clair3:v2.0.4
 
 singularity exec \
   -B ${INPUT_DIR},${OUTPUT_DIR} \
-  clair3_v2.0.2.sif \
+  clair3_v2.0.4.sif \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -269,11 +269,11 @@ singularity exec \
 - Singularity (or Apptainer) with `--nv` support.
 
 ```bash
-singularity pull docker://hkubal/clair3:v2.0.2_gpu
+singularity pull docker://hkubal/clair3:v2.0.4_gpu
 
 singularity exec --nv --cleanenv --env TMPDIR=/tmp \
   -B ${INPUT_DIR},${OUTPUT_DIR} \
-  clair3_v2.0.2_gpu.sif \
+  clair3_v2.0.4_gpu.sif \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -600,7 +600,7 @@ CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2 \
+  hkubal/clair3:v2.0.4 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -619,7 +619,7 @@ KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. /home/user1/known_variants.vcf.gz
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2 \
+  hkubal/clair3:v2.0.4 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -643,7 +643,7 @@ BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2 \
+  hkubal/clair3:v2.0.4 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -660,7 +660,7 @@ docker run -it \
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2 \
+  hkubal/clair3:v2.0.4 \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
