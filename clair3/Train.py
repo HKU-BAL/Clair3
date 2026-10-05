@@ -177,6 +177,57 @@ def exist_file_prefix(exclude_training_samples, f):
     return False
 
 
+# NOTE: there is deliberately NO implicit hold-out here. A filename alone cannot say whether a
+# trailing token such as "20" means a contig or a depth (bin_S_1000_20 vs bin_S_20), so any
+# default rule would either miss its target or silently drop unrelated bins -- which is exactly
+# the bug #470 reported. Clair3's own models keep chromosome 20 out by omitting it from the CHR
+# array and from the training BED; anyone needing a further hold-out asks for it explicitly.
+
+
+def _contig_from_bin_name(bin_name):
+    """Contig field of a MergeBin-generated bin filename.
+
+    MergeBin writes bins as ``bin_<sample>_<depth>_<contig>`` (see
+    docs/full_alignment_training.md), so the contig is the last '_'-separated
+    token, optionally carrying a ``chr`` prefix.
+    """
+    token = bin_name.rsplit('_', 1)[-1]
+    if token.lower().startswith('chr'):
+        token = token[3:]
+    return token
+
+
+def filter_training_bin_list(bin_list, exclude_training_samples, excluded_contigs=None):
+    """Split the bin listing into the bins used for training and the ones excluded.
+
+    Returns ``(kept, excluded)`` where ``excluded`` is a list of
+    ``(filename, reason)`` pairs -- callers are expected to log these so that
+    excluding a bin is never silent (issue #470).
+
+    Nothing is excluded unless asked for: ``excluded_contigs`` defaults to None,
+    i.e. every bin in the directory is used. When it is given (comma-separated
+    contig names, matched against the contig field of the bin filename, with an
+    optional ``chr`` prefix), only the bins whose contig field matches are held
+    out -- and every one of them is reported so a mismatch is visible.
+    """
+    excluded_contig_set = set()
+    for item in (excluded_contigs or '').split(','):
+        item = item.strip().lower()
+        if item and item != 'none':
+            excluded_contig_set.add(item[3:] if item.startswith('chr') else item)
+
+    kept, excluded = [], []
+    for name in bin_list:
+        if exist_file_prefix(exclude_training_samples, name):
+            excluded.append((name, 'excluded by --exclude_training_samples'))
+        elif excluded_contig_set and _contig_from_bin_name(name) in excluded_contig_set:
+            excluded.append((name, 'excluded by --exclude_training_contigs (%s)'
+                             % ','.join(sorted(excluded_contig_set))))
+        else:
+            kept.append(name)
+    return kept, excluded
+
+
 def _load_checkpoint(model, checkpoint_path, device, is_ddp=False):
     checkpoint = torch.load(checkpoint_path, map_location=device)
     if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
@@ -257,6 +308,33 @@ def _run_epoch(model, loader, optimizer, loss_funcs, label_shapes, device, train
     return epoch_loss / max(1, batches)
 
 
+def populate_dataset_table(file_list, file_path, batch_size, chunk_size):
+    """Open each training bin and count how many chunks it contributes.
+
+    Lives at module level (rather than nested in train_model) so the chunk
+    arithmetic is directly testable -- see tests/test_issue469_train_chunk_num.py.
+
+    NOTE: chunk_num can currently go negative for bins holding fewer tensors
+    than one batch; see issue #469.
+    """
+    chunk_offset = np.zeros(len(file_list), dtype=int)
+    table_dataset_list = []
+    for bin_idx, bin_file in enumerate(file_list):
+        table_dataset = h5py.File(os.path.join(file_path, bin_file), 'r')
+        table_dataset_list.append(table_dataset)
+        # The subtraction is headroom for the per-epoch random offset, which is drawn from
+        # [0, chunk_size). A bin holding fewer tensors than one batch would come out negative,
+        # so it falls back to a single-chunk headroom -- which is all that offset needs -- and
+        # still contributes chunks instead of nothing (issue #469). Bins that keep a positive
+        # count are sampled exactly as before, so large (human-scale) bins are unaffected.
+        label_num = len(table_dataset["label"])
+        chunk_num = (label_num - batch_size) // chunk_size
+        if chunk_num <= 0:
+            chunk_num = max(0, (label_num - chunk_size) // chunk_size)
+        chunk_offset[bin_idx] = chunk_num
+    return table_dataset_list, chunk_offset
+
+
 def train_model(args, local_rank=None):
     platform = args.platform
     pileup = args.pileup
@@ -321,29 +399,22 @@ def train_model(args, local_rank=None):
     task_num = 4 if add_indel_length else 2
     mini_epochs = args.mini_epochs
 
-    def populate_dataset_table(file_list, file_path):
-        chunk_offset = np.zeros(len(file_list), dtype=int)
-        table_dataset_list = []
-        for bin_idx, bin_file in enumerate(file_list):
-            table_dataset = h5py.File(os.path.join(file_path, bin_file), 'r')
-            table_dataset_list.append(table_dataset)
-            chunk_num = (len(table_dataset["label"]) - batch_size) // chunk_size
-            chunk_offset[bin_idx] = chunk_num
-        return table_dataset_list, chunk_offset
-
     bin_list = os.listdir(args.bin_fn)
-    bin_list = [f for f in bin_list if '_20_' not in f and not exist_file_prefix(exclude_training_samples, f)]
+    bin_list, excluded_bins = filter_training_bin_list(
+        bin_list, exclude_training_samples, args.exclude_training_contigs)
     if is_main_process():
+        for excluded_name, reason in sorted(excluded_bins):
+            logging.info("[INFO] Excluded training bin %s (%s)", excluded_name, reason)
         logging.info("[INFO] total %d training bin files: %s", len(bin_list), ','.join(bin_list))
 
     effective_label_num = None
-    table_dataset_list, chunk_offset = populate_dataset_table(bin_list, args.bin_fn)
+    table_dataset_list, chunk_offset = populate_dataset_table(bin_list, args.bin_fn, batch_size, chunk_size)
 
     if validation_fn:
         val_list = os.listdir(validation_fn)
         if is_main_process():
             logging.info("[INFO] total %d validation bin files: %s", len(val_list), ','.join(val_list))
-        validate_table_dataset_list, validate_chunk_offset = populate_dataset_table(val_list, args.validation_fn)
+        validate_table_dataset_list, validate_chunk_offset = populate_dataset_table(val_list, args.validation_fn, batch_size, chunk_size)
 
         train_chunk_num = int(sum(chunk_offset))
         train_shuffle_chunk_list, _ = get_chunk_list(chunk_offset, train_chunk_num)
@@ -592,6 +663,15 @@ def main():
 
     parser.add_argument('--exclude_training_samples', type=str, default=None,
                         help="Define training samples to be excluded")
+
+    parser.add_argument('--exclude_training_contigs', type=str, default=None,
+                        help="Comma-separated contig names whose bins are held out of training, matched "
+                             "against the contig field (the last '_'-separated token, optional 'chr' prefix) "
+                             "of the bin filename, so '20' matches bin_S_1000_20 and bin_S_1000_chr20. "
+                             "Nothing is held out unless this is set. Bins named without a contig field "
+                             "(e.g. bin_<sample>_<depth>) make the last token the depth, so prefer naming "
+                             "bins bin_<sample>_<depth>_<contig>. Every held-out bin is logged. "
+                             "default: %(default)s)")
 
     parser.add_argument('--mini_epochs', type=int, default=1,
                         help="Number of mini-epochs per epoch")
