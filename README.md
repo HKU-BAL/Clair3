@@ -59,14 +59,17 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 ---
 
 ## Latest Updates
-### v2.0.3 — *Sep 3, 2026*
-- Adds a `--gender` option so that variant calling handles the sex chromosomes (chrX/chrY) with the correct ploidy. For details on X,Y support, please see ([gender_option](https://github.com/HKU-BAL/Clair3/blob/main/docs/gender_option.md)).
-- Replaces shell calls to `gzip` with `pigz`, which is already an explicit dependency, so decompression/compression no longer fails in minimal environments where `gzip` is missing ([Issue#455](https://github.com/HKU-BAL/Clair3/issues/455)).
-- Returns a non-zero exit code when BAM/CRAM input cannot be decoded (e.g., a CRAM decode error) instead of silently emitting an empty VCF with exit code 0 ([Issue#453](https://github.com/HKU-BAL/Clair3/issues/453)).
+### v2.0.4 — *Oct 5, 2026*
+- `--device=cuda:N` now runs on the requested physical GPU. The GPU scheduler mixed up the 0-based indices of the *visible* devices with physical GPU ids, so `--device=cuda:3` handed every worker `--gpu_id 0` and the job landed on GPU 0; setting `CUDA_VISIBLE_DEVICES` by hand failed the same way, because the worker overwrote it with that logical index ([Issue#472](https://github.com/HKU-BAL/Clair3/issues/472)). A requested device that does not exist on the host is now refused with a clear message instead of silently falling back to GPU 0.
 - Fixed `SplitExtendBed` silently dropping the last BED region — the pending merged region was only written out when the *next* non-overlapping region arrived, so a single-region (whole-contig) BED produced an empty file, and downstream steps failed with a chunk region of `ctg:nan-nan` ([Issue#466](https://github.com/HKU-BAL/Clair3/issues/466)).
 - Fixed training-tensor generation abandoning the tensor stream at the first candidate batch that contained no truth variants. With `--maximum_non_variant_ratio` set, such a batch is emptied by the ratio filter and was treated as end-of-input, silently truncating the output bin and then killing the producer with `BrokenPipeError` — common on sparse truth sets and small genomes ([Issue#468](https://github.com/HKU-BAL/Clair3/issues/468)).
 - Fixed `Train` computing a negative chunk count for bin files holding fewer tensors than one batch, which made `size of dataset` and `total training steps` negative and aborted training with `ValueError: Empty logs` ([Issue#469](https://github.com/HKU-BAL/Clair3/issues/469)).
 - `Train` no longer drops training bins by an implicit rule ([Issue#470](https://github.com/HKU-BAL/Clair3/issues/470)). The old hardcoded `_20_` substring check never matched the documented `bin_<sample>_<depth>_<contig>` naming -- so it did not in fact hold out chr20 -- while it did silently drop bins whose **depth** token was 20 (e.g. bins from 20% downsampling). Nothing is excluded unless you ask for it with `--exclude_training_contigs` (matched against the contig field of the bin name), and every excluded bin is logged. The pre-trained models hold chr20 out upstream, by omitting it from the `CHR` array and using a BED without chr20. See ([pileup_training](https://github.com/HKU-BAL/Clair3/blob/main/docs/pileup_training.md)).
+
+### v2.0.3 — *Sep 3, 2026*
+- Adds a `--gender` option so that variant calling handles the sex chromosomes (chrX/chrY) with the correct ploidy. For details on X,Y support, please see ([gender_option](https://github.com/HKU-BAL/Clair3/blob/main/docs/gender_option.md)).
+- Replaces shell calls to `gzip` with `pigz`, which is already an explicit dependency, so decompression/compression no longer fails in minimal environments where `gzip` is missing ([Issue#455](https://github.com/HKU-BAL/Clair3/issues/455)).
+- Returns a non-zero exit code when BAM/CRAM input cannot be decoded (e.g., a CRAM decode error) instead of silently emitting an empty VCF with exit code 0 ([Issue#453](https://github.com/HKU-BAL/Clair3/issues/453)).
 
 ### v2.0.2 — *Jun 25, 2026*
 
@@ -192,7 +195,7 @@ MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2 \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -206,7 +209,7 @@ docker run -it \
 
 #### GPU (NVIDIA CUDA on Linux)
 
-Image: `hkubal/clair3:v2.0.2_gpu` (built on CUDA 12.1).
+Image: `hkubal/clair3:gpu` (built on CUDA 12.1).
 
 **Requirements**
 
@@ -217,7 +220,7 @@ Image: `hkubal/clair3:v2.0.2_gpu` (built on CUDA 12.1).
 docker run -it --gpus all \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2_gpu \
+  hkubal/clair3:gpu \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -244,11 +247,11 @@ conda config --add channels defaults
 conda create -n singularity-env -c conda-forge singularity -y
 conda activate singularity-env
 
-singularity pull docker://hkubal/clair3:v2.0.2
+singularity pull docker://hkubal/clair3:latest
 
 singularity exec \
   -B ${INPUT_DIR},${OUTPUT_DIR} \
-  clair3_v2.0.2.sif \
+  clair3_latest.sif \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -266,11 +269,11 @@ singularity exec \
 - Singularity (or Apptainer) with `--nv` support.
 
 ```bash
-singularity pull docker://hkubal/clair3:v2.0.2_gpu
+singularity pull docker://hkubal/clair3:gpu
 
 singularity exec --nv --cleanenv --env TMPDIR=/tmp \
   -B ${INPUT_DIR},${OUTPUT_DIR} \
-  clair3_v2.0.2_gpu.sif \
+  clair3_gpu.sif \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -597,7 +600,7 @@ CONTIGS_LIST="[YOUR_CONTIGS_LIST]"     # e.g "chr21" or "chr21,chr22"
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2 \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -616,7 +619,7 @@ KNOWN_VARIANTS_VCF="[YOUR_VCF_PATH]"   # e.g. /home/user1/known_variants.vcf.gz
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2 \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -640,7 +643,7 @@ BED_FILE_PATH="[YOUR_BED_FILE]"        # e.g. /home/user1/tmp.bed
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2 \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
@@ -657,7 +660,7 @@ docker run -it \
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.2 \
+  hkubal/clair3:latest \
   /opt/bin/run_clair3.sh \
     --bam_fn=${INPUT_DIR}/input.bam \
     --ref_fn=${INPUT_DIR}/ref.fa \
