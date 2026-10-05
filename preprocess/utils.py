@@ -671,7 +671,7 @@ class mathcalculator(object):
                            double curMax;
                            int i;
                            curMax = list[0];
-                           for(i=1;i<=n_list;i++){
+                           for(i=1;i<n_list;i++){
                                if(list[i]>curMax){
                                    curMax= list[i];
                                }
