@@ -117,7 +117,7 @@ def split_extend_vcf(vcf_fn, output_fn):
         ctg_start, ctg_end = center_pos - 1, center_pos
         if ctg_start < 0:
             sys.exit(
-                log_error("[ERROR] Invalid VCF input in {}-th row {} {} {}".format(row_id + 1, ctg_name, center_pos)))
+                log_error("[ERROR] Invalid VCF input in {}-th row {} {} {}".format(row_id + 1, ctg_name, ctg_start, ctg_end)))
         if ctg_start - expand_region_size < 0:
             continue
         expand_ctg_start = ctg_start - expand_region_size
@@ -192,7 +192,7 @@ def CheckEnvs(args):
     csi_fn = file_path_from(args.bam_fn, suffix=".csi", sep='.')
     crai_fn = file_path_from(args.bam_fn, suffix=".crai", sep='.')
     if bai_fn is None and csi_fn is None and crai_fn is None:
-        sys.exit(log_error("[ERROR] Neither Bam index file {} or {} or  found".format(args.bam_fn + '.bai',
+        sys.exit(log_error("[ERROR] Neither Bam index file {} or {} or {} found".format(args.bam_fn + '.bai',
                             args.bam_fn + '.csi', args.bam_fn + '.crai')))
     bed_fn = file_path_from(args.bed_fn)
     vcf_fn = file_path_from(args.vcf_fn)
