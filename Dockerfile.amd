@@ -25,8 +25,15 @@
 # compiles the kernel correctly, so the pileup model runs on MIOpen at full speed
 # on stable ROCm 10.0. (The wheels are identical; only the install path differs.)
 #
-# Stable index below = ROCm 10.0. For ROCm 10.1, use
-# https://nightly.repo.amd.com/rocm/whl-next/ and add --pre to the pip install.
+# ROCm selection (all optional; set these to build against a specific ROCm stream):
+#   --build-arg ROCM_INDEX_URL=<pip index>  default: stable TheRock index
+#   --build-arg ROCM_VERSION=<x.y.z>        pin the ROCm SDK (torch follows it);
+#                                           empty = newest on the index
+#   --build-arg ROCM_PIP_PRE=--pre          allow prerelease wheels (nightly index)
+#   --build-arg ROCM_CHANNEL=<label>        informational (stable / prerelease)
+# e.g. prerelease ROCm:
+#   --build-arg ROCM_INDEX_URL=https://nightly.repo.amd.com/rocm/whl-next/ \
+#   --build-arg ROCM_PIP_PRE=--pre --build-arg ROCM_CHANNEL=prerelease
 # ---------------------------------------------------------------------------
 # Base image selects the Python version (ubuntu:24.04 = 3.12, ubuntu:26.04 = 3.14).
 ARG BASE_IMAGE=ubuntu:24.04
@@ -36,6 +43,12 @@ FROM ${BASE_IMAGE}
 # comma/semicolon-separated list (e.g. "gfx942;gfx950") to bundle kernels for
 # multiple GPUs in a single image; override with --build-arg.
 ARG GFX_ARCH=gfx950
+
+# ROCm channel / version for the TheRock PyTorch + ROCm SDK wheels (see header).
+ARG ROCM_CHANNEL=stable
+ARG ROCM_INDEX_URL=https://stable.repo.amd.com/rocm/whl-next/
+ARG ROCM_PIP_PRE=
+ARG ROCM_VERSION=
 
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
@@ -62,17 +75,21 @@ ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -m venv ${VIRTUAL_ENV}
 ENV PATH=${VIRTUAL_ENV}/bin:/opt/bin:${PATH}
 
-# PyTorch (TheRock ROCm 10.0) + Clair3 Python deps, installed into the venv from
-# the stable multi-arch index. The venv install (vs conda) is what lets MIOpen's
+# PyTorch (TheRock ROCm) + Clair3 Python deps, installed into the venv from the
+# selected multi-arch index. Pinning rocm==ROCM_VERSION alongside torch makes pip
+# pick the torch build for exactly that ROCm SDK. The venv install (vs conda) is what lets MIOpen's
 # pileup RNN kernel JIT-compile on gfx9xx -- see the header note.
 # setuptools/wheel: Python 3.12+ venvs omit setuptools, which cffi needs to build
 # libclair3.so.
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     TORCH_EXTRAS="$(echo "${GFX_ARCH}" | tr ',;' '\n\n' | sed '/^$/d; s/^/device-/' | paste -sd, -)" && \
-    echo "GFX_ARCH=${GFX_ARCH} -> torch[${TORCH_EXTRAS}]" && \
-    pip install --no-cache-dir \
-      --index-url https://stable.repo.amd.com/rocm/whl-next/ \
-      "torch[${TORCH_EXTRAS}]" && \
+    ROCM_PIN="${ROCM_VERSION:+rocm==${ROCM_VERSION}}" && \
+    echo "GFX_ARCH=${GFX_ARCH} -> torch[${TORCH_EXTRAS}] ${ROCM_PIN:-(newest rocm)}" && \
+    echo "ROCm channel=${ROCM_CHANNEL} index=${ROCM_INDEX_URL} ${ROCM_PIP_PRE}" && \
+    pip install --no-cache-dir ${ROCM_PIP_PRE} \
+      --index-url "${ROCM_INDEX_URL}" \
+      "torch[${TORCH_EXTRAS}]" ${ROCM_PIN} && \
+    python -c "import importlib.metadata as m; print('installed torch', m.version('torch'), '| rocm', m.version('rocm'))" && \
     pip install --no-cache-dir \
       numpy \
       h5py \
