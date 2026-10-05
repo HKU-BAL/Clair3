@@ -18,25 +18,57 @@ def get_gpu_memory(gpu_id):
     memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
     return memory_free_values
 
+def get_all_gpu_ids():
+    """Physical GPU ids on this host, as reported by nvidia-smi.
+
+    nvidia-smi ignores CUDA_VISIBLE_DEVICES, so these are physical indices -- the same
+    numbering that `--device=cuda:N` and CUDA_VISIBLE_DEVICES themselves refer to.
+    """
+    try:
+        output = subprocess.check_output("nvidia-smi --query-gpu=index --format=csv,noheader".split()).decode('ascii')
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    return sorted(int(token) for token in output.split() if token.strip().isdigit())
+
+def parse_device_ids(device):
+    """Turn a `--device` value such as 'cuda:3' or 'cuda:0,1' into physical GPU ids."""
+    parts = [part.strip() for part in device.split("cuda:")[-1].split(",")]
+    if not parts or any(not part.isdigit() for part in parts):
+        print(log_error("Please specify the device as '--device=cuda:0' or '--device=cuda:0,1'"), file=sys.stderr)
+        sys.exit(1)
+    return [int(part) for part in parts]
+
 def check_gpu_memory(memory, device_ids=None, print_log=True):
-    import torch
-    all_device_ids = list(range(torch.cuda.device_count()))
-    if device_ids is None:
-        device_ids = all_device_ids
-    if not all_device_ids:
-        return
-    gpu_id_list = []
-    detect_gpu = False
-    for device_id in all_device_ids:
-        detect_gpu = True
-        free_mem = get_gpu_memory(gpu_id=device_id)[0]  # Convert to MB
-        gpu_threads = free_mem // memory
-        gpu_id_list += [device_id] * gpu_threads
-        if print_log:
-            print(f"GPU {device_id} free memory: {free_mem} MB, assigning {memory} MB per thread, {gpu_threads} threads available")
-    if len(device_ids) == 0 or not detect_gpu:
+    """Work out how many worker slots each GPU can take.
+
+    device_ids are *physical* GPU ids, as requested through --device or
+    CUDA_VISIBLE_DEVICES; None means every GPU on the host. The ids handed back are
+    physical too, because that is what the workers put into CUDA_VISIBLE_DEVICES and
+    what `nvidia-smi --id=` expects. Mixing those physical ids with the 0-based
+    indices of the visible devices is what used to send every worker to GPU 0
+    (issue #472).
+    """
+    all_gpu_ids = get_all_gpu_ids()
+    if not all_gpu_ids:
         print(log_error("No GPU available, Please disabling --use_gpu for variant calling, exiting."), file=sys.stderr)
         sys.exit(1)
+
+    if device_ids is None:
+        device_ids = all_gpu_ids
+    unknown_ids = [gpu_id for gpu_id in device_ids if gpu_id not in all_gpu_ids]
+    if unknown_ids:
+        print(log_error("Requested GPU id(s) {} not found on this host (available: {}), exiting.".format(
+            unknown_ids, all_gpu_ids)), file=sys.stderr)
+        sys.exit(1)
+
+    gpu_id_list = []
+    for gpu_id in device_ids:
+        free_mem = get_gpu_memory(gpu_id=gpu_id)[0]  # Convert to MB
+        gpu_threads = free_mem // memory
+        gpu_id_list += [gpu_id] * gpu_threads
+        if print_log:
+            print(f"GPU {gpu_id} free memory: {free_mem} MB, assigning {memory} MB per thread, {gpu_threads} threads available")
+
     if len(gpu_id_list) == 0:
         print(log_error("No memory in GPU, Please assign GPU memory first, exiting."), file=sys.stderr)
         sys.exit(1)
@@ -55,20 +87,22 @@ def Run(args):
     pileup_per_thread_gpu_memory = 5000  # GB
     full_alignment_per_thread_gpu_memory = 8000  # GB
 
-    cuda_visual_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "-1")
+    cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "-1")
 
     if args.device and args.device != "EMPTY":
         if not args.device.startswith('cuda:'):
             print(log_error("Please specify the device as '--device=cuda:0' or '--device=cuda:0,1'"), file=sys.stderr)
             sys.exit(1)
-        device_ids = [int(x) for x in args.device.split("cuda:")[-1].split(",")]
+        device_ids = parse_device_ids(args.device)
         os.environ["CUDA_VISIBLE_DEVICES"] = ','.join([str(item) for item in device_ids])
+    elif cuda_visible_devices not in ("-1", ""):
+        # No --device given: honour a preset CUDA_VISIBLE_DEVICES instead of quietly
+        # using every GPU on the host.
+        device_ids = [int(x) for x in cuda_visible_devices.split(",") if x.strip().isdigit()] or None
+        if device_ids:
+            print(f"[INFO] ENV 'CUDA_VISIBLE_DEVICES' is set to {device_ids}, using these GPUs only.")
     else:
         device_ids = None
-        #check if there is any preset cuda env
-        if cuda_visual_devices != "-1":
-            cuda_device_ids = [int(x) for x in cuda_visual_devices.split(",") if x.isdigit()]
-            print(f"[INFO] ENV 'CUDA_VISIBLE_DEVICES' is set to {cuda_device_ids}, using these GPUs only.")
 
     gpu_id_list = check_gpu_memory(pileup_per_thread_gpu_memory if args.pileup else full_alignment_per_thread_gpu_memory, device_ids, print_log=False)
 
