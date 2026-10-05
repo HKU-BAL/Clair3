@@ -27,8 +27,11 @@
 #
 # ROCm selection (all optional; set these to build against a specific ROCm stream):
 #   --build-arg ROCM_INDEX_URL=<pip index>  default: stable TheRock index
-#   --build-arg ROCM_VERSION=<x.y.z>        pin the ROCm SDK (torch follows it);
-#                                           empty = newest on the index
+#   --build-arg ROCM_VERSION=<x.y[.z]>      pin the ROCm SDK (torch follows it);
+#                                           newest matching version on the index.
+#                                           Empty or not found on the index ->
+#                                           ROCM_FALLBACK_VERSION (10.0.0) from
+#                                           the stable index.
 #   --build-arg ROCM_PIP_PRE=--pre          allow prerelease wheels (nightly index)
 #   --build-arg ROCM_CHANNEL=<label>        informational (stable / prerelease)
 # e.g. prerelease ROCm:
@@ -49,6 +52,8 @@ ARG ROCM_CHANNEL=stable
 ARG ROCM_INDEX_URL=https://stable.repo.amd.com/rocm/whl-next/
 ARG ROCM_PIP_PRE=
 ARG ROCM_VERSION=
+ARG ROCM_FALLBACK_VERSION=10.0.0
+ARG ROCM_FALLBACK_INDEX_URL=https://stable.repo.amd.com/rocm/whl-next/
 
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
@@ -76,19 +81,29 @@ RUN python3 -m venv ${VIRTUAL_ENV}
 ENV PATH=${VIRTUAL_ENV}/bin:/opt/bin:${PATH}
 
 # PyTorch (TheRock ROCm) + Clair3 Python deps, installed into the venv from the
-# selected multi-arch index. Pinning rocm==ROCM_VERSION alongside torch makes pip
+# selected multi-arch index. Pinning rocm==<resolved ROCm> alongside torch makes pip
 # pick the torch build for exactly that ROCm SDK. The venv install (vs conda) is what lets MIOpen's
 # pileup RNN kernel JIT-compile on gfx9xx -- see the header note.
 # setuptools/wheel: Python 3.12+ venvs omit setuptools, which cffi needs to build
 # libclair3.so.
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     TORCH_EXTRAS="$(echo "${GFX_ARCH}" | tr ',;' '\n\n' | sed '/^$/d; s/^/device-/' | paste -sd, -)" && \
-    ROCM_PIN="${ROCM_VERSION:+rocm==${ROCM_VERSION}}" && \
-    echo "GFX_ARCH=${GFX_ARCH} -> torch[${TORCH_EXTRAS}] ${ROCM_PIN:-(newest rocm)}" && \
+    REQ="${ROCM_VERSION%%-*}" && \
+    ROCM_PICK="" && \
+    if [ -n "${REQ}" ]; then \
+      ROCM_PICK="$(curl -fsSL "${ROCM_INDEX_URL%/}/rocm/" | grep -oE 'rocm-[0-9][0-9a-z.]*[0-9a-z]\.tar\.gz' \
+        | sed 's/^rocm-//; s/\.tar\.gz$//' | grep -E "^${REQ}(\.|\$)" \
+        | if [ -n "${ROCM_PIP_PRE}" ]; then cat; else grep -vE '[a-z]'; fi | sort -V | tail -1)" || true; \
+    fi && \
+    if [ -z "${ROCM_PICK}" ]; then \
+      echo "WARNING: ROCm '${ROCM_VERSION}' not found on ${ROCM_INDEX_URL}; using ROCm ${ROCM_FALLBACK_VERSION} from ${ROCM_FALLBACK_INDEX_URL}"; \
+      ROCM_PICK="${ROCM_FALLBACK_VERSION}"; ROCM_INDEX_URL="${ROCM_FALLBACK_INDEX_URL}"; ROCM_PIP_PRE=""; \
+    fi && \
+    echo "GFX_ARCH=${GFX_ARCH} -> torch[${TORCH_EXTRAS}] rocm==${ROCM_PICK}" && \
     echo "ROCm channel=${ROCM_CHANNEL} index=${ROCM_INDEX_URL} ${ROCM_PIP_PRE}" && \
     pip install --no-cache-dir ${ROCM_PIP_PRE} \
       --index-url "${ROCM_INDEX_URL}" \
-      "torch[${TORCH_EXTRAS}]" ${ROCM_PIN} && \
+      "torch[${TORCH_EXTRAS}]" "rocm==${ROCM_PICK}" && \
     python -c "import importlib.metadata as m; print('installed torch', m.version('torch'), '| rocm', m.version('rocm'))" && \
     pip install --no-cache-dir \
       numpy \
