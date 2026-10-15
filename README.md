@@ -1,4 +1,3 @@
-<!-- Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved. -->
 <div align="center">
   <a href="https://en.wiktionary.org/wiki/%E7%9C%BC" target="_blank">
     <img src="docs/images/clair3_logo.png" width="110" height="90" alt="Clair3">

@@ -1,4 +1,3 @@
-<!-- Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved. -->
 # Clair3 GPU quick start guide
 
 Starting from v1.2, Clair3 natively supports NVIDIA GPU acceleration. Using a single GPU, Clair3 can complete an ONT WGS 30x whole-genome variant calling in ~20 minutes on a Linux server with 32 CPU threads and an NVIDIA GeForce RTX 4090.
@@ -129,7 +128,7 @@ This works because Clair3's CFFI layer is plain C and links nothing from PyTorch
 **Requirements**
 
 - The `amdgpu` kernel driver on the host, with the GPU passed through at `docker run`. No system ROCm is needed — the wheels bundle their own ROCm SDK and the container never uses `/opt/rocm`.
-- A Bioconda `clair3` build that detects AMD GPUs (releases after 2.0.4). On an earlier build, use [Option 5](#option-5-amd-instinct-rocm-build-from-source) instead.
+- A Clair3 release whose GPU scheduler recognises AMD devices. If `--use_gpu` reports that no GPU is available, your Bioconda build predates it — use [Option 5](#option-5-amd-instinct-rocm-build-from-source) instead.
 
 ```dockerfile
 FROM python:3.11-slim
@@ -173,7 +172,6 @@ Run with ROCm device passthrough (not `--gpus all`):
 ```bash
 docker run -it \
   --device=/dev/kfd --device=/dev/dri --group-add=video \
-  --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   clair3:rocm-prebuilt \
@@ -193,6 +191,7 @@ docker run -it \
 - Target another GPU with `--build-arg GFX_ARCH=gfx942` (MI300X); the default `gfx950` covers MI350X/MI355X. Pass a comma-separated list to bundle several architectures.
 - Models ship under `/opt/clair3/bin/models`; list them with `ls /opt/clair3/bin/models`.
 - Select specific GPUs with `--device=cuda:0,1` (Clair3) or by exporting `CUDA_VISIBLE_DEVICES` / `HIP_VISIBLE_DEVICES` before the run.
+- `--cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host` are **not** required for variant calling. Add them only for profiling or multi-GPU workloads that need host shared memory; they weaken container isolation.
 - `miopenStatusUnknownError` during calling means `g++` is missing from the image.
 - You get the latest Bioconda release; for anything newer, build from source with [Option 5](#option-5-amd-instinct-rocm-build-from-source).
 
@@ -219,7 +218,6 @@ Run with ROCm device passthrough (not `--gpus all`):
 ```bash
 docker run -it \
   --device=/dev/kfd --device=/dev/dri --group-add=video \
-  --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   clair3:rocm \
@@ -236,6 +234,7 @@ docker run -it \
 **Notes**
 
 - Select specific GPUs with `--device=cuda:0,1` (Clair3) or by exporting `CUDA_VISIBLE_DEVICES` / `HIP_VISIBLE_DEVICES` before the run.
+- `--cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host` are **not** required for variant calling; add them only for profiling or multi-GPU workloads that need host shared memory.
 - For a host (no-Docker) install on AMD Instinct, install PyTorch into a **venv** (Python 3.11+, not conda) from TheRock's ROCm index, e.g. `python3 -m venv venv && . venv/bin/activate && pip install --index-url https://stable.repo.amd.com/rocm/whl-next/ "torch[device-gfx950]"` (swap `gfx950` for your GPU arch), then build Clair3 with `make PREFIX=$VIRTUAL_ENV PYTHON=$VIRTUAL_ENV/bin/python`. `g++` must be present for MIOpen's runtime kernel compilation.
 
 

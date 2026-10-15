@@ -10,7 +10,6 @@ logging.basicConfig(format='%(message)s', level=logging.INFO)
 file_directory = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 main_entry = os.path.join(file_directory, "clair3.py")
 
-# Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
 def rocm_smi_free_memory():
     """Free VRAM in MB per physical GPU id from rocm-smi, or {} when it is unavailable."""
     try:
@@ -92,8 +91,8 @@ def check_gpu_memory(memory, device_ids=None, print_log=True):
     device_ids are *physical* GPU ids, as requested through --device or
     CUDA_VISIBLE_DEVICES; None means every GPU on the host. The ids handed back are
     physical too, because that is what the workers put into CUDA_VISIBLE_DEVICES and
-    what `nvidia-smi --id=` expects. Mixing those physical ids with the 0-based
-    indices of the visible devices is what used to send every worker to GPU 0
+    what `nvidia-smi --id=` and `rocm-smi` report. Mixing those physical ids with the
+    0-based indices of the visible devices is what used to send every worker to GPU 0
     (issue #472).
     """
     all_gpu_ids = get_all_gpu_ids()
