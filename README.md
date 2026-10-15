@@ -175,7 +175,7 @@ Native GPU support on Linux (NVIDIA CUDA and AMD Instinct ROCm) and Apple Silico
 > **Pick the right install method for your hardware:**
 > - **CPU** → Docker (Option 1), Singularity (Option 2), or Bioconda (Option 3).
 > - **NVIDIA GPU (Linux)** → Docker GPU (Option 1) or Singularity GPU (Option 2); fall back to Step-by-step (Option 4) if unsupported.
-> - **AMD Instinct GPU (Linux, ROCm)** → build the ROCm GPU image from `Dockerfile.amd`, or use Step-by-step (Option 4) with the ROCm PyTorch wheel. See the [GPU Quick Start](docs/gpu_quick_start.md#option-4-amd-instinct-rocm-on-linux).
+> - **AMD Instinct GPU (Linux, ROCm)** → use the prebuilt Clair3 from Bioconda with ROCm PyTorch, or build the ROCm GPU image from `Dockerfile.amd`. See the [GPU Quick Start](docs/gpu_quick_start.md#option-4-amd-instinct-rocm-prebuilt-clair3-from-bioconda).
 > - **Apple Silicon (M1/M2/M3/M4)** → Step-by-step (Option 4).
 >
 > See the [GPU Quick Start](docs/gpu_quick_start.md) for tuned settings.
@@ -236,7 +236,7 @@ docker run -it --gpus all \
 **Notes**
 
 - Select specific GPUs with `--gpus '"device=0,1"'` (Docker) and `--device=cuda:0,1` (Clair3).
-- **AMD Instinct (ROCm):** build the ROCm GPU image from `Dockerfile.amd` and run with `--device=/dev/kfd --device=/dev/dri --group-add=video` instead of `--gpus all`. See the [GPU Quick Start](docs/gpu_quick_start.md#option-4-amd-instinct-rocm-on-linux).
+- **AMD Instinct (ROCm):** run with `--device=/dev/kfd --device=/dev/dri --group-add=video` instead of `--gpus all`. The quickest path is the prebuilt Clair3 from Bioconda with ROCm PyTorch; `Dockerfile.amd` builds the current source tree instead. See the [GPU Quick Start](docs/gpu_quick_start.md#option-4-amd-instinct-rocm-prebuilt-clair3-from-bioconda).
 - If the image does not work on your setup (unsupported driver/CUDA, no NVIDIA Container Toolkit, Apple Silicon, etc.), fall back to [Step-by-step (Option 4)](#option-4-step-by-step-conda).
 
 ### Option 2. Singularity
@@ -337,8 +337,8 @@ Pick the right build for your system from the [PyTorch website](https://pytorch.
 uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
 
 # Or: AMD Instinct (ROCm) -- do NOT use this conda flow; install PyTorch for your GPU arch
-#      (torch[device-gfxNNN], default gfx950) from TheRock into a venv (Python 3.12+).
-#      See docs/gpu_quick_start.md, "Option 4. AMD Instinct (ROCm on Linux)".
+#      (torch[device-gfxNNN], default gfx950) from TheRock into a venv (Python 3.11+).
+#      See docs/gpu_quick_start.md, "Option 5. AMD Instinct (ROCm): build from source".
 
 # Or: CPU only
 uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu

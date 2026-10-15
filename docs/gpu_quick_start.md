@@ -5,7 +5,7 @@ Starting from v1.2, Clair3 natively supports NVIDIA GPU acceleration. Using a si
 
 The quickest way to run Clair3 on GPU is the pre-built Docker / Singularity image `hkubal/clair3:gpu` (built on CUDA 12.1, bundled with all pre-trained models).
 
-For AMD Instinct GPUs (ROCm on Linux), build the ROCm image from `Dockerfile.amd` — see [Option 4](#option-4-amd-instinct-rocm-on-linux) below; the same pre-trained models apply. [Option 5](#option-5-amd-instinct-prebuilt-clair3-from-bioconda--rocm-pytorch) installs the prebuilt Bioconda release instead, with no source build.
+For AMD Instinct GPUs (ROCm on Linux), the quickest path is the prebuilt Clair3 from Bioconda paired with ROCm PyTorch — see [Option 4](#option-4-amd-instinct-rocm-prebuilt-clair3-from-bioconda) below; nothing is compiled. To build the current source tree instead, use `Dockerfile.amd` — see [Option 5](#option-5-amd-instinct-rocm-build-from-source).
 
 ## Requirements
 
@@ -120,11 +120,91 @@ python3 ${CLAIR3_PATH}/run_clair3.py \
 
 See the [main README](../README.md#option-4-step-by-step-conda) for the complete step-by-step instructions (PyPy install, model download, etc.).
 
-## Option 4. AMD Instinct (ROCm on Linux)
+## Option 4. AMD Instinct (ROCm): prebuilt Clair3 from Bioconda
 
-Clair3's GPU path runs unchanged on AMD Instinct GPUs through ROCm PyTorch: `--device=cuda:0`, `torch.cuda.*`, and `CUDA_VISIBLE_DEVICES` all map onto HIP, so no Clair3 options change.
+The quickest way onto AMD Instinct. Installs the prebuilt Clair3 from Bioconda — `libclair3.so`, the pre-trained models, `longphase` and `run_clair3.sh` — and pairs it with ROCm PyTorch. Nothing is compiled, so the image builds in ~2 minutes.
 
-Build the ROCm GPU image from the repository. `Dockerfile.amd` uses a plain Ubuntu base (Python 3.12+) and installs PyTorch from TheRock's multi-arch ROCm index (`https://stable.repo.amd.com/rocm/whl-next/`, ROCm 10.0); the wheels bundle their own ROCm SDK, so no system ROCm is required. The build defaults to `gfx950` (MI350X/MI355X); target another GPU with `--build-arg GFX_ARCH=<arch>` (e.g. `gfx942` for MI300X). The base image — and thus the Python version — is also a build arg: `--build-arg BASE_IMAGE=ubuntu:26.04` targets Python 3.14 (default `ubuntu:24.04` = 3.12), subject to matching TheRock wheels. For ROCm 10.1, switch the index to `https://nightly.repo.amd.com/rocm/whl-next/` and add `--pre`. PyTorch is installed into a plain venv (not conda) so that MIOpen's pileup RNN kernel JIT-compiles correctly on gfx9xx.
+This works because Clair3's CFFI layer is plain C and links nothing from PyTorch, so the prebuilt package runs unchanged against a ROCm torch. All GPU work goes through the `torch.cuda.*` API, which ROCm maps onto HIP, so `--device=cuda:0` and `CUDA_VISIBLE_DEVICES` behave exactly as on NVIDIA.
+
+**Requirements**
+
+- The `amdgpu` kernel driver on the host, with the GPU passed through at `docker run`. No system ROCm is needed — the wheels bundle their own ROCm SDK and the container never uses `/opt/rocm`.
+- A Bioconda `clair3` build that detects AMD GPUs (releases after 2.0.4). On an earlier build, use [Option 5](#option-5-amd-instinct-rocm-build-from-source) instead.
+
+```dockerfile
+FROM python:3.11-slim
+
+ARG GFX_ARCH=gfx950
+ARG ROCM_VERSION=10.0.0
+ARG ROCM_INDEX_URL=https://stable.repo.amd.com/rocm/whl-next/
+
+# g++ is required: MIOpen JIT-compiles the pileup kernels at runtime.
+# The remaining libraries are what the prebuilt libclair3.so links against.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl bzip2 g++ libgomp1 \
+      libcurl4 libssl3 libdeflate0 liblzma5 libbz2-1.0 zlib1g && \
+    rm -rf /var/lib/apt/lists/*
+
+# Prebuilt Clair3 from Bioconda; drop the CPU PyTorch it pulls in.
+RUN curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
+      | tar -xj -C /usr/local bin/micromamba && \
+    micromamba create -y -p /opt/clair3 -c conda-forge -c bioconda clair3 && \
+    micromamba remove -y -p /opt/clair3 --force pytorch pytorch-cpu libtorch && \
+    micromamba clean -a -y
+
+# ROCm PyTorch into a venv -- deliberately NOT the conda prefix, see the notes below.
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir --upgrade pip && \
+    /opt/venv/bin/pip install --no-cache-dir --index-url ${ROCM_INDEX_URL} \
+      "torch[device-${GFX_ARCH}]" "rocm==${ROCM_VERSION}" && \
+    /opt/venv/bin/pip install --no-cache-dir numpy cffi
+
+# venv Python first; Clair3's scripts, models and tools come from the Bioconda prefix.
+ENV PATH=/opt/venv/bin:/opt/clair3/bin:${PATH}
+ENV PYTHONPATH=/opt/clair3/bin
+```
+
+```bash
+docker build -t clair3:rocm-prebuilt .
+```
+
+Run with ROCm device passthrough (not `--gpus all`):
+
+```bash
+docker run -it \
+  --device=/dev/kfd --device=/dev/dri --group-add=video \
+  --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  clair3:rocm-prebuilt \
+  run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \                       ## {ont,hifi,ilmn}
+    --model_path=/opt/clair3/bin/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR} \
+    --use_gpu
+```
+
+**Notes**
+
+- **Install ROCm PyTorch into a venv, not into the conda prefix.** The same ROCm 10 wheels that work in a venv fail inside a conda prefix, with `device kernel image is invalid` (`hipErrorInvalidImage`) on every kernel launch. That is why PyTorch lives in `/opt/venv` above while Clair3 itself stays in the Bioconda prefix.
+- Target another GPU with `--build-arg GFX_ARCH=gfx942` (MI300X); the default `gfx950` covers MI350X/MI355X. Pass a comma-separated list to bundle several architectures.
+- Models ship under `/opt/clair3/bin/models`; list them with `ls /opt/clair3/bin/models`.
+- Select specific GPUs with `--device=cuda:0,1` (Clair3) or by exporting `CUDA_VISIBLE_DEVICES` / `HIP_VISIBLE_DEVICES` before the run.
+- `miopenStatusUnknownError` during calling means `g++` is missing from the image.
+- You get the latest Bioconda release; for anything newer, build from source with [Option 5](#option-5-amd-instinct-rocm-build-from-source).
+
+## Option 5. AMD Instinct (ROCm): build from source
+
+Use this when you need the current source tree rather than the latest Bioconda release.
+
+`Dockerfile.amd` uses a plain Ubuntu base (Python 3.12+) and installs PyTorch from TheRock's multi-arch ROCm index (`https://stable.repo.amd.com/rocm/whl-next/`, ROCm 10.0). The build defaults to `gfx950` (MI350X/MI355X); target another GPU with `--build-arg GFX_ARCH=<arch>` (e.g. `gfx942` for MI300X). The base image — and thus the Python version — is also a build arg: `--build-arg BASE_IMAGE=ubuntu:26.04` targets Python 3.14 (default `ubuntu:24.04` = 3.12), subject to matching TheRock wheels. For ROCm 10.1, switch the index to `https://nightly.repo.amd.com/rocm/whl-next/` and add `--pre`. PyTorch is installed into a plain venv rather than a conda prefix, for the reason given under Option 4.
+
+**Requirements**
+
+- The `amdgpu` kernel driver on the host, with the GPU passed through at `docker run`. No system ROCm is needed — the wheels bundle their own ROCm SDK.
 
 ```bash
 # default (gfx950)
@@ -138,97 +218,25 @@ Run with ROCm device passthrough (not `--gpus all`):
 
 ```bash
 docker run -it \
- --device=/dev/kfd --device=/dev/dri --group-add=video \
- --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host \
- -v ${INPUT_DIR}:${INPUT_DIR} \
- -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
- clair3:rocm \
- /opt/bin/run_clair3.sh \
- --bam_fn=${INPUT_DIR}/input.bam \
- --ref_fn=${INPUT_DIR}/ref.fa \
- --threads=${THREADS} \
- --platform=ont \ ## {ont,hifi,ilmn}
- --model_path=/opt/models/${MODEL_NAME} \
- --output=${OUTPUT_DIR} \
- --use_gpu
+  --device=/dev/kfd --device=/dev/dri --group-add=video \
+  --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  clair3:rocm \
+  /opt/bin/run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \                       ## {ont,hifi,ilmn}
+    --model_path=/opt/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR} \
+    --use_gpu
 ```
 
 **Notes**
 
 - Select specific GPUs with `--device=cuda:0,1` (Clair3) or by exporting `CUDA_VISIBLE_DEVICES` / `HIP_VISIBLE_DEVICES` before the run.
-- For a host (no-Docker) install on AMD Instinct, install PyTorch into a **venv** (Python 3.12+, not conda) from TheRock's ROCm index, e.g. `python3 -m venv venv && . venv/bin/activate && pip install --index-url https://stable.repo.amd.com/rocm/whl-next/ "torch[device-gfx950]"` (swap `gfx950` for your GPU arch), then build Clair3 with `make PREFIX=$VIRTUAL_ENV PYTHON=$VIRTUAL_ENV/bin/python`. On ROCm 10 a conda-prefixed install breaks MIOpen's pileup RNN-kernel JIT unless `g++` is installed; a venv avoids it.
-
-## Option 5. AMD Instinct — prebuilt Clair3 from Bioconda + ROCm PyTorch
-
-Installs the prebuilt Clair3 from Bioconda (binaries, models and `libclair3.so`) and replaces its CPU PyTorch with the ROCm build. No source build, so the image takes ~2 minutes. It gives you the latest Bioconda release, so anything newer than that release is not included — build from source ([Option 4](#option-4-amd-instinct-rocm-on-linux)) if you need the current source tree.
-
-**Requirements**
-
-- A ROCm 10 host (`cat /opt/rocm/.info/version`). On a ROCm 7.x host, swap the torch install for `--index-url https://download.pytorch.org/whl/rocm7.0` with `torch==2.10.0+rocm7.0`, and drop the `rocm` SDK step.
-
-```dockerfile
-FROM ubuntu:24.04
-
-ARG CLAIR3_VERSION=2.0.3
-ARG TORCH_VERSION=2.13.0+rocm10.0.0
-ARG GFX_ARCH=gfx942;gfx950
-ARG ROCM_VERSION=10.0.0
-
-# g++ is required: MIOpen JIT-compiles the pileup kernels at runtime.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      bzip2 ca-certificates curl libgomp1 g++ && rm -rf /var/lib/apt/lists/*
-
-RUN curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
-      | tar -xvj -C /usr/local bin/micromamba
-
-RUN micromamba create -y -p /opt/conda/envs/clair3 -c conda-forge -c bioconda \
-      clair3=${CLAIR3_VERSION} && micromamba clean -a -y
-
-RUN micromamba remove -y -p /opt/conda/envs/clair3 --force pytorch pytorch-cpu libtorch
-
-# Install the ROCm SDK before torch: the torch wheel depends on it, from a different index.
-RUN ROCM_EXTRAS="libraries"; \
-    for gfx in $(echo "${GFX_ARCH}" | tr ';,' ' '); do ROCM_EXTRAS="${ROCM_EXTRAS},device-${gfx}"; done && \
-    /opt/conda/envs/clair3/bin/python -m pip install --no-cache-dir \
-      --index-url https://stable.repo.amd.com/rocm/whl-next/ \
-      "rocm[${ROCM_EXTRAS}]==${ROCM_VERSION}"
-
-RUN /opt/conda/envs/clair3/bin/python -m pip install --no-cache-dir \
-      --index-url https://stable.repo.amd.com/rocm/pytorch/whl-next/ \
-      --extra-index-url https://stable.repo.amd.com/rocm/whl-next/ \
-      "torch==${TORCH_VERSION}"
-
-ENV PATH=/opt/conda/envs/clair3/bin:$PATH
-```
-
-```bash
-docker build -t clair3:rocm-conda .
-```
-
-Run with ROCm device passthrough, using `run_clair3.sh` from the conda environment:
-
-```bash
-docker run -it \
- --device=/dev/kfd --device=/dev/dri --group-add=video \
- --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host \
- -v ${INPUT_DIR}:${INPUT_DIR} -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
- clair3:rocm-conda \
- /opt/conda/envs/clair3/bin/run_clair3.sh \
- --bam_fn=${INPUT_DIR}/input.bam \
- --ref_fn=${INPUT_DIR}/ref.fa \
- --threads=${THREADS} \
- --platform=ont \ ## {ont,hifi,ilmn}
- --model_path=/opt/conda/envs/clair3/bin/models/${MODEL_NAME} \
- --output=${OUTPUT_DIR} \
- --use_gpu
-```
-
-**Notes**
-
-- Target another GPU with `--build-arg GFX_ARCH=gfx942` (MI300X); the default covers MI300X and MI350X/MI355X.
-- Models ship under `/opt/conda/envs/clair3/bin/models`; list them with `ls /opt/conda/envs/clair3/bin/models`.
-- `device kernel image is invalid` (`hipErrorInvalidImage`) on every run means the host ROCm is older than the wheel — see Requirements above.
-- `miopenStatusUnknownError` during calling means `g++` is missing from the image.
+- For a host (no-Docker) install on AMD Instinct, install PyTorch into a **venv** (Python 3.11+, not conda) from TheRock's ROCm index, e.g. `python3 -m venv venv && . venv/bin/activate && pip install --index-url https://stable.repo.amd.com/rocm/whl-next/ "torch[device-gfx950]"` (swap `gfx950` for your GPU arch), then build Clair3 with `make PREFIX=$VIRTUAL_ENV PYTHON=$VIRTUAL_ENV/bin/python`. `g++` must be present for MIOpen's runtime kernel compilation.
 
 
 <!--
