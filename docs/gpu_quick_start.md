@@ -1,8 +1,11 @@
+<!-- Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved. -->
 # Clair3 GPU quick start guide
 
 Starting from v1.2, Clair3 natively supports NVIDIA GPU acceleration. Using a single GPU, Clair3 can complete an ONT WGS 30x whole-genome variant calling in ~20 minutes on a Linux server with 32 CPU threads and an NVIDIA GeForce RTX 4090.
 
 The quickest way to run Clair3 on GPU is the pre-built Docker / Singularity image `hkubal/clair3:gpu` (built on CUDA 12.1, bundled with all pre-trained models).
+
+For AMD Instinct GPUs (ROCm on Linux), build the ROCm image from `Dockerfile.amd` — see [Option 4](#option-4-amd-instinct-rocm-on-linux) below; the same pre-trained models apply.
 
 ## Requirements
 
@@ -116,6 +119,44 @@ python3 ${CLAIR3_PATH}/run_clair3.py \
 ```
 
 See the [main README](../README.md#option-4-step-by-step-conda) for the complete step-by-step instructions (PyPy install, model download, etc.).
+
+## Option 4. AMD Instinct (ROCm on Linux)
+
+Clair3's GPU path runs unchanged on AMD Instinct GPUs through ROCm PyTorch: `--device=cuda:0`, `torch.cuda.*`, and `CUDA_VISIBLE_DEVICES` all map onto HIP, so no Clair3 options change.
+
+Build the ROCm GPU image from the repository. `Dockerfile.amd` uses a plain Ubuntu base (Python 3.12+) and installs PyTorch from TheRock's multi-arch ROCm index (`https://stable.repo.amd.com/rocm/whl-next/`, ROCm 10.0); the wheels bundle their own ROCm SDK, so no system ROCm is required. The build defaults to `gfx950` (MI350X/MI355X); target another GPU with `--build-arg GFX_ARCH=<arch>` (e.g. `gfx942` for MI300X). The base image — and thus the Python version — is also a build arg: `--build-arg BASE_IMAGE=ubuntu:26.04` targets Python 3.14 (default `ubuntu:24.04` = 3.12), subject to matching TheRock wheels. For ROCm 10.1, switch the index to `https://nightly.repo.amd.com/rocm/whl-next/` and add `--pre`. PyTorch is installed into a plain venv (not conda) so that MIOpen's pileup RNN kernel JIT-compiles correctly on gfx9xx.
+
+```bash
+# default (gfx950)
+docker build -f Dockerfile.amd -t clair3:rocm .
+
+# or target another architecture, e.g. MI300X
+docker build -f Dockerfile.amd --build-arg GFX_ARCH=gfx942 -t clair3:rocm .
+```
+
+Run with ROCm device passthrough (not `--gpus all`):
+
+```bash
+docker run -it \
+ --device=/dev/kfd --device=/dev/dri --group-add=video \
+ --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --ipc=host \
+ -v ${INPUT_DIR}:${INPUT_DIR} \
+ -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+ clair3:rocm \
+ /opt/bin/run_clair3.sh \
+ --bam_fn=${INPUT_DIR}/input.bam \
+ --ref_fn=${INPUT_DIR}/ref.fa \
+ --threads=${THREADS} \
+ --platform=ont \ ## {ont,hifi,ilmn}
+ --model_path=/opt/models/${MODEL_NAME} \
+ --output=${OUTPUT_DIR} \
+ --use_gpu
+```
+
+**Notes**
+
+- Select specific GPUs with `--device=cuda:0,1` (Clair3) or by exporting `CUDA_VISIBLE_DEVICES` / `HIP_VISIBLE_DEVICES` before the run.
+- For a host (no-Docker) install on AMD Instinct, install PyTorch into a **venv** (Python 3.12+, not conda) from TheRock's ROCm index, e.g. `python3 -m venv venv && . venv/bin/activate && pip install --index-url https://stable.repo.amd.com/rocm/whl-next/ "torch[device-gfx950]"` (swap `gfx950` for your GPU arch), then build Clair3 with `make PREFIX=$VIRTUAL_ENV PYTHON=$VIRTUAL_ENV/bin/python`. On ROCm 10 a conda-prefixed install breaks MIOpen's pileup RNN-kernel JIT; a venv avoids it.
 
 <!--
 ## Installation on Apple Silicon

@@ -1,0 +1,117 @@
+# syntax=docker/dockerfile:1.4
+# ---------------------------------------------------------------------------
+# Clair3 GPU Dockerfile (AMD Instinct / ROCm)
+#
+# Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Requires: amdgpu kernel driver + ROCm-capable GPU on the host (no container
+# toolkit). Run with:
+#   docker run --device=/dev/kfd --device=/dev/dri --group-add=video \
+#              --security-opt seccomp=unconfined --ipc=host hkubal/clair3:gpu ...
+#
+# PyTorch is installed from TheRock's multi-arch ROCm index (repo.amd.com): the
+# wheel bundles its own ROCm SDK (rocm-sdk-*), so the base image is plain Ubuntu
+# and needs no system ROCm. Select the GPU architecture with the build arg
+# --build-arg GFX_ARCH=<arch> (default gfx950 = MI350X/MI355X; gfx942 = MI300X),
+# and the base image / Python with --build-arg BASE_IMAGE=<img> (default
+# ubuntu:24.04 = Python 3.12; ubuntu:26.04 = Python 3.14, once TheRock publishes
+# matching wheels).
+#
+# The Python/PyTorch runtime lives in a plain venv (/opt/venv), NOT a conda env.
+# MIOpen JIT-compiles its RNN kernel at runtime via HIPRTC/comgr; when the ROCm
+# SDK wheels are installed under a conda prefix, comgr's in-process clang mis-
+# derives the device data model and Clair3's pileup Bi-LSTM aborts with
+# miopenStatusUnknownError (a miopen_cstdint typedef redefinition). A venv install
+# compiles the kernel correctly, so the pileup model runs on MIOpen at full speed
+# on stable ROCm 10.0. (The wheels are identical; only the install path differs.)
+#
+# Stable index below = ROCm 10.0. For ROCm 10.1, use
+# https://nightly.repo.amd.com/rocm/whl-next/ and add --pre to the pip install.
+# ---------------------------------------------------------------------------
+# Base image selects the Python version (ubuntu:24.04 = 3.12, ubuntu:26.04 = 3.14).
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
+
+# GPU architecture for the PyTorch [device-gfx*] extra; override with --build-arg.
+ARG GFX_ARCH=gfx950
+
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /opt/bin
+
+# System packages:
+#  - Build toolchain + the dev libraries htslib and libclair3.so link against
+#    (z, bz2, lzma, curl, crypto, deflate) + Boost Graph headers for the
+#    debruijn_graph realigner helper.
+#  - Runtime tools Clair3 shells out to: samtools, bgzip/tabix, GNU parallel, pigz.
+#  - HIP runtime deps not bundled by the wheels: libnuma1 (dlopened by HIP) and
+#    libgomp1 (torch's GNU OpenMP runtime). python3 + venv give a non-conda runtime.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates wget curl bzip2 xz-utils \
+      build-essential autoconf automake libboost-graph-dev \
+      zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev libssl-dev libdeflate-dev \
+      python3 python3-venv python3-dev \
+      samtools tabix parallel pigz \
+      libnuma1 libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Non-conda Python runtime (see the header note on the conda/MIOpen JIT bug).
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv ${VIRTUAL_ENV}
+ENV PATH=${VIRTUAL_ENV}/bin:/opt/bin:${PATH}
+
+# PyTorch (TheRock ROCm 10.0) + Clair3 Python deps, installed into the venv from
+# the stable multi-arch index. The venv install (vs conda) is what lets MIOpen's
+# pileup RNN kernel JIT-compile on gfx9xx -- see the header note.
+# setuptools/wheel: Python 3.12+ venvs omit setuptools, which cffi needs to build
+# libclair3.so.
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir \
+      --index-url https://stable.repo.amd.com/rocm/whl-next/ \
+      "torch[device-${GFX_ARCH}]" && \
+    pip install --no-cache-dir \
+      numpy \
+      h5py \
+      hdf5plugin \
+      numexpr \
+      tqdm \
+      cffi \
+      torchmetrics \
+      whatshap
+
+# Clair3 source tree
+COPY . /opt/bin
+
+# Build Clair3 native components against the venv Python (htslib static lib +
+# LongPhase prebuilt binary + libclair3.so cffi extension), then the realigner/
+# debruijn helpers.
+RUN make PREFIX=${VIRTUAL_ENV} PYTHON=${VIRTUAL_ENV}/bin/python && \
+    cd /opt/bin/preprocess/realign && \
+    g++ -std=c++14 -O1 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c realigner.cpp && \
+    g++ -std=c++11 -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp && \
+    rm -rf /opt/bin/samtools-* /opt/bin/longphase-*
+
+# Step 5 in README: install pypy3.11 and mpmath for pypy.
+RUN wget -q https://downloads.python.org/pypy/pypy3.11-v7.3.20-linux64.tar.bz2 && \
+    tar -xjf pypy3.11-v7.3.20-linux64.tar.bz2 && \
+    rm pypy3.11-v7.3.20-linux64.tar.bz2 && \
+    ln -sf /opt/bin/pypy3.11-v7.3.20-linux64/bin/pypy3 ${VIRTUAL_ENV}/bin/pypy3 && \
+    ln -sf /opt/bin/pypy3.11-v7.3.20-linux64/bin/pypy3 ${VIRTUAL_ENV}/bin/pypy && \
+    pypy3 -m ensurepip && \
+    pypy3 -m pip install --no-cache-dir mpmath==1.2.1
+
+# Step 6 in README: recursively download pre-trained PyTorch models from a directory URL.
+# Pass --build-arg MODEL_CACHE_BUST=$(date +%s) to force a re-download without --no-cache.
+ARG CLAIR3_MODELS_URL=https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/
+ARG MODEL_CACHE_BUST=0
+RUN set -eux; \
+    echo "MODEL_CACHE_BUST=${MODEL_CACHE_BUST}"; \
+    mkdir -p /opt/models /tmp/clair3-models; \
+    base_url="${CLAIR3_MODELS_URL%/}"; \
+    wget -r -np -nH --cut-dirs=2 -R "index.html*" -P /tmp/clair3-models "${base_url}/"; \
+    if [ -d /tmp/clair3-models/clair3_models_pytorch ]; then \
+        cp -a /tmp/clair3-models/clair3_models_pytorch/. /opt/models/; \
+    else \
+        cp -a /tmp/clair3-models/. /opt/models/; \
+    fi; \
+    rm -rf /tmp/clair3-models

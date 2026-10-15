@@ -11,12 +11,22 @@ file_directory = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 main_entry = os.path.join(file_directory, "clair3.py")
 
 def get_gpu_memory(gpu_id):
-    command = "nvidia-smi --query-gpu=memory.free --format=csv "
-    if gpu_id is not None:
-        command += f" --id={gpu_id}"
-    memory_free_info = subprocess.check_output(command.split()).decode('ascii').split('\n')[:-1][1:]
-    memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
-    return memory_free_values
+    # Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+    # PORTED: backend-agnostic free VRAM (NVIDIA CUDA or AMD ROCm).
+    try:
+        import torch
+        free_bytes, _ = torch.cuda.mem_get_info(gpu_id)
+        return [free_bytes // 1024 // 1024]
+    except Exception:
+        pass
+    import shutil as _sh, subprocess as _sp
+    if _sh.which("nvidia-smi") is not None:
+        command = "nvidia-smi --query-gpu=memory.free --format=csv "
+        if gpu_id is not None:
+            command += f" --id={gpu_id}"
+        info = _sp.check_output(command.split()).decode('ascii').split('\n')[:-1][1:]
+        return [int(x.split()[0]) for x in info]
+    raise RuntimeError("no torch.cuda context and no nvidia-smi")
 
 def get_all_gpu_ids():
     """Physical GPU ids on this host, as reported by nvidia-smi.
