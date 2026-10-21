@@ -96,7 +96,7 @@ A preprint describing the performance of Clair3 v2 is available on [bioRxiv](htt
 
 ### v1.2.0 — *Aug 1, 2025*
 
-Native GPU support on Linux and Apple Silicon. Clair3 on GPU runs **~5× faster than CPU**. See the [GPU Quick Start](docs/gpu_quick_start.md).
+Native GPU support on Linux (NVIDIA CUDA and AMD Instinct ROCm) and Apple Silicon. Clair3 on GPU runs **~5× faster than CPU**. See the [GPU Quick Start](docs/gpu_quick_start.md).
 
 <div align="center">
   <img src="docs/images/clair3_gpu_benchmark.png" width="400" alt="Clair3 GPU benchmark">
@@ -174,6 +174,7 @@ Native GPU support on Linux and Apple Silicon. Clair3 on GPU runs **~5× faster 
 > **Pick the right install method for your hardware:**
 > - **CPU** → Docker (Option 1), Singularity (Option 2), or Bioconda (Option 3).
 > - **NVIDIA GPU (Linux)** → Docker GPU (Option 1) or Singularity GPU (Option 2); fall back to Step-by-step (Option 4) if unsupported.
+> - **AMD Instinct GPU (Linux, ROCm)** → use the prebuilt Clair3 from Bioconda with ROCm PyTorch, or build the ROCm GPU image from `Dockerfile.amd`. See the [GPU Quick Start](docs/gpu_quick_start.md#option-4-amd-instinct-rocm-prebuilt-clair3-from-bioconda).
 > - **Apple Silicon (M1/M2/M3/M4)** → Step-by-step (Option 4).
 >
 > See the [GPU Quick Start](docs/gpu_quick_start.md) for tuned settings.
@@ -234,6 +235,7 @@ docker run -it --gpus all \
 **Notes**
 
 - Select specific GPUs with `--gpus '"device=0,1"'` (Docker) and `--device=cuda:0,1` (Clair3).
+- **AMD Instinct (ROCm):** run with `--device=/dev/kfd --device=/dev/dri --group-add=video` instead of `--gpus all`. The quickest path is the prebuilt Clair3 from Bioconda with ROCm PyTorch; `Dockerfile.amd` builds the current source tree instead. See the [GPU Quick Start](docs/gpu_quick_start.md#option-4-amd-instinct-rocm-prebuilt-clair3-from-bioconda).
 - If the image does not work on your setup (unsupported driver/CUDA, no NVIDIA Container Toolkit, Apple Silicon, etc.), fall back to [Step-by-step (Option 4)](#option-4-step-by-step-conda).
 
 ### Option 2. Singularity
@@ -332,6 +334,10 @@ Pick the right build for your system from the [PyTorch website](https://pytorch.
 ```bash
 # Example: NVIDIA CUDA 13.0
 uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+
+# Or: AMD Instinct (ROCm) -- do NOT use this conda flow; install PyTorch for your GPU arch
+#      (torch[device-gfxNNN], default gfx950) from TheRock into a venv (Python 3.11+).
+#      See docs/gpu_quick_start.md, "Option 5. AMD Instinct (ROCm): build from source".
 
 # Or: CPU only
 uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
