@@ -10,25 +10,72 @@ logging.basicConfig(format='%(message)s', level=logging.INFO)
 file_directory = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 main_entry = os.path.join(file_directory, "clair3.py")
 
+def rocm_smi_free_memory():
+    """Free VRAM in MB per physical GPU id from rocm-smi, or {} when it is unavailable."""
+    try:
+        output = subprocess.check_output(
+            "rocm-smi --showmeminfo vram --csv".split(), stderr=subprocess.DEVNULL).decode('ascii')
+    except (OSError, subprocess.CalledProcessError):
+        return {}
+
+    rows = [line.split(',') for line in output.splitlines() if line.strip()]
+    if not rows:
+        return {}
+    header = [cell.strip().lower() for cell in rows[0]]
+    total_idx = next((i for i, cell in enumerate(header) if 'total memory' in cell), None)
+    used_idx = next((i for i, cell in enumerate(header) if 'used memory' in cell), None)
+    if total_idx is None or used_idx is None:
+        return {}
+
+    free_memory = {}
+    for row in rows[1:]:
+        if len(row) <= max(total_idx, used_idx):
+            continue
+        # rocm-smi labels rows 'card0', 'card1', ...; the suffix is the physical id.
+        name = row[0].strip()
+        gpu_id = name[len('card'):] if name.startswith('card') else name
+        if not gpu_id.isdigit():
+            continue
+        try:
+            free_memory[int(gpu_id)] = (int(row[total_idx]) - int(row[used_idx])) // 1024 // 1024
+        except ValueError:
+            continue
+    return free_memory
+
 def get_gpu_memory(gpu_id):
-    command = "nvidia-smi --query-gpu=memory.free --format=csv "
-    if gpu_id is not None:
-        command += f" --id={gpu_id}"
-    memory_free_info = subprocess.check_output(command.split()).decode('ascii').split('\n')[:-1][1:]
-    memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
-    return memory_free_values
+    """Free VRAM in MB for a *physical* GPU id, via nvidia-smi (CUDA) or rocm-smi (ROCm).
+
+    Queried out of process on purpose: creating a GPU context here would both consume
+    VRAM and skew the very reading used to size the workers.
+    """
+    try:
+        command = "nvidia-smi --query-gpu=memory.free --format=csv "
+        if gpu_id is not None:
+            command += f" --id={gpu_id}"
+        memory_free_info = subprocess.check_output(command.split()).decode('ascii').split('\n')[:-1][1:]
+        return [int(x.split()[0]) for x in memory_free_info]
+    except (OSError, subprocess.CalledProcessError):
+        pass
+
+    free_memory = rocm_smi_free_memory()
+    if not free_memory:
+        raise RuntimeError("Neither nvidia-smi nor rocm-smi is available to query GPU memory")
+    if gpu_id is None:
+        return [free_memory[key] for key in sorted(free_memory)]
+    return [free_memory[gpu_id]]
 
 def get_all_gpu_ids():
-    """Physical GPU ids on this host, as reported by nvidia-smi.
+    """Physical GPU ids on this host, as reported by nvidia-smi (CUDA) or rocm-smi (ROCm).
 
-    nvidia-smi ignores CUDA_VISIBLE_DEVICES, so these are physical indices -- the same
+    Both tools ignore CUDA_VISIBLE_DEVICES, so these are physical indices -- the same
     numbering that `--device=cuda:N` and CUDA_VISIBLE_DEVICES themselves refer to.
     """
     try:
         output = subprocess.check_output("nvidia-smi --query-gpu=index --format=csv,noheader".split()).decode('ascii')
+        nvidia_ids = sorted(int(token) for token in output.split() if token.strip().isdigit())
     except (OSError, subprocess.CalledProcessError):
-        return []
-    return sorted(int(token) for token in output.split() if token.strip().isdigit())
+        nvidia_ids = []
+    return nvidia_ids or sorted(rocm_smi_free_memory())
 
 def parse_device_ids(device):
     """Turn a `--device` value such as 'cuda:3' or 'cuda:0,1' into physical GPU ids."""
@@ -44,8 +91,8 @@ def check_gpu_memory(memory, device_ids=None, print_log=True):
     device_ids are *physical* GPU ids, as requested through --device or
     CUDA_VISIBLE_DEVICES; None means every GPU on the host. The ids handed back are
     physical too, because that is what the workers put into CUDA_VISIBLE_DEVICES and
-    what `nvidia-smi --id=` expects. Mixing those physical ids with the 0-based
-    indices of the visible devices is what used to send every worker to GPU 0
+    what `nvidia-smi --id=` and `rocm-smi` report. Mixing those physical ids with the
+    0-based indices of the visible devices is what used to send every worker to GPU 0
     (issue #472).
     """
     all_gpu_ids = get_all_gpu_ids()
