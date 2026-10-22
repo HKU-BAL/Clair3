@@ -774,8 +774,8 @@ def CreateTensorFullAlignment(args):
     # print (add_read_regions, ctg_start, ctg_end, reference_start)
     stdin = None if bam_file_path != "PIPE" else sys.stdin
     bam_file_path = bam_file_path if bam_file_path != "PIPE" else "-"
-    samtools_command = "{} mpileup  {} --reverse-del --output-QNAME --output-MQ".format(samtools_execute_command,
-                                                                                        bam_file_path) + \
+    samtools_command = "{} mpileup  {} -f {} --reverse-del --output-QNAME --output-MQ".format(
+                           samtools_execute_command, bam_file_path, fasta_file_path) + \
                        reads_regions_option + phasing_option + mq_option + bq_option + bed_option + flags_option + max_depth_option
     samtools_mpileup_process = subprocess_popen(
         shlex.split(samtools_command), stdin=stdin)

@@ -323,9 +323,10 @@ def CreateTensorPileup(args):
     gvcf_option = ' -a' if args.gvcf else ""
     samtools_mpileup_process = subprocess_popen(
         shlex.split(
-            "{} mpileup  {} -r {} --reverse-del".format(samtools_execute_command,
-                                                        bam_file_path,
-                                                        " ".join(reads_regions), )
+            "{} mpileup  {} -f {} -r {} --reverse-del".format(samtools_execute_command,
+                                                              bam_file_path,
+                                                              fasta_file_path,
+                                                              " ".join(reads_regions), )
             + mq_option + bq_option + bed_option + flags_option + max_depth_option + gvcf_option))
 
     if tensor_can_output_path != "PIPE":
