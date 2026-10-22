@@ -5,7 +5,7 @@ import sys
 from subprocess import run
 from cffi import FFI
 
-samver = "1.15.1"
+samver = "1.24"
 file_directory = os.path.dirname(os.path.realpath(__file__))
 htslib_dir = os.path.join(file_directory, 'samtools-{}'.format(samver), 'htslib-{}'.format(samver))
 

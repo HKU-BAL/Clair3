@@ -6,7 +6,7 @@ PYTHON ?= python3
 all : libhts.a longphase libclair3.so
 clean : clean_htslib clean_longphase clean_libclair3
 
-SAMVER	=	1.15.1
+SAMVER	=	1.24
 PREFIX	?=	${CONDA_PREFIX}
 LDFLAGS	=	-L ${PREFIX}/lib
 CFLAGS	= -fpic -std=c99 -O3 -I ${PREFIX}/include -L ${PREFIX}/lib

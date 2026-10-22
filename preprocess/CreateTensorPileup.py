@@ -77,6 +77,12 @@ def generate_tensor(pos, pileup_bases, reference_sequence, reference_start, refe
         base = pileup_bases[base_idx]
         if base in "ACGTNacgtn#*":
             base_list.append(base)
+        elif base == '.':
+            # samtools mpileup with -f emits '.' for a forward-strand match and ','
+            # for a reverse-strand one; without -f it emits the literal base instead.
+            base_list.append(reference_base)
+        elif base == ',':
+            base_list.append(reference_base.lower())
         elif base == '+' or base == '-':
             base_idx += 1
             advance = 0
@@ -323,9 +329,10 @@ def CreateTensorPileup(args):
     gvcf_option = ' -a' if args.gvcf else ""
     samtools_mpileup_process = subprocess_popen(
         shlex.split(
-            "{} mpileup  {} -r {} --reverse-del".format(samtools_execute_command,
-                                                        bam_file_path,
-                                                        " ".join(reads_regions), )
+            "{} mpileup  {} -f {} -r {} --reverse-del".format(samtools_execute_command,
+                                                              bam_file_path,
+                                                              fasta_file_path,
+                                                              " ".join(reads_regions), )
             + mq_option + bq_option + bed_option + flags_option + max_depth_option + gvcf_option))
 
     if tensor_can_output_path != "PIPE":
