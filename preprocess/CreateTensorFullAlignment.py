@@ -211,6 +211,12 @@ def decode_pileup_bases(pileup_bases, reference_base, minimum_af_for_candidate, 
 
         elif base in "ACGTNacgtn#*":
             base_list.append([base, ""])
+        elif base == '.':
+            # samtools mpileup with -f emits '.' for a forward-strand match and ','
+            # for a reverse-strand one; without -f it emits the literal base instead.
+            base_list.append([reference_base, ""])
+        elif base == ',':
+            base_list.append([reference_base.lower(), ""])
         elif base == '^':  # start of read, next base is mq, update mq info
             base_idx += 1
         # skip $, the end of read
