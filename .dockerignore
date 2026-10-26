@@ -26,3 +26,6 @@ fa_test
 
 # misc
 *.sif
+
+# test suite (not part of the runtime image)
+tests/

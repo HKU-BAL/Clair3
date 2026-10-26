@@ -59,6 +59,12 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 ---
 
 ## Latest Updates
+### v2.0.5 — *Oct 26, 2026*
+- Adds support for **AMD Instinct GPUs** through ROCm PyTorch: a new `Dockerfile.amd` and a `rocm-smi` fallback in the GPU scheduler. NVIDIA/CUDA behaviour is unchanged ([#480](https://github.com/HKU-BAL/Clair3/issues/480)).
+- Reads **CRAM 3.1** input. `libclair3` is now built against htslib 1.24 instead of 1.15.1, and the `--disable_c_impl` path passes the reference to `samtools mpileup` again ([Issue#453](https://github.com/HKU-BAL/Clair3/issues/453), [#481](https://github.com/HKU-BAL/Clair3/issues/481)).
+- Fixed a one-past-the-end read in `getMyMaxItem` ([#474](https://github.com/HKU-BAL/Clair3/issues/474)).
+- Fixed two malformed error messages in `CheckEnvs` ([#465](https://github.com/HKU-BAL/Clair3/issues/465)).
+
 ### v2.0.4 — *Oct 5, 2026*
 - `--device=cuda:N` now runs on the requested physical GPU. The GPU scheduler mixed up the 0-based indices of the *visible* devices with physical GPU ids, so `--device=cuda:3` handed every worker `--gpu_id 0` and the job landed on GPU 0; setting `CUDA_VISIBLE_DEVICES` by hand failed the same way, because the worker overwrote it with that logical index ([Issue#472](https://github.com/HKU-BAL/Clair3/issues/472)). A requested device that does not exist on the host is now refused with a clear message instead of silently falling back to GPU 0.
 - Fixed `SplitExtendBed` silently dropping the last BED region — the pending merged region was only written out when the *next* non-overlapping region arrived, so a single-region (whole-contig) BED produced an empty file, and downstream steps failed with a chunk region of `ctg:nan-nan` ([Issue#466](https://github.com/HKU-BAL/Clair3/issues/466)).
