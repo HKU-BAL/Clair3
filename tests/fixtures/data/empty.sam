@@ -1,0 +1,5 @@
+@HD	VN:1.6	SO:coordinate
+@SQ	SN:chrToy	LN:4096
+@SQ	SN:chr:colon	LN:1024
+@SQ	SN:chrEmpty	LN:512
+@RG	ID:toy	SM:TOY

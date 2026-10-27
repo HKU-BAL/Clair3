@@ -1,0 +1,102 @@
+usage: run_clair3.py [-h] -b BAM_FN -f REF_FN -m MODEL_PATH -t THREADS -p
+                     {ont,hifi,ilmn} -o OUTPUT [--bed_fn BED_FN]
+                     [--vcf_fn VCF_FN] [--ctg_name CTG_NAME]
+                     [--sample_name SAMPLE_NAME] [--qual QUAL]
+                     [--samtools SAMTOOLS] [--python PYTHON_BIN] [--pypy PYPY]
+                     [--parallel PARALLEL] [--whatshap WHATSHAP]
+                     [--longphase LONGPHASE] [--chunk_num CHUNK_NUM]
+                     [--chunk_size CHUNK_SIZE] [--snp_min_af SNP_MIN_AF]
+                     [--indel_min_af INDEL_MIN_AF]
+                     [--var_pct_full VAR_PCT_FULL]
+                     [--ref_pct_full REF_PCT_FULL]
+                     [--var_pct_phasing VAR_PCT_PHASING]
+                     [--pileup_model_prefix PILEUP_MODEL_PREFIX]
+                     [--fa_model_prefix FA_MODEL_PREFIX] [--min_mq MIN_MQ]
+                     [--min_coverage MIN_COVERAGE]
+                     [--min_contig_size MIN_CONTIG_SIZE]
+                     [--fast_mode [FAST_MODE]] [--base_err BASE_ERR]
+                     [--gq_bin_size GQ_BIN_SIZE] [--pileup_only [PILEUP_ONLY]]
+                     [--print_ref_calls [PRINT_REF_CALLS]]
+                     [--include_all_ctgs [INCLUDE_ALL_CTGS]] [--gvcf [GVCF]]
+                     [--use_whatshap_for_intermediate_phasing [USE_WHATSHAP_FOR_INTERMEDIATE_PHASING]]
+                     [--use_longphase_for_intermediate_phasing [USE_LONGPHASE_FOR_INTERMEDIATE_PHASING]]
+                     [--use_whatshap_for_final_output_phasing [USE_WHATSHAP_FOR_FINAL_OUTPUT_PHASING]]
+                     [--use_longphase_for_final_output_phasing [USE_LONGPHASE_FOR_FINAL_OUTPUT_PHASING]]
+                     [--use_whatshap_for_final_output_haplotagging [USE_WHATSHAP_FOR_FINAL_OUTPUT_HAPLOTAGGING]]
+                     [--enable_phasing [ENABLE_PHASING]]
+                     [--longphase_for_phasing [LONGPHASE_FOR_PHASING]]
+                     [--disable_c_impl [DISABLE_C_IMPL]]
+                     [--remove_intermediate_dir [REMOVE_INTERMEDIATE_DIR]]
+                     [--call_snp_only [CALL_SNP_ONLY]]
+                     [--enable_variant_calling_at_sequence_head_and_tail [ENABLE_VARIANT_CALLING_AT_SEQUENCE_HEAD_AND_TAIL]]
+                     [--output_all_contigs_in_gvcf_header [OUTPUT_ALL_CONTIGS_IN_GVCF_HEADER]]
+                     [--enable_long_indel [ENABLE_LONG_INDEL]]
+                     [--keep_iupac_bases [KEEP_IUPAC_BASES]]
+                     [--use_gpu [USE_GPU]] [--device DEVICE]
+                     [--no_phasing_for_fa [NO_PHASING_FOR_FA]]
+                     [--haploid_precise [HAPLOID_PRECISE]]
+                     [--haploid_sensitive [HAPLOID_SENSITIVE]]
+                     [--enable_dwell_time [ENABLE_DWELL_TIME]] [-v]
+
+Clair3 entrypoint (Python replacement for run_clair3.sh). Use --bam_fn,
+--ref_fn, --model_path, --threads, --platform, --output.
+
+options:
+  -h, --help            show this help message and exit
+  -b BAM_FN, --bam_fn BAM_FN
+  -f REF_FN, --ref_fn REF_FN
+  -m MODEL_PATH, --model_path MODEL_PATH
+  -t THREADS, --threads THREADS
+  -p {ont,hifi,ilmn}, --platform {ont,hifi,ilmn}
+  -o OUTPUT, --output OUTPUT
+  --bed_fn BED_FN
+  --vcf_fn VCF_FN
+  --ctg_name CTG_NAME
+  --sample_name SAMPLE_NAME
+  --qual QUAL
+  --samtools SAMTOOLS
+  --python PYTHON_BIN
+  --pypy PYPY
+  --parallel PARALLEL
+  --whatshap WHATSHAP
+  --longphase LONGPHASE
+  --chunk_num CHUNK_NUM
+  --chunk_size CHUNK_SIZE
+  --snp_min_af SNP_MIN_AF
+  --indel_min_af INDEL_MIN_AF
+  --var_pct_full VAR_PCT_FULL
+  --ref_pct_full REF_PCT_FULL
+  --var_pct_phasing VAR_PCT_PHASING
+  --pileup_model_prefix PILEUP_MODEL_PREFIX
+  --fa_model_prefix FA_MODEL_PREFIX
+  --min_mq MIN_MQ
+  --min_coverage MIN_COVERAGE
+  --min_contig_size MIN_CONTIG_SIZE
+  --fast_mode [FAST_MODE]
+  --base_err BASE_ERR
+  --gq_bin_size GQ_BIN_SIZE
+  --pileup_only [PILEUP_ONLY]
+  --print_ref_calls [PRINT_REF_CALLS]
+  --include_all_ctgs [INCLUDE_ALL_CTGS]
+  --gvcf [GVCF]
+  --use_whatshap_for_intermediate_phasing [USE_WHATSHAP_FOR_INTERMEDIATE_PHASING]
+  --use_longphase_for_intermediate_phasing [USE_LONGPHASE_FOR_INTERMEDIATE_PHASING]
+  --use_whatshap_for_final_output_phasing [USE_WHATSHAP_FOR_FINAL_OUTPUT_PHASING]
+  --use_longphase_for_final_output_phasing [USE_LONGPHASE_FOR_FINAL_OUTPUT_PHASING]
+  --use_whatshap_for_final_output_haplotagging [USE_WHATSHAP_FOR_FINAL_OUTPUT_HAPLOTAGGING]
+  --enable_phasing [ENABLE_PHASING]
+  --longphase_for_phasing [LONGPHASE_FOR_PHASING]
+  --disable_c_impl [DISABLE_C_IMPL]
+  --remove_intermediate_dir [REMOVE_INTERMEDIATE_DIR]
+  --call_snp_only [CALL_SNP_ONLY]
+  --enable_variant_calling_at_sequence_head_and_tail [ENABLE_VARIANT_CALLING_AT_SEQUENCE_HEAD_AND_TAIL]
+  --output_all_contigs_in_gvcf_header [OUTPUT_ALL_CONTIGS_IN_GVCF_HEADER]
+  --enable_long_indel [ENABLE_LONG_INDEL]
+  --keep_iupac_bases [KEEP_IUPAC_BASES]
+  --use_gpu [USE_GPU]
+  --device DEVICE
+  --no_phasing_for_fa [NO_PHASING_FOR_FA]
+  --haploid_precise [HAPLOID_PRECISE]
+  --haploid_sensitive [HAPLOID_SENSITIVE]
+  --enable_dwell_time [ENABLE_DWELL_TIME]
+  -v, --version         show program's version number and exit

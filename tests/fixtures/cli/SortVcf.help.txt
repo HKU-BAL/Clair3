@@ -1,0 +1,51 @@
+usage: SortVcf.py [-h] --output_fn OUTPUT_FN [--input_dir INPUT_DIR]
+                  [--vcf_fn_prefix VCF_FN_PREFIX]
+                  [--vcf_fn_suffix VCF_FN_SUFFIX] [--ref_fn REF_FN]
+                  [--sampleName SAMPLENAME] [--contigs_fn CONTIGS_FN]
+                  [--cmd_fn CMD_FN] [--pileup_only PILEUP_ONLY]
+                  [--print_ref_calls PRINT_REF_CALLS]
+                  [--check_malformed_records CHECK_MALFORMED_RECORDS]
+                  [--haploid_precise HAPLOID_PRECISE]
+                  [--haploid_sensitive HAPLOID_SENSITIVE] [--qual QUAL]
+                  [--output_all_contigs_in_gvcf_header OUTPUT_ALL_CONTIGS_IN_GVCF_HEADER]
+                  [--use_gpu USE_GPU]
+
+Sort a VCF file according to contig name and starting position
+
+options:
+  -h, --help            show this help message and exit
+  --output_fn OUTPUT_FN
+                        Output VCF filename, required
+  --input_dir INPUT_DIR
+                        Input directory
+  --vcf_fn_prefix VCF_FN_PREFIX
+                        Input vcf filename prefix
+  --vcf_fn_suffix VCF_FN_SUFFIX
+                        Input vcf filename suffix
+  --ref_fn REF_FN       Reference fasta file input
+  --sampleName SAMPLENAME
+                        Define the sample name to be shown in the VCF file,
+                        optional
+  --contigs_fn CONTIGS_FN
+                        Contigs file with all processing contigs
+  --cmd_fn CMD_FN       If defined, added command line into VCF header
+  --pileup_only PILEUP_ONLY
+                        Use the pileup model only when calling, default:
+                        disable
+  --print_ref_calls PRINT_REF_CALLS
+                        Show reference calls (0/0) in vcf file output
+  --check_malformed_records CHECK_MALFORMED_RECORDS
+                        Check the malformed records in vcf file, default:
+                        enable
+  --haploid_precise HAPLOID_PRECISE
+                        EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is
+                        considered as a variant
+  --haploid_sensitive HAPLOID_SENSITIVE
+                        EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1
+                        are considered as a variant
+  --qual QUAL           If set, variants with >$qual will be marked 'PASS', or
+                        'LowQual' otherwise, optional
+  --output_all_contigs_in_gvcf_header OUTPUT_ALL_CONTIGS_IN_GVCF_HEADER
+                        EXPERIMENTAL: Enable output all contigs in gvcf
+                        header. Default: disable
+  --use_gpu USE_GPU     Use GPU for variant calling. Default: disable

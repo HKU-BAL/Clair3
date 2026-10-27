@@ -1,0 +1,15 @@
+usage: GetOverallMetrics.py [-h] [--happy_vcf_fn HAPPY_VCF_FN]
+                            [--log_happy LOG_HAPPY] [--ctgName CTGNAME]
+                            [--output_fn OUTPUT_FN]
+
+Overall Metrics of hap.py output
+
+options:
+  -h, --help            show this help message and exit
+  --happy_vcf_fn HAPPY_VCF_FN
+                        Path to the happy vcf output file
+  --log_happy LOG_HAPPY
+                        Path to the happy vcf output file
+  --ctgName CTGNAME     The name of sequence to be processed
+  --output_fn OUTPUT_FN
+                        Filename of the metrics output

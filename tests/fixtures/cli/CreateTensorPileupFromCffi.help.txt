@@ -1,0 +1,98 @@
+usage: CreateTensorPileupFromCffi.py [-h] [--platform PLATFORM] --bam_fn
+                                     BAM_FN --ref_fn REF_FN
+                                     [--tensor_can_fn TENSOR_CAN_FN]
+                                     [--vcf_fn VCF_FN] [--min_af MIN_AF]
+                                     [--snp_min_af SNP_MIN_AF]
+                                     [--indel_min_af INDEL_MIN_AF]
+                                     [--ctgName CTGNAME] [--ctgStart CTGSTART]
+                                     [--ctgEnd CTGEND] [--bed_fn BED_FN]
+                                     [--gvcf GVCF] [--sampleName SAMPLENAME]
+                                     [--samtools SAMTOOLS]
+                                     [--fast_mode FAST_MODE]
+                                     [--enable_variant_calling_at_sequence_head_and_tail ENABLE_VARIANT_CALLING_AT_SEQUENCE_HEAD_AND_TAIL]
+                                     [--minCoverage MINCOVERAGE]
+                                     [--minMQ MINMQ] [--minBQ MINBQ]
+                                     [--max_depth MAX_DEPTH]
+                                     [--call_snp_only CALL_SNP_ONLY]
+                                     [--extend_bed EXTEND_BED]
+                                     [--temp_file_dir TEMP_FILE_DIR]
+                                     [--indel_fn INDEL_FN]
+                                     [--base_err BASE_ERR]
+                                     [--gq_bin_size GQ_BIN_SIZE]
+                                     [--bp_resolution]
+
+Generate variant candidate tensors using pileup
+
+options:
+  -h, --help            show this help message and exit
+  --platform PLATFORM   Sequencing platform of the input. Options:
+                        'ont,hifi,ilmn', default: ont
+  --bam_fn BAM_FN       Sorted BAM file input, required
+  --ref_fn REF_FN       Reference fasta file input, required
+  --tensor_can_fn TENSOR_CAN_FN
+                        Tensor output, stdout by default, default: PIPE
+  --vcf_fn VCF_FN       Candidate sites VCF file input, if provided, variants
+                        will only be called at the sites in the VCF file,
+                        default: None
+  --min_af MIN_AF       Minimum allele frequency for both SNP and Indel for a
+                        site to be considered as a candidate site, default:
+                        0.080000
+  --snp_min_af SNP_MIN_AF
+                        Minimum snp allele frequency for a site to be
+                        considered as a candidate site, default: 0.080000
+  --indel_min_af INDEL_MIN_AF
+                        Minimum indel allele frequency for a site to be
+                        considered as a candidate site, default: 0.150000
+  --ctgName CTGNAME     The name of sequence to be processed, required if
+                        --bed_fn is not defined
+  --ctgStart CTGSTART   The 1-based starting position of the sequence to be
+                        processed, optional, will process the whole --ctgName
+                        if not set
+  --ctgEnd CTGEND       The 1-based inclusive ending position of the sequence
+                        to be processed, optional, will process the whole
+                        --ctgName if not set
+  --bed_fn BED_FN       Call variant only in the provided regions. Will take
+                        an intersection if --ctgName and/or (--ctgStart,
+                        --ctgEnd) are set
+  --gvcf GVCF           Enable GVCF output, default: disabled
+  --sampleName SAMPLENAME
+                        Define the sample name to be shown in the VCF file,
+                        default: SAMPLE
+  --samtools SAMTOOLS   Path to the 'samtools', samtools version >= 1.10 is
+                        required. default: samtools
+  --fast_mode FAST_MODE
+                        EXPERIMENTAL: Skip variant candidates with AF <= 0.15,
+                        default: False
+  --enable_variant_calling_at_sequence_head_and_tail ENABLE_VARIANT_CALLING_AT_SEQUENCE_HEAD_AND_TAIL
+                        EXPERIMENTAL: Enable variant calling in sequence head
+                        and tail start or end regions that flanking 16bp
+                        windows having no read support. Default: disable.
+  --minCoverage MINCOVERAGE
+                        EXPERIMENTAL: Minimum coverage required to call a
+                        variant, default: 2.000000
+  --minMQ MINMQ         EXPERIMENTAL: If set, reads with mapping quality with
+                        <$minMQ are filtered, default: 5
+  --minBQ MINBQ         EXPERIMENTAL: If set, bases with base quality with
+                        <$minBQ are filtered, default: 0
+  --max_depth MAX_DEPTH
+                        EXPERIMENTAL: Maximum pileup depth to be processed.
+                        default: 144
+  --call_snp_only CALL_SNP_ONLY
+                        EXPERIMENTAL: Call candidates pass snp minimum AF
+                        only, ignore Indel candidates
+  --extend_bed EXTEND_BED
+                        DEBUG: Extend the regions in the --bed_fn by a few bp
+                        for tensor creation, default extend 16bp
+  --temp_file_dir TEMP_FILE_DIR
+                        EXPERIMENTAL: The cache directory for storing
+                        temporary non-variant information if --gvcf is
+                        enabled, default: ./
+  --indel_fn INDEL_FN   DEBUG: Output all alternative indel cigar for debug
+                        purpose
+  --base_err BASE_ERR   DEBUG: Estimated base error rate in gvcf option,
+                        default: 0.001000
+  --gq_bin_size GQ_BIN_SIZE
+                        DEBUG: Default gq bin size for merge non-variant block
+                        in gvcf option, default: 5
+  --bp_resolution       DEBUG: Enable bp resolution for GVCF, default:
+                        disabled

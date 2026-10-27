@@ -208,7 +208,7 @@ This section shows how to build multiple compressed tensor binary file for multi
 ```bash
 # Call variants using Clair3‘s pileup model with the --pileup_only option
 # Only select the candidates in the high-confident BED regions for model training (with --bed_fn)
-${PARALLEL} -j1 python3 ${CLAIR3_PATH}/run_clair3.py \
+${PARALLEL} -j1 ${CLAIR3_PATH}/run_clair3.sh \
   --bam_fn={3} \
   --ref_fn={4} \
   --threads=${THREADS} \
@@ -225,7 +225,7 @@ ${PARALLEL} -j1 python3 ${CLAIR3_PATH}/run_clair3.py \
 ```bash
 # Select all pileup called variants (0/1, 1/1 and 1/2) and some pileup reference calls (0/0) for full-alignment model training
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/select_pileup_candidates.log -j${THREADS} \
-"${PYPY} ${CLAIR3} SelectHetSnp \
+"${CLAIR3} SelectHetSnp \
 --alt_fn ${PILEUP_OUTPUT_PATH}/{2}_{3}/pileup.vcf.gz \
 --split_folder ${CANDIDATE_BED_PATH} \
 --sampleName {2} \
@@ -242,7 +242,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/select_pileup_candidates.log -j${THR
 
 ```bash
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/split_extend_bed.log -j${THREADS} \
-"${PYPY} ${CLAIR3} SplitExtendBed \
+"${CLAIR3} SplitExtendBed \
     --bed_fn {4} \
     --output_fn ${SPLIT_BED_PATH}/{2}_{3}_{1} \
     --ctgName ${CHR_PREFIX}{1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${ALL_BED_FILE_PATH[@]}
@@ -253,7 +253,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/split_extend_bed.log -j${THREADS} \
 ```bash
 # Convert an unified VCF file into a simplified var file
 ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
-"${PYPY} ${CLAIR3} GetTruth \
+"${CLAIR3} GetTruth \
     --vcf_fn {4} \
     --ctgName ${CHR_PREFIX}{1} \
     --var_fn ${VAR_OUTPUT_PATH}/var_{2}_{3}_{1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${UNIFIED_VCF_FILE_PATH[@]}
@@ -264,7 +264,7 @@ ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
 ```bash
 # Create full-alignment tensors for model training
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_full_alignment.log -j${THREADS_LOW} \
-"${PYPY} ${CLAIR3} CreateTrainingTensor \
+"${CLAIR3} CreateTrainingTensor \
     --bam_fn ${PHASE_BAM_PATH}/{2}_{3}_{1}.bam \
     --ref_fn {5} \
     --var_fn ${VAR_OUTPUT_PATH}/var_{2}_{3}_{1} \
@@ -298,7 +298,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_full_alignment.log -j$
 ```bash
 # Merge compressed binaries
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/mergeBin.log -j${THREADS} \
-"${PYTHON3} ${CLAIR3} MergeBin \
+"${CLAIR3} MergeBin \
     ${TENSOR_CANDIDATE_PATH}/tensor_{2}_{3}_{1}_* \
     --platform ${PLATFORM} \
     --out_fn ${BINS_FOLDER_PATH}/bin_{2}_{3}_{1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]}
@@ -327,7 +327,7 @@ cd ${MODEL_FOLDER_PATH}
 
 # A single GPU is used for model training
 export CUDA_VISIBLE_DEVICES="0"
-${PYTHON3} ${CLAIR3} Train \
+${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
     --ochk_prefix ${MODEL_FOLDER_PATH}/full_alignment \
     --add_indel_length True \
@@ -350,7 +350,7 @@ mkdir -p ${MODEL_FOLDER_PATH}
 cd ${MODEL_FOLDER_PATH}
 
 export CUDA_VISIBLE_DEVICES="0"
-${PYTHON3} ${CLAIR3} Train \
+${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
     --ochk_prefix ${MODEL_FOLDER_PATH}/full_alignment \
     --add_indel_length True \

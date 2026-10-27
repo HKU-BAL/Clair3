@@ -1,0 +1,46 @@
+usage: SelectCandidates.py [-h] [--platform PLATFORM] --split_folder
+                           SPLIT_FOLDER --pileup_vcf_fn PILEUP_VCF_FN
+                           [--ref_fn REF_FN] [--var_pct_full VAR_PCT_FULL]
+                           [--ref_pct_full REF_PCT_FULL] [--ctgName CTGNAME]
+                           [--samtools SAMTOOLS]
+                           [--call_low_seq_entropy CALL_LOW_SEQ_ENTROPY]
+                           [--seq_entropy_pro SEQ_ENTROPY_PRO]
+                           [--split_bed_size SPLIT_BED_SIZE]
+                           [--phasing_info_in_bam]
+
+Select pileup candidates for full alignment
+
+options:
+  -h, --help            show this help message and exit
+  --platform PLATFORM   Sequencing platform of the input. Options:
+                        'ont,hifi,ilmn', default: ont
+  --split_folder SPLIT_FOLDER
+                        Path to directory that stores candidate region,
+                        required
+  --pileup_vcf_fn PILEUP_VCF_FN
+                        Input pileup pileup vcf, required
+  --ref_fn REF_FN       Reference fasta file input, required
+  --var_pct_full VAR_PCT_FULL
+                        Specify an expected percentage of low quality 0/1 and
+                        1/1 variants called in the pileup mode for full-
+                        alignment mode calling, default: 0.300000
+  --ref_pct_full REF_PCT_FULL
+                        Specify an expected percentage of low quality 0/0
+                        variants called in the pileup mode for full-alignment
+                        mode calling, default: 0.300000
+  --ctgName CTGNAME     The name of sequence to be processed
+  --samtools SAMTOOLS   Path to the 'samtools', samtools version >= 1.10 is
+                        required, default: samtools
+  --call_low_seq_entropy CALL_LOW_SEQ_ENTROPY
+                        EXPERIMENTAL: Enable full alignment calling on
+                        candidate variants with low sequence entropy
+  --seq_entropy_pro SEQ_ENTROPY_PRO
+                        EXPERIMENTAL: Define the percentage of the candidate
+                        variants with the lowest sequence entropy for full
+                        alignment calling, default: 0.050000
+  --split_bed_size SPLIT_BED_SIZE
+                        EXPERIMENTAL: Define the candidate bed size for each
+                        split bed file. default: 10000
+  --phasing_info_in_bam
+                        DEBUG: Skip phasing and use the phasing info provided
+                        in the input BAM (HP tag), default: True

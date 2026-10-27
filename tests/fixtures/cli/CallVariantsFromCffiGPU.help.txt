@@ -1,0 +1,164 @@
+usage: CallVariantsFromCffiGPU.py [-h] [--platform PLATFORM]
+                                  [--tensor_fn TENSOR_FN]
+                                  [--full_aln_files FULL_ALN_FILES]
+                                  [--output_dir OUTPUT_DIR]
+                                  [--chkpnt_fn CHKPNT_FN] [--call_fn CALL_FN]
+                                  [--gvcf GVCF] [--ref_fn REF_FN]
+                                  [--ctgName CTGNAME] [--ctgStart CTGSTART]
+                                  [--ctgEnd CTGEND] [--sampleName SAMPLENAME]
+                                  [--qual QUAL] [--samtools SAMTOOLS]
+                                  [--temp_file_dir TEMP_FILE_DIR]
+                                  [--haploid_precise] [--haploid_sensitive]
+                                  [--enable_long_indel ENABLE_LONG_INDEL]
+                                  [--keep_iupac_bases KEEP_IUPAC_BASES]
+                                  [--enable_dwell_time ENABLE_DWELL_TIME]
+                                  [--use_gpu USE_GPU] [--threads THREADS]
+                                  [--predict_fn PREDICT_FN]
+                                  [--input_probabilities]
+                                  [--output_probabilities]
+                                  [--enable_variant_calling_at_sequence_head_and_tail ENABLE_VARIANT_CALLING_AT_SEQUENCE_HEAD_AND_TAIL]
+                                  --bam_fn BAM_FN [--bed_fn [BED_FN]]
+                                  [--snp_min_af SNP_MIN_AF]
+                                  [--indel_min_af INDEL_MIN_AF]
+                                  [--extend_bed [EXTEND_BED]]
+                                  [--vcf_fn VCF_FN]
+                                  [--minCoverage MINCOVERAGE] [--minMQ MINMQ]
+                                  [--minBQ MINBQ] [--max_depth MAX_DEPTH]
+                                  [--fast_mode FAST_MODE]
+                                  [--call_snp_only CALL_SNP_ONLY]
+                                  [--base_err BASE_ERR]
+                                  [--gq_bin_size GQ_BIN_SIZE]
+                                  [--bp_resolution]
+                                  [--phased_vcf_fn PHASED_VCF_FN]
+                                  [--no_phasing_for_fa NO_PHASING_FOR_FA]
+                                  [--parallel PARALLEL] [--pypy PYPY]
+                                  [--python PYTHON]
+                                  [--cpu_threads CPU_THREADS]
+                                  [--gpu_threads GPU_THREADS]
+                                  [--internal_threads INTERNAL_THREADS]
+                                  [--device DEVICE]
+
+The wrapper of GPU Call variants
+
+options:
+  -h, --help            show this help message and exit
+  --platform PLATFORM   Sequencing platform of the input. Options:
+                        'ont,hifi,ilmn', default: ont
+  --tensor_fn TENSOR_FN
+                        Tensor input filename, or stdin if not set
+  --full_aln_files FULL_ALN_FILES
+                        Tensor input filename, or stdin if not set
+  --output_dir OUTPUT_DIR
+                        Tensor input filename, or stdin if not set
+  --chkpnt_fn CHKPNT_FN
+                        Input a trained model for variant calling, required
+  --call_fn CALL_FN     VCF output filename, or stdout if not set
+  --gvcf GVCF           Enable GVCF output, default: disabled
+  --ref_fn REF_FN       Reference fasta file input, required if --gvcf is
+                        enabled
+  --ctgName CTGNAME     The name of the sequence to be processed
+  --ctgStart CTGSTART   The 1-based starting position of the sequence to be
+                        processed, optional, will process the whole --ctgName
+                        if not set
+  --ctgEnd CTGEND       The 1-based inclusive ending position of the sequence
+                        to be processed, optional, will process the whole
+                        --ctgName if not set
+  --sampleName SAMPLENAME
+                        Define the sample name to be shown in the VCF file,
+                        optional
+  --qual QUAL           If set, variants with >=$qual will be marked 'PASS',
+                        or 'LowQual' otherwise, optional
+  --samtools SAMTOOLS   Path to the 'samtools', samtools version >= 1.10 is
+                        required, default: samtools
+  --temp_file_dir TEMP_FILE_DIR
+                        EXPERIMENTAL: The cache directory for storing
+                        temporary non-variant information if --gvcf is
+                        enabled, default: ./
+  --haploid_precise     EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is
+                        considered as a variant
+  --haploid_sensitive   EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1
+                        are considered as a variant
+  --enable_long_indel ENABLE_LONG_INDEL
+                        EXPERIMENTAL: Enable long Indel variants(>50 bp)
+                        calling
+  --keep_iupac_bases KEEP_IUPAC_BASES
+                        EXPERIMENTAL: Keep IUPAC (non ACGTN) reference and
+                        alternate bases, default: convert all IUPAC bases to N
+  --enable_dwell_time ENABLE_DWELL_TIME
+                        EXPERIMENTAL: Enable dwell time channel for full-
+                        alignment tensors
+  --use_gpu USE_GPU     Use GPU for calling
+  --threads THREADS     How many threads for python to use for parallelization
+                        default: 1.000000
+  --predict_fn PREDICT_FN
+                        DEBUG: Output network output probabilities for further
+                        analysis
+  --input_probabilities
+                        DEBUG: Use network probability outputs as input and
+                        generate variants from them
+  --output_probabilities
+                        DEBUG: Output the network probabilities of gt21,
+                        genotype, indel_length_1 and indel_length_2
+  --enable_variant_calling_at_sequence_head_and_tail ENABLE_VARIANT_CALLING_AT_SEQUENCE_HEAD_AND_TAIL
+                        EXPERIMENTAL: Enable variant calling in sequence head
+                        and tail start or end regions that flanking 16bp
+                        windows having no read support. Default: disable.
+  --bam_fn BAM_FN       Sorted BAM file input, required
+  --bed_fn [BED_FN]     Call variant only in the provided regions. Will take
+                        an intersection if --ctgName and/or (--ctgStart,
+                        --ctgEnd) are set
+  --snp_min_af SNP_MIN_AF
+                        Minimum snp allele frequency for a site to be
+                        considered as a candidate site, default: 0.080000
+  --indel_min_af INDEL_MIN_AF
+                        Minimum indel allele frequency for a site to be
+                        considered as a candidate site, default: 0.150000
+  --extend_bed [EXTEND_BED]
+                        DEBUG: Extend the regions in the --bed_fn by a few bp
+                        for tensor creation, default extend 16bp
+  --vcf_fn VCF_FN       Candidate sites VCF file input, if provided, variants
+                        will only be called at the sites in the VCF file,
+                        default: None
+  --minCoverage MINCOVERAGE
+                        EXPERIMENTAL: Minimum coverage required to call a
+                        variant, default: 2.000000
+  --minMQ MINMQ         EXPERIMENTAL: If set, reads with mapping quality with
+                        <$minMQ are filtered, default: 5
+  --minBQ MINBQ         EXPERIMENTAL: If set, bases with base quality with
+                        <$minBQ are filtered, default: 0
+  --max_depth MAX_DEPTH
+                        EXPERIMENTAL: Maximum full alignment depth to be
+                        processed. default: 144
+  --fast_mode FAST_MODE
+                        EXPERIMENTAL: Skip variant candidates with AF <= 0.15,
+                        default: False
+  --call_snp_only CALL_SNP_ONLY
+                        EXPERIMENTAL: Call candidates pass snp minimum AF
+                        only, ignore Indel candidates
+  --base_err BASE_ERR   DEBUG: Estimated base error rate in gvcf option,
+                        default: 0.001000
+  --gq_bin_size GQ_BIN_SIZE
+                        DEBUG: Default gq bin size for merge non-variant block
+                        in gvcf option, default: 5
+  --bp_resolution       DEBUG: Enable bp resolution for GVCF, default:
+                        disabled
+  --phased_vcf_fn PHASED_VCF_FN
+                        Use heterozygous SNP variants in phased vcf file for
+                        haplotaging
+  --no_phasing_for_fa NO_PHASING_FOR_FA
+                        EXPERIMENTAL: Call variants without whatshap or
+                        longphase phasing in full alignment calling
+  --parallel PARALLEL   Absolute path of parallel, parallel >= 20191122 is
+                        required.
+  --pypy PYPY           Absolute path of pypy3, pypy3 >= 3.6 is required.
+  --python PYTHON       Absolute path of pypy3, pypy3 >= 3.6 is required.
+  --cpu_threads CPU_THREADS
+                        How many threads for python to use for parallelization
+                        default: 4.000000
+  --gpu_threads GPU_THREADS
+                        How many threads for python to use for parallelization
+                        default: 4.000000
+  --internal_threads INTERNAL_THREADS
+                        How many threads for python to use for parallelization
+                        default: 1.000000
+  --device DEVICE       Specify the GPUs for calling default: 'cuda:auto'

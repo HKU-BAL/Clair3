@@ -1,0 +1,374 @@
+[
+  {
+    "case": "official_dwell",
+    "file": "official_dwell.pileup.vcf",
+    "records": 988,
+    "sha256": "3ac546cacc8739568bc328790a7f609712d57185fd5d6d8556c742c97cf4f853"
+  },
+  {
+    "case": "official_dwell",
+    "file": "official_dwell.full_alignment.vcf",
+    "records": 428,
+    "sha256": "9d48bafd89c9a539b4f82c422e0acfaf481a492b8464391767baacda6de96ba8"
+  },
+  {
+    "case": "official_dwell",
+    "file": "official_dwell.merge_output.vcf",
+    "records": 560,
+    "sha256": "1fb1f0eb30e73c29cf533595ec7ca807224a6ba1e4ce42597ed425f4c2c25d3e"
+  },
+  {
+    "case": "official_hifi",
+    "file": "official_hifi.pileup.vcf",
+    "records": 845,
+    "sha256": "fc5eb27f1b6e349f4291067b83e096bb035e6f46a123379e70e499b78feb4d80"
+  },
+  {
+    "case": "official_hifi",
+    "file": "official_hifi.full_alignment.vcf",
+    "records": 251,
+    "sha256": "80831748d57d11df4a193fa372ff286f11f851ed3a3337f7a272b59301b02136"
+  },
+  {
+    "case": "official_hifi",
+    "file": "official_hifi.merge_output.vcf",
+    "records": 567,
+    "sha256": "4870e8d6d2f84bceccf41008b9a794146c2f04eb2e7b818baafb4100fc76b40d"
+  },
+  {
+    "case": "official_ilmn",
+    "file": "official_ilmn.pileup.vcf",
+    "records": 861,
+    "sha256": "407af3363db595749975f48b0e60b0a3bf99b67cf299356b571fe1769200a9c2"
+  },
+  {
+    "case": "official_ilmn",
+    "file": "official_ilmn.full_alignment.vcf",
+    "records": 837,
+    "sha256": "99d81b1b231a8269eb1f79abdaf2f7ec457fdbf09a27e72dd509fac3a1c5d6c6"
+  },
+  {
+    "case": "official_ilmn",
+    "file": "official_ilmn.merge_output.vcf",
+    "records": 550,
+    "sha256": "0e8fb91671e7e590a04dc51da8043fec56b67239bb278ef837eebfe72c5d7b5b"
+  },
+  {
+    "case": "official_no_dwell",
+    "file": "official_no_dwell.pileup.vcf",
+    "records": 988,
+    "sha256": "0a4a2677b94464ebaa842b250e53fd1072dcde3bcfd5357963d7836a5decf64f"
+  },
+  {
+    "case": "official_no_dwell",
+    "file": "official_no_dwell.full_alignment.vcf",
+    "records": 432,
+    "sha256": "3c263189335e8f1b15f6a1e6d4a9768db35d6b3853626056cd3dfd5cdc0689f6"
+  },
+  {
+    "case": "official_no_dwell",
+    "file": "official_no_dwell.merge_output.vcf",
+    "records": 573,
+    "sha256": "d09f920240513c471e543f546bd6264f19371c9d83295736a3283c85083d3977"
+  },
+  {
+    "case": "official_ont",
+    "file": "official_ont.pileup.vcf",
+    "records": 5708,
+    "sha256": "fe0f5acdfd0c929fd469aadd91d17e33bf4d477c74efe3513be41c94157c7be0"
+  },
+  {
+    "case": "official_ont",
+    "file": "official_ont.full_alignment.vcf",
+    "records": 894,
+    "sha256": "180eb3bf3c33747a8a4998d8cd922ac014f453fca9528b28257a1e1a313d8298"
+  },
+  {
+    "case": "official_ont",
+    "file": "official_ont.merge_output.vcf",
+    "records": 550,
+    "sha256": "7dcb91e574805d41e385ba87db1a17f28802be66cf347369d7436f0dd7ceae7b"
+  },
+  {
+    "case": "toy_cram",
+    "file": "toy_cram.pileup.vcf",
+    "records": 11,
+    "sha256": "290e8d86b66f1616da50449cfc848bb0db77726e8cf48bfabb08def062baa77f"
+  },
+  {
+    "case": "toy_cram",
+    "file": "toy_cram.full_alignment.vcf",
+    "records": 5,
+    "sha256": "b241130d3b54fd5153ce219f5e98fc73f2e6dd20ca098d87d967fe2b24377637"
+  },
+  {
+    "case": "toy_cram",
+    "file": "toy_cram.merge_output.vcf",
+    "records": 9,
+    "sha256": "531fe6fc31b07fa8645560b6425cd45bdcb95d7ba786eacecbd58eac5e61a512"
+  },
+  {
+    "case": "toy_default",
+    "file": "toy_default.pileup.vcf",
+    "records": 11,
+    "sha256": "58dbb76b891f8c55aa26c271c6903c3960d15022ca56523d6b40af40850eb0bc"
+  },
+  {
+    "case": "toy_default",
+    "file": "toy_default.full_alignment.vcf",
+    "records": 5,
+    "sha256": "b241130d3b54fd5153ce219f5e98fc73f2e6dd20ca098d87d967fe2b24377637"
+  },
+  {
+    "case": "toy_default",
+    "file": "toy_default.merge_output.vcf",
+    "records": 9,
+    "sha256": "d9d12fa20d78bc443e92b1013448ea3096e4ac275721258a2f51aef70b7d31a2"
+  },
+  {
+    "case": "toy_dwell",
+    "file": "toy_dwell.pileup.vcf",
+    "records": 11,
+    "sha256": "c58940a9cc7bff00d7c5f6ff642e21a27cc93f0346937741ab0525a417cb79e2"
+  },
+  {
+    "case": "toy_dwell",
+    "file": "toy_dwell.full_alignment.vcf",
+    "records": 4,
+    "sha256": "64ba7d561d641b28bb574a069d56c61492ccac6ad731736ab2e164bb56372113"
+  },
+  {
+    "case": "toy_dwell",
+    "file": "toy_dwell.merge_output.vcf",
+    "records": 8,
+    "sha256": "ae22e7fe5234e172ddbfccbdaf68f79d4e95011ad001e1f48d4997495f80f8f8"
+  },
+  {
+    "case": "toy_empty",
+    "file": "toy_empty.merge_output.vcf",
+    "records": 0,
+    "sha256": "0b8aa9742c3fe071e8bfa06e820471a6bfb2e18f6bb4ec01a76556985eb82b5c"
+  },
+  {
+    "case": "toy_gvcf",
+    "file": "toy_gvcf.pileup.vcf",
+    "records": 11,
+    "sha256": "152a892a61f2cf3b147262d6e0f8b15a5db8f9a333c23d9255992307f8c4a92d"
+  },
+  {
+    "case": "toy_gvcf",
+    "file": "toy_gvcf.full_alignment.vcf",
+    "records": 5,
+    "sha256": "2beac5e17186443bb0fa31e46e8feafb50b5d68bdbdb2364836cd5e274aff378"
+  },
+  {
+    "case": "toy_gvcf",
+    "file": "toy_gvcf.merge_output.vcf",
+    "records": 9,
+    "sha256": "160d5c84c43c88712aafb38e51053dd738ed2afaf5a875f08b98c80a824bfcbf"
+  },
+  {
+    "case": "toy_gvcf",
+    "file": "toy_gvcf.merge_output.gvcf",
+    "records": 41,
+    "sha256": "e341274a9958ee38b9fcb45905f63b4241adf473c409ef6063b1ae84a9e7fe0c"
+  },
+  {
+    "case": "toy_haploid_precise",
+    "file": "toy_haploid_precise.pileup.vcf",
+    "records": 11,
+    "sha256": "290e8d86b66f1616da50449cfc848bb0db77726e8cf48bfabb08def062baa77f"
+  },
+  {
+    "case": "toy_haploid_precise",
+    "file": "toy_haploid_precise.full_alignment.vcf",
+    "records": 5,
+    "sha256": "b241130d3b54fd5153ce219f5e98fc73f2e6dd20ca098d87d967fe2b24377637"
+  },
+  {
+    "case": "toy_haploid_precise",
+    "file": "toy_haploid_precise.merge_output.vcf",
+    "records": 3,
+    "sha256": "d06b08092d13ba9a2d671ce31ab0423863c5f28f2ae74bdd9969b08e0efba47f"
+  },
+  {
+    "case": "toy_haploid_sensitive",
+    "file": "toy_haploid_sensitive.pileup.vcf",
+    "records": 11,
+    "sha256": "290e8d86b66f1616da50449cfc848bb0db77726e8cf48bfabb08def062baa77f"
+  },
+  {
+    "case": "toy_haploid_sensitive",
+    "file": "toy_haploid_sensitive.full_alignment.vcf",
+    "records": 5,
+    "sha256": "b241130d3b54fd5153ce219f5e98fc73f2e6dd20ca098d87d967fe2b24377637"
+  },
+  {
+    "case": "toy_haploid_sensitive",
+    "file": "toy_haploid_sensitive.merge_output.vcf",
+    "records": 9,
+    "sha256": "4593bdfa433e70c17dc593a2860cb23e4cfda94c69085a9c543c4a9aa28af6b4"
+  },
+  {
+    "case": "toy_head_tail",
+    "file": "toy_head_tail.pileup.vcf",
+    "records": 13,
+    "sha256": "84d9d46322694617dfb3b80195542c46e5a396cf0ec7bd6ea830a4af4104799d"
+  },
+  {
+    "case": "toy_head_tail",
+    "file": "toy_head_tail.full_alignment.vcf",
+    "records": 6,
+    "sha256": "e673dca6b7c0c90717c8d85069ea83d1349a6393a3e8e439f7da474a7335d716"
+  },
+  {
+    "case": "toy_head_tail",
+    "file": "toy_head_tail.merge_output.vcf",
+    "records": 11,
+    "sha256": "610db158d9ae3d6feed40f696a41ebff83afc1e98464a14694116951b6c43454"
+  },
+  {
+    "case": "toy_hifi",
+    "file": "toy_hifi.pileup.vcf",
+    "records": 11,
+    "sha256": "1d7b9e1651edd9a76e7202353ac0fb7c7d0a96230b111bf4ec1b3a03f2055452"
+  },
+  {
+    "case": "toy_hifi",
+    "file": "toy_hifi.full_alignment.vcf",
+    "records": 1,
+    "sha256": "5f674cd6339e7bd83ef28d50fc4fa481cb8f460a3899c68c2fb11bf6f470add1"
+  },
+  {
+    "case": "toy_hifi",
+    "file": "toy_hifi.merge_output.vcf",
+    "records": 9,
+    "sha256": "1a954f805a7ce8a39d404ce7d1f2d3b6d0cbd70f996821e8ac2c73e4ffdc960a"
+  },
+  {
+    "case": "toy_ilmn",
+    "file": "toy_ilmn.pileup.vcf",
+    "records": 11,
+    "sha256": "0fb9634762c9fd17745c8789b7aeb20321df2c3b3becf5d961df208391c8b183"
+  },
+  {
+    "case": "toy_ilmn_nophase",
+    "file": "toy_ilmn_nophase.pileup.vcf",
+    "records": 11,
+    "sha256": "6a81b000dad6ce03735e42b259889e091115bd49e6bcb4b4fae8083fdc81db81"
+  },
+  {
+    "case": "toy_ilmn_nophase",
+    "file": "toy_ilmn_nophase.full_alignment.vcf",
+    "records": 5,
+    "sha256": "db7a2fef4d600fe8bee8724f0e34d1970a63caaf5c2457965c30e4d629a7b338"
+  },
+  {
+    "case": "toy_ilmn_nophase",
+    "file": "toy_ilmn_nophase.merge_output.vcf",
+    "records": 9,
+    "sha256": "b4b207b167a97b4b37a1aecc0965e0271bb818ea50f0e95c18a8671f57974161"
+  },
+  {
+    "case": "toy_known_sites",
+    "file": "toy_known_sites.pileup.vcf",
+    "records": 11,
+    "sha256": "290e8d86b66f1616da50449cfc848bb0db77726e8cf48bfabb08def062baa77f"
+  },
+  {
+    "case": "toy_known_sites",
+    "file": "toy_known_sites.full_alignment.vcf",
+    "records": 5,
+    "sha256": "b241130d3b54fd5153ce219f5e98fc73f2e6dd20ca098d87d967fe2b24377637"
+  },
+  {
+    "case": "toy_known_sites",
+    "file": "toy_known_sites.merge_output.vcf",
+    "records": 13,
+    "sha256": "bb6e219a8e62d0ba2a2397f443a4e54dfd8435d5541d5494f42cb0e461583a40"
+  },
+  {
+    "case": "toy_long",
+    "file": "toy_long.pileup.vcf",
+    "records": 11,
+    "sha256": "b295a004bcc646c51c955ec01e7f03c8f7e160d934d4030c0bfb03c21f92dc8c"
+  },
+  {
+    "case": "toy_long",
+    "file": "toy_long.full_alignment.vcf",
+    "records": 6,
+    "sha256": "07233fff3582868130a575bcfa156a62143716210e49caf15285c6ca1eb92aac"
+  },
+  {
+    "case": "toy_long",
+    "file": "toy_long.merge_output.vcf",
+    "records": 11,
+    "sha256": "628a3871ba9e78d73bf81e508359545820a3cc6f6523b5b3784578384f6a7a08"
+  },
+  {
+    "case": "toy_ont",
+    "file": "toy_ont.pileup.vcf",
+    "records": 11,
+    "sha256": "58dbb76b891f8c55aa26c271c6903c3960d15022ca56523d6b40af40850eb0bc"
+  },
+  {
+    "case": "toy_ont",
+    "file": "toy_ont.full_alignment.vcf",
+    "records": 5,
+    "sha256": "b241130d3b54fd5153ce219f5e98fc73f2e6dd20ca098d87d967fe2b24377637"
+  },
+  {
+    "case": "toy_ont",
+    "file": "toy_ont.merge_output.vcf",
+    "records": 9,
+    "sha256": "d9d12fa20d78bc443e92b1013448ea3096e4ac275721258a2f51aef70b7d31a2"
+  },
+  {
+    "case": "toy_phased",
+    "file": "toy_phased.pileup.vcf",
+    "records": 11,
+    "sha256": "58dbb76b891f8c55aa26c271c6903c3960d15022ca56523d6b40af40850eb0bc"
+  },
+  {
+    "case": "toy_phased",
+    "file": "toy_phased.full_alignment.vcf",
+    "records": 5,
+    "sha256": "b241130d3b54fd5153ce219f5e98fc73f2e6dd20ca098d87d967fe2b24377637"
+  },
+  {
+    "case": "toy_phased",
+    "file": "toy_phased.merge_output.vcf",
+    "records": 9,
+    "sha256": "d9d12fa20d78bc443e92b1013448ea3096e4ac275721258a2f51aef70b7d31a2"
+  },
+  {
+    "case": "toy_phased",
+    "file": "toy_phased.phased_merge_output.vcf",
+    "records": 9,
+    "sha256": "aca28ab84201bf7f2757f2f76f78ad13d5f02dcfa1b46e8e99d4f7f8c1afca48"
+  },
+  {
+    "case": "toy_pileup_only",
+    "file": "toy_pileup_only.pileup.vcf",
+    "records": 9,
+    "sha256": "817931210be345b0251c14ec07eb65c4e94c457e72ea4b13d5a54222b7030a6e"
+  },
+  {
+    "case": "toy_snp_only",
+    "file": "toy_snp_only.pileup.vcf",
+    "records": 7,
+    "sha256": "d8469c92b71ae20eae3c1a5e430b1684c0c418bd35e599c77a757e67a1dd4af9"
+  },
+  {
+    "case": "toy_snp_only",
+    "file": "toy_snp_only.full_alignment.vcf",
+    "records": 3,
+    "sha256": "e0f3c59cd8246ceceec8d810d3907c2b04a5d1d5a999615f7dea4d418fbcb280"
+  },
+  {
+    "case": "toy_snp_only",
+    "file": "toy_snp_only.merge_output.vcf",
+    "records": 7,
+    "sha256": "e317af02d3ccbafdddc76322cd9fc1a5acc7aa19b4149d92132c739f1874cb1a"
+  }
+]

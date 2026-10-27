@@ -1,0 +1,39 @@
+usage: convert_tf_checkpoint_to_torch.py [-h] [--checkpoint CHECKPOINT]
+                                         [--output OUTPUT]
+                                         [--model-type {pileup,full_alignment}]
+                                         [--checkpoint-dir CHECKPOINT_DIR]
+                                         [--output-dir OUTPUT_DIR]
+                                         [--pileup-prefix PILEUP_PREFIX]
+                                         [--fa-prefix FA_PREFIX]
+                                         [--platform {ont,hifi,ilmn}]
+                                         [--add-indel-length]
+                                         [--pileup-add-indel-length]
+                                         [--fa-add-indel-length]
+                                         [--enable-dwell-time]
+
+Convert Clair3 TensorFlow checkpoints to PyTorch state_dict
+
+options:
+  -h, --help            show this help message and exit
+  --checkpoint CHECKPOINT
+                        TF checkpoint prefix or directory
+  --output OUTPUT       Output .pt file path
+  --model-type {pileup,full_alignment}
+                        Model type to convert
+  --checkpoint-dir CHECKPOINT_DIR
+                        Directory containing pileup/full_alignment checkpoints
+  --output-dir OUTPUT_DIR
+                        Output directory for both pileup and full-alignment
+                        .pt files
+  --pileup-prefix PILEUP_PREFIX
+                        Pileup checkpoint prefix name
+  --fa-prefix FA_PREFIX
+                        Full-alignment checkpoint prefix name
+  --platform {ont,hifi,ilmn}
+                        Platform
+  --add-indel-length    Include indel length heads
+  --pileup-add-indel-length
+                        Include indel length heads for pileup
+  --fa-add-indel-length
+                        Include indel length heads for full-alignment
+  --enable-dwell-time   Enable dwell time channel (full alignment)

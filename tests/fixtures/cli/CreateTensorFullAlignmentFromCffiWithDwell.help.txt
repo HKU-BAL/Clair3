@@ -1,0 +1,48 @@
+usage: CreateTensorFullAlignmentFromCffiWithDwell.py [-h]
+                                                     [--platform PLATFORM]
+                                                     --bam_fn BAM_FN --ref_fn
+                                                     REF_FN
+                                                     [--tensor_can_fn TENSOR_CAN_FN]
+                                                     [--ctgName CTGNAME]
+                                                     [--ctgStart CTGSTART]
+                                                     [--ctgEnd CTGEND]
+                                                     [--bed_fn BED_FN]
+                                                     [--extend_bed EXTEND_BED]
+                                                     [--full_aln_regions FULL_ALN_REGIONS]
+                                                     [--phased_vcf_fn PHASED_VCF_FN]
+                                                     [--minMQ MINMQ]
+                                                     [--minBQ MINBQ]
+                                                     [--no_phasing_for_fa]
+                                                     [--enable_long_indel]
+                                                     [--enable_dwell_time]
+
+Generate variant candidate tensors using phased full-alignment with dwell time
+support
+
+options:
+  -h, --help            show this help message and exit
+  --platform PLATFORM   Sequencing platform of the input. Options:
+                        'ont,hifi,ilmn', default: ont
+  --bam_fn BAM_FN       Sorted BAM file input, required
+  --ref_fn REF_FN       Reference fasta file input, required
+  --tensor_can_fn TENSOR_CAN_FN
+                        Tensor output, stdout by default, default: PIPE
+  --ctgName CTGNAME     The name of sequence to be processed
+  --ctgStart CTGSTART   The 1-based starting position of the sequence to be
+                        processed
+  --ctgEnd CTGEND       The 1-based inclusive ending position of the sequence
+                        to be processed
+  --bed_fn BED_FN       Call variant only in the provided regions
+  --extend_bed EXTEND_BED
+                        Extend the regions in the --bed_fn
+  --full_aln_regions FULL_ALN_REGIONS
+                        Provide the regions to be included in full-alignment
+                        based calling
+  --phased_vcf_fn PHASED_VCF_FN
+                        Phased VCF file for haplotagging
+  --minMQ MINMQ         Minimum mapping quality, default: 5
+  --minBQ MINBQ         Minimum base quality, default: 0
+  --no_phasing_for_fa   Disable phasing for full alignment
+  --enable_long_indel   Enable long indel calling
+  --enable_dwell_time   Enable dwell time extraction from mv tag (adds channel
+                        8)

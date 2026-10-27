@@ -25,8 +25,8 @@ THREADS="[MAXIMUM_THREADS]"               # e.g. 8
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3::latest \
-  python3 /opt/bin/run_clair3.py \
+  hkubal/clair3:latest \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \       ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \          ## change your reference name here
   --threads=${THREADS} \                  ## maximum threads to be used

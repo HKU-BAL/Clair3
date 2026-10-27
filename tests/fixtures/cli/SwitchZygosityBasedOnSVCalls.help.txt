@@ -1,0 +1,59 @@
+usage: SwitchZygosityBasedOnSVCalls.py [-h] [--bam_fn BAM_FN]
+                                       [--ctg_name CTG_NAME]
+                                       [--clair3_vcf_input CLAIR3_VCF_INPUT]
+                                       [--vcf_output VCF_OUTPUT]
+                                       [--sv_vcf_input SV_VCF_INPUT]
+                                       [--sv_bed_input SV_BED_INPUT]
+                                       [--use_sv_qual USE_SV_QUAL]
+                                       [--threads THREADS]
+                                       [--filter_tag FILTER_TAG]
+                                       [--sv_filter_tag SV_FILTER_TAG]
+                                       [--sv_alt_tag SV_ALT_TAG]
+                                       [--samtools SAMTOOLS] [--min_mq MIN_MQ]
+                                       [--min_bq MIN_BQ]
+                                       [--max_af_for_zygosity_switching MAX_AF_FOR_ZYGOSITY_SWITCHING]
+                                       [--min_del_proportion_for_long_sv MIN_DEL_PROPORTION_FOR_LONG_SV]
+                                       [--flanking_window_size FLANKING_WINDOW_SIZE]
+
+Switch zygosity based on SV calls
+
+options:
+  -h, --help            show this help message and exit
+  --bam_fn BAM_FN       Sorted BAM file input, required
+  --ctg_name CTG_NAME   The name of sequence to be processed
+  --clair3_vcf_input CLAIR3_VCF_INPUT
+                        Clair3 VCF input
+  --vcf_output VCF_OUTPUT
+                        VCF output path
+  --sv_vcf_input SV_VCF_INPUT
+                        SV VCF input (tested: Sniffle2)
+  --sv_bed_input SV_BED_INPUT
+                        SV BED input, if provided, the SV VCF input will be
+                        ignored, Three tab separated columns, contig, start,
+                        end are required for parsing the BED input.
+  --use_sv_qual USE_SV_QUAL
+                        For those short variants switching from HOM to HET,
+                        substitute the output QUAL and GQ with the GQ from the
+                        SV VCF input (Default: enabled)
+  --threads THREADS     Max #threads to be used
+  --filter_tag FILTER_TAG
+                        Filter tag for the input VCF
+  --sv_filter_tag SV_FILTER_TAG
+                        Filter tag for the input SV VCF
+  --sv_alt_tag SV_ALT_TAG
+                        ALT tag for the input SV VCF
+  --samtools SAMTOOLS   Path to the 'samtools', samtools version >= 1.10 is
+                        required. default: samtools
+  --min_mq MIN_MQ       DEBUG: If set, reads with mapping quality with
+                        <$min_mq are filtered, default: 5
+  --min_bq MIN_BQ       DEBUG: If set, bases with base quality with <$min_bq
+                        are filtered, default: 0
+  --max_af_for_zygosity_switching MAX_AF_FOR_ZYGOSITY_SWITCHING
+                        DEBUG: Maximum allelic frequency for zygosity
+                        switching, default: 0
+  --min_del_proportion_for_long_sv MIN_DEL_PROPORTION_FOR_LONG_SV
+                        DEBUG: Minimum deletion proportion to consider as long
+                        deletion, default: 0
+  --flanking_window_size FLANKING_WINDOW_SIZE
+                        DEBUG: Flanking window size to scan for a DEL site.
+                        default: 16

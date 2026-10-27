@@ -1,0 +1,30 @@
+Clair3 submodule invocator:
+    Usage: python clair3.py [submodule] [options of the submodule]
+Available data preparation submodules:
+  - GetTruth
+  - Tensor2Bin
+  - RealignReads
+  - CreateTensorPileup
+  - CreateTensorFullAlignment
+  - CreateTensorFullAlignment_test
+  - CreateTrainingTensor
+  - SplitExtendBed
+  - MergeBin
+  - MergeVcf
+  - SelectHetSnp
+  - SelectCandidates
+  - UnifyRepresentation
+  - CheckEnvs
+  - SortVcf
+  - SelectQual
+  - CreateTensorPileupFromCffi
+  - CreateTensorFullAlignmentFromCffi
+  - CheckExitCode
+Available clair submodules:
+  - CallVarBam
+  - CallVariants
+  - Train
+  - CallVariantsFromCffi
+  - CallVariantsFromCffiGPU
+Available post processing submodules:
+  - GetOverallMetrics

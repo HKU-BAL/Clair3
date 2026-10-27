@@ -1,0 +1,16 @@
+usage: AddBackMissingVariantsInGenotyping.py [-h] [--vcf_fn VCF_FN]
+                                             [--clair3_input_vcf_fn CLAIR3_INPUT_VCF_FN]
+                                             [--output_fn OUTPUT_FN]
+                                             [--switch_genotype SWITCH_GENOTYPE]
+
+Genotype VCF in postprocessing
+
+options:
+  -h, --help            show this help message and exit
+  --vcf_fn VCF_FN       Candidate sites VCF file input for genotyping
+  --clair3_input_vcf_fn CLAIR3_INPUT_VCF_FN
+                        Clair3 input vcf
+  --output_fn OUTPUT_FN
+                        Output vcf file name
+  --switch_genotype SWITCH_GENOTYPE
+                        Switch missed variant genotype to ./.

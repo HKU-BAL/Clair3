@@ -6,9 +6,9 @@ This document provides a step-by-step guide to first split reads into haplotypes
 
 ## Prerequisites
 
-- Clair3 installed 
+- Clair3 installed
+- WhatsHap installed
 - GNU Parallel installed
-- Pypy3 installed
 
 ----
 
@@ -32,7 +32,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:latest \
-  python3 /opt/bin/run_clair3.py \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    
   --ref_fn=${INPUT_DIR}/ref.fa \      
   --threads=${THREADS} \               
@@ -77,7 +77,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:latest \
-  python3 /opt/bin/run_clair3.py \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${OUTPUT_DIR}/${SAMPLE}.h1.bam \    
   --ref_fn=${INPUT_DIR}/ref.fa \      
   --threads=${THREADS} \               
@@ -91,7 +91,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:latest \
-  python3 /opt/bin/run_clair3.py \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${OUTPUT_DIR}/${SAMPLE}.h1.bam \    
   --ref_fn=${INPUT_DIR}/ref.fa \      
   --threads=${THREADS} \               

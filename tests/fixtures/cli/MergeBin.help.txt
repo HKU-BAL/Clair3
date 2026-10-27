@@ -1,0 +1,15 @@
+usage: MergeBin.py [-h] --out_fn OUT_FN [--platform PLATFORM]
+                   [--enable_dwell_time]
+                   in_fn [in_fn ...]
+
+Combine tensor binaries into a single file
+
+positional arguments:
+  in_fn                Tensor input files, required
+
+options:
+  -h, --help           show this help message and exit
+  --out_fn OUT_FN      Output a binary tensor file, required
+  --platform PLATFORM  Sequencing platform of the input. Options:
+                       'ont,hifi,ilmn', default: ont
+  --enable_dwell_time  Enable dwell time, default: False

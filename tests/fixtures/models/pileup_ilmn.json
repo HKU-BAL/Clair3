@@ -1,0 +1,213 @@
+{
+  "case": "pileup_ilmn",
+  "model": "ilmn/pileup.pt",
+  "input_shape": [
+    2,
+    33,
+    18
+  ],
+  "input_dtype": "int32",
+  "output_shape": [
+    2,
+    24
+  ],
+  "cpu_repeat_exact": true,
+  "weights": [
+    {
+      "name": "LSTM1.weight_ih_l0",
+      "shape": [
+        512,
+        18
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM1.weight_hh_l0",
+      "shape": [
+        512,
+        128
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM1.bias_ih_l0",
+      "shape": [
+        512
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM1.bias_hh_l0",
+      "shape": [
+        512
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM1.weight_ih_l0_reverse",
+      "shape": [
+        512,
+        18
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM1.weight_hh_l0_reverse",
+      "shape": [
+        512,
+        128
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM1.bias_ih_l0_reverse",
+      "shape": [
+        512
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM1.bias_hh_l0_reverse",
+      "shape": [
+        512
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM2.weight_ih_l0",
+      "shape": [
+        640,
+        256
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM2.weight_hh_l0",
+      "shape": [
+        640,
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM2.bias_ih_l0",
+      "shape": [
+        640
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM2.bias_hh_l0",
+      "shape": [
+        640
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM2.weight_ih_l0_reverse",
+      "shape": [
+        640,
+        256
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM2.weight_hh_l0_reverse",
+      "shape": [
+        640,
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM2.bias_ih_l0_reverse",
+      "shape": [
+        640
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "LSTM2.bias_hh_l0_reverse",
+      "shape": [
+        640
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "L4.weight",
+      "shape": [
+        128,
+        10560
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "L4.bias",
+      "shape": [
+        128
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "L5_1.weight",
+      "shape": [
+        128,
+        128
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "L5_1.bias",
+      "shape": [
+        128
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "L5_2.weight",
+      "shape": [
+        128,
+        128
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "L5_2.bias",
+      "shape": [
+        128
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "Y_gt21_logits.weight",
+      "shape": [
+        21,
+        128
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "Y_gt21_logits.bias",
+      "shape": [
+        21
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "Y_genotype_logits.weight",
+      "shape": [
+        3,
+        128
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "Y_genotype_logits.bias",
+      "shape": [
+        3
+      ],
+      "dtype": "torch.float32"
+    }
+  ],
+  "cpu_mps_max_abs": 0.0003973841667175293
+}

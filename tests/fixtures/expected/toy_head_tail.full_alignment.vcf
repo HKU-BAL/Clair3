@@ -1,0 +1,26 @@
+##fileformat=VCFv4.2
+##source=Clair3
+##clair3_version=1.2.0
+##cmdline=<NORMALIZED>
+##reference=<NORMALIZED>
+##FILTER=<ID=PASS,Description="All filters passed">
+##FILTER=<ID=LowQual,Description="Low quality variant">
+##FILTER=<ID=RefCall,Description="Reference call">
+##INFO=<ID=P,Number=0,Type=Flag,Description="Result from pileup calling">
+##INFO=<ID=F,Number=0,Type=Flag,Description="Result from full-alignment calling">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads 1. with MQ below 5 or an user-specified threshold, or 2. selected by 'samtools view -F 2316', are filtered)">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##FORMAT=<ID=AF,Number=A,Type=Float,Description="Observed allele frequency in reads, for each ALT allele, in the same order as listed, or the REF allele for a RefCall">
+##contig=<ID=chrToy,length=4096>
+##contig=<ID=chr:colon,length=1024>
+##contig=<ID=chrEmpty,length=512>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE
+chrToy	700	.	T	TGGG	22.49	PASS	F	GT:GQ:DP:AD:AF	1/1:22:12:0,12:1.0000
+chrToy	900	.	GCA	G	11.83	PASS	F	GT:GQ:DP:AD:AF	1/1:11:12:0,12:1.0000
+chrToy	1100	.	A	C	12.86	PASS	F	GT:GQ:DP:AD:AF	0/1:12:12:4,4:0.3333
+chrToy	2300	.	A	G	16.89	PASS	F	GT:GQ:DP:AD:AF	1/1:16:12:0,12:1.0000
+chrToy	2700	.	A	C	17.76	PASS	F	GT:GQ:DP:AD:AF	0/1:17:6:3,3:0.5000
+chrToy	4090	.	C	G	15.48	PASS	F	GT:GQ:DP:AD:AF	0/1:15:12:6,6:0.5000

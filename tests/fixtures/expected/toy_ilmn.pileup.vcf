@@ -1,0 +1,31 @@
+##fileformat=VCFv4.2
+##source=Clair3
+##clair3_version=1.2.0
+##cmdline=<NORMALIZED>
+##reference=<NORMALIZED>
+##FILTER=<ID=PASS,Description="All filters passed">
+##FILTER=<ID=LowQual,Description="Low quality variant">
+##FILTER=<ID=RefCall,Description="Reference call">
+##INFO=<ID=P,Number=0,Type=Flag,Description="Result from pileup calling">
+##INFO=<ID=F,Number=0,Type=Flag,Description="Result from full-alignment calling">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads 1. with MQ below 5 or an user-specified threshold, or 2. selected by 'samtools view -F 2316', are filtered)">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##FORMAT=<ID=AF,Number=A,Type=Float,Description="Observed allele frequency in reads, for each ALT allele, in the same order as listed, or the REF allele for a RefCall">
+##contig=<ID=chrToy,length=4096>
+##contig=<ID=chr:colon,length=1024>
+##contig=<ID=chrEmpty,length=512>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE
+chrToy	500	.	A	C	18.20	PASS	P	GT:GQ:DP:AD:AF	0/1:18:12:6,6:0.5000
+chrToy	700	.	T	TGGG	20.56	PASS	P	GT:GQ:DP:AD:AF	1/1:20:12:0,12:1.0000
+chrToy	900	.	GCA	G	21.90	PASS	P	GT:GQ:DP:AD:AF	1/1:21:12:0,12:1.0000
+chrToy	1100	.	A	G	9.15	PASS	P	GT:GQ:DP:AD:AF	0/1:9:12:4,4:0.3333
+chrToy	1500	.	C	.	0.00	RefCall	P	GT:GQ:DP:AD:AF	0/0:0:12:0:0.0000
+chrToy	1900	.	T	.	0.00	RefCall	P	GT:GQ:DP:AD:AF	0/0:0:12:0:0.0000
+chrToy	2300	.	A	G	20.52	PASS	P	GT:GQ:DP:AD:AF	1/1:20:12:0,12:1.0000
+chrToy	2500	.	T	A	18.60	PASS	P	GT:GQ:DP:AD:AF	0/1:18:300:150,150:0.5000
+chrToy	2700	.	A	C	7.55	PASS	P	GT:GQ:DP:AD:AF	0/1:7:6:3,3:0.5000
+chrToy	3100	.	A	C	19.63	PASS	P	GT:GQ:DP:AD:AF	0/1:19:12:6,6:0.5000
+chr:colon	100	.	A	C	21.15	PASS	P	GT:GQ:DP:AD:AF	0/1:21:12:6,6:0.5000

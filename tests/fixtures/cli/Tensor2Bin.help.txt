@@ -1,0 +1,23 @@
+usage: Tensor2Bin.py [-h] [--platform PLATFORM] [--tensor_fn TENSOR_FN]
+                     [--candidate_details_fn_prefix CANDIDATE_DETAILS_FN_PREFIX]
+                     --var_fn VAR_FN --bin_fn BIN_FN [--bed_fn BED_FN]
+                     [--shuffle] [--allow_duplicate_chr_pos]
+
+Combine the variant and non-variant tensors and convert them to a binary
+
+options:
+  -h, --help            show this help message and exit
+  --platform PLATFORM   Sequencing platform of the input. Options:
+                        'ont,hifi,ilmn', default: ont
+  --tensor_fn TENSOR_FN
+                        Tensor input
+  --candidate_details_fn_prefix CANDIDATE_DETAILS_FN_PREFIX
+                        Candidate details input (unused, retained for
+                        compatibility)
+  --var_fn VAR_FN       Truth variants list input, required
+  --bin_fn BIN_FN       Output a binary tensor file, required
+  --bed_fn BED_FN       High confident genome regions input in the BED format
+  --shuffle             Shuffle the inputs
+  --allow_duplicate_chr_pos
+                        Allow duplicated chromosome:position in the tensor
+                        input

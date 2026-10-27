@@ -50,23 +50,9 @@ echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > ${INPUT_DIR}/quick_demo.bed
 
 Install Clair3 following [Installation - Option 1](https://github.com/HKU-BAL/Clair3#option-1-build-an-environment-with-mambaconda).
 
-**Step 1. Install [Boost Graph Library](https://www.boost.org/doc/libs/1_65_1/libs/graph/doc/index.html) for Illumina realignment process**
+**Step 1. Native Illumina realignment**
 
-```bash
-# Activate Clair3
-mamba activate clair3_v2
-
-# Install boost library
-mamba install -c conda-forge boost=1.67.0 -y
-echo "Environment:" ${CONDA_PREFIX}
-# Make sure in Clair3 directory
-cd Clair3
-
-cd preprocess/realign
-g++ -std=c++14 -O1 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c realigner.cpp
-g++ -std=c++11 -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp -I ${CONDA_PREFIX}/include -L ${CONDA_PREFIX}/lib
-
-```
+Realignment is built into Clair3; no Boost installation or C++ compilation is required. These examples use `--no_phasing_for_fa` because WhatsHap is not bundled. Supply an external WhatsHap executable with `--whatshap` if you need phased full-alignment input.
 
 **Step 2. Run Clair3**
 
@@ -81,10 +67,11 @@ cd Clair3
   --platform=${PLATFORM} \
   --model_path=$(pwd)"/models/${PLATFORM}" \
   --output=${OUTPUT_DIR} \
-  --bed_fn=${INPUT_DIR}/quick_demo.bed
+  --bed_fn=${INPUT_DIR}/quick_demo.bed \
+  --no_phasing_for_fa
 ```
 
-**Note**: You can also use `python3 run_clair3.py` instead of `./run_clair3.sh` with the same arguments.
+**Note**: You can also use `bash run_clair3.py` instead of `./run_clair3.sh` with the same arguments.
 
 **Run hap.py for benchmarking (optional)**
 
@@ -130,17 +117,18 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  /opt/bin/run_clair3.sh \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
   --platform=${PLATFORM} \
   --model_path="/opt/models/${PLATFORM}" \
   --output=${OUTPUT_DIR} \
-  --bed_fn=${INPUT_DIR}/quick_demo.bed
+  --bed_fn=${INPUT_DIR}/quick_demo.bed \
+  --no_phasing_for_fa
 ```
 
-**Note**: You can also use `python3 /opt/bin/run_clair3.py` instead of `/opt/bin/run_clair3.sh` in the Docker command above.
+**Note**: You can also use `bash /opt/clair3/run_clair3.py` instead of `/opt/clair3/run_clair3.sh` in the Docker command above.
 
 **Run hap.py for benchmarking (optional)**
 

@@ -1,0 +1,32 @@
+usage: RealignReads.py [-h] --bam_fn BAM_FN --ref_fn REF_FN
+                       [--read_fn READ_FN] [--ctgName CTGNAME]
+                       [--ctgStart CTGSTART] [--ctgEnd CTGEND]
+                       [--full_aln_regions FULL_ALN_REGIONS]
+                       [--samtools SAMTOOLS] [--minCoverage MINCOVERAGE]
+                       [--minMQ MINMQ] [--extend_bed EXTEND_BED]
+
+Reads realignment
+
+options:
+  -h, --help            show this help message and exit
+  --bam_fn BAM_FN       Sorted BAM file input, required
+  --ref_fn REF_FN       Reference fasta file input, required
+  --read_fn READ_FN     Output realigned BAM. Default directly pass reads to
+                        CreateTensor_phasing using PIPE. Default: PIPE
+  --ctgName CTGNAME     The name of sequence to be processed
+  --ctgStart CTGSTART   The 1-based starting position of the sequence to be
+                        processed
+  --ctgEnd CTGEND       The 1-based inclusive ending position of the sequence
+                        to be processed
+  --full_aln_regions FULL_ALN_REGIONS
+                        Realign reads only in the provided bed regions
+  --samtools SAMTOOLS   Path to the 'samtools', samtools version >= 1.10 is
+                        required, default: samtools
+  --minCoverage MINCOVERAGE
+                        EXPERIMENTAL: Minimum coverage required to call a
+                        variant, default: 2.000000
+  --minMQ MINMQ         EXPERIMENTAL: Minimum Mapping Quality. Mapping quality
+                        lower than the setting will be filtered, default: 5
+  --extend_bed EXTEND_BED
+                        DEBUG: Extend the regions in the --bed_fn by a few bp
+                        for tensor creation, default extend 16bp

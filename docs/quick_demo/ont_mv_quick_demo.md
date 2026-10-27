@@ -75,7 +75,7 @@ docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR_DWELL}:${OUTPUT_DIR_DWELL} \
   hkubal/clair3:v2.0.0 \
-  /opt/bin/run_clair3.sh \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
@@ -106,7 +106,7 @@ cd Clair3
   --enable_dwell_time
 ```
 
-**Note**: You can also use `python3 /opt/bin/run_clair3.py` (Docker) or `python3 run_clair3.py` (Conda) instead of `run_clair3.sh` with the same arguments.
+**Note**: You can also use `/opt/clair3/run_clair3.py` (Docker) or `./run_clair3.py` (Conda) instead of `run_clair3.sh` with the same arguments. These are native shell launchers; Python is not required.
 
 **Note**: If the BAM file does not contain `mv` tags, Clair3 will still run but the dwell time channel will contain zero values, which may reduce accuracy. Ensure your BAM files were produced by Dorado with `--emit-moves`.
 
@@ -124,7 +124,7 @@ docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR_NO_DWELL}:${OUTPUT_DIR_NO_DWELL} \
   hkubal/clair3:v2.0.0 \
-  /opt/bin/run_clair3.sh \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \

@@ -1,0 +1,32 @@
+usage: SelectQual.py [-h] [--platform PLATFORM] --output_fn OUTPUT_FN
+                     [--var_pct_full VAR_PCT_FULL]
+                     [--ref_pct_full REF_PCT_FULL]
+                     [--var_pct_phasing VAR_PCT_PHASING] [--phase]
+                     [--vcf_fn VCF_FN]
+
+Select quality cut-off for phasing and full alignment
+
+options:
+  -h, --help            show this help message and exit
+  --platform PLATFORM   Sequencing platform of the input. Options:
+                        'ont,hifi,ilmn', default: ont
+  --output_fn OUTPUT_FN
+                        Define the output folder, required
+  --var_pct_full VAR_PCT_FULL
+                        Specify an expected percentage of low quality 0/1 and
+                        1/1 variants called in the pileup mode for full-
+                        alignment mode calling, default: 0.3
+  --ref_pct_full REF_PCT_FULL
+                        Specify an expected percentage of low quality 0/0
+                        variants called in the pileup mode for full-alignment
+                        mode calling, default: 0.3 for ilmn and hifi, 0.1 for
+                        ont
+  --var_pct_phasing VAR_PCT_PHASING
+                        Specify an expected percentage of high quality 0/1
+                        variants used in WhatsHap phasing, default: 0.8 for
+                        ont guppy5 and 0.7 for other platforms
+  --phase               Select only heterozygous candidates for phasing or
+                        not, default: False
+  --vcf_fn VCF_FN       Candidate sites VCF file input, if provided, variants
+                        will only be called at the sites in the VCF file,
+                        default: None

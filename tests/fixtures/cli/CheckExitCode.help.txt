@@ -1,0 +1,8 @@
+usage: CheckExitCode.py [-h] [--parallel_log_fn PARALLEL_LOG_FN]
+
+Check the exit code of parallel jobs.
+
+options:
+  -h, --help            show this help message and exit
+  --parallel_log_fn PARALLEL_LOG_FN
+                        BAM file input, default: None

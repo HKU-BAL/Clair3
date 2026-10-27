@@ -1,0 +1,18 @@
+race:gloo::transport::tcp::Pair::read
+race:gloo::transport::tcp::Pair::write
+race:gloo::transport::tcp::Address::operator=
+
+# After adding a handler base class, tsan thinks that
+# the pair's destructor (operator delete) races with
+# a vtable access in the epoll thread. This doesn't
+# race because the pair ensures that the epoll thread
+# won't call into it before its destructor returns.
+# See https://github.com/facebookincubator/gloo/pull/236.
+race:gloo::transport::tcp::Pair::~Pair
+
+# https://github.com/facebookincubator/gloo/pull/210#discussion_r322192079
+race:gloo::transport::tcp::tls::Pair::Pair
+race:gloo::transport::tcp::tls::Pair::handleReadWrite
+race:gloo::transport::tcp::Pair::sendAsyncMode
+
+race:gloo/test/tls_tcp_test.cc

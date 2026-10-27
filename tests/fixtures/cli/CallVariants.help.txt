@@ -1,0 +1,71 @@
+usage: CallVariants.py [-h] [--platform PLATFORM] [--tensor_fn TENSOR_FN]
+                       --chkpnt_fn CHKPNT_FN [--call_fn CALL_FN] [--gvcf GVCF]
+                       [--ref_fn REF_FN] [--ctgName CTGNAME]
+                       [--ctgStart CTGSTART] [--ctgEnd CTGEND]
+                       [--sampleName SAMPLENAME] [--qual QUAL]
+                       [--samtools SAMTOOLS] [--cmd_fn CMD_FN]
+                       [--temp_file_dir TEMP_FILE_DIR] [--haploid_precise]
+                       [--haploid_sensitive]
+                       [--enable_long_indel ENABLE_LONG_INDEL]
+                       [--keep_iupac_bases KEEP_IUPAC_BASES]
+                       [--enable_dwell_time] [--use_gpu USE_GPU]
+                       [--predict_fn PREDICT_FN] [--input_probabilities]
+                       [--output_probabilities]
+
+Call variants using a trained model and tensors of candidate variants
+
+options:
+  -h, --help            show this help message and exit
+  --platform PLATFORM   Sequencing platform of the input. Options:
+                        'ont,hifi,ilmn', default: ont
+  --tensor_fn TENSOR_FN
+                        Tensor input filename, or stdin if not set
+  --chkpnt_fn CHKPNT_FN
+                        Input a trained model for variant calling, required
+  --call_fn CALL_FN     VCF output filename, or stdout if not set
+  --gvcf GVCF           Enable GVCF output, default: disabled
+  --ref_fn REF_FN       Reference fasta file input, required if --gvcf is
+                        enabled
+  --ctgName CTGNAME     The name of the sequence to be processed
+  --ctgStart CTGSTART   The 1-based starting position of the sequence to be
+                        processed, optional, will process the whole --ctgName
+                        if not set
+  --ctgEnd CTGEND       The 1-based inclusive ending position of the sequence
+                        to be processed, optional, will process the whole
+                        --ctgName if not set
+  --sampleName SAMPLENAME
+                        Define the sample name to be shown in the VCF file,
+                        optional
+  --qual QUAL           If set, variants with >=$qual will be marked 'PASS',
+                        or 'LowQual' otherwise, optional
+  --samtools SAMTOOLS   Path to the 'samtools', samtools version >= 1.10 is
+                        required, default: samtools
+  --cmd_fn CMD_FN       If defined, added command line into VCF header
+  --temp_file_dir TEMP_FILE_DIR
+                        EXPERIMENTAL: The cache directory for storing
+                        temporary non-variant information if --gvcf is
+                        enabled, default: ./
+  --haploid_precise     EXPERIMENTAL: Enable haploid calling mode. Only 1/1 is
+                        considered as a variant
+  --haploid_sensitive   EXPERIMENTAL: Enable haploid calling mode. 0/1 and 1/1
+                        are considered as a variant
+  --enable_long_indel ENABLE_LONG_INDEL
+                        EXPERIMENTAL: Enable long Indel variants(>50 bp)
+                        calling
+  --keep_iupac_bases KEEP_IUPAC_BASES
+                        EXPERIMENTAL: Keep IUPAC (non ACGTN) reference and
+                        alternate bases, default: convert all IUPAC bases to N
+  --enable_dwell_time   EXPERIMENTAL: Enable dwell time feature, which changes
+                        tensor shape by adding one dimension
+  --use_gpu USE_GPU     DEBUG: Use GPU for calling. Speed up is mostly
+                        insignficiant. Only use this for building your own
+                        pipeline
+  --predict_fn PREDICT_FN
+                        DEBUG: Output network output probabilities for further
+                        analysis
+  --input_probabilities
+                        DEBUG: Use network probability outputs as input and
+                        generate variants from them
+  --output_probabilities
+                        DEBUG: Output the network probabilities of gt21,
+                        genotype, indel_length_1 and indel_length_2

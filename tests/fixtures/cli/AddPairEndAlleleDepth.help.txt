@@ -1,0 +1,26 @@
+usage: AddPairEndAlleleDepth.py [-h] [--bam_fn BAM_FN] [--ctg_name CTG_NAME]
+                                [--clair3_vcf_input CLAIR3_VCF_INPUT]
+                                [--vcf_output VCF_OUTPUT] [--threads THREADS]
+                                [--filter_tag FILTER_TAG]
+                                [--samtools SAMTOOLS] [--min_mq MIN_MQ]
+                                [--min_bq MIN_BQ]
+
+Add pair-end allele depth to Clair3 VCF file output
+
+options:
+  -h, --help            show this help message and exit
+  --bam_fn BAM_FN       Sorted BAM file input, required
+  --ctg_name CTG_NAME   The name of sequence to be processed
+  --clair3_vcf_input CLAIR3_VCF_INPUT
+                        Clair3 VCF input
+  --vcf_output VCF_OUTPUT
+                        VCF output path
+  --threads THREADS     Max #threads to be used
+  --filter_tag FILTER_TAG
+                        Filter tag for the input VCF
+  --samtools SAMTOOLS   Path to the 'samtools', samtools version >= 1.10 is
+                        required. default: samtools
+  --min_mq MIN_MQ       DEBUG: If set, reads with mapping quality with
+                        <$min_mq are filtered, default: 5
+  --min_bq MIN_BQ       DEBUG: If set, bases with base quality with <$min_bq
+                        are filtered, default: 0

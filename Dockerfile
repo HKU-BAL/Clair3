@@ -1,70 +1,37 @@
 # syntax=docker/dockerfile:1.4
-FROM condaforge/miniforge3:latest
+FROM rust:1.88.0-bookworm AS build
 
-ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
-WORKDIR /opt/bin
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake clang libclang-dev pkg-config curl ca-certificates unzip \
+    libssl-dev zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt
+RUN curl -fLsS -o /tmp/libtorch.zip \
+    https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.13.0%2Bcpu.zip && \
+    unzip -q /tmp/libtorch.zip && rm /tmp/libtorch.zip
+ENV LIBTORCH=/opt/libtorch
+WORKDIR /opt/clair3-src
+COPY Cargo.toml Cargo.lock build.rs ./
+COPY src ./src
+COPY csrc ./csrc
+COPY third_party ./third_party
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/opt/clair3-src/target \
+    cargo build --release --locked
 
-# Step 1 in README: create a conda env with bioinformatics/build dependencies.
-RUN mamba create -n clair3_v2 \
-      -c conda-forge \
-      -c bioconda \
-      python=3.11 \
-      samtools \
-      whatshap \
-      parallel \
-      zstd \
-      xz \
-      zlib \
-      bzip2 \
-      automake \
-      make \
-      gcc \
-      gxx \
-      binutils \
-      curl \
-      pigz \
-      boost-cpp \
-      -y && \
-    mamba clean --all -y
-
-ENV CONDA_PREFIX=/opt/conda/envs/clair3_v2
-ENV CONDA_DEFAULT_ENV=clair3_v2
-ENV PATH=${CONDA_PREFIX}/bin:/opt/bin:/opt/conda/bin:${PATH}
-
-# Step 2 & Step 4 in README: install uv, PyTorch (CPU), and Python dependencies.
-RUN pip install --no-cache-dir uv && \
-    uv pip install --python ${CONDA_PREFIX}/bin/python \
-      torch torchvision \
-      --index-url https://download.pytorch.org/whl/cpu && \
-    uv pip install --python ${CONDA_PREFIX}/bin/python \
-      numpy \
-      h5py \
-      hdf5plugin \
-      numexpr \
-      tqdm \
-      cffi \
-      torchmetrics
-
-# Clair3 source tree
-COPY . /opt/bin
-
-# Build Clair3 native components.
-RUN make PREFIX=${CONDA_PREFIX} PYTHON=${CONDA_PREFIX}/bin/python && \
-    cd /opt/bin/preprocess/realign && \
-    g++ -std=c++14 -O1 -shared -fPIC -o realigner ssw_cpp.cpp ssw.c realigner.cpp && \
-    g++ -std=c++11 -shared -fPIC -o debruijn_graph -O3 debruijn_graph.cpp && \
-    rm -rf /opt/bin/samtools-* /opt/bin/longphase-*
-
-# Step 5 in README: install pypy3.11 and mpmath for pypy.
-RUN wget -q https://downloads.python.org/pypy/pypy3.11-v7.3.20-linux64.tar.bz2 && \
-    tar -xjf pypy3.11-v7.3.20-linux64.tar.bz2 && \
-    rm pypy3.11-v7.3.20-linux64.tar.bz2 && \
-    ln -sf /opt/bin/pypy3.11-v7.3.20-linux64/bin/pypy3 ${CONDA_PREFIX}/bin/pypy3 && \
-    ln -sf /opt/bin/pypy3.11-v7.3.20-linux64/bin/pypy3 ${CONDA_PREFIX}/bin/pypy && \
-    pypy3 -m ensurepip && \
-    pypy3 -m pip install --no-cache-dir mpmath==1.2.1
-
-# Step 6 in README: recursively download pre-trained PyTorch models from a directory URL.
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl wget libgomp1 libstdc++6 samtools tabix zstd lz4 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /opt/libtorch/lib /opt/clair3/lib/clair3
+COPY --from=build /opt/clair3-src/target/release/clair3 /opt/clair3/bin/clair3
+COPY run_clair3.sh run_clair3.py clair3.py /opt/clair3/
+COPY scripts/clair3.sh /opt/clair3/scripts/clair3.sh
+RUN chmod +x /opt/clair3/bin/clair3 /opt/clair3/run_clair3.sh /opt/clair3/run_clair3.py /opt/clair3/clair3.py && \
+    curl -fLsS -o /tmp/longphase.tar.xz https://github.com/twolinin/longphase/releases/download/v1.7.3/longphase_linux-x64.tar.xz && \
+    tar -xJf /tmp/longphase.tar.xz -C /opt/clair3/bin && \
+    mv /opt/clair3/bin/longphase_linux-x64 /opt/clair3/bin/longphase && \
+    chmod +x /opt/clair3/bin/longphase && rm /tmp/longphase.tar.xz
 ARG CLAIR3_MODELS_URL=https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/
 RUN set -eux; \
     mkdir -p /opt/models /tmp/clair3-models; \
@@ -76,3 +43,7 @@ RUN set -eux; \
         cp -a /tmp/clair3-models/. /opt/models/; \
     fi; \
     rm -rf /tmp/clair3-models
+ENV LD_LIBRARY_PATH=/opt/clair3/lib/clair3 \
+    PATH=/opt/clair3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+WORKDIR /data
+ENTRYPOINT ["/opt/clair3/run_clair3.sh"]

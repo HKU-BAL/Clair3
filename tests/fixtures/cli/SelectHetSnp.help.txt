@@ -1,0 +1,51 @@
+Traceback (most recent call last):
+  File "/Users/Aqua/Temp/Clair3/target/legacy/src/clair3.py", line 108, in <module>
+    main()
+  File "/Users/Aqua/Temp/Clair3/target/legacy/src/clair3.py", line 102, in main
+    submodule.main()
+  File "/Users/Aqua/Temp/Clair3/target/legacy/src/preprocess/SelectHetSnp.py", line 394, in main
+    args = parser.parse_args()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 1874, in parse_args
+    args, argv = self.parse_known_args(args, namespace)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 1907, in parse_known_args
+    namespace, args = self._parse_known_args(args, namespace)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 2128, in _parse_known_args
+    start_index = consume_optional(start_index)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 2068, in consume_optional
+    take_action(action, args, option_string)
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 1983, in take_action
+    action(self, namespace, argument_values, option_string)
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 1122, in __call__
+    parser.print_help()
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 2611, in print_help
+    self._print_message(self.format_help(), file)
+                        ^^^^^^^^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 2595, in format_help
+    return formatter.format_help()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 287, in format_help
+    help = self._root_section.format_help()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 217, in format_help
+    item_help = join([func(*args) for func, args in self.items])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 217, in <listcomp>
+    item_help = join([func(*args) for func, args in self.items])
+                      ^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 217, in format_help
+    item_help = join([func(*args) for func, args in self.items])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 217, in <listcomp>
+    item_help = join([func(*args) for func, args in self.items])
+                      ^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 546, in _format_action
+    help_text = self._expand_help(action)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/Aqua/Temp/Clair3/target/legacy/env/lib/python3.11/argparse.py", line 643, in _expand_help
+    return self._get_help_string(action) % params
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~
+TypeError: must be real number, not NoneType

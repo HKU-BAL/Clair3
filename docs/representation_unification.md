@@ -10,9 +10,9 @@ This document shows how Clair3 unifies the representation between the training m
 
 ## Prerequisites
 
-- Clair3 installed 
+- Clair3 installed
 - GNU Parallel installed
-- Pypy3 installed
+- WhatsHap installed (recommended for phased input)
 
 ----
 
@@ -45,8 +45,7 @@ This document shows how Clair3 unifies the representation between the training m
 
 ```bash
 # Setup variables
-CLAIR3="clair3.py"                                     # clair3.py
-PYPY="[PYPY_BIN_PATH]"                                 # e.g. pypy3
+CLAIR3="clair3"                                         # native executable or clair3.py shell launcher
 WHATSHAP="[WHATSHAP_BIN_PATH]"                         # e.g. whatshap
 PARALLEL="[PARALLEL_BIN_PATH]"                         # e.g. parallel
 SAMTOOLS="[SAMTOOLS_BIN_PATH]"                         # e.g. samtools
@@ -137,14 +136,14 @@ ${PARALLEL} --joblog ${PHASE_BAM_PATH}/index.log -j ${THREADS} ${SAMTOOLS} index
 ```bash
 # Split bed file regions according to the contig name and extend bed region
 ${PARALLEL} --joblog ${SPLIT_BED_PATH}/split_extend_bed.log -j${THREADS} \
-"${PYPY} ${CLAIR3} SplitExtendBed \
+"${CLAIR3} SplitExtendBed \
     --bed_fn ${BED_FILE_PATH} \
     --output_fn ${SPLIT_BED_PATH}/{1} \
     --ctgName ${CHR_PREFIX}{1}" ::: ${CHR[@]}
 
 #Get true variant label information from VCF file
 ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
-"${PYPY} ${CLAIR3} GetTruth \
+"${CLAIR3} GetTruth \
     --vcf_fn ${PHASE_VCF_PATH}/phased_{1}.vcf.gz \
     --ctgName ${CHR_PREFIX}{1} \
     --var_fn ${VAR_OUTPUT_PATH}/var_{1}" ::: ${CHR[@]}
@@ -155,7 +154,7 @@ ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
 
 ```bash
 ${PARALLEL} --joblog ${OUTPUT_DIR}/unify_repre.log -j${THREADS} \
-"${PYPY} ${CLAIR3} UnifyRepresentation \
+"${CLAIR3} UnifyRepresentation \
     --bam_fn ${PHASE_BAM_PATH}/{1}.bam \
     --var_fn ${VAR_OUTPUT_PATH}/var_{1} \
     --ref_fn ${REFERENCE_FILE_PATH} \
@@ -173,7 +172,7 @@ ${PARALLEL} --joblog ${OUTPUT_DIR}/unify_repre.log -j${THREADS} \
 #### 6.  Merge and sort unified VCF output
 
 ```bash
-cat ${VCF_OUTPUT_PATH}/vcf_* | ${PYPY} ${CLAIR3} SortVcf --output_fn ${OUTPUT_DIR}/unified.vcf
+cat ${VCF_OUTPUT_PATH}/vcf_* | ${CLAIR3} SortVcf --output_fn ${OUTPUT_DIR}/unified.vcf
 bgzip -f ${OUTPUT_DIR}/unified.vcf
 tabix -f -p vcf ${OUTPUT_DIR}/unified.vcf.gz
 

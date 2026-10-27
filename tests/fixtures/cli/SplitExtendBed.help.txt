@@ -1,0 +1,20 @@
+usage: SplitExtendBed.py [-h] [--output_fn OUTPUT_FN] [--bed_fn BED_FN]
+                         [--expand_region_size EXPAND_REGION_SIZE]
+                         [--ctgName CTGNAME] [--ctgStart CTGSTART]
+                         [--ctgEnd CTGEND]
+
+Extend bed region for pileup calling
+
+options:
+  -h, --help            show this help message and exit
+  --output_fn OUTPUT_FN
+                        Path to directory that stores small bins, default:
+                        None)
+  --bed_fn BED_FN       Path of the output folder, default: None
+  --expand_region_size EXPAND_REGION_SIZE
+                        Expand region size for each bed region, default: 33
+  --ctgName CTGNAME     The name of sequence to be processed, default: None
+  --ctgStart CTGSTART   The 1-based starting position of the sequence to be
+                        processed
+  --ctgEnd CTGEND       The 1-based inclusive ending position of the sequence
+                        to be processed

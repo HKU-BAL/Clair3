@@ -1,0 +1,71 @@
+[
+  {
+    "position": 5,
+    "kind": "snp",
+    "name": "head_snp"
+  },
+  {
+    "position": 500,
+    "kind": "snp",
+    "name": "het_snp"
+  },
+  {
+    "position": 700,
+    "kind": "ins",
+    "length": 3,
+    "name": "insertion"
+  },
+  {
+    "position": 900,
+    "kind": "del",
+    "length": 2,
+    "name": "deletion"
+  },
+  {
+    "position": 1100,
+    "kind": "multi",
+    "name": "multi_allelic"
+  },
+  {
+    "position": 1500,
+    "kind": "ins",
+    "length": 60,
+    "name": "long_insertion"
+  },
+  {
+    "position": 1900,
+    "kind": "del",
+    "length": 60,
+    "name": "long_deletion"
+  },
+  {
+    "position": 2300,
+    "kind": "homo",
+    "name": "homozygous_snp"
+  },
+  {
+    "position": 2500,
+    "kind": "high",
+    "name": "high_coverage"
+  },
+  {
+    "position": 2700,
+    "kind": "lowmq",
+    "name": "mapping_quality_filter"
+  },
+  {
+    "position": 3100,
+    "kind": "softclip",
+    "name": "softclip_snp"
+  },
+  {
+    "position": 3500,
+    "kind": "iupac",
+    "name": "iupac_reference"
+  },
+  {
+    "position": 4090,
+    "kind": "snp",
+    "name": "tail_snp"
+  }
+]

@@ -1,0 +1,659 @@
+{
+  "case": "fb",
+  "model": "tests/fixtures/models/fb.pt",
+  "input_shape": [
+    1,
+    55,
+    33,
+    8
+  ],
+  "weights": [
+    {
+      "name": "conv1.conv.depthwise.weight",
+      "shape": [
+        8,
+        1,
+        3,
+        3
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv1.conv.pointwise.weight",
+      "shape": [
+        48,
+        8,
+        1,
+        1
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv1.conv.pointwise.bias",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv1.bn.weight",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv1.bn.bias",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv1.bn.running_mean",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv1.bn.running_var",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv1.bn.num_batches_tracked",
+      "shape": [],
+      "dtype": "torch.int64"
+    },
+    {
+      "name": "res1.conv1.depthwise.weight",
+      "shape": [
+        48,
+        1,
+        3,
+        3
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.conv1.pointwise.weight",
+      "shape": [
+        48,
+        48,
+        1,
+        1
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.conv1.pointwise.bias",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.bn1.weight",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.bn1.bias",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.bn1.running_mean",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.bn1.running_var",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.bn1.num_batches_tracked",
+      "shape": [],
+      "dtype": "torch.int64"
+    },
+    {
+      "name": "res1.conv2.depthwise.weight",
+      "shape": [
+        48,
+        1,
+        3,
+        3
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.conv2.pointwise.weight",
+      "shape": [
+        48,
+        48,
+        1,
+        1
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.conv2.pointwise.bias",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.bn2.weight",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.bn2.bias",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.bn2.running_mean",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.bn2.running_var",
+      "shape": [
+        48
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res1.bn2.num_batches_tracked",
+      "shape": [],
+      "dtype": "torch.int64"
+    },
+    {
+      "name": "conv2.conv.depthwise.weight",
+      "shape": [
+        48,
+        1,
+        3,
+        3
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv2.conv.pointwise.weight",
+      "shape": [
+        96,
+        48,
+        1,
+        1
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv2.conv.pointwise.bias",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv2.bn.weight",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv2.bn.bias",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv2.bn.running_mean",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv2.bn.running_var",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv2.bn.num_batches_tracked",
+      "shape": [],
+      "dtype": "torch.int64"
+    },
+    {
+      "name": "res2.conv1.depthwise.weight",
+      "shape": [
+        96,
+        1,
+        3,
+        3
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.conv1.pointwise.weight",
+      "shape": [
+        96,
+        96,
+        1,
+        1
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.conv1.pointwise.bias",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.bn1.weight",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.bn1.bias",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.bn1.running_mean",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.bn1.running_var",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.bn1.num_batches_tracked",
+      "shape": [],
+      "dtype": "torch.int64"
+    },
+    {
+      "name": "res2.conv2.depthwise.weight",
+      "shape": [
+        96,
+        1,
+        3,
+        3
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.conv2.pointwise.weight",
+      "shape": [
+        96,
+        96,
+        1,
+        1
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.conv2.pointwise.bias",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.bn2.weight",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.bn2.bias",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.bn2.running_mean",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.bn2.running_var",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res2.bn2.num_batches_tracked",
+      "shape": [],
+      "dtype": "torch.int64"
+    },
+    {
+      "name": "conv3.conv.depthwise.weight",
+      "shape": [
+        96,
+        1,
+        3,
+        3
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv3.conv.pointwise.weight",
+      "shape": [
+        160,
+        96,
+        1,
+        1
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv3.conv.pointwise.bias",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv3.bn.weight",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv3.bn.bias",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv3.bn.running_mean",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv3.bn.running_var",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "conv3.bn.num_batches_tracked",
+      "shape": [],
+      "dtype": "torch.int64"
+    },
+    {
+      "name": "res3.conv1.depthwise.weight",
+      "shape": [
+        160,
+        1,
+        3,
+        3
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.conv1.pointwise.weight",
+      "shape": [
+        160,
+        160,
+        1,
+        1
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.conv1.pointwise.bias",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.bn1.weight",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.bn1.bias",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.bn1.running_mean",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.bn1.running_var",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.bn1.num_batches_tracked",
+      "shape": [],
+      "dtype": "torch.int64"
+    },
+    {
+      "name": "res3.conv2.depthwise.weight",
+      "shape": [
+        160,
+        1,
+        3,
+        3
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.conv2.pointwise.weight",
+      "shape": [
+        160,
+        160,
+        1,
+        1
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.conv2.pointwise.bias",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.bn2.weight",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.bn2.bias",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.bn2.running_mean",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.bn2.running_var",
+      "shape": [
+        160
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "res3.bn2.num_batches_tracked",
+      "shape": [],
+      "dtype": "torch.int64"
+    },
+    {
+      "name": "attn_proj.weight",
+      "shape": [
+        96,
+        160,
+        1,
+        1
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "attn_proj.bias",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "attn_mha.in_proj_weight",
+      "shape": [
+        288,
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "attn_mha.in_proj_bias",
+      "shape": [
+        288
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "attn_mha.out_proj.weight",
+      "shape": [
+        96,
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "attn_mha.out_proj.bias",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "attn_norm.weight",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "attn_norm.bias",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "dense1.weight",
+      "shape": [
+        128,
+        192
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "dense1.bias",
+      "shape": [
+        128
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "dense2.weight",
+      "shape": [
+        96,
+        128
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "dense2.bias",
+      "shape": [
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "logit.weight",
+      "shape": [
+        1,
+        96
+      ],
+      "dtype": "torch.float32"
+    },
+    {
+      "name": "logit.bias",
+      "shape": [
+        1
+      ],
+      "dtype": "torch.float32"
+    }
+  ],
+  "expected_error": "mat1 and mat2 shapes cannot be multiplied (1x512 and 192x128)"
+}

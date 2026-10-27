@@ -1,0 +1,51 @@
+usage: UnifyRepresentation.py [-h] [--platform PLATFORM] [--var_fn VAR_FN]
+                              [--ref_fn REF_FN]
+                              [--candidate_details_fn CANDIDATE_DETAILS_FN]
+                              [--output_vcf_fn OUTPUT_VCF_FN]
+                              [--sampleName SAMPLENAME] [--ctgName CTGNAME]
+                              [--ctgStart CTGSTART] [--ctgEnd CTGEND]
+                              [--max_candidates_distance MAX_CANDIDATES_DISTANCE]
+                              [--max_calculate_count MAX_CALCULATE_COUNT]
+                              [--partition_size PARTITION_SIZE]
+                              [--minimum_allele_gap MINIMUM_ALLELE_GAP]
+                              [--bed_fn BED_FN] [--vcf_fn VCF_FN]
+
+Representation unification for candidate site and true variant
+
+options:
+  -h, --help            show this help message and exit
+  --platform PLATFORM   Sequencing platform of the input. Options:
+                        'ont,hifi,ilmn', default: ont
+  --var_fn VAR_FN       Truth variants list input from GetTruth.py
+  --ref_fn REF_FN       Reference fasta file input, default: ref.fa
+  --candidate_details_fn CANDIDATE_DETAILS_FN
+                        Read-level candidate details file, default: None
+  --output_vcf_fn OUTPUT_VCF_FN
+                        VCF output filename or stdout if not set,default: None
+  --sampleName SAMPLENAME
+                        Define the sample name to be shown in the VCF file,
+                        optional
+  --ctgName CTGNAME     The name of the sequence to be processed
+  --ctgStart CTGSTART   The 1-based starting position of the sequence to be
+                        processed, optional, will process the whole --ctgName
+                        if not set
+  --ctgEnd CTGEND       The 1-based inclusive ending position of the sequence
+                        to be processed, optional, will process the whole
+                        --ctgName if not set
+  --max_candidates_distance MAX_CANDIDATES_DISTANCE
+                        EXPERIMENTAL: Maximum distance between subsequent
+                        variants within a group
+  --max_calculate_count MAX_CALCULATE_COUNT
+                        EXPERIMENTAL: Maximum calculation times for chunk
+                        window
+  --partition_size PARTITION_SIZE
+                        EXPERIMENTAL: Maximum variants in per group size
+  --minimum_allele_gap MINIMUM_ALLELE_GAP
+                        EXPERIMENTAL: Minimum allele gap filtering candidate
+                        path generation
+  --bed_fn BED_FN       Candidate sites VCF file input, if provided, will
+                        choose candidate +/- 1 or +/- 2. Use together with
+                        gen4Training. default: None
+  --vcf_fn VCF_FN       Candidate sites VCF file input, if provided, will
+                        choose candidate +/- 1 or +/- 2. Use together with
+                        gen4Training. default: None

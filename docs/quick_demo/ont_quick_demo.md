@@ -65,7 +65,7 @@ cd Clair3
   --bed_fn=${INPUT_DIR}/quick_demo.bed
 ```
 
-**Note**: You can also use `python3 run_clair3.py` instead of `./run_clair3.sh` with the same arguments.
+**Note**: You can also use `./run_clair3.py` instead of `./run_clair3.sh` with the same arguments.
 
 **Run hap.py for benchmarking (optional)**
 
@@ -110,7 +110,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  /opt/bin/run_clair3.sh \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
@@ -120,7 +120,7 @@ docker run -it \
   --bed_fn=${INPUT_DIR}/quick_demo.bed
 ```
 
-**Note**: You can also use `python3 /opt/bin/run_clair3.py` instead of `/opt/bin/run_clair3.sh` in the Docker command above.
+**Note**: You can also use `/opt/clair3/run_clair3.py` instead of `/opt/clair3/run_clair3.sh` in the Docker command above. Both are native shell launchers.
 
 **Run hap.py for benchmarking (optional)**
 

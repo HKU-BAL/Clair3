@@ -63,7 +63,7 @@ For somatic variant calling using **tumor-only** samples, please try [ClairS-TO]
 ----
 
 ## Latest Updates
-*v2.0.0 (Feb 9, 2026)* : **A preprint describing the performance of Clair3 v2 is available at [bioRxiv](https://www.biorxiv.org/content/10.64898/2026.02.13.705285v1)** 1. Shifted the deep learning framework from TensorFlow to PyTorch (Caveat: all v1 tensorflow models are incompatible with v2, including those tensorflow models provided in rerio by ONT, we are working with ONT to provide also pytorch models for use with v2, stay tuned. Considering that ONT models are fine-tuned and perform consistently better than the HKU baseline models, please wait until ONT provide v2 models before upgrading to v2.). 2. ONT model now supports signal-aware variant calling using Dorado move tables. Use `--enable_dwell_time` for BAM files with `mv` tags (requires Dorado with `--emit-moves`). See [Dwelling Time Feature](docs/dwelling_time.md) for details. 3. Reconstructed the `run_clair3.sh` script in Python (`run_clair3.py`) for improved user experience. 4. Model checkpoint format changed from TensorFlow (`.index`/`.data`) to PyTorch (`.pt`). Pre-trained PyTorch models are available for download.
+*v2.0.0 (Feb 9, 2026)* : **A preprint describing the performance of Clair3 v2 is available at [bioRxiv](https://www.biorxiv.org/content/10.64898/2026.02.13.705285v1)** 1. Shifted the deep learning framework from TensorFlow to PyTorch (Caveat: all v1 tensorflow models are incompatible with v2, including those tensorflow models provided in rerio by ONT, we are working with ONT to provide also pytorch models for use with v2, stay tuned. Considering that ONT models are fine-tuned and perform consistently better than the HKU baseline models, please wait until ONT provide v2 models before upgrading to v2.). 2. ONT model now supports signal-aware variant calling using Dorado move tables. Use `--enable_dwell_time` for BAM files with `mv` tags (requires Dorado with `--emit-moves`). See [Dwelling Time Feature](docs/dwelling_time.md) for details. 3. Reimplemented the `run_clair3.sh` workflow in Rust, with shell-compatible launchers and no Python runtime dependency. 4. Model checkpoint format changed from TensorFlow (`.index`/`.data`) to PyTorch (`.pt`). Pre-trained PyTorch models are available for download.
 
 *v1.2.0 (Aug 1, 2025)* : 1. Clair3 now natively supports GPU on Linux and Apple Silicon. Please refer to the  [GPU quick start guide](docs/gpu_quick_start.md) for usage. Clair3 on GPU runs ~5 times compared CPU. Below is quick speed comparison. 
 
@@ -210,108 +210,59 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 
 Clair3 v2.0 uses **PyTorch** as its deep learning framework. For GPU-accelerated calling on Linux and Apple macOS (M1/M2/M3 chips), please refer to the [GPU quick start guide](docs/gpu_quick_start.md).
 
-> **Important**: The Docker and Bioconda (Option 2 & 3) pre-built images **only support CPU execution**. If you need **GPU acceleration** (NVIDIA CUDA) or **Apple Silicon** (M1/M2/M3/M4) acceleration, please use **Option 1 (step-by-step Mamba/Conda installation)** to ensure hardware compatibility and install the correct PyTorch version for your platform.
+> **Important**: CPU and GPU implementations are provided as separate Dockerfiles. Use `Dockerfile.gpu` for NVIDIA CUDA acceleration, or build locally with the `cuda` feature. Apple Silicon uses the `mps` device.
 
 ### Option 1. Build an environment with Mamba/Conda
 
 Install Mamba or Conda on your machine from [miniforge](https://github.com/conda-forge/miniforge). We recommend using Mamba because it is much faster than Conda.
 
-**Step 1: Create and activate the environment**
+Clair3's calling, tensor generation, training, checkpoint conversion, and metrics are implemented in Rust. **Python, PyPy, and TensorFlow are not required at runtime.** The native build links LibTorch and HTSlib directly and reads training HDF5 files without h5py. Samtools, bgzip, and tabix are used as external command-line tools. WhatsHap is optional: ONT and HiFi use LongPhase when WhatsHap is unavailable. Illumina phasing uses WhatsHap, or can be disabled with `--no_phasing_for_fa`.
+
+**Step 1: Install native build tools**
+
+Install [Rust](https://rustup.rs/) 1.88.0 or newer, CMake, a C++20-capable C/C++ compiler, curl, and the bioinformatics tools you intend to use:
 
 ```bash
-# Create environment with bioinformatics tools and build dependencies
+rustup toolchain install 1.88.0
+rustup default 1.88.0
+
 mamba create -n clair3_v2 \
   -c conda-forge \
   -c bioconda \
-  python=3.11 \
   samtools \
-  whatshap \
-  parallel \
+  longphase \
   zstd \
   xz \
-  zlib \
-  bzip2 \
-  automake \
+  cmake \
   make \
-  gcc \
-  gxx \
+  clang \
   curl \
-  pigz \
   -y
-
-# Activate the environment
 mamba activate clair3_v2
-# Install uv first:
-pip install uv
 ```
 
-**Step 2: Install PyTorch**
+LibTorch is downloaded automatically by the Rust build when `LIBTORCH` is not set. To use an existing LibTorch installation instead, set `LIBTORCH` to its root directory (containing `include` and `lib`), with the complete ATen C++ headers and libraries. If the distribution uses the old C++ ABI, also set `LIBTORCH_CXX11_ABI=0`.
 
-According to your system, install the specific version of PyTorch from the [official PyTorch website](https://pytorch.org/get-started/locally/).
+Building LongPhase from source on macOS requires a compiler with OpenMP support; Apple Clang alone is insufficient. Install an OpenMP-capable GCC toolchain and, if necessary, select it explicitly with `make LONGPHASE_CC=gcc-15 LONGPHASE_CXX=g++-15`. A Conda-provided LongPhase can also be used directly.
 
-For example, for CUDA 13.0:
-
-```bash
-# Install PyTorch with CUDA 13.0 support
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
-```
-
-For CPU-only:
+**Step 2: Clone and build Clair3**
 
 ```bash
-# Install PyTorch CPU-only
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-```
-
-**Step 3: Clone Clair3 repository**
-
-```bash
-# Clone Clair3 repository
 cd ${HOME}
 git clone https://github.com/HKU-BAL/Clair3.git
 cd Clair3
-
-# Set Clair3 path (optional, for convenience)
 export CLAIR3_PATH=$(pwd)
-```
 
-**Step 4: Install Python dependencies and compile C source code**
-
-```bash
-# Install remaining Python dependencies
-uv pip install \
-  numpy \
-  h5py \
-  hdf5plugin \
-  numexpr \
-  tqdm \
-  cffi \
-  torchmetrics
-
-# Compile htslib, longphase, and Clair3 C libraries
-cd ${CLAIR3_PATH}
+# Build the native executable and LongPhase.
 make PREFIX=${CONDA_PREFIX}
+
+# Alternatively, use an existing LibTorch installation.
+# make PREFIX=${CONDA_PREFIX} LIBTORCH=/path/to/libtorch
 ```
 
-**Note**: The `make` command will download and compile samtools/htslib, longphase, and the Clair3 C shared library (`libclair3.so`) for pileup and full-alignment tensor generation, which significantly improves performance.
+The executable is installed as `${CONDA_PREFIX}/bin/clair3`; LibTorch libraries are installed under `${CONDA_PREFIX}/lib/clair3`. Gloo is vendored and built automatically for distributed training. No Python packages are needed.
 
-**Step 5: Install PyPy3.11**
-
-PyPy3.11 is used to speed up some preprocessing submodules. Download and install it:
-
-```bash
-wget https://downloads.python.org/pypy/pypy3.11-v7.3.20-linux64.tar.bz2
-tar -xjf pypy3.11-v7.3.20-linux64.tar.bz2
-rm pypy3.11-v7.3.20-linux64.tar.bz2
-
-# Create symlinks for pypy3 and pypy into the conda environment bin directory
-ln -s $(pwd)/pypy3.11-v7.3.20-linux64/bin/pypy3 ${CONDA_PREFIX}/bin/pypy3
-ln -s $(pwd)/pypy3.11-v7.3.20-linux64/bin/pypy3 ${CONDA_PREFIX}/bin/pypy
-
-# Install required packages for pypy3
-pypy3 -m ensurepip
-pypy3 -m pip install mpmath==1.2.1
-```
+Legacy TensorFlow checkpoint conversion is included in the default native build; use `clair3 ConvertCheckpoint`. Full-alignment conversion also requires `--add_indel_length` to include the production indel-length model features.
 
 **Step 6: Download pre-trained models (optional)**
 
@@ -341,7 +292,7 @@ ${CLAIR3_PATH}/run_clair3.sh \
   --output=${OUTPUT_DIR}
 ```
 
-**Note**: You can also run Clair3 directly using `python3 ${CLAIR3_PATH}/run_clair3.py` with the same arguments.
+**Note**: You can also run Clair3 directly using `${CLAIR3_PATH}/run_clair3.py`, or through the legacy `python3 ${CLAIR3_PATH}/run_clair3.py` form. Both delegate to the native implementation; Python is not required when invoking the shell launchers directly.
 
 ### Option 2.  Docker pre-built image
 
@@ -361,7 +312,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  /opt/bin/run_clair3.sh \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -370,7 +321,7 @@ docker run -it \
   --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
 
-**Note**: You can also use `python3 /opt/bin/run_clair3.py` instead of `/opt/bin/run_clair3.sh` in the Docker command above.
+**Note**: You can also use `/opt/clair3/run_clair3.py` instead of `/opt/clair3/run_clair3.sh` in the Docker command above.
 
 Check [Usage](#Usage) for more options.
 
@@ -397,7 +348,7 @@ singularity pull docker://hkubal/clair3:v2.0.0
 singularity exec \
   -B ${INPUT_DIR},${OUTPUT_DIR} \
   clair3_v2.0.0.sif \
-  /opt/bin/run_clair3.sh \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -406,7 +357,7 @@ singularity exec \
   --output=${OUTPUT_DIR}               ## absolute output path prefix
 ```
 
-**Note**: You can also use `python3 /opt/bin/run_clair3.py` instead of `/opt/bin/run_clair3.sh` in the Singularity command above.
+**Note**: You can also use `/opt/clair3/run_clair3.py` instead of `/opt/clair3/run_clair3.sh` in the Singularity command above.
 
 ----
 
@@ -431,7 +382,7 @@ singularity exec \
 ## If --include_all_ctgs, --ctg_name, --bed_fn are not used, variants in chr{1..22,X,Y} and {1..22,X,Y} are called.
 ```
 
-**Note**: You can also use `python3 run_clair3.py` instead of `./run_clair3.sh` with the same arguments.
+**Note**: You can also use `run_clair3.py` instead of `./run_clair3.sh` with the same arguments.
 
 ### Options
 
@@ -456,12 +407,12 @@ singularity exec \
       --ctg_name=STR            The name of the sequence to be processed.
       --sample_name=STR         Define the sample name to be shown in the VCF file.
       --qual=INT                If set, variants with >$qual will be marked PASS, or LowQual otherwise.
-      --samtools=STR            Path of samtools, samtools version >= 1.10 is required.
-      --python=STR              Path of python, python3 >= 3.6 is required.
-      --pypy=STR                Path of pypy3, pypy3 >= 3.6 is required.
-      --parallel=STR            Path of parallel, parallel >= 20191122 is required.
-      --whatshap=STR            Path of whatshap, whatshap >= 1.0 is required.
-      --longphase=STR           Path of longphase, longphase >= 1.0 is required.
+      --samtools=STR            Path of samtools, samtools >= 1.15.1 is required.
+      --whatshap=STR            Optional path of whatshap >= 1.7; ONT and HiFi fall back to LongPhase if unavailable.
+      --longphase=STR           Path of longphase, used for phasing when WhatsHap is unavailable.
+      --python=STR              Legacy compatibility option; no Python runtime is required.
+      --pypy=STR                Legacy compatibility option; no PyPy runtime is required.
+      --parallel=STR            Legacy compatibility option; parallel execution is native.
       --chunk_size=INT          The size of each chuck for parallel processing, default: 5000000.
       --pileup_only             Use the pileup model only when calling, default: disable.
       --print_ref_calls         Show reference calls (0/0) in VCF file, default: disable.
@@ -479,7 +430,7 @@ singularity exec \
                                            Haplotag input BAM using output phased variants using whatshap, default: disable.
       --enable_phasing          It means `--use_whatshap_for_final_output_phasing`. The option is retained for backward compatibility.
       --longphase_for_phasing   It means `--use_longphase_for_intermediate_phasing`. The option is retained for backward compatibility.
-      --disable_c_impl          Disable C implement with cffi for pileup and full-alignment create tensor, default: enable.
+      --disable_c_impl          Legacy compatibility flag; the native Rust implementation is always used.
       --remove_intermediate_dir Remove intermediate directory, including intermediate phased BAM, pileup and full-alignment results. default: disable.
       --snp_min_af=FLOAT        Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.
       --indel_min_af=FLOAT      Minimum Indel AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
@@ -489,6 +440,7 @@ singularity exec \
       --pileup_model_prefix=STR EXPERIMENTAL: Model prefix in pileup calling, default: pileup.
       --fa_model_prefix=STR     EXPERIMENTAL: Model prefix in full-alignment calling, default: full_alignment.
       --min_mq=INT              EXPERIMENTAL: If set, reads with mapping quality with <$min_mq are filtered, default: 5.
+      --min_bq=INT              EXPERIMENTAL: Accepted for native C compatibility; nonzero values do not filter bases in the original native C path or this rewrite. The legacy non-CFFI path instead filters them through samtools.
       --min_coverage=INT        EXPERIMENTAL: Minimum coverage required to call a variant, default: 2.
       --min_contig_size=INT     EXPERIMENTAL: If set, contigs with contig size<$min_contig_size are filtered, default: 0.
       --fast_mode               EXPERIMENTAL: Skip variant candidates with AF <= 0.15, default: disable.
@@ -504,9 +456,9 @@ singularity exec \
                                 EXPERIMENTAL: Enable variant calling the candidates that are at the head or tail of a sequence, or have no coverage at one or more positions in the flanking 16bp. Enable for amplicon sequencing data. Default: disable.
       --output_all_contigs_in_gvcf_header
                                 EXPERIMENTAL: Enable output all contigs in gvcf header. Default: disable.
-      --enable_dwell_time       Enable signal-aware variant calling using nanopore dwell time (requires BAM with mv tags from Dorado, ONT platform, and C implementation). See docs/dwelling_time.md for details. Default: disable.
+      --enable_dwell_time       Enable signal-aware variant calling using nanopore dwell time (requires ONT BAM with mv tags from Dorado). Default: disable.
       --use_gpu                 Enable GPU-accelerated variant calling. Default: disable.
-      --device=STR              Select the GPU device(s) for calling, e.g. 'cuda:0' or 'cuda:0,1'. Default: use all visible GPUs.
+      --device=STR              Select the GPU device, e.g. 'cuda:0' or 'mps'. Default: cuda:0 when --use_gpu is enabled.
 ```
 
 #### Call variants in a chromosome
@@ -522,7 +474,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  /opt/bin/run_clair3.sh \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -545,7 +497,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  /opt/bin/run_clair3.sh \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -580,7 +532,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  /opt/bin/run_clair3.sh \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -602,7 +554,7 @@ docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
   hkubal/clair3:v2.0.0 \
-  /opt/bin/run_clair3.sh \
+  /opt/clair3/run_clair3.sh \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -636,7 +588,7 @@ Clair3 v2.0 introduces signal-aware variant calling for Oxford Nanopore data. Wh
 **Requirements:**
 - BAM file must contain `mv` (move table) tags produced by Dorado with `--emit-moves`
 - Platform must be `ont`
-- C implementation must be enabled (default; do not use `--disable_c_impl`)
+- ONT full-alignment tensor generation with dwell time enabled (implemented natively in Rust)
 
 For a complete guide including training with dwell time, see [Dwelling Time Feature Documentation](docs/dwelling_time.md). For a quick demo, see [ONT Dwelling Time Quick Demo](docs/quick_demo/ont_mv_quick_demo.md).
 
@@ -657,7 +609,7 @@ For a complete guide including training with dwell time, see [Dwelling Time Feat
 The module takes a Clair3 VCF and a Sniffle2 VCF as inputs. It switches the zygosity from homozygous to heterozygous of a Clair3 called SNP that matches the following two criteria: 1) AF<=0.7, and 2) the flanking 16bp of the SNP is inside one or more SV deletions given in the Sniffle2 VCF. The usage is as follows.
 
 ```shell
-pypy3 ${CLAIR3_PATH}/clair3.py SwitchZygosityBasedOnSVCalls
+${CLAIR3_PATH}/clair3.py SwitchZygosityBasedOnSVCalls
       --bam_fn input.bam
       --clair3_vcf_input clair3_input.vcf.gz
       --sv_vcf_input sniffle2.vcf.gz
@@ -671,35 +623,22 @@ This postprocessing script was inspired by Philipp Rescheneder from ONT. There a
 
 ## Folder Structure and Submodule Descriptions
 
-Submodules in __`clair3/`__ are for variant calling and model training. Submodules in __`preprocess`__ are for data preparation.
+The implementation is organized as native Rust modules under `src/`:
 
-*For all the submodules listed below, you can use `-h` or `--help` for available options.*
-
-`clair3/` | Note: submodules under this folder are pypy incompatible, please run using python
+Path | Purpose
 ---: | ---
-`CallVariants` | Call variants using a trained model and tensors of candidate variants.
-`CallVarBam` | Call variants using a trained model and a BAM file.
-`Train` | Training a model using the `AdamW` optimizer with PyTorch. Supports distributed data parallel (DDP) training via `torchrun`. The initial learning rate is `1e-3` with learning rate warm-up. Input a binary containing tensors created by `Tensor2Bin`.
+`src/call/` | Model inference and VCF decoding.
+`src/tensor/` | Pileup, full-alignment, dwell-time, and label generation.
+`src/realign/` | Illumina local realignment, scalar alignment, and de Bruijn consensus.
+`src/pipeline/` | Calling orchestration, phasing, GVCF, post-processing, and training helpers.
+`src/model/` | Native pileup, full-alignment, and Bloom model architectures.
+`src/train/` | Training, HDF5 archives, TensorFlow checkpoint conversion, and distributed execution.
+`csrc/` | Small C++ bridge for LibTorch and C10d.
+`third_party/gloo/` | Vendored Gloo sources for distributed training.
+`third_party/torch-sys/` | Vendored tch-rs build support with current macOS LibTorch wheel selection.
+`tests/` | Unit, integration, and differential parity tests.
 
-
-
-`preprocess/` | Note: submodules under this folder is Pypy compatible unless specified.
----: | ---
-`CheckEnvs`| Check the environment and  validity of the input variables, preprocess the BED input if necessary, `--chunk_size` sets the chuck size to be processed per parallel job. 
-`CreateTensorPileup`| Generate variant candidate tensors in pileup format for training or calling. 
-`CreateTensorFullAlignment`| Generate variant candidate tensors in phased full-alignment format for training or calling. 
-`GetTruth`| Extract the variants from a truth VCF. Input: VCF; Reference FASTA if the VCF contains asterisks in ALT field.
-`MergeVcf` | Merge pileup and full-alignment VCF/GVCF.
-`RealignReads` | Reads local realignment for Illumina platform.
-`SelectCandidates`| Select pileup candidates for full-alignment calling.
-`SelectHetSnp` | Select heterozygous SNP candidates for whatshap phasing.
-`SelectQual` | Select a quality cutoff using the pileup calling results. Variants below the cutoff are included in phasing and full-alignment calling. 
-`SortVcf` | Sort VCF file. 
-`SplitExtendBed` | Split BED file regions according to the contig names and extend bed region by 33bp by default for variant calling. 
-`UnifyRepresentation` | Representation unification between candidate sites and true variants. 
-`MergeBin` | Combine tensor binaries into a single file. 
-`CreateTrainingTensor` | Create tensor binaries for pileup or full-alignment training. 
-`Tensor2Bin` | Combine the variant and non-variant tensors and convert them to a binary, using `blosc:lz4hc` meta-compressor, the overall training memory is 10~15G (pypy incompatible). 
+Run `clair3 --help` or `clair3 <command> --help` for command options. `run_clair3.sh` and `run_clair3.py` are shell launchers for the standard workflow; `clair3.py` is a shell launcher for individual commands. Python and PyPy are not required.
 
 ----
 

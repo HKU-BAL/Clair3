@@ -1,0 +1,19 @@
+usage: GetTruth.py [-h] --vcf_fn VCF_FN [--var_fn VAR_FN] [--ctgName CTGNAME]
+                   [--ctgStart CTGSTART] [--ctgEnd CTGEND]
+                   [--truth_vcf_fn TRUTH_VCF_FN]
+
+Extract variant type and allele from a truth dataset
+
+options:
+  -h, --help            show this help message and exit
+  --vcf_fn VCF_FN       Truth VCF file input, required
+  --var_fn VAR_FN       Truth variants output, use PIPE for standard output,
+                        default: PIPE
+  --ctgName CTGNAME     The name of sequence to be processed
+  --ctgStart CTGSTART   The 1-based starting position of the sequence to be
+                        processed
+  --ctgEnd CTGEND       The 1-based inclusive ending position of the sequence
+                        to be processed
+  --truth_vcf_fn TRUTH_VCF_FN
+                        Truth VCF file input, only used when vcf_fn is unified
+                        vcf. Marked truth variants not in unified as missing

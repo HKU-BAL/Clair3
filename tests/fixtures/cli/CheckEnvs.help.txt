@@ -1,0 +1,72 @@
+usage: CheckEnvs.py [-h] [--bam_fn BAM_FN]
+                    [--output_fn_prefix OUTPUT_FN_PREFIX]
+                    [--ctg_name CTG_NAME] [--bed_fn [BED_FN]]
+                    [--vcf_fn VCF_FN] [--ref_fn REF_FN]
+                    [--chunk_size CHUNK_SIZE]
+                    [--include_all_ctgs INCLUDE_ALL_CTGS] [--threads THREADS]
+                    [--samtools SAMTOOLS] [--pypy PYPY] [--python PYTHON]
+                    [--parallel PARALLEL] [--whatshap WHATSHAP]
+                    [--sampleName SAMPLENAME] [--qual QUAL]
+                    [--var_pct_full VAR_PCT_FULL]
+                    [--ref_pct_full REF_PCT_FULL] [--snp_min_af SNP_MIN_AF]
+                    [--indel_min_af INDEL_MIN_AF]
+                    [--min_contig_size MIN_CONTIG_SIZE] [--cmd_fn CMD_FN]
+                    [--chunk_num CHUNK_NUM]
+
+Check the environment and the validity of the input variables, preprocess the
+BED input if necessary
+
+options:
+  -h, --help            show this help message and exit
+  --bam_fn BAM_FN       BAM file input, default: None
+  --output_fn_prefix OUTPUT_FN_PREFIX
+                        Path to the output folder
+  --ctg_name CTG_NAME   The name of sequence to be processed, separated by
+                        comma
+  --bed_fn [BED_FN]     Call variant only in these regions. Will take an
+                        intersection if --ctg_name is set
+  --vcf_fn VCF_FN       Candidate sites VCF file input, if provided, variants
+                        will only be called at the sites in the VCF file,
+                        default: None
+  --ref_fn REF_FN       Reference fasta file input, default: ref.fa
+  --chunk_size CHUNK_SIZE
+                        The size of each chuck for parallel processing,
+                        default: 5Mbp
+  --include_all_ctgs INCLUDE_ALL_CTGS
+                        Call variants on all contigs, default:
+                        chr{1..22,X,Y,M,MT} and {1..22,X,Y,MT}
+  --threads THREADS     Max #threads to be used. The full genome will be
+                        divided into small chucks for parallel processing
+  --samtools SAMTOOLS   Path to the 'samtools', samtools version >= 1.10 is
+                        required, default: samtools
+  --pypy PYPY           Path to the 'pypy', pypy3 version >= 3.6 is required,
+                        default: pypy3
+  --python PYTHON       Path to the 'python3', default: python3
+  --parallel PARALLEL   Path to the 'parallel', default: parallel
+  --whatshap WHATSHAP   Path to the 'whatshap', default: whatshap
+  --sampleName SAMPLENAME
+                        Define the sample name to be shown in the VCF file,
+                        optional
+  --qual QUAL           If set, variants with >=$qual will be marked 'PASS',
+                        or 'LowQual' otherwise, optional
+  --var_pct_full VAR_PCT_FULL
+                        Default variant call proportion for raw alignment or
+                        remove low quality proportion for whatshap phasing.
+                        (default: 0.300000)
+  --ref_pct_full REF_PCT_FULL
+                        Default reference call proportion for raw alignment or
+                        remove low quality proportion for whatshap phasing.
+                        (default: 0.300000)
+  --snp_min_af SNP_MIN_AF
+                        Minimum SNP allele frequency for a site to be
+                        considered as a candidate site, default: 0.080000
+  --indel_min_af INDEL_MIN_AF
+                        Minimum Indel allele frequency for a site to be
+                        considered as a candidate site, default: 0.080000
+  --min_contig_size MIN_CONTIG_SIZE
+                        Minimum Indel allele frequency for a site to be
+                        considered as a candidate site, default: 0.000000
+  --cmd_fn CMD_FN       If defined, added command line into VCF header
+  --chunk_num CHUNK_NUM
+                        Target number of chunks to divide contigs into for
+                        parallel processing. If -1, do not chunk genome

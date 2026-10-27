@@ -146,9 +146,7 @@ This section shows how to build multiple compressed tensor binary file for multi
 
 ```bash
 # Setup executable variables
-CLAIR3="clair3.py"                                        # clair3.py
-PYPY="[PYPY_BIN_PATH]"                                    # e.g. pypy3
-PYTHON3="[PYTHON3_BIN_PATH]"                              # e.g. python3
+CLAIR3="clair3"                                           # native Rust executable
 PARALLEL="[PARALLEL_BIN_PATH]"                            # e.g. parallel
 SAMTOOLS="[SAMTOOLS_BIN_PATH]"                            # e.g. samtools
 
@@ -256,7 +254,7 @@ cd ${OUTPUT_DIR}
 
 # Split BED file regions according to the contig names and extend the bed regions
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/split_extend_bed.log -j${THREADS} \
-"${PYPY} ${CLAIR3} SplitExtendBed \
+"${CLAIR3} SplitExtendBed \
     --bed_fn {4} \
     --output_fn ${SPLIT_BED_PATH}/{2}_{3}_{1} \
     --ctgName ${CHR_PREFIX}{1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${ALL_BED_FILE_PATH[@]}
@@ -268,7 +266,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/split_extend_bed.log -j${THREADS} \
 ```bash
 # Covert unified VCF file into simplified var file
 ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
-"${PYPY} ${CLAIR3} GetTruth \
+"${CLAIR3} GetTruth \
     --vcf_fn {4} \
     --ctgName ${CHR_PREFIX}{1} \
     --var_fn ${VAR_OUTPUT_PATH}/var_{2}_{3}_{1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]} :::+ ${UNIFIED_VCF_FILE_PATH[@]}
@@ -280,7 +278,7 @@ ${PARALLEL} --joblog ${VAR_OUTPUT_PATH}/get_truth.log -j${THREADS} \
 ```bash
 # Create full-alignment tensor for model training
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_full_alignment.log -j${THREADS_LOW} \
-"${PYPY} ${CLAIR3} CreateTrainingTensor \
+"${CLAIR3} CreateTrainingTensor \
     --bam_fn {4} \
     --ref_fn {5} \
     --var_fn ${VAR_OUTPUT_PATH}/var_{2}_{3}_{1} \
@@ -314,7 +312,7 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/create_tensor_full_alignment.log -j$
 ```bash
 # Merge compressed binaries
 ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/mergeBin.log -j${THREADS} \
-"${PYTHON3} ${CLAIR3} MergeBin \
+"${CLAIR3} MergeBin \
     ${TENSOR_CANDIDATE_PATH}/tensor_{2}_{3}_{1}_* \
     --platform ${PLATFORM} \
     --out_fn ${BINS_FOLDER_PATH}/bin_{2}_{3}_{1}" ::: ${CHR[@]} ::: ${ALL_SAMPLE[@]} :::+ ${DEPTHS[@]}
@@ -344,7 +342,7 @@ cd ${MODEL_FOLDER_PATH}
 
 # A single GPU is used for model training
 export CUDA_VISIBLE_DEVICES="0"
-${PYTHON3} ${CLAIR3} Train \
+${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
     --ochk_prefix ${MODEL_FOLDER_PATH}/full_alignment \
     --add_indel_length True \
@@ -368,7 +366,7 @@ mkdir -p ${MODEL_FOLDER_PATH}
 cd ${MODEL_FOLDER_PATH}
 
 export CUDA_VISIBLE_DEVICES="0"
-${PYTHON3} ${CLAIR3} Train \
+${CLAIR3} Train \
     --bin_fn ${BINS_FOLDER_PATH} \
     --ochk_prefix ${MODEL_FOLDER_PATH}/full_alignment \
     --add_indel_length True \

@@ -1,0 +1,64 @@
+##fileformat=VCFv4.2
+##source=Clair3
+##clair3_version=1.2.0
+##cmdline=<NORMALIZED>
+##reference=<NORMALIZED>
+##FILTER=<ID=PASS,Description="All filters passed">
+##FILTER=<ID=LowQual,Description="Low quality variant">
+##FILTER=<ID=RefCall,Description="Reference call">
+##INFO=<ID=P,Number=0,Type=Flag,Description="Result from pileup calling">
+##INFO=<ID=F,Number=0,Type=Flag,Description="Result from full-alignment calling">
+##ALT=<ID=NON_REF,Description="Represents any possible alternative allele at this location">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position (for use with symbolic alleles)">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads 1. with MQ below 5 or an user-specified threshold, or 2. selected by 'samtools view -F 2316', are filtered)">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=MIN_DP,Number=1,Type=Integer,Description="Minimum DP observed within the GVCF block">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##FORMAT=<ID=AF,Number=A,Type=Float,Description="Observed allele frequency in reads, for each ALT allele, in the same order as listed, or the REF allele for a RefCall">
+##contig=<ID=chrToy,length=4096>
+##contig=<ID=chr:colon,length=1024>
+##contig=<ID=chrEmpty,length=512>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE
+chr:colon	1	.	T	<NON_REF>	0	.	END=99	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chr:colon	100	.	A	C,<NON_REF>	19.03	PASS	P	GT:GQ:DP:AD:AF:PL	0/1:19:12:6,6,0:0.5000,0.0000:27,0,54,990,990,990
+chr:colon	101	.	C	<NON_REF>	0	.	END=200	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chr:colon	201	.	A	<NON_REF>	0	.	END=1024	GT:GQ:MIN_DP:PL	0/0:1:0:0,0,0
+chrToy	1	.	T	<NON_REF>	0	.	END=4	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	5	.	A	<NON_REF>	0	.	END=5	GT:GQ:MIN_DP:PL	./.:0:12:143,0,143
+chrToy	6	.	A	<NON_REF>	0	.	END=499	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	500	.	A	C,<NON_REF>	18.71	PASS	P	GT:GQ:DP:AD:AF:PL	0/1:18:12:6,6,0:0.5000,0.0000:27,0,50,990,990,990
+chrToy	501	.	A	<NON_REF>	0	.	END=699	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	700	.	T	TGGG,<NON_REF>	22.49	PASS	F	GT:GQ:DP:AD:AF:PL	1/1:22:12:0,12,0:1.0000,0.0000:68,39,0,990,990,990
+chrToy	701	.	G	<NON_REF>	0	.	END=899	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	900	.	GCA	G,<NON_REF>	11.83	PASS	F	GT:GQ:DP:AD:AF:PL	1/1:11:12:0,12,0:1.0000,0.0000:54,14,0,990,990,990
+chrToy	903	.	A	<NON_REF>	0	.	END=1000	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	1001	.	G	<NON_REF>	0	.	END=1002	GT:GQ:MIN_DP:PL	0/0:50:24:0,72,719
+chrToy	1003	.	G	<NON_REF>	0	.	END=1099	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	1100	.	A	C,<NON_REF>	12.86	PASS	F	GT:GQ:DP:AD:AF:PL	0/1:12:12:4,4,0:0.3333,0.0000:16,0,74,990,990,990
+chrToy	1101	.	C	<NON_REF>	0	.	END=1499	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	1500	.	C	<NON_REF>	0	.	END=1500	GT:GQ:MIN_DP:PL	./.:0:24:287,0,287
+chrToy	1501	.	T	<NON_REF>	0	.	END=1899	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	1900	.	T	<NON_REF>	0	.	END=1900	GT:GQ:MIN_DP:PL	./.:0:24:287,0,287
+chrToy	1901	.	G	<NON_REF>	0	.	END=1960	GT:GQ:MIN_DP:PL	0/0:1:0:0,0,0
+chrToy	1961	.	T	<NON_REF>	0	.	END=2000	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	2001	.	C	<NON_REF>	0	.	END=2060	GT:GQ:MIN_DP:PL	0/0:50:24:0,72,719
+chrToy	2061	.	G	<NON_REF>	0	.	END=2299	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	2300	.	A	G,<NON_REF>	16.89	PASS	F	GT:GQ:DP:AD:AF:PL	1/1:16:12:0,12,0:1.0000,0.0000:62,21,0,990,990,990
+chrToy	2301	.	G	<NON_REF>	0	.	END=2400	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	2401	.	C	<NON_REF>	0	.	END=2499	GT:GQ:MIN_DP:PL	0/0:50:300:0,901,8999
+chrToy	2500	.	T	A,<NON_REF>	19.72	PASS	P	GT:GQ:DP:AD:AF:PL	0/1:19:300:150,150,0:0.5000,0.0000:27,0,59,990,990,990
+chrToy	2501	.	G	<NON_REF>	0	.	END=2600	GT:GQ:MIN_DP:PL	0/0:50:300:0,901,8999
+chrToy	2601	.	A	<NON_REF>	0	.	END=2699	GT:GQ:MIN_DP:PL	0/0:18:6:0,18,179
+chrToy	2700	.	A	C,<NON_REF>	17.76	PASS	F	GT:GQ:DP:AD:AF:PL	0/1:17:6:3,3,0:0.5000,0.0000:23,0,74,990,990,990
+chrToy	2701	.	C	<NON_REF>	0	.	END=2800	GT:GQ:MIN_DP:PL	0/0:18:6:0,18,179
+chrToy	2801	.	A	<NON_REF>	0	.	END=3099	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	3100	.	A	C,<NON_REF>	19.63	PASS	P	GT:GQ:DP:AD:AF:PL	0/1:19:12:6,6,0:0.5000,0.0000:28,0,51,990,990,990
+chrToy	3101	.	T	<NON_REF>	0	.	END=3190	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	3191	.	T	<NON_REF>	0	.	END=3200	GT:GQ:MIN_DP:PL	0/0:1:0:0,0,0
+chrToy	3201	.	T	<NON_REF>	0	.	END=3499	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	3500	.	N	<NON_REF>	0	.	END=3500	GT:GQ:MIN_DP:PL	./.:1:0:0,0,0
+chrToy	3501	.	T	<NON_REF>	0	.	END=4089	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
+chrToy	4090	.	C	<NON_REF>	0	.	END=4090	GT:GQ:MIN_DP:PL	./.:0:12:143,0,143
+chrToy	4091	.	G	<NON_REF>	0	.	END=4096	GT:GQ:MIN_DP:PL	0/0:36:12:0,36,359
