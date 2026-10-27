@@ -94,7 +94,7 @@ hap.py \
 
 |   Type    | TRUTH.TP | TRUTH.FN | QUERY.FP | METRIC.Recall | METRIC.Precision | METRIC.F1-Score |
 | :-------: | :------: | :------: | :------: | :-----------: | :--------------: | :-------------: |
-| **INDEL** |    45    |    14    |    4     |     0.762     |      0.918       |      0.833      |
+| **INDEL** |    44    |    15    |    5     |     0.746     |      0.898       |      0.815      |
 |  **SNP**  |   402    |    0     |    1     |     1.000     |      0.997       |      0.998      |
 
 Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.vcf.gz`
@@ -145,5 +145,5 @@ ${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
 
 |   Type    | TRUTH.TP | TRUTH.FN | QUERY.FP | METRIC.Recall | METRIC.Precision | METRIC.F1-Score |
 | :-------: | :------: | :------: | :------: | :-----------: | :--------------: | :-------------: |
-| **INDEL** |    45    |    14    |    4     |     0.762     |      0.918       |      0.833      |
+| **INDEL** |    44    |    15    |    5     |     0.746     |      0.898       |      0.815      |
 |  **SNP**  |   402    |    0     |    1     |     1.000     |      0.997       |      0.998      |
