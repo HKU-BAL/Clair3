@@ -29,7 +29,7 @@ use crate::{
         call::{CallConfig, CallOutput, call_full_alignment, call_pileup, checkpoint_path},
         gvcf::{GvcfOptions, merge_nonvariants, write_gvcf},
         merge::{MergeOptions, merge_illumina_records, merge_records, read_vcf, sort_records},
-        phasing::parallel_phase_command,
+        phasing::{parallel_phase_command, phase_regions_from_files, scan_phase_regions},
         select::{SelectOptions, full_quality, phase_quality, select_candidates, select_het_snp},
     },
 };
@@ -667,7 +667,31 @@ fn phase_bams(
         } else {
             let mut phaser = Command::new(&options.whatshap);
             if options.platform != Platform::Ilmn {
-                phaser = parallel_phase_command(&options.whatshap, options.threads, None);
+                let positions: Vec<_> = selected
+                    .iter()
+                    .map(VcfRecord::position_zero_based)
+                    .collect();
+                let span_file = phase_vcf.join(format!("{contig}.spans"));
+                let regions = if span_file.is_file() {
+                    phase_regions_from_files(&positions, &[span_file])?
+                } else {
+                    scan_phase_regions(&options.bam, contig, &positions)?
+                };
+                let region_path = phase_vcf.join(format!("{contig}.phase-regions"));
+                let mut region_writer = BufWriter::new(fs::File::create(&region_path)?);
+                for region in regions {
+                    writeln!(
+                        region_writer,
+                        "{}\t{}\t{}\t{}",
+                        region.start, region.end, region.first_variant, region.end_variant
+                    )?;
+                }
+                region_writer.flush()?;
+                phaser = parallel_phase_command(
+                    &options.whatshap,
+                    options.threads,
+                    Some(&region_path),
+                );
             }
             execute(
                 phaser
@@ -913,7 +937,32 @@ pub fn run_pipeline(options: &RunOptions) -> Result<()> {
     }
     fs::write(tmp.join("CHUNK_LIST"), chunk_lines.join("\n") + "\n")?;
     tch::set_num_threads(1);
-    let outputs = execute_call_jobs(&jobs, (options.threads * 3 / 4).max(1), true)?;
+    let reference_path = options.reference.clone();
+    let outputs = std::thread::scope(|scope| -> Result<_> {
+        let capture = (!options.no_phasing_for_fa
+            && options.platform != Platform::Ilmn
+            && !options.use_longphase_for_intermediate_phasing)
+            .then(|| {
+                scope.spawn(|| -> Result<()> {
+                    for contig in &contigs {
+                        crate::pipeline::phasing::capture_alignment_spans(
+                            &options.bam,
+                            &reference_path,
+                            contig,
+                            &phase_vcf.join(format!("{contig}.spans")),
+                        )?;
+                    }
+                    Ok(())
+                })
+            });
+        let outputs = execute_call_jobs(&jobs, (options.threads * 3 / 4).max(1), true)?;
+        if let Some(capture) = capture {
+            capture
+                .join()
+                .map_err(|_| anyhow::anyhow!("alignment span worker panicked"))??;
+        }
+        Ok(outputs)
+    })?;
     let mut pileup = Vec::new();
     let mut nonvariants = Vec::new();
     for (config, output) in jobs.iter().zip(outputs) {

@@ -62,15 +62,14 @@ class ParallelDPTable:
             return
         self.reads = reads
         self.cost = 0
+        component_reads = {component: ReadSet() for component in groups}
+        for read in reads:
+            component_reads[finder.find(read[0].position)].add(read)
         tasks = []
         indices = {position: index for index, position in enumerate(positions)}
         sample_name = _sample_ids[id(pedigree)].inverse_mapping()[0]
         for block in groups.values():
-            wanted = set(block)
-            readset = ReadSet()
-            for read in reads:
-                if read[0].position in wanted:
-                    readset.add(read)
+            readset = component_reads[finder.find(block[0])]
             genotypes = [pedigree.genotype(sample_name, indices[p]) for p in block]
             likelihoods = [
                 pedigree.genotype_likelihoods(sample_name, indices[p]) for p in block
