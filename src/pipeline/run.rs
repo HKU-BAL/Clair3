@@ -26,7 +26,10 @@ use crate::{
     },
     model::{Model, ModelKind},
     pipeline::{
-        call::{CallConfig, CallOutput, call_full_alignment, call_pileup, checkpoint_path},
+        call::{
+            CallConfig, CallOutput, Inference, InferenceRequest, call_full_alignment, call_pileup,
+            checkpoint_path, inference_job,
+        },
         gvcf::{GvcfOptions, merge_nonvariants, write_gvcf},
         merge::{MergeOptions, merge_illumina_records, merge_records, read_vcf, sort_records},
         phasing::{parallel_phase_command, phase_regions_from_files, scan_phase_regions},
@@ -491,42 +494,92 @@ fn execute_call_jobs(jobs: &[CallConfig], threads: usize, pileup: bool) -> Resul
     let next = Arc::new(AtomicUsize::new(0));
     let (sender, receiver) = mpsc::channel::<(usize, Result<CallOutput>)>();
     let workers = threads.max(1).min(count);
+    let create_model = |config: &CallConfig| {
+        Model::new(
+            if pileup {
+                ModelKind::Pileup
+            } else {
+                ModelKind::FullAlignment
+            },
+            config.device,
+            Some(if pileup {
+                18
+            } else if config.enable_dwell_time {
+                9
+            } else {
+                8
+            }),
+            !pileup && config.add_indel_length,
+            Some(&config.checkpoint),
+        )
+    };
+    let first = jobs.first().context("calling worker received no jobs")?;
+    let (inference_sender, inference_receiver) =
+        matches!(first.device, Device::Mps | Device::Cuda(_))
+            .then(mpsc::channel::<InferenceRequest>)
+            .unzip();
     std::thread::scope(|scope| {
+        let inference_workers = inference_receiver
+            .map(|receiver| {
+                let count = std::env::var("CLAIR3_INFERENCE_WORKERS")
+                    .ok()
+                    .and_then(|value| value.parse::<usize>().ok())
+                    .unwrap_or(1)
+                    .max(1);
+                let receiver = std::sync::Arc::new(std::sync::Mutex::new(receiver));
+                (0..count)
+                    .map(|_| {
+                        let receiver = std::sync::Arc::clone(&receiver);
+                        let config = first.clone();
+                        scope.spawn(move || -> Result<()> {
+                            let model = create_model(&config)?;
+                            loop {
+                                let request = receiver
+                                    .lock()
+                                    .map_err(|_| anyhow::anyhow!("inference queue lock poisoned"))?
+                                    .recv();
+                                let Ok((job, response)) = request else {
+                                    break;
+                                };
+                                response.send(inference_job(job, &model)).map_err(|_| {
+                                    anyhow::anyhow!("inference response channel closed")
+                                })?;
+                            }
+                            Ok(())
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
         let mut handles = Vec::new();
         for _ in 0..workers {
             let jobs = Arc::clone(&jobs);
             let next = Arc::clone(&next);
             let sender = sender.clone();
+            let inference_sender = inference_sender.clone();
             handles.push(scope.spawn(move || {
                 let worker = (|| -> Result<()> {
                     let first = jobs.first().context("calling worker received no jobs")?;
                     let reference = Reference::open(&first.reference)?;
-                    let model = Model::new(
-                        if pileup {
-                            ModelKind::Pileup
-                        } else {
-                            ModelKind::FullAlignment
-                        },
-                        first.device,
-                        Some(if pileup {
-                            18
-                        } else if first.enable_dwell_time {
-                            9
-                        } else {
-                            8
-                        }),
-                        !pileup && first.add_indel_length,
-                        Some(&first.checkpoint),
-                    )?;
+                    let model = inference_sender
+                        .is_none()
+                        .then(|| create_model(first))
+                        .transpose()?
+                        .map(std::sync::Mutex::new);
+                    let inference = if let Some(sender) = &inference_sender {
+                        Inference::Remote(sender)
+                    } else {
+                        Inference::Local(model.as_ref().unwrap())
+                    };
                     loop {
                         let index = next.fetch_add(1, Ordering::Relaxed);
                         if index >= count {
                             break;
                         }
                         let result = if pileup {
-                            call_pileup(&jobs[index], &reference, &model)
+                            call_pileup(&jobs[index], &reference, &inference)
                         } else {
-                            call_full_alignment(&jobs[index], &reference, &model)
+                            call_full_alignment(&jobs[index], &reference, &inference)
                         };
                         if sender.send((index, result)).is_err() {
                             break;
@@ -554,6 +607,12 @@ fn execute_call_jobs(jobs: &[CallConfig], threads: usize, pileup: bool) -> Resul
             if handle.join().is_err() {
                 bail!("a calling worker panicked");
             }
+        }
+        drop(inference_sender);
+        for worker in inference_workers {
+            worker
+                .join()
+                .map_err(|_| anyhow::anyhow!("inference worker panicked"))??;
         }
         if let Some(error) = errors.into_iter().next() {
             return Err(error);
@@ -820,6 +879,11 @@ pub fn run_pipeline(options: &RunOptions) -> Result<()> {
     let full_checkpoint =
         checkpoint_path(&options.model_path, &options.full_alignment_model_prefix)?;
     let device = super::call::device_from_options(options.use_gpu, &options.device)?;
+    let pileup_device = if matches!(device, Device::Mps | Device::Cuda(_)) {
+        Device::Cpu
+    } else {
+        device
+    };
     let reference = Reference::open(&options.reference)?;
     let contigs = prepare_contigs(&reference, &options.bam, options)?;
     fs::create_dir_all(&options.output)?;
@@ -917,7 +981,7 @@ pub fn run_pipeline(options: &RunOptions) -> Result<()> {
                 &pileup_checkpoint,
                 &options.bam,
                 contig,
-                device,
+                pileup_device,
                 var_pct_full,
             );
             config.add_indel_length = false;

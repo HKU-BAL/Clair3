@@ -32,6 +32,64 @@ use crate::{
 
 use super::gvcf::{GvcfOptions, nonvariant_records};
 
+pub enum InferenceJob {
+    Pileup(std::sync::Arc<PileupBatch>, DecodeOptions),
+    FullAlignment(std::sync::Arc<FullAlignmentBatch>, DecodeOptions),
+}
+
+pub type InferenceRequest = (
+    InferenceJob,
+    std::sync::mpsc::Sender<Result<Vec<VcfRecord>>>,
+);
+
+pub enum Inference<'a> {
+    Local(&'a std::sync::Mutex<Model>),
+    Remote(&'a std::sync::mpsc::Sender<InferenceRequest>),
+}
+
+pub(crate) fn inference_job(job: InferenceJob, model: &Model) -> Result<Vec<VcfRecord>> {
+    tch::no_grad(|| match job {
+        InferenceJob::Pileup(batch, options) => call_tensor_batch(
+            model,
+            TensorInput {
+                shape: &batch.shape,
+                values: &batch.values,
+                positions: &batch.positions,
+                alt_info: &batch.alt_info,
+            },
+            &options,
+            PREDICT_BATCH_SIZE,
+        ),
+        InferenceJob::FullAlignment(batch, options) => call_tensor_batch(
+            model,
+            TensorInput {
+                shape: &batch.shape,
+                values: &batch.values,
+                positions: &batch.positions,
+                alt_info: &batch.alt_info,
+            },
+            &options,
+            PREDICT_BATCH_SIZE,
+        ),
+    })
+}
+
+fn run_inference(inference: &Inference, job: InferenceJob) -> Result<Vec<VcfRecord>> {
+    match inference {
+        Inference::Local(model) => {
+            let model = model
+                .lock()
+                .map_err(|_| anyhow::anyhow!("inference model lock poisoned"))?;
+            inference_job(job, &model)
+        }
+        Inference::Remote(sender) => {
+            let (response, result) = std::sync::mpsc::channel();
+            sender.send((job, response))?;
+            result.recv().context("inference worker stopped")?
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CallConfig {
     pub bam: PathBuf,
@@ -248,25 +306,24 @@ pub(crate) fn pileup_batch(
 pub(crate) fn call_pileup(
     config: &CallConfig,
     reference: &Reference,
-    model: &Model,
+    inference: &Inference,
 ) -> Result<CallOutput> {
+    let profile_start = std::time::Instant::now();
     let (batch, region) = pileup_batch(config, reference)?;
+    let tensor_elapsed = profile_start.elapsed();
+    let inference_start = std::time::Instant::now();
     if region.start == region.end {
         return Ok(Default::default());
     }
+    let batch = std::sync::Arc::new(batch);
     let records = if batch.positions.is_empty() {
         Vec::new()
     } else {
-        tch::no_grad(|| {
-            call_tensor_batch(
-                model,
-                TensorInput {
-                    shape: &batch.shape,
-                    values: &batch.values,
-                    positions: &batch.positions,
-                    alt_info: &batch.alt_info,
-                },
-                &DecodeOptions {
+        run_inference(
+            inference,
+            InferenceJob::Pileup(
+                batch.clone(),
+                DecodeOptions {
                     show_reference: config.show_reference,
                     haploid_precise: config.haploid_precise,
                     haploid_sensitive: config.haploid_sensitive,
@@ -282,10 +339,17 @@ pub(crate) fn call_pileup(
                     },
                     keep_iupac: config.keep_iupac,
                 },
-                PREDICT_BATCH_SIZE,
-            )
-        })?
+            ),
+        )?
     };
+    if std::env::var_os("CLAIR3_PROFILE").is_some() {
+        eprintln!(
+            "pileup {} tensor={:.3}s inference={:.3}s",
+            config.contig,
+            tensor_elapsed.as_secs_f64(),
+            inference_start.elapsed().as_secs_f64()
+        );
+    }
     let records = records
         .into_iter()
         .filter(|record| {
@@ -514,22 +578,20 @@ pub(crate) fn full_alignment_batch(
 pub(crate) fn call_full_alignment(
     config: &CallConfig,
     reference: &Reference,
-    model: &Model,
+    inference: &Inference,
 ) -> Result<CallOutput> {
+    let profile_start = std::time::Instant::now();
     let batch = full_alignment_batch(config, reference)?;
+    let tensor_elapsed = profile_start.elapsed();
+    let inference_start = std::time::Instant::now();
     if batch.positions.is_empty() {
         return Ok(Default::default());
     }
-    let records = tch::no_grad(|| {
-        call_tensor_batch(
-            model,
-            TensorInput {
-                shape: &batch.shape,
-                values: &batch.values,
-                positions: &batch.positions,
-                alt_info: &batch.alt_info,
-            },
-            &DecodeOptions {
+    let records = run_inference(
+        inference,
+        InferenceJob::FullAlignment(
+            std::sync::Arc::new(batch),
+            DecodeOptions {
                 show_reference: config.show_reference,
                 haploid_precise: config.haploid_precise,
                 haploid_sensitive: config.haploid_sensitive,
@@ -545,9 +607,16 @@ pub(crate) fn call_full_alignment(
                 keep_iupac: config.keep_iupac,
                 ..Default::default()
             },
-            PREDICT_BATCH_SIZE,
-        )
-    })?;
+        ),
+    )?;
+    if std::env::var_os("CLAIR3_PROFILE").is_some() {
+        eprintln!(
+            "full {} tensor={:.3}s inference={:.3}s",
+            config.contig,
+            tensor_elapsed.as_secs_f64(),
+            inference_start.elapsed().as_secs_f64()
+        );
+    }
     Ok(CallOutput {
         records,
         nonvariants: Vec::new(),
@@ -579,10 +648,12 @@ pub fn call_var_bam(config: &CallConfig, pileup: bool) -> Result<CallOutput> {
         config.add_indel_length,
         Some(&config.checkpoint),
     )?;
+    let model = std::sync::Mutex::new(model);
+    let inference = Inference::Local(&model);
     let output = if pileup {
-        call_pileup(config, &reference, &model)?
+        call_pileup(config, &reference, &inference)?
     } else {
-        call_full_alignment(config, &reference, &model)?
+        call_full_alignment(config, &reference, &inference)?
     };
     if let Some(path) = &config.output {
         if let Some(parent) = path.parent() {

@@ -82,6 +82,8 @@ clair3 run \
 
 LongPhase can be built with `make longphase` using an OpenMP-capable compiler. Apple Clang does not provide this by default; install GCC and select it with `LONGPHASE_CC` and `LONGPHASE_CXX` if needed. WhatsHap is optional for ONT and HiFi; LongPhase is used when WhatsHap is unavailable. Illumina phasing uses WhatsHap, or can be disabled with `--no_phasing_for_fa`.
 
+CPU is the default backend. With `--device=mps` or `--device=cuda:N`, full-alignment inference runs in dedicated GPU workers, with each model created and used in the same thread. Pileup remains on CPU to preserve candidate selection, and tensor generation remains parallel on CPU. GPU execution is optional; no GPU-specific runtime is needed for the default CPU pipeline.
+
 ## Distributed training
 
 Native training uses C10d and does not require `torchrun` or Python. Start one process per rank with the standard distributed environment variables:
