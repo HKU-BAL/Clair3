@@ -16,9 +16,9 @@
 
 ---
 
-**Contact:** Ruibang Luo, Zhenxian Zheng, Xian Yu
+**Contact:** Ruibang Luo, Zhenxian Zheng, Xian Yu, Minggao He
 
-**Email:** rbluo@cs.hku.hk · zxzheng@cs.hku.hk · yuxian@connect.hku.hk
+**Email:** rbluo@cs.hku.hk · zxzheng@cs.hku.hk · yuxian@connect.hku.hk · dwzad@connect.hku.hk
 
 ---
 
@@ -59,6 +59,15 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 ---
 
 ## Latest Updates
+### v2.0.5 — *Oct 28, 2026*
+- **[#480](https://github.com/HKU-BAL/Clair3/pull/480) — AMD Instinct (ROCm) GPUs.** Adds `Dockerfile.amd` and a `rocm-smi` fallback in the GPU scheduler. Tested on MI300X (gfx942) and MI355X (gfx950); NVIDIA/CUDA behaviour is unchanged.
+- **[#481](https://github.com/HKU-BAL/Clair3/pull/481) — CRAM 3.1 input.** `libclair3` now links htslib 1.24 instead of 1.15.1, and the `--disable_c_impl` path passes the reference to `samtools mpileup` and handles the match symbols it then emits, so CRAM 3.1 records decode ([Issue#453](https://github.com/HKU-BAL/Clair3/issues/453)).
+- **[#474](https://github.com/HKU-BAL/Clair3/pull/474) — `getMyMaxItem` boundary fix.** The loop read one element past the end of the array; it now stops at the last element, with a regression test.
+- **[#465](https://github.com/HKU-BAL/Clair3/pull/465) — `CheckEnvs` error messages.** Two `format()` calls had mismatched placeholder counts; one raised `IndexError` instead of printing the message it was meant to show.
+
+<details>
+<summary><b>v2.0.4 – v2.0.0</b> (click to expand)</summary>
+
 ### v2.0.4 — *Oct 5, 2026*
 - `--device=cuda:N` now runs on the requested physical GPU. The GPU scheduler mixed up the 0-based indices of the *visible* devices with physical GPU ids, so `--device=cuda:3` handed every worker `--gpu_id 0` and the job landed on GPU 0; setting `CUDA_VISIBLE_DEVICES` by hand failed the same way, because the worker overwrote it with that logical index ([Issue#472](https://github.com/HKU-BAL/Clair3/issues/472)). A requested device that does not exist on the host is now refused with a clear message instead of silently falling back to GPU 0.
 - Fixed `SplitExtendBed` silently dropping the last BED region — the pending merged region was only written out when the *next* non-overlapping region arrived, so a single-region (whole-contig) BED produced an empty file, and downstream steps failed with a chunk region of `ctg:nan-nan` ([Issue#466](https://github.com/HKU-BAL/Clair3/issues/466)).
@@ -93,6 +102,8 @@ A preprint describing the performance of Clair3 v2 is available on [bioRxiv](htt
 - **Signal-aware variant calling for ONT.** Pass `--enable_dwell_time` on BAMs with Dorado `mv` tags (requires `--emit-moves`). See [Dwelling Time Feature](docs/dwelling_time.md).
 - **New Python runner.** `run_clair3.sh` was reconstructed as `run_clair3.py`; both remain usable.
 - **Checkpoint format.** TF `.index`/`.data` → PyTorch `.pt`.
+
+</details>
 
 ### v1.2.0 — *Aug 1, 2025*
 

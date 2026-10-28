@@ -23,15 +23,15 @@ mkdir -p ${OUTPUT_DIR}
 
 # Download quick demo data
 # GRCh38_no_alt reference
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/GRCh38_no_alt_chr20.fa
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/GRCh38_no_alt_chr20.fa.fai
+wget -P ${INPUT_DIR} https://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/GRCh38_no_alt_chr20.fa
+wget -P ${INPUT_DIR} https://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/GRCh38_no_alt_chr20.fa.fai
 # BAM chr20:100000-300000
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_chr20_demo.bam
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_chr20_demo.bam.bai
+wget -P ${INPUT_DIR} https://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_chr20_demo.bam
+wget -P ${INPUT_DIR} https://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_chr20_demo.bam.bai
 # GIAB Truth VCF and BED
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz.tbi
-wget -P ${INPUT_DIR} http://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark_noinconsistent.bed
+wget -P ${INPUT_DIR} https://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz
+wget -P ${INPUT_DIR} https://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz.tbi
+wget -P ${INPUT_DIR} https://www.bio8.cs.hku.hk/clair3/demo/quick_demo/ont/HG003_GRCh38_chr20_v4.2.1_benchmark_noinconsistent.bed
 
 REF="GRCh38_no_alt_chr20.fa"
 BAM="HG003_chr20_demo.bam"
@@ -94,7 +94,7 @@ hap.py \
 
 |   Type    | TRUTH.TP | TRUTH.FN | QUERY.FP | METRIC.Recall | METRIC.Precision | METRIC.F1-Score |
 | :-------: | :------: | :------: | :------: | :-----------: | :--------------: | :-------------: |
-| **INDEL** |    45    |    14    |    4     |     0.762     |      0.918       |      0.833      |
+| **INDEL** |    44    |    15    |    5     |     0.746     |      0.898       |      0.815      |
 |  **SNP**  |   402    |    0     |    1     |     1.000     |      0.997       |      0.998      |
 
 Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.vcf.gz`
@@ -145,5 +145,5 @@ ${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
 
 |   Type    | TRUTH.TP | TRUTH.FN | QUERY.FP | METRIC.Recall | METRIC.Precision | METRIC.F1-Score |
 | :-------: | :------: | :------: | :------: | :-----------: | :--------------: | :-------------: |
-| **INDEL** |    45    |    14    |    4     |     0.762     |      0.918       |      0.833      |
+| **INDEL** |    44    |    15    |    5     |     0.746     |      0.898       |      0.815      |
 |  **SNP**  |   402    |    0     |    1     |     1.000     |      0.997       |      0.998      |
