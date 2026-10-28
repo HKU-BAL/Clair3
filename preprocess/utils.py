@@ -1,4 +1,5 @@
 from cffi import FFI
+from functools import lru_cache
 import logging
 import os
 import sys
@@ -361,6 +362,10 @@ class variantInfoCalculator(object):
         self.variantMath = mathcalculator()
         self.constant_log10_probs = self.variantMath.normalize_log10_prob([-1.0, -1.0, -1.0])
         self.gq_bin_size = gq_bin_size
+        # Scoring parameters are fixed for this calculator. Keep the
+        # count-pair cache bounded and private to this instance.
+        self._cached_reference_likelihood = lru_cache(maxsize=4096)(
+            self._reference_likelihood_values)
         self.CW = None
         # set by the users
         if (gvcfWritePath != "PIPE"):
@@ -497,15 +502,10 @@ class variantInfoCalculator(object):
         n_total = variant_summary['n_total']
       
         
-        validPL, gq, binned_gq, log10_probs = self._cal_reference_likelihood(n_ref, n_total)
-        if (validPL):
-            gt = '0/0'
-        else:
-            gt = './.'
-        _tmp_phred_probs = [-10 * x for x in log10_probs]
-        min_phred_probs = min(_tmp_phred_probs)
-
-        phred_probs = [int(x - min_phred_probs) for x in _tmp_phred_probs]
+        validPL, gq, binned_gq, cached_pl = self._cached_reference_likelihood(n_ref, n_total)
+        gt = '0/0' if validPL else './.'
+        # Callers own the returned list; a mutation cannot poison later hits.
+        phred_probs = list(cached_pl)
 
         if(variant_summary['ref'] not in ['A','T','C','G']):
             tmp_ref = 'N'
@@ -520,6 +520,12 @@ class variantInfoCalculator(object):
 
         return non_variant_info
         pass
+
+    def _reference_likelihood_values(self, n_ref, n_total):
+        validPL, gq, binned_gq, log10_probs = self._cal_reference_likelihood(n_ref, n_total)
+        phred = [-10 * x for x in log10_probs]
+        minimum = min(phred)
+        return validPL, gq, binned_gq, tuple(int(x - minimum) for x in phred)
 
     def _cal_reference_likelihood(self, n_ref, n_total):
 

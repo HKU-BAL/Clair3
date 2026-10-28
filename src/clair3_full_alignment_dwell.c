@@ -637,7 +637,8 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
         {
             pos_info[i].ins_bases = NULL;
             pos_info[i].ins_length = 0;
-            pos_info[i].alt_base = 0;
+            // Reference skips have no observed query base; leave their cells empty.
+            pos_info[i].alt_base = -1;
             pos_info[i].del_length = 0;
             pos_info[i].bq = 0;
         }
@@ -650,41 +651,47 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
         // into pos_alt_info struct
         size_t ref_pos = read.read_start;
         size_t query_pos = 0;
-
+        // Candidate windows are sorted, so visit only their reference positions.
+        // Keep reference/query coordinates in sync across every CIGAR operation.
+        size_t flanking_cursor = flanking_start;
+        const size_t flanking_end = flanking_start + overlap_candidates_num;
 
         for (size_t i = 0; i < n_cigar; i++)
         {
             size_t cigar_op = bam_cigar_op(cigartuples[i]);
             size_t length = bam_cigar_oplen(cigartuples[i]);
+            while (flanking_cursor < flanking_end &&
+                   flanking_candidates[flanking_cursor] < ref_pos)
+                flanking_cursor++;
             if (cigar_op == BAM_CMATCH || cigar_op == BAM_CEQUAL || cigar_op == BAM_CDIFF)
             {   
 
-                for (size_t p = ref_pos; p < ref_pos + length; p++)
+                while (flanking_cursor < flanking_end &&
+                       flanking_candidates[flanking_cursor] < ref_pos + length)
                 {
-                    int flanking_index = kh_int_counter_val(flanking_candidates_p, p);
-                    if (flanking_index != -1 && flanking_index >= flanking_start)
+                    size_t p = flanking_candidates[flanking_cursor];
+                    size_t flanking_index = flanking_cursor++;
+                    size_t offset = flanking_index - flanking_start;
+                    size_t query_index = query_pos + p - ref_pos;
+                    pos_info[offset].alt_base = bam_seqi(seqi, query_index);
+                    pos_info[offset].bq = normalize_bq(qual[query_index]);
+                    if (enable_dwell_time && signal_lengths != NULL && query_index < read.l_qseq)
                     {
-                        size_t offset = flanking_index - flanking_start;
-                        pos_info[offset].alt_base = bam_seqi(seqi, query_pos);
-                        pos_info[offset].bq = normalize_bq(qual[query_pos]);
-                        if (enable_dwell_time && signal_lengths != NULL && query_pos < read.l_qseq)
-                        {
-                            pos_info[offset].signal_length = signal_lengths[query_pos];
-                        }
-
-
-
-                        int center_pos_index = kh_int_counter_val(candidates_p, p);
-                        if (center_pos_index != -1)
-                        {
-                            char alt_base = seq_nt16_str[pos_info[offset].alt_base];
-                            pos_alt_info[center_pos_index].acgt_count[acgt2num[alt_base - 'A']]++;
-                            pos_alt_info[center_pos_index].depth++;
-
-                        }
+                        pos_info[offset].signal_length = signal_lengths[query_index];
                     }
-                    query_pos++;
+
+
+
+                    int center_pos_index = kh_int_counter_val(candidates_p, p);
+                    if (center_pos_index != -1)
+                    {
+                        char alt_base = seq_nt16_str[pos_info[offset].alt_base];
+                        pos_alt_info[center_pos_index].acgt_count[acgt2num[alt_base - 'A']]++;
+                        pos_alt_info[center_pos_index].depth++;
+
+                    }
                 }
+                query_pos += length;
                 ref_pos += length;
             }
             else if (cigar_op == BAM_CDEL)
@@ -703,20 +710,19 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
 
                     }
                 }
-                for (size_t p = ref_pos; p < ref_pos + length; p++)
+                while (flanking_cursor < flanking_end &&
+                       flanking_candidates[flanking_cursor] < ref_pos + length)
                 {
-                    int flanking_index = kh_int_counter_val(flanking_candidates_p, p);
-                    if (flanking_index != -1 && flanking_index >= flanking_start)
+                    size_t p = flanking_candidates[flanking_cursor];
+                    size_t flanking_index = flanking_cursor++;
+                    size_t offset = flanking_index - flanking_start;
+                    pos_info[offset].alt_base = -1;
+                    int center_pos_index = kh_int_counter_val(candidates_p, p);
+
+                    if (center_pos_index != -1)
                     {
-                        size_t offset = flanking_index - flanking_start;
-                        pos_info[offset].alt_base = -1;
-                        int center_pos_index = kh_int_counter_val(candidates_p, p);
+                        pos_alt_info[center_pos_index].depth++;
 
-                        if (center_pos_index != -1)
-                        {
-                            pos_alt_info[center_pos_index].depth++;
-
-                        }
                     }
                 }
                 ref_pos += length;
@@ -840,15 +846,15 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
                 int32_t offset = flanking_index - read.flanking_start;
                 bool is_center_pos = p == flanking_base_num;
 
+                if (offset < 0 || (size_t)offset >= read.overlap_candidates_num)
+                    continue;
+
                 if (read.pos_info[offset].alt_base < 0)
                 {
                     if (is_center_pos)
                         candidate_depth++;
                     continue;
                 }
-
-                if (offset < 0 || (size_t)offset >= read.overlap_candidates_num)
-                    continue;
 
                 int8_t alt_v = 0;
                 char ref_base = upper_base(ref_seq[cp - ref_start]);
