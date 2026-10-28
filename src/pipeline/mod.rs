@@ -3,6 +3,7 @@ pub mod commands;
 pub mod gvcf;
 pub mod merge;
 pub mod metrics;
+pub mod phasing;
 pub mod postprocess;
 pub mod run;
 pub mod select;

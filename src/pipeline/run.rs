@@ -29,6 +29,7 @@ use crate::{
         call::{CallConfig, CallOutput, call_full_alignment, call_pileup, checkpoint_path},
         gvcf::{GvcfOptions, merge_nonvariants, write_gvcf},
         merge::{MergeOptions, merge_illumina_records, merge_records, read_vcf, sort_records},
+        phasing::parallel_phase_command,
         select::{SelectOptions, full_quality, phase_quality, select_candidates, select_het_snp},
     },
 };
@@ -664,8 +665,12 @@ fn phase_bams(
                     .arg(prefix.with_extension("vcf")),
             )?;
         } else {
+            let mut phaser = Command::new(&options.whatshap);
+            if options.platform != Platform::Ilmn {
+                phaser = parallel_phase_command(&options.whatshap, options.threads, None);
+            }
             execute(
-                Command::new(&options.whatshap)
+                phaser
                     .arg("phase")
                     .arg("--output")
                     .arg(&phased)
