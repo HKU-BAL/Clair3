@@ -687,11 +687,8 @@ fn phase_bams(
                     )?;
                 }
                 region_writer.flush()?;
-                phaser = parallel_phase_command(
-                    &options.whatshap,
-                    options.threads,
-                    Some(&region_path),
-                );
+                phaser =
+                    parallel_phase_command(&options.whatshap, options.threads, Some(&region_path));
             }
             execute(
                 phaser
@@ -955,7 +952,7 @@ pub fn run_pipeline(options: &RunOptions) -> Result<()> {
                     Ok(())
                 })
             });
-        let outputs = execute_call_jobs(&jobs, (options.threads * 3 / 4).max(1), true)?;
+        let outputs = execute_call_jobs(&jobs, options.threads.max(1), true)?;
         if let Some(capture) = capture {
             capture
                 .join()
@@ -1080,7 +1077,7 @@ pub fn run_pipeline(options: &RunOptions) -> Result<()> {
             full_jobs.push(config);
         }
     }
-    let full_outputs = execute_call_jobs(&full_jobs, (options.threads * 3 / 4).max(1), false)?;
+    let full_outputs = execute_call_jobs(&full_jobs, options.threads.max(1), false)?;
     for (config, output) in full_jobs.iter().zip(full_outputs) {
         write_vcf(
             config.output.as_deref().unwrap(),
