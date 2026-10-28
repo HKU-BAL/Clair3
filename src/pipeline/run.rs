@@ -1016,7 +1016,11 @@ pub fn run_pipeline(options: &RunOptions) -> Result<()> {
                     Ok(())
                 })
             });
-        let outputs = execute_call_jobs(&jobs, options.threads.max(1), true)?;
+        let outputs = if device == Device::Cpu && options.threads > 1 && !options.gvcf {
+            super::cpu_pileup::execute_pileup_cpu_jobs(&jobs, options.threads)?
+        } else {
+            execute_call_jobs(&jobs, options.threads.max(1), true)?
+        };
         if let Some(capture) = capture {
             capture
                 .join()

@@ -1,6 +1,7 @@
 pub mod call;
 pub mod commands;
 pub mod cpu_call;
+pub mod cpu_pileup;
 pub mod gvcf;
 pub mod merge;
 pub mod metrics;

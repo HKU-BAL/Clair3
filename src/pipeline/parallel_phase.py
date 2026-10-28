@@ -4,6 +4,41 @@ import os
 import sys
 from concurrent.futures import ProcessPoolExecutor
 
+
+def load_optimized_core():
+    path = os.environ.get("CLAIR3_FAST_CORE")
+    if not path:
+        return
+    try:
+        import ctypes
+        import importlib.machinery
+        import importlib.metadata
+        import importlib.util
+        import types
+
+        if importlib.metadata.version("whatshap") != "2.8":
+            return
+        package_spec = importlib.util.find_spec("whatshap")
+        package = types.ModuleType("whatshap")
+        package.__path__ = list(package_spec.submodule_search_locations)
+        package.__version__ = "2.8"
+        sys.modules["whatshap"] = package
+        ctypes.CDLL(path, mode=ctypes.RTLD_GLOBAL)
+        spec = importlib.util.spec_from_file_location("whatshap.core", path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["whatshap.core"] = module
+        spec.loader.exec_module(module)
+    except Exception as error:
+        sys.modules.pop("whatshap.core", None)
+        sys.modules.pop("whatshap", None)
+        logging.getLogger(__name__).warning(
+            "Optimized WhatsHap core unavailable; using the installed implementation: %s",
+            error,
+        )
+
+
+load_optimized_core()
+
 from whatshap import __version__
 from whatshap.__main__ import main
 from whatshap.cli import open_readset_reader, phase

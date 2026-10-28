@@ -313,7 +313,11 @@ mod tests {
         let outputs = execute_inference(&jobs, batches, 4).unwrap();
         assert_eq!(outputs.len(), jobs.len());
         for output in outputs {
-            let actual: Vec<String> = output.records.iter().map(|record| record.to_line()).collect();
+            let actual: Vec<String> = output
+                .records
+                .iter()
+                .map(|record| record.to_line())
+                .collect();
             assert_eq!(actual, expected);
         }
     }

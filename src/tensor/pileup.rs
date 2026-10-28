@@ -796,13 +796,51 @@ fn create_pileup_chunked(
     Ok(output)
 }
 
+fn create_pileup_chunked_parallel(
+    bam_path: &Path,
+    reference: &Reference,
+    region: &Region,
+    options: &PileupOptions,
+    chunk_size: i64,
+) -> Result<PileupBatch> {
+    let length = region.end - region.start;
+    let count = (length + chunk_size - 1) / chunk_size;
+    if count < 2 {
+        return create_pileup_chunked(bam_path, reference, region, options, chunk_size);
+    }
+    let middle = region.start + count / 2 * chunk_size;
+    let first_region = Region::new(&region.contig, region.start, middle)?;
+    let second_region = Region::new(&region.contig, middle, region.end)?;
+    let reference_path = reference.path().to_path_buf();
+    std::thread::scope(|scope| {
+        let first = scope.spawn(|| {
+            let reference = Reference::open(&reference_path)?;
+            create_pileup_chunked(bam_path, &reference, &first_region, options, chunk_size)
+        });
+        let second =
+            create_pileup_chunked(bam_path, reference, &second_region, options, chunk_size);
+        let mut first = first
+            .join()
+            .map_err(|_| anyhow::anyhow!("parallel pileup worker panicked"))??;
+        let second = second?;
+        first.values.extend(second.values);
+        first.positions.extend(second.positions);
+        first.alt_info.extend(second.alt_info);
+        first.gvcf_ref_counts.extend(second.gvcf_ref_counts);
+        first.gvcf_total_counts.extend(second.gvcf_total_counts);
+        first.has_pileup_rows |= second.has_pileup_rows;
+        first.shape[0] = first.positions.len();
+        Ok(first)
+    })
+}
+
 pub fn create_pileup(
     bam_path: &Path,
     reference: &Reference,
     region: &Region,
     options: &PileupOptions,
 ) -> Result<PileupBatch> {
-    create_pileup_chunked(bam_path, reference, region, options, 262_144)
+    create_pileup_chunked_parallel(bam_path, reference, region, options, 262_144)
 }
 
 #[cfg(test)]
@@ -851,6 +889,21 @@ mod tests {
             assert_eq!(actual.gvcf_ref_counts, expected.gvcf_ref_counts);
             assert_eq!(actual.gvcf_total_counts, expected.gvcf_total_counts);
             assert_eq!(actual.has_pileup_rows, expected.has_pileup_rows);
+            let parallel = create_pileup_chunked_parallel(
+                &data.join("toy.bam"),
+                &reference,
+                &region,
+                &options,
+                chunk_size,
+            )
+            .unwrap();
+            assert_eq!(parallel.shape, expected.shape);
+            assert_eq!(parallel.values, expected.values);
+            assert_eq!(parallel.positions, expected.positions);
+            assert_eq!(parallel.alt_info, expected.alt_info);
+            assert_eq!(parallel.gvcf_ref_counts, expected.gvcf_ref_counts);
+            assert_eq!(parallel.gvcf_total_counts, expected.gvcf_total_counts);
+            assert_eq!(parallel.has_pileup_rows, expected.has_pileup_rows);
         }
     }
 

@@ -311,6 +311,25 @@ pub(crate) fn pileup_batch(
     ))
 }
 
+pub(crate) fn pileup_decode_options(config: &CallConfig) -> DecodeOptions {
+    DecodeOptions {
+        show_reference: config.show_reference,
+        haploid_precise: config.haploid_precise,
+        haploid_sensitive: config.haploid_sensitive,
+        quality_for_pass: config.quality_for_pass,
+        add_indel_length: config.add_indel_length,
+        pileup: true,
+        gvcf: config.gvcf,
+        enable_long_indel: config.enable_long_indel,
+        maximum_variant_length: if config.enable_long_indel {
+            MAX_LONG_VARIANT_LENGTH
+        } else {
+            MAX_VARIANT_LENGTH
+        },
+        keep_iupac: config.keep_iupac,
+    }
+}
+
 pub(crate) fn call_pileup(
     config: &CallConfig,
     reference: &Reference,
@@ -329,25 +348,7 @@ pub(crate) fn call_pileup(
     } else {
         run_inference(
             inference,
-            InferenceJob::Pileup(
-                batch.clone(),
-                DecodeOptions {
-                    show_reference: config.show_reference,
-                    haploid_precise: config.haploid_precise,
-                    haploid_sensitive: config.haploid_sensitive,
-                    quality_for_pass: config.quality_for_pass,
-                    add_indel_length: config.add_indel_length,
-                    pileup: true,
-                    gvcf: config.gvcf,
-                    enable_long_indel: config.enable_long_indel,
-                    maximum_variant_length: if config.enable_long_indel {
-                        MAX_LONG_VARIANT_LENGTH
-                    } else {
-                        MAX_VARIANT_LENGTH
-                    },
-                    keep_iupac: config.keep_iupac,
-                },
-            ),
+            InferenceJob::Pileup(batch.clone(), pileup_decode_options(config)),
         )?
     };
     if std::env::var_os("CLAIR3_PROFILE").is_some() {

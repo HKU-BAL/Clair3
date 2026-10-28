@@ -8,6 +8,8 @@ use std::{
 use anyhow::{Result, bail};
 use rust_htslib::bam::{IndexedReader, Read as BamRead, Record};
 
+const OPTIMIZED_PHASE_CORE: &[u8] = include_bytes!(env!("CLAIR3_PHASE_CORE"));
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PhaseRegion {
     pub start: i64,
@@ -146,6 +148,14 @@ pub fn parallel_phase_command(whatshap: &str, threads: usize, regions: Option<&P
         .env("CLAIR3_PHASE_THREADS", threads.max(1).to_string());
     if let Some(regions) = regions {
         command.env("CLAIR3_PHASE_REGIONS", regions);
+        if !OPTIMIZED_PHASE_CORE.is_empty()
+            && let Some(directory) = regions.parent()
+        {
+            let core = directory.join("clair3_whatshap_core.so");
+            if fs::write(&core, OPTIMIZED_PHASE_CORE).is_ok() {
+                command.env("CLAIR3_FAST_CORE", core);
+            }
+        }
     }
     command
 }
