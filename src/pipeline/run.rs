@@ -1141,7 +1141,12 @@ pub fn run_pipeline(options: &RunOptions) -> Result<()> {
             full_jobs.push(config);
         }
     }
-    let full_outputs = execute_call_jobs(&full_jobs, options.threads.max(1), false)?;
+    tch::set_num_threads(1);
+    let full_outputs = if device == Device::Cpu && options.threads > 1 {
+        super::cpu_call::execute_full_cpu_jobs(&full_jobs, options.threads)?
+    } else {
+        execute_call_jobs(&full_jobs, options.threads.max(1), false)?
+    };
     for (config, output) in full_jobs.iter().zip(full_outputs) {
         write_vcf(
             config.output.as_deref().unwrap(),

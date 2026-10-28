@@ -428,12 +428,38 @@ fn read_end(cigar: &[bam::record::Cigar], start: i64) -> i64 {
             .sum::<i64>()
 }
 
+fn one_deletion_apart(longer: &[u8], shorter: &[u8]) -> bool {
+    let prefix = longer
+        .iter()
+        .zip(shorter)
+        .take_while(|(left, right)| left == right)
+        .count();
+    longer[prefix + 1..] == shorter[prefix..]
+}
+
 fn levenshtein(a: &[u8], b: &[u8]) -> usize {
     if a.is_empty() {
         return b.len();
     }
     if b.is_empty() {
         return a.len();
+    }
+    if a == b {
+        return 0;
+    }
+    if a.len() == b.len()
+        && a.iter()
+            .zip(b)
+            .filter(|(left, right)| left != right)
+            .count()
+            == 1
+    {
+        return 1;
+    }
+    if (a.len() == b.len() + 1 && one_deletion_apart(a, b))
+        || (b.len() == a.len() + 1 && one_deletion_apart(b, a))
+    {
+        return 1;
     }
     let mut cache: Vec<usize> = (1..=a.len()).collect();
     for (b_index, code) in b.iter().enumerate() {
@@ -554,7 +580,16 @@ fn realign_read(
     if query_end == query_start {
         return 0;
     }
-    let query = slice(&read.record.seq().as_bytes(), query_start, query_end);
+    let sequence = read.record.seq();
+    let query_start = query_start.clamp(0, sequence.len() as i64) as usize;
+    let query_end = query_end.clamp(0, sequence.len() as i64) as usize;
+    let query: Vec<u8> = if query_end <= query_start {
+        Vec::new()
+    } else {
+        (query_start..query_end)
+            .map(|index| sequence[index])
+            .collect()
+    };
     let reference_start = variant.position - left_ref_bases - ref_start;
     let reference_end = variant.position + right_ref_bases - ref_start;
     let reference = slice(reference, reference_start, reference_end);
@@ -581,13 +616,10 @@ fn haplotag_read(
     ref_start: i64,
 ) {
     let mut costs: BTreeMap<i32, i32> = BTreeMap::new();
-    let mut variant_index = 0;
-    while variant_index < variants.len() && variants[variant_index].position < read.read_start {
-        variant_index += 1;
-    }
+    let mut variant_index = variants.partition_point(|variant| variant.position < read.read_start);
     let mut ref_pos = read.read_start;
     let mut query_pos = 0_i64;
-    for (cigar_index, operation) in read.cigar.clone().iter().enumerate() {
+    for (cigar_index, operation) in read.cigar.iter().enumerate() {
         let length = operation.len() as i64;
         match operation {
             bam::record::Cigar::Match(_)
@@ -773,7 +805,9 @@ fn collect_reads(
             read.haplotype = read.haplotype.max(tagged);
         }
         if !options.illumina {
-            read.record = compact_record(&read.record, options.enable_dwell_time)?;
+            if options.enable_dwell_time {
+                read.record = compact_record(&read.record, true)?;
+            }
             read.index = reads.len();
             reads.push(read);
             continue;
@@ -921,6 +955,15 @@ fn read_window(read: &ReadAlignment, start: i64, dwell: bool) -> ReadWindow {
     let mut ref_pos = read.read_start;
     let mut query_pos = 0_i64;
     for operation in &read.cigar {
+        if ref_pos > end
+            || (ref_pos == end
+                && !matches!(
+                    operation,
+                    bam::record::Cigar::Ins(_) | bam::record::Cigar::Del(_)
+                ))
+        {
+            break;
+        }
         let length = operation.len() as i64;
         match operation {
             bam::record::Cigar::Match(_)
@@ -1180,14 +1223,16 @@ fn sort_reads(
 
 #[allow(clippy::too_many_arguments)]
 fn create_full_alignment_impl(
-    reference: &Reference,
     region: &Region,
+    reference_start: i64,
+    ref_seq: &[u8],
     candidates: &[i64],
     reads: &[ReadAlignment],
     flanking: Vec<i64>,
     mut candidate_alt: Vec<CandidateAltInfo>,
     options: &FullAlignmentOptions,
     random_seed: &mut SamplingRandom,
+    sampled_reads: Option<&[Vec<isize>]>,
 ) -> Result<FullAlignmentBatch> {
     if candidates.is_empty() {
         return Ok(FullAlignmentBatch {
@@ -1204,17 +1249,6 @@ fn create_full_alignment_impl(
             ..Default::default()
         });
     }
-    let reference_padding = options
-        .max_indel_length
-        .saturating_add(1)
-        .max(FLANKING_BASES) as i64;
-    let reference_start = region.start - reference_padding;
-    let ref_seq = reference.fetch_padded(
-        &region.contig,
-        reference_start,
-        region.end + reference_padding,
-        b'A',
-    )?;
     let flanking_indices: BTreeMap<i64, usize> = flanking
         .iter()
         .enumerate()
@@ -1275,7 +1309,9 @@ fn create_full_alignment_impl(
             }
             candidate_alt.push(counts);
         }
-        let read_indices = if *candidate < FLANKING_BASES as i64 {
+        let read_indices = if let Some(sampled_reads) = sampled_reads {
+            sampled_reads[candidate_index].clone()
+        } else if *candidate < FLANKING_BASES as i64 {
             vec![-1; options.matrix_depth]
         } else {
             sort_reads(
@@ -1287,12 +1323,24 @@ fn create_full_alignment_impl(
                 random_seed,
             )
         };
+        let reference_window: Vec<(u8, i8)> = (start..end)
+            .map(|position| {
+                let base = ref_seq[(position - reference_start) as usize].to_ascii_uppercase();
+                (base, channel_base(base))
+            })
+            .collect();
         let mut alt_rows = vec![AltInfoRow::default(); options.matrix_depth];
         for (depth_index, read_index) in read_indices.into_iter().enumerate() {
             if read_index < 0 {
                 continue;
             }
             let haplotype = [60, 30, 90][reads[read_index as usize].haplotype];
+            let read_window = (!options.illumina).then(|| {
+                let window_index = read_windows
+                    .binary_search_by_key(&(read_index as usize), |(index, _)| *index)
+                    .unwrap();
+                &read_windows[window_index].1
+            });
             for (position_index, cp) in (start..end).enumerate() {
                 if cp < 0 || (options.illumina && !flanking_indices.contains_key(&cp)) {
                     continue;
@@ -1315,18 +1363,14 @@ fn create_full_alignment_impl(
                     }
                     &read.pos_info[offset as usize]
                 } else {
-                    let window_index = read_windows
-                        .binary_search_by_key(&(read_index as usize), |(index, _)| *index)
-                        .unwrap();
-                    &read_windows[window_index].1.positions[position_index]
+                    &read_window.unwrap().positions[position_index]
                 };
                 if (!options.illumina && (cp < read.read_start || cp >= read.read_end))
                     || info.alt_base < 0
                 {
                     continue;
                 }
-                let ref_base = ref_seq[(cp - reference_start) as usize].to_ascii_uppercase();
-                let ref_value = channel_base(ref_base);
+                let (ref_base, ref_value) = reference_window[position_index];
                 let mut alt_value = 0;
                 let alt_base = NT16[info.alt_base as usize];
                 let is_center = position_index == FLANKING_BASES;
@@ -1592,10 +1636,107 @@ fn prepare_read(
         haplotag_read(variants, &mut read, ref_seq, reference_start);
         read.haplotype = read.haplotype.max(tagged);
     }
-    read.record = compact_record(&read.record, options.enable_dwell_time)?;
+    if options.enable_dwell_time {
+        read.record = compact_record(&read.record, true)?;
+    }
     read.index = *next_index;
     *next_index += 1;
     Ok(Some(read))
+}
+
+fn full_reference_window(
+    reference: &Reference,
+    region: &Region,
+    options: &FullAlignmentOptions,
+) -> Result<(i64, Vec<u8>)> {
+    let padding = options
+        .max_indel_length
+        .saturating_add(1)
+        .max(FLANKING_BASES) as i64;
+    let start = region.start - padding;
+    Ok((
+        start,
+        reference.fetch_padded(&region.contig, start, region.end + padding, b'A')?,
+    ))
+}
+
+fn create_full_alignment_chunk(
+    reference: &Reference,
+    region: &Region,
+    candidates: &[i64],
+    reads: &[ReadAlignment],
+    options: &FullAlignmentOptions,
+    random_seed: &mut SamplingRandom,
+) -> Result<FullAlignmentBatch> {
+    let sampled: Vec<_> = candidates
+        .iter()
+        .map(|candidate| {
+            if *candidate < FLANKING_BASES as i64 {
+                vec![-1; options.matrix_depth]
+            } else {
+                sort_reads(
+                    reads,
+                    candidate - FLANKING_BASES as i64,
+                    candidate + FLANKING_BASES as i64 + 1,
+                    options.matrix_depth,
+                    false,
+                    random_seed,
+                )
+            }
+        })
+        .collect();
+    let (reference_start, ref_seq) = full_reference_window(reference, region, options)?;
+    if candidates.len() < 2 {
+        return create_full_alignment_impl(
+            region,
+            reference_start,
+            &ref_seq,
+            candidates,
+            reads,
+            Vec::new(),
+            Vec::new(),
+            options,
+            random_seed,
+            Some(&sampled),
+        );
+    }
+    let (first, second) = candidates.split_at(candidates.len() / 2);
+    let (first_sampled, second_sampled) = sampled.split_at(first.len());
+    std::thread::scope(|scope| {
+        let first_worker = scope.spawn(|| {
+            let mut unused_random = SamplingRandom::new(1);
+            create_full_alignment_impl(
+                region,
+                reference_start,
+                &ref_seq,
+                first,
+                reads,
+                Vec::new(),
+                Vec::new(),
+                options,
+                &mut unused_random,
+                Some(first_sampled),
+            )
+        });
+        let mut unused_random = SamplingRandom::new(1);
+        let second = create_full_alignment_impl(
+            region,
+            reference_start,
+            &ref_seq,
+            second,
+            reads,
+            Vec::new(),
+            Vec::new(),
+            options,
+            &mut unused_random,
+            Some(second_sampled),
+        )?;
+        let mut output = first_worker
+            .join()
+            .map_err(|_| anyhow::anyhow!("full-alignment tensor worker panicked"))??;
+        output.append(second)?;
+        Ok(output)
+    })
 }
 
 pub fn create_full_alignment(
@@ -1610,15 +1751,18 @@ pub fn create_full_alignment(
     if options.illumina {
         let (reads, flanking, candidate_alt) =
             collect_reads(bam_path, reference, region, candidates, variants, options)?;
+        let (reference_start, ref_seq) = full_reference_window(reference, region, options)?;
         return create_full_alignment_impl(
-            reference,
             region,
+            reference_start,
+            &ref_seq,
             candidates,
             &reads,
             flanking,
             candidate_alt,
             options,
             &mut random_seed,
+            None,
         );
     }
     let channels = if options.enable_dwell_time {
@@ -1684,13 +1828,11 @@ pub fn create_full_alignment(
             }
         }
         let chunk_region = Region::new(&region.contig, start.max(0), end)?;
-        let next = create_full_alignment_impl(
+        let next = create_full_alignment_chunk(
             reference,
             &chunk_region,
             chunk,
             &current,
-            Vec::new(),
-            Vec::new(),
             options,
             &mut random_seed,
         )?;
@@ -1989,6 +2131,87 @@ mod tests {
         update_candidate_alt(&mut counts, &window);
         assert_eq!(counts.depth, 1);
         assert_eq!(counts.ins_counter.get("AAA").copied(), Some(1));
+    }
+
+    #[test]
+    fn read_window_keeps_indel_anchors_at_the_right_edge() {
+        let mut insertion = Record::new();
+        insertion.set(
+            b"insertion",
+            Some(&bam::record::CigarString(vec![
+                bam::record::Cigar::Match(1),
+                bam::record::Cigar::Ins(2),
+            ])),
+            &[b'A'; 3],
+            &[40; 3],
+        );
+        let read = ReadAlignment::new(insertion, 0, 1);
+        let window = read_window(&read, 1 - POSITION_COUNT as i64, false);
+        assert_eq!(window.positions[POSITION_COUNT - 1].ins_length, 2);
+        assert_eq!(
+            window.positions[POSITION_COUNT - 1].ins_bases.as_deref(),
+            Some("AA")
+        );
+
+        let mut deletion = Record::new();
+        deletion.set(
+            b"deletion",
+            Some(&bam::record::CigarString(vec![
+                bam::record::Cigar::Match(1),
+                bam::record::Cigar::Del(1),
+                bam::record::Cigar::Match(1),
+            ])),
+            &[b'A'; 3],
+            &[40; 3],
+        );
+        let read = ReadAlignment::new(deletion, 0, 3);
+        let window = read_window(&read, 1 - POSITION_COUNT as i64, false);
+        assert_eq!(window.positions[POSITION_COUNT - 1].del_length, 1);
+    }
+
+    #[test]
+    fn realign_read_uses_decoded_sequence_bases() {
+        let variant = PhasedVariant {
+            position: 110,
+            ref_base: b'A',
+            alt_base: b'C',
+            genotype: 2,
+            phase_set: 1,
+        };
+        let make_read = |sequence: &[u8]| {
+            let mut record = Record::new();
+            record.set(
+                b"read",
+                Some(&bam::record::CigarString(vec![bam::record::Cigar::Match(
+                    30,
+                )])),
+                sequence,
+                &[40; 30],
+            );
+            ReadAlignment::new(record, 100, 130)
+        };
+        let reference = [b'A'; 30];
+        let read = make_read(&reference);
+        assert_eq!(realign_read(&variant, &read, 0, 10, 10, &reference, 100), 1);
+        let mut alternate = reference;
+        alternate[10] = b'C';
+        let read = make_read(&alternate);
+        assert_eq!(realign_read(&variant, &read, 0, 10, 10, &reference, 100), 2);
+    }
+
+    #[test]
+    fn levenshtein_fast_paths_preserve_edit_distances() {
+        for (a, b, expected) in [
+            (b"ACGT".as_slice(), b"ACGT".as_slice(), 0),
+            (b"ACGT", b"ACTT", 1),
+            (b"ACGT", b"AGT", 1),
+            (b"ACGT", b"ACGTT", 1),
+            (b"ACGT", b"ATGC", 2),
+            (b"", b"AC", 2),
+        ] {
+            assert_eq!(levenshtein(a, b), expected);
+            assert_eq!(levenshtein(b, a), expected);
+        }
     }
 
     #[test]

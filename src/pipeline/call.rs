@@ -48,6 +48,14 @@ pub enum Inference<'a> {
 }
 
 pub(crate) fn inference_job(job: InferenceJob, model: &Model) -> Result<Vec<VcfRecord>> {
+    let batch_size = match &job {
+        InferenceJob::Pileup(_, _) => PREDICT_BATCH_SIZE,
+        InferenceJob::FullAlignment(_, _) => std::env::var("CLAIR3_FULL_ALIGNMENT_BATCH")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|size| *size > 0)
+            .unwrap_or(crate::config::FULL_ALIGNMENT_PREDICT_BATCH_SIZE),
+    };
     tch::no_grad(|| match job {
         InferenceJob::Pileup(batch, options) => call_tensor_batch(
             model,
@@ -58,7 +66,7 @@ pub(crate) fn inference_job(job: InferenceJob, model: &Model) -> Result<Vec<VcfR
                 alt_info: &batch.alt_info,
             },
             &options,
-            PREDICT_BATCH_SIZE,
+            batch_size,
         ),
         InferenceJob::FullAlignment(batch, options) => call_tensor_batch(
             model,
@@ -69,7 +77,7 @@ pub(crate) fn inference_job(job: InferenceJob, model: &Model) -> Result<Vec<VcfR
                 alt_info: &batch.alt_info,
             },
             &options,
-            PREDICT_BATCH_SIZE,
+            batch_size,
         ),
     })
 }
@@ -575,6 +583,25 @@ pub(crate) fn full_alignment_batch(
     Ok(batch)
 }
 
+pub(crate) fn full_decode_options(config: &CallConfig) -> DecodeOptions {
+    DecodeOptions {
+        show_reference: config.show_reference,
+        haploid_precise: config.haploid_precise,
+        haploid_sensitive: config.haploid_sensitive,
+        quality_for_pass: config.quality_for_pass,
+        add_indel_length: config.add_indel_length,
+        gvcf: config.gvcf,
+        enable_long_indel: config.enable_long_indel,
+        maximum_variant_length: if config.enable_long_indel {
+            MAX_LONG_VARIANT_LENGTH
+        } else {
+            MAX_VARIANT_LENGTH
+        },
+        keep_iupac: config.keep_iupac,
+        ..Default::default()
+    }
+}
+
 pub(crate) fn call_full_alignment(
     config: &CallConfig,
     reference: &Reference,
@@ -589,25 +616,7 @@ pub(crate) fn call_full_alignment(
     }
     let records = run_inference(
         inference,
-        InferenceJob::FullAlignment(
-            std::sync::Arc::new(batch),
-            DecodeOptions {
-                show_reference: config.show_reference,
-                haploid_precise: config.haploid_precise,
-                haploid_sensitive: config.haploid_sensitive,
-                quality_for_pass: config.quality_for_pass,
-                add_indel_length: config.add_indel_length,
-                gvcf: config.gvcf,
-                enable_long_indel: config.enable_long_indel,
-                maximum_variant_length: if config.enable_long_indel {
-                    MAX_LONG_VARIANT_LENGTH
-                } else {
-                    MAX_VARIANT_LENGTH
-                },
-                keep_iupac: config.keep_iupac,
-                ..Default::default()
-            },
-        ),
+        InferenceJob::FullAlignment(std::sync::Arc::new(batch), full_decode_options(config)),
     )?;
     if std::env::var_os("CLAIR3_PROFILE").is_some() {
         eprintln!(

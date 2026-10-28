@@ -13,6 +13,7 @@ pub const MAX_LONG_VARIANT_LENGTH: usize = 100_000;
 pub const LABEL_COUNT: usize = 90;
 pub const LABEL_COUNT_WITHOUT_INDEL_LENGTH: usize = 24;
 pub const PREDICT_BATCH_SIZE: usize = 200;
+pub const FULL_ALIGNMENT_PREDICT_BATCH_SIZE: usize = 200;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
 pub enum Platform {

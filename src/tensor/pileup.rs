@@ -3,9 +3,9 @@ use std::{
     path::Path,
 };
 
-use super::kh_counter::KhCounter;
+use super::{kh_counter::KhCounter, raw_pileup};
 use anyhow::{Result, bail};
-use rust_htslib::bam::{self, IndexedReader, Read as BamRead, pileup::Indel};
+use rust_htslib::bam::{self, IndexedReader, pileup::Indel};
 
 use crate::{
     config::{FLANKING_BASES, PILEUP_CHANNELS, POSITION_COUNT},
@@ -239,33 +239,31 @@ fn alternate_payload(
     output.trim_end().to_string()
 }
 
-fn deleted_anchor_query_offset(record: &bam::Record, anchor: i64) -> Option<usize> {
+fn deleted_anchor_query_offset(record: &raw_pileup::RawRecord, anchor: i64) -> Option<usize> {
     let mut reference_position = record.pos();
     let mut query_position = 0_usize;
     for (index, operation) in record.cigar().iter().enumerate() {
-        let length = operation.len() as i64;
-        match operation {
-            bam::record::Cigar::Del(_) => {
+        let length = (operation >> 4) as i64;
+        match operation & 0x0f {
+            2 => {
                 if reference_position <= anchor
                     && anchor < reference_position + length
-                    && matches!(
-                        record.cigar().get(index + 1),
-                        Some(bam::record::Cigar::Ins(_))
-                    )
+                    && record
+                        .cigar()
+                        .get(index + 1)
+                        .is_some_and(|operation| operation & 0x0f == 1)
                 {
                     return Some(query_position);
                 }
                 reference_position += length;
             }
-            bam::record::Cigar::Match(_)
-            | bam::record::Cigar::Equal(_)
-            | bam::record::Cigar::Diff(_) => {
+            0 | 7 | 8 => {
                 reference_position += length;
                 query_position += length as usize;
             }
-            bam::record::Cigar::Ins(_) => query_position += length as usize,
-            bam::record::Cigar::RefSkip(_) => reference_position += length,
-            bam::record::Cigar::SoftClip(_) => query_position += length as usize,
+            1 => query_position += length as usize,
+            3 => reference_position += length,
+            4 => query_position += length as usize,
             _ => {}
         }
     }
@@ -274,7 +272,7 @@ fn deleted_anchor_query_offset(record: &bam::Record, anchor: i64) -> Option<usiz
 
 #[allow(clippy::map_entry)]
 fn process_position(
-    pileup: &bam::pileup::Pileup,
+    pileup: &raw_pileup::Pileup,
     region: &Region,
     reference: &Reference,
     ref_seq: &[u8],
@@ -282,7 +280,7 @@ fn process_position(
     previous_position: &mut Option<i64>,
     contiguous: &mut usize,
 ) -> Result<Option<PositionCounts>> {
-    let position = pileup.pos() as i64;
+    let position = pileup.position as i64;
     if position < region.start || position >= region.end {
         return Ok(None);
     }
@@ -311,8 +309,9 @@ fn process_position(
     let mut deleted_bases = 0_i64;
     let mut any_valid = false;
 
-    for alignment in pileup.alignments() {
-        let record = alignment.record();
+    for raw_alignment in pileup.alignments {
+        let alignment = bam::pileup::Alignment::new(raw_alignment);
+        let record = raw_pileup::RawRecord::new(raw_alignment.b);
         if record.mapq() < options.min_mq
             || record.flags() & FILTER_FLAGS != 0
             || (record.flags() & 0x1 != 0 && record.flags() & 0x2 == 0)
@@ -330,7 +329,7 @@ fn process_position(
             deleted_bases += 1;
             matrix[if reverse { 17 } else { 8 }] += 1;
         } else if let Some(qpos) = alignment.qpos() {
-            let encoded = record.seq().encoded_base(qpos);
+            let encoded = record.encoded_base(qpos);
             if let Some(index) = base_index(encoded, reverse) {
                 depth += 1;
                 matrix[index] += 1;
@@ -380,7 +379,7 @@ fn process_position(
                     next_order += 1;
                 }
                 let query_position = if is_del {
-                    deleted_anchor_query_offset(&record, pileup.pos() as i64)
+                    deleted_anchor_query_offset(&record, pileup.position as i64)
                 } else {
                     alignment.qpos()
                 };
@@ -390,9 +389,9 @@ fn process_position(
                     for index in first..length as usize + first {
                         let source = query_position + index;
                         if source >= record.seq_len() {
-                            bail!("insertion exceeds read length at {}", pileup.pos())
+                            bail!("insertion exceeds read length at {}", pileup.position)
                         }
-                        insertion.push(NT16[record.seq().encoded_base(source) as usize] as char);
+                        insertion.push(NT16[record.encoded_base(source) as usize] as char);
                     }
                     if reverse {
                         *insertions_r.entry(insertion.clone()).or_default() += 1;
@@ -668,7 +667,7 @@ fn create_pileup_impl(
     let mut reader = IndexedReader::from_path(bam_path)?;
     reader.set_reference(reference.path())?;
     reader.fetch((region.contig.as_bytes(), region.start, region.end))?;
-    let mut pileups = reader.pileup();
+    let mut pileups = raw_pileup::Pileups::new(&mut reader)?;
     pileups.set_max_depth(1 << 20);
     let mut rows = vec![];
     let mut previous_position = None;
