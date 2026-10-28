@@ -16,9 +16,9 @@
 
 ---
 
-**Contact:** Ruibang Luo, Zhenxian Zheng, Xian Yu
+**Contact:** Ruibang Luo, Zhenxian Zheng, Xian Yu, Minggao He
 
-**Email:** rbluo@cs.hku.hk · zxzheng@cs.hku.hk · yuxian@connect.hku.hk
+**Email:** rbluo@cs.hku.hk · zxzheng@cs.hku.hk · yuxian@connect.hku.hk · dwzad@connect.hku.hk
 
 ---
 
@@ -59,7 +59,7 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 ---
 
 ## Latest Updates
-### v2.0.5 — *Oct 26, 2026*
+### v2.0.5 — *Oct 28, 2026*
 - **[#480](https://github.com/HKU-BAL/Clair3/pull/480) — AMD Instinct (ROCm) GPUs.** Adds `Dockerfile.amd` and a `rocm-smi` fallback in the GPU scheduler. Tested on MI300X (gfx942) and MI355X (gfx950); NVIDIA/CUDA behaviour is unchanged.
 - **[#481](https://github.com/HKU-BAL/Clair3/pull/481) — CRAM 3.1 input.** `libclair3` now links htslib 1.24 instead of 1.15.1, and the `--disable_c_impl` path passes the reference to `samtools mpileup` and handles the match symbols it then emits, so CRAM 3.1 records decode ([Issue#453](https://github.com/HKU-BAL/Clair3/issues/453)).
 - **[#474](https://github.com/HKU-BAL/Clair3/pull/474) — `getMyMaxItem` boundary fix.** The loop read one element past the end of the array; it now stops at the last element, with a regression test.
