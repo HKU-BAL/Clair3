@@ -27,6 +27,8 @@ static const size_t min_bq = 0;
 static const size_t SAMTOOLS_VIEW_FILTER_FLAG = 2316;
 static const size_t MAX_READ_COUNT = 1000;
 static const size_t MAX_INDEL_LENGTH = 50;
+static const size_t MAX_NEARBY_HETE_SNPS = 64;
+static const size_t PHASING_WINDOW_SIZE = 50000;
 static const char ACGT[] = "ACGT";
 
 // convert 16bit IUPAC (+16 for strand) to plp_bases index
@@ -65,6 +67,17 @@ typedef struct _fa_data
     int8_t *matrix;
     char **all_alt_info;
     size_t candidates_num;
+    // Variant matrix output (for neural phasing training)
+    // allele_matrix: [candidates_num * matrix_depth * MAX_NEARBY_HETE_SNPS], int8
+    //   per-read allele states at nearby het SNPs: 0=no coverage, 1=ref, 2=alt, 3=ambiguous
+    int8_t *allele_matrix;
+    // hp_labels: [candidates_num * matrix_depth], int8
+    //   per-read haplotype labels in tensor order: 0=padding, 30=HP1, 60=unphased, 90=HP2
+    int8_t *hp_labels;
+    // num_nearby_variants: [candidates_num], int16
+    //   number of nearby het SNPs used for each candidate
+    int16_t *num_nearby_variants;
+    bool has_variant_matrix;
 } _fa_data;
 
 typedef _fa_data *fa_data;
@@ -253,6 +266,6 @@ int haplotag_read(Variants_info *variants_info, Read *read, char *ref_seq, size_
  *  The return value can be freed with destroy_fa_data
  *
  */
-fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging, size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool enable_dwell_time);
+fa_data calculate_clair3_full_alignment(const char *region, const char *bam_path, const char *fasta_path, Variant **variants, size_t variant_num, size_t *candidates, size_t candidate_num, bool need_haplotagging, size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool enable_dwell_time, bool output_variant_matrix);
 
 #endif
