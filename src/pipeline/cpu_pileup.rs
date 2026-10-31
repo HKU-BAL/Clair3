@@ -40,7 +40,12 @@ fn generate_batches(jobs: &[CallConfig], threads: usize) -> Result<Vec<Generated
     let jobs = Arc::new(jobs);
     let next = Arc::new(AtomicUsize::new(0));
     let (sender, receiver) = mpsc::channel();
-    let workers = (threads / 2).max(1).min(jobs.len());
+    let workers = if threads >= 8 {
+        threads
+    } else {
+        (threads / 2).max(1)
+    }
+    .min(jobs.len());
     std::thread::scope(|scope| {
         let mut handles = Vec::new();
         for _ in 0..workers {
@@ -55,14 +60,15 @@ fn generate_batches(jobs: &[CallConfig], threads: usize) -> Result<Vec<Generated
                         if index >= jobs.len() {
                             break;
                         }
-                        let result =
-                            pileup_batch(&jobs[index], &reference).map(|(batch, region)| {
-                                GeneratedBatch {
-                                    values: Arc::new(batch),
-                                    region,
-                                    decode: pileup_decode_options(&jobs[index]),
-                                }
-                            });
+                        let mut config = jobs[index].clone();
+                        config.pileup_parallelism = if workers >= 8 { 1 } else { 2 };
+                        let result = pileup_batch(&config, &reference).map(|(batch, region)| {
+                            GeneratedBatch {
+                                values: Arc::new(batch),
+                                region,
+                                decode: pileup_decode_options(&config),
+                            }
+                        });
                         if sender.send((index, result)).is_err() {
                             break;
                         }

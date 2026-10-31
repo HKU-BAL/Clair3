@@ -2,6 +2,7 @@ mod bloom;
 mod checkpoint;
 mod full_alignment;
 mod layers;
+mod nnpack;
 mod pickle;
 mod pileup;
 

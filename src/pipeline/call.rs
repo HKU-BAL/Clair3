@@ -136,6 +136,7 @@ pub struct CallConfig {
     pub chunk_id: Option<usize>,
     pub chunk_num: Option<usize>,
     pub device: Device,
+    pub pileup_parallelism: usize,
     pub show_reference: bool,
     pub quality_for_pass: Option<f64>,
     pub keep_iupac: bool,
@@ -188,6 +189,7 @@ impl CallConfig {
             chunk_id: None,
             chunk_num: None,
             device: Device::Cpu,
+            pileup_parallelism: 2,
             show_reference: true,
             quality_for_pass: Some(2.0),
             keep_iupac: false,
@@ -303,6 +305,7 @@ pub(crate) fn pileup_batch(
         gvcf: config.gvcf,
         confident_regions: confident_regions.as_ref(),
         known_positions: known_positions.as_ref(),
+        parallelism: config.pileup_parallelism,
         ..Default::default()
     };
     Ok((

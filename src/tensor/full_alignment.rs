@@ -754,6 +754,7 @@ fn collect_reads(
         b'A',
     )?;
     let mut reader = IndexedReader::from_path(bam_path)?;
+    reader.set_threads(3)?;
     reader.set_reference(reference.path())?;
     reader.fetch((region.contig.as_bytes(), region.start, region.end))?;
     for record in reader.records() {
@@ -1287,7 +1288,7 @@ fn create_full_alignment_impl(
                 reads,
                 &flanking_indices,
                 *candidate,
-                &ref_seq,
+                ref_seq,
                 reference_start,
                 center_ref,
             )
@@ -1469,7 +1470,7 @@ fn create_full_alignment_impl(
                 } else if alt.del_length > 0 {
                     format!(
                         "D{}",
-                        python_deletion(&ref_seq, candidate - reference_start, alt.del_length)
+                        python_deletion(ref_seq, candidate - reference_start, alt.del_length)
                     )
                 } else {
                     format!("X{}", python_base(alt.alt_base) as char)
@@ -1601,7 +1602,6 @@ fn overlaps_candidates(candidates: &[i64], start: i64, end: i64) -> bool {
         .is_some_and(|candidate| *candidate - (FLANKING_BASES as i64) < end)
 }
 
-#[allow(clippy::too_many_arguments)]
 fn prepare_read(
     record: Record,
     candidates: &[i64],
@@ -1609,16 +1609,7 @@ fn prepare_read(
     options: &FullAlignmentOptions,
     ref_seq: &[u8],
     reference_start: i64,
-    read_names: &mut BTreeSet<Vec<u8>>,
-    next_index: &mut usize,
 ) -> Result<Option<ReadAlignment>> {
-    if record.flags() & FILTER_FLAGS != 0
-        || (record.flags() & 0x1 != 0 && record.flags() & 0x2 == 0)
-        || record.mapq() < options.min_mq
-        || !read_names.insert(record.qname().to_vec())
-    {
-        return Ok(None);
-    }
     let start = record.pos();
     let end = read_end(&record.cigar().iter().copied().collect::<Vec<_>>(), start);
     if !overlaps_candidates(candidates, start, end) {
@@ -1639,8 +1630,6 @@ fn prepare_read(
     if options.enable_dwell_time {
         read.record = compact_record(&read.record, true)?;
     }
-    read.index = *next_index;
-    *next_index += 1;
     Ok(Some(read))
 }
 
@@ -1700,42 +1689,43 @@ fn create_full_alignment_chunk(
             Some(&sampled),
         );
     }
-    let (first, second) = candidates.split_at(candidates.len() / 2);
-    let (first_sampled, second_sampled) = sampled.split_at(first.len());
+    let workers = if candidates.len() >= 4 { 4 } else { 2 };
+    let chunk_size = candidates.len().div_ceil(workers);
+    let ref_seq = ref_seq.as_slice();
     std::thread::scope(|scope| {
-        let first_worker = scope.spawn(|| {
-            let mut unused_random = SamplingRandom::new(1);
-            create_full_alignment_impl(
-                region,
-                reference_start,
-                &ref_seq,
-                first,
-                reads,
-                Vec::new(),
-                Vec::new(),
-                options,
-                &mut unused_random,
-                Some(first_sampled),
-            )
-        });
-        let mut unused_random = SamplingRandom::new(1);
-        let second = create_full_alignment_impl(
-            region,
-            reference_start,
-            &ref_seq,
-            second,
-            reads,
-            Vec::new(),
-            Vec::new(),
-            options,
-            &mut unused_random,
-            Some(second_sampled),
-        )?;
-        let mut output = first_worker
-            .join()
-            .map_err(|_| anyhow::anyhow!("full-alignment tensor worker panicked"))??;
-        output.append(second)?;
-        Ok(output)
+        let mut handles = Vec::new();
+        for (candidates, sampled) in candidates
+            .chunks(chunk_size)
+            .zip(sampled.chunks(chunk_size))
+        {
+            handles.push(scope.spawn(move || {
+                let mut unused_random = SamplingRandom::new(1);
+                create_full_alignment_impl(
+                    region,
+                    reference_start,
+                    ref_seq,
+                    candidates,
+                    reads,
+                    Vec::new(),
+                    Vec::new(),
+                    options,
+                    &mut unused_random,
+                    Some(sampled),
+                )
+            }));
+        }
+        let mut output: Option<FullAlignmentBatch> = None;
+        for handle in handles {
+            let batch = handle
+                .join()
+                .map_err(|_| anyhow::anyhow!("full-alignment tensor worker panicked"))??;
+            if let Some(output) = &mut output {
+                output.append(batch)?;
+            } else {
+                output = Some(batch);
+            }
+        }
+        output.ok_or_else(|| anyhow::anyhow!("full-alignment tensor workers returned no output"))
     })
 }
 
@@ -1785,6 +1775,7 @@ pub fn create_full_alignment(
         b'A',
     )?;
     let mut reader = IndexedReader::from_path(bam_path)?;
+    reader.set_threads(3)?;
     reader.set_reference(reference.path())?;
     reader.fetch((region.contig.as_bytes(), region.start, region.end))?;
     let mut records = reader.records();
@@ -1800,6 +1791,7 @@ pub fn create_full_alignment(
             .map_or(i64::MAX, |candidate| *candidate - FLANKING_BASES as i64);
         pending.retain(|read: &ReadAlignment| read.read_end > start);
         let mut current = std::mem::take(&mut pending);
+        let mut buffered = Vec::new();
         loop {
             let next = match next_record.take() {
                 Some(record) => Some(Ok(record)),
@@ -1813,18 +1805,61 @@ pub fn create_full_alignment(
                 next_record = Some(record);
                 break;
             }
-            if let Some(read) = prepare_read(
-                record,
-                candidates,
-                variants,
-                options,
-                &ref_seq,
-                reference_start,
-                &mut read_names,
-                &mut next_index,
-            )? && read.read_end > start
+            if record.flags() & FILTER_FLAGS != 0
+                || (record.flags() & 0x1 != 0 && record.flags() & 0x2 == 0)
+                || record.mapq() < options.min_mq
+                || !read_names.insert(record.qname().to_vec())
             {
-                current.push(read);
+                continue;
+            }
+            buffered.push(record);
+        }
+        if !buffered.is_empty() {
+            let chunk_size = buffered.len().div_ceil(4);
+            let mut chunks = Vec::new();
+            let mut input = buffered.into_iter();
+            for _ in 0..4 {
+                let chunk: Vec<_> = input.by_ref().take(chunk_size).collect();
+                if !chunk.is_empty() {
+                    chunks.push(chunk);
+                }
+            }
+            let ref_seq = ref_seq.as_slice();
+            let prepared = std::thread::scope(|scope| {
+                let mut handles = Vec::new();
+                for records in chunks {
+                    handles.push(scope.spawn(move || {
+                        records
+                            .into_iter()
+                            .map(|record| {
+                                prepare_read(
+                                    record,
+                                    candidates,
+                                    variants,
+                                    options,
+                                    ref_seq,
+                                    reference_start,
+                                )
+                            })
+                            .collect::<Result<Vec<_>>>()
+                    }));
+                }
+                let mut prepared = Vec::new();
+                for handle in handles {
+                    prepared.extend(
+                        handle
+                            .join()
+                            .map_err(|_| anyhow::anyhow!("read preparation worker panicked"))??,
+                    );
+                }
+                Ok::<_, anyhow::Error>(prepared)
+            })?;
+            for mut read in prepared.into_iter().flatten() {
+                read.index = next_index;
+                next_index += 1;
+                if read.read_end > start {
+                    current.push(read);
+                }
             }
         }
         let chunk_region = Region::new(&region.contig, start.max(0), end)?;

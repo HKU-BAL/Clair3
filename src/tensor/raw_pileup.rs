@@ -105,7 +105,7 @@ impl<'a> RawRecord<'a> {
 
     fn sequence(&self) -> &[u8] {
         let offset = self.inner.core.l_qname as usize + self.inner.core.n_cigar as usize * 4;
-        let length = (self.seq_len() + 1) / 2;
+        let length = self.seq_len().div_ceil(2);
         // SAFETY: BAM stores packed sequence after qname and CIGAR, within l_data.
         unsafe { std::slice::from_raw_parts(self.inner.data.add(offset) as *const u8, length) }
     }

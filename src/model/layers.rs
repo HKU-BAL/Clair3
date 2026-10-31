@@ -98,7 +98,7 @@ impl BatchNorm2d {
 }
 
 pub enum ConvBlock {
-    Standard(nn::Conv2D),
+    Standard(super::nnpack::NnpConv2D),
     Separable {
         depthwise: nn::Conv2D,
         pointwise: nn::Conv2D,
@@ -139,22 +139,32 @@ impl ConvBlock {
                 pointwise,
             }
         } else {
-            Self::Standard(conv2d(
-                vs,
-                in_channels,
-                out_channels,
-                [3, 3],
+            Self::Standard(super::nnpack::NnpConv2D::new(
+                conv2d(
+                    vs,
+                    in_channels,
+                    out_channels,
+                    [3, 3],
+                    stride,
+                    [1, 1],
+                    1,
+                    true,
+                ),
                 stride,
                 [1, 1],
-                1,
-                true,
             ))
         }
     }
 
-    pub fn forward(&self, input: &Tensor) -> Tensor {
+    pub fn forward_t(&self, input: &Tensor, train: bool) -> Tensor {
         match self {
-            Self::Standard(layer) => layer.forward(input),
+            Self::Standard(layer) if !train => layer
+                .forward(input)
+                .unwrap_or_else(|| layer.layer.forward(input)),
+            Self::Standard(layer) => {
+                layer.invalidate();
+                layer.layer.forward(input)
+            }
             Self::Separable {
                 depthwise,
                 pointwise,
@@ -177,7 +187,9 @@ impl BasicConv2d {
     }
 
     pub fn forward_t(&self, input: &Tensor, train: bool) -> Tensor {
-        self.bn.forward_t(&self.conv.forward(input), train).relu()
+        self.bn
+            .forward_t(&self.conv.forward_t(input, train), train)
+            .relu()
     }
 }
 
@@ -240,8 +252,13 @@ impl ResidualBlock {
             Some((conv, bn)) => bn.forward_t(&conv.forward(input), train),
             None => input.shallow_clone(),
         };
-        let mut output = self.bn1.forward_t(&self.conv1.forward(input), train).relu();
-        output = self.bn2.forward_t(&self.conv2.forward(&output), train);
+        let mut output = self
+            .bn1
+            .forward_t(&self.conv1.forward_t(input, train), train)
+            .relu();
+        output = self
+            .bn2
+            .forward_t(&self.conv2.forward_t(&output, train), train);
         (residual + output).relu()
     }
 }

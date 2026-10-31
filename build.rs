@@ -244,6 +244,52 @@ fn prepare_phase_core() -> Option<PathBuf> {
     Some(output)
 }
 
+fn prepare_readselector() -> Option<PathBuf> {
+    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "windows") {
+        return None;
+    }
+    let manifest = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR")?);
+    let root = manifest.join("third_party/whatshap");
+    let python = env::var("PYTHON").unwrap_or_else(|_| "python3".to_string());
+    let output = Command::new(python)
+        .arg("-c")
+        .arg("import sysconfig; print(sysconfig.get_paths()['include']); print(sysconfig.get_config_var('EXT_SUFFIX'))")
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let output = String::from_utf8(output.stdout).ok()?;
+    let mut lines = output.lines();
+    let include = PathBuf::from(lines.next()?);
+    if !include.join("Python.h").is_file() {
+        return None;
+    }
+    let suffix = lines.next().unwrap_or(".so");
+    let compiler = cc::Build::new().cpp(true).get_compiler();
+    let mut command = Command::new(compiler.path());
+    command
+        .args(compiler.args())
+        .arg("-std=c++11")
+        .arg("-O3")
+        .arg("-fPIC")
+        .arg("-shared")
+        .arg("-I")
+        .arg(root.join("src"))
+        .arg("-I")
+        .arg(include);
+    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos") {
+        command.arg("-undefined").arg("dynamic_lookup");
+    }
+    let output = PathBuf::from(env::var_os("OUT_DIR")?).join(format!("clair3_readselect{suffix}"));
+    command
+        .arg(root.join("fast_readselect.cpp"))
+        .arg("-o")
+        .arg(&output);
+    execute(&mut command);
+    Some(output)
+}
+
 fn main() {
     println!("cargo:rerun-if-changed=csrc/torch_bridge.cpp");
     println!("cargo:rerun-if-changed=third_party/whatshap");
@@ -265,6 +311,16 @@ fn main() {
         path
     });
     println!("cargo:rustc-env=CLAIR3_PHASE_CORE={}", phase_core.display());
+    let read_selector = prepare_readselector().unwrap_or_else(|| {
+        let path =
+            PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR")).join("clair3_readselect.so");
+        fs::write(&path, b"").expect("failed to prepare the fallback selector marker");
+        path
+    });
+    println!(
+        "cargo:rustc-env=CLAIR3_READSELECT={}",
+        read_selector.display()
+    );
     if env::var_os("CARGO_FEATURE_DISTRIBUTED").is_none() {
         return;
     }

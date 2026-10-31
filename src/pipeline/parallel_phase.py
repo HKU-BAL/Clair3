@@ -5,7 +5,12 @@ import sys
 from concurrent.futures import ProcessPoolExecutor
 
 
+_native_readselection = None
+_native_readset_io = None
+
+
 def load_optimized_core():
+    global _native_readselection, _native_readset_io
     path = os.environ.get("CLAIR3_FAST_CORE")
     if not path:
         return
@@ -21,6 +26,9 @@ def load_optimized_core():
         package_spec = importlib.util.find_spec("whatshap")
         package = types.ModuleType("whatshap")
         package.__path__ = list(package_spec.submodule_search_locations)
+        package.__spec__ = package_spec
+        package.__loader__ = package_spec.loader
+        package.__package__ = "whatshap"
         package.__version__ = "2.8"
         sys.modules["whatshap"] = package
         ctypes.CDLL(path, mode=ctypes.RTLD_GLOBAL)
@@ -28,6 +36,15 @@ def load_optimized_core():
         module = importlib.util.module_from_spec(spec)
         sys.modules["whatshap.core"] = module
         spec.loader.exec_module(module)
+        selector_path = os.environ.get("CLAIR3_FAST_READSELECT")
+        if selector_path:
+            selector_spec = importlib.util.spec_from_file_location(
+                "clair3_readselect", selector_path
+            )
+            selector = importlib.util.module_from_spec(selector_spec)
+            selector_spec.loader.exec_module(selector)
+            _native_readselection = selector.select
+            _native_readset_io = selector
     except Exception as error:
         sys.modules.pop("whatshap.core", None)
         sys.modules.pop("whatshap", None)
@@ -44,6 +61,15 @@ from whatshap.__main__ import main
 from whatshap.cli import open_readset_reader, phase
 from whatshap.core import NumericSampleIds, Pedigree, PedigreeDPTable, Read, ReadSet
 from whatshap.graph import ComponentFinder
+from whatshap.readselect import _construct_indexes, readselection as _original_readselection
+
+
+def native_readselection(readset, max_coverage, preferred_source_ids=None, bridging=True):
+    if _native_readselection is None or preferred_source_ids or not bridging:
+        return _original_readselection(readset, max_coverage, preferred_source_ids, bridging)
+    positions, indices, variant_to_reads, _ = _construct_indexes(readset, preferred_source_ids)
+    return _native_readselection(readset, max_coverage, positions, indices, variant_to_reads)
+
 
 logger = logging.getLogger(__name__)
 _original_dp_table = PedigreeDPTable
@@ -166,9 +192,21 @@ def read_alleles(job_id):
         )
     }
     settings["affine"] = settings.pop("use_affine")
-    reader = open_readset_reader(
-        source._paths, _read_input._fasta.filename, source._numeric_sample_ids, **settings
-    )
+    import pysam
+
+    alignment_file = pysam.AlignmentFile
+
+    def open_with_decoding_threads(*args, **kwargs):
+        kwargs["threads"] = int(os.environ.get("CLAIR3_BAM_THREADS", "2"))
+        return alignment_file(*args, **kwargs)
+
+    pysam.AlignmentFile = open_with_decoding_threads
+    try:
+        reader = open_readset_reader(
+            source._paths, _read_input._fasta.filename, source._numeric_sample_ids, **settings
+        )
+    finally:
+        pysam.AlignmentFile = alignment_file
     chromosome, variants, sample, reference = _read_input._parallel_read_input
     output, total, covered = [], 0, set()
     logging.getLogger("whatshap.variants").setLevel(logging.WARNING)
@@ -179,10 +217,13 @@ def read_alleles(job_id):
             )
             total += len(reads)
             covered.update(reads.get_positions())
-            for read in reads:
-                if len(read) >= 2:
-                    read.sort()
-                    output.append(read.__getstate__())
+            if _native_readset_io is not None:
+                output.append(_native_readset_io.serialize(reads))
+            else:
+                for read in reads:
+                    if len(read) >= 2:
+                        read.sort()
+                        output.append(read.__getstate__())
     logger.info("Read BAM job %d: %d reads covering %d variants", job_id, total, len(covered))
     return output, total, covered
 
@@ -220,13 +261,22 @@ def parallel_read(self, chromosome, variants, sample, **kwargs):
         return ReadSet(), set()
     _read_jobs = jobs
     logger.info("Reading %d independent BAM regions with %d workers", len(rows), len(jobs))
-    readset = ReadSet()
     total, covered = 0, set()
+    outputs = []
     with ProcessPoolExecutor(max_workers=len(jobs), mp_context=_context) as pool:
         for reads, count, positions in pool.map(read_alleles, range(len(jobs))):
             total += count
             covered.update(positions)
-            for state in reads:
+            if _native_readset_io is not None:
+                outputs.extend(reads)
+            else:
+                outputs.append(reads)
+    if _native_readset_io is not None:
+        readset = _native_readset_io.deserialize(outputs)
+    else:
+        readset = ReadSet()
+        for output in outputs:
+            for state in output:
                 read = Read()
                 read.__setstate__(state)
                 readset.add(read)
@@ -263,6 +313,8 @@ def run():
         _context = multiprocessing.get_context("fork")
         phase.Pedigree = make_pedigree
         phase.PedigreeDPTable = ParallelDPTable
+        if _native_readselection is not None:
+            phase.readselection = native_readselection
         if os.environ.get("CLAIR3_PHASE_REGIONS"):
             phase.PhasedInputReader = make_parallel_input
     main()

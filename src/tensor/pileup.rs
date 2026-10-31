@@ -32,6 +32,7 @@ pub struct PileupOptions<'a> {
     pub fast_mode: bool,
     pub gvcf: bool,
     pub illumina: bool,
+    pub parallelism: usize,
     pub confident_regions: Option<&'a IntervalMap>,
     pub known_positions: Option<&'a BTreeSet<i64>>,
 }
@@ -51,6 +52,7 @@ impl Default for PileupOptions<'_> {
             fast_mode: false,
             gvcf: false,
             illumina: false,
+            parallelism: 2,
             confident_regions: None,
             known_positions: None,
         }
@@ -115,8 +117,32 @@ fn reference_index(base: u8) -> usize {
     }
 }
 
-fn insertion_stats(counts: &BTreeMap<String, i64>) -> (i64, i64) {
-    counts.values().fold((0, 0), |(sum, maximum), value| {
+type DeletionCounts = Vec<(usize, i64)>;
+type InsertionCounts = Vec<(String, i64)>;
+
+fn add_deletion(counts: &mut DeletionCounts, length: usize) {
+    match counts.binary_search_by_key(&length, |(length, _)| *length) {
+        Ok(index) => counts[index].1 += 1,
+        Err(index) => counts.insert(index, (length, 1)),
+    }
+}
+
+fn add_insertion(counts: &mut InsertionCounts, insertion: &str) {
+    if let Some((_, count)) = counts.iter_mut().find(|(key, _)| key == insertion) {
+        *count += 1;
+    } else {
+        counts.push((insertion.to_string(), 1));
+    }
+}
+
+fn deletion_count(counts: &DeletionCounts, length: usize) -> i64 {
+    counts
+        .binary_search_by_key(&length, |(length, _)| *length)
+        .map_or(0, |index| counts[index].1)
+}
+
+fn insertion_stats(counts: &InsertionCounts) -> (i64, i64) {
+    counts.iter().fold((0, 0), |(sum, maximum), (_, value)| {
         (sum + *value, maximum.max(*value))
     })
 }
@@ -158,8 +184,8 @@ fn alternate_payload(
     ref_base: u8,
     ref_count: i64,
     matrix: &[i32; PILEUP_CHANNELS],
-    deletions_f: &BTreeMap<usize, i64>,
-    deletions_r: &BTreeMap<usize, i64>,
+    deletions_f: &DeletionCounts,
+    deletions_r: &DeletionCounts,
     insertions: &KhCounter<String>,
     alt_order: &[String],
     max_indel_length: usize,
@@ -180,8 +206,8 @@ fn alternate_payload(
                 }
                 b'D' => {
                     let (length, bases) = deletion_parts(allele);
-                    let count = deletions_f.get(&length).copied().unwrap_or(0)
-                        + deletions_r.get(&length).copied().unwrap_or(0);
+                    let count =
+                        deletion_count(deletions_f, length) + deletion_count(deletions_r, length);
                     ref_depth -= count;
                     if count > 0 && length <= max_indel_length {
                         output.push_str(&format!("D{bases} {count} "));
@@ -220,8 +246,7 @@ fn alternate_payload(
     deletions.sort_by_key(|key| deletion_parts(key).0);
     for key in deletions {
         let (length, bases) = deletion_parts(key);
-        let count = deletions_f.get(&length).copied().unwrap_or(0)
-            + deletions_r.get(&length).copied().unwrap_or(0);
+        let count = deletion_count(deletions_f, length) + deletion_count(deletions_r, length);
         ref_depth -= count;
         if count > 0 && length <= max_indel_length {
             output.push_str(&format!("D{bases} {count} "));
@@ -290,10 +315,10 @@ fn process_position(
     };
 
     let mut matrix = [0_i32; PILEUP_CHANNELS];
-    let mut deletions_f: BTreeMap<usize, i64> = BTreeMap::new();
-    let mut deletions_r: BTreeMap<usize, i64> = BTreeMap::new();
-    let mut insertions_f: BTreeMap<String, i64> = BTreeMap::new();
-    let mut insertions_r: BTreeMap<String, i64> = BTreeMap::new();
+    let mut deletions_f = DeletionCounts::new();
+    let mut deletions_r = DeletionCounts::new();
+    let mut insertions_f = InsertionCounts::new();
+    let mut insertions_r = InsertionCounts::new();
     let mut insertions_all: KhCounter<String> = KhCounter::default();
     let ref_offset = (position - region.start) as usize;
     let ref_base = ref_seq
@@ -304,7 +329,7 @@ fn process_position(
     let ref_index = reference_index(ref_base);
     let mut alt_order = Vec::new();
     let mut first_seen = BTreeMap::new();
-    let mut next_order = 0_usize;
+    let mut next_order = 0;
     let mut depth = 0_i64;
     let mut deleted_bases = 0_i64;
     let mut any_valid = false;
@@ -352,7 +377,7 @@ fn process_position(
                     } else {
                         &mut deletions_f
                     };
-                    *target.entry(length as usize).or_default() += 1;
+                    add_deletion(target, length as usize);
                     let deleted = if ref_offset + 1 + length as usize <= ref_seq.len() {
                         String::from_utf8_lossy(
                             &ref_seq[ref_offset + 1..ref_offset + 1 + length as usize],
@@ -393,11 +418,12 @@ fn process_position(
                         }
                         insertion.push(NT16[record.encoded_base(source) as usize] as char);
                     }
-                    if reverse {
-                        *insertions_r.entry(insertion.clone()).or_default() += 1;
+                    let target = if reverse {
+                        &mut insertions_r
                     } else {
-                        *insertions_f.entry(insertion.clone()).or_default() += 1;
-                    }
+                        &mut insertions_f
+                    };
+                    add_insertion(target, &insertion);
                     *insertions_all.entry(insertion.clone()) += 1;
                     record_alt(
                         &mut alt_order,
@@ -414,18 +440,16 @@ fn process_position(
     *contiguous = current_contiguous;
     *previous_position = Some(position);
 
-    for (length, count) in &deletions_f {
+    for (_, count) in &deletions_f {
         matrix[6] += *count as i32;
-        let _ = length;
     }
-    if let Some(best) = deletions_f.values().max() {
+    if let Some(best) = deletions_f.iter().map(|(_, count)| count).max() {
         matrix[7] = *best as i32;
     }
-    for (length, count) in &deletions_r {
+    for (_, count) in &deletions_r {
         matrix[15] += *count as i32;
-        let _ = length;
     }
-    if let Some(best) = deletions_r.values().max() {
+    if let Some(best) = deletions_r.iter().map(|(_, count)| count).max() {
         matrix[16] = *best as i32;
     }
     let (ins_f_sum, ins_f_best) = insertion_stats(&insertions_f);
@@ -441,7 +465,8 @@ fn process_position(
     let mut alt_count = 0_i64;
     let mut major_alt_base = 0_u8;
     let mut all_alt_count = 0_u64;
-    let del_count: i64 = deletions_f.values().sum::<i64>() + deletions_r.values().sum::<i64>();
+    let del_count: i64 = deletions_f.iter().map(|(_, count)| *count).sum::<i64>()
+        + deletions_r.iter().map(|(_, count)| *count).sum::<i64>();
     let ins_count = ins_f_sum + ins_r_sum;
     let mut pileup_list = Vec::new();
     for (index, base) in b"ACGT".iter().enumerate() {
@@ -805,7 +830,7 @@ fn create_pileup_chunked_parallel(
 ) -> Result<PileupBatch> {
     let length = region.end - region.start;
     let count = (length + chunk_size - 1) / chunk_size;
-    if count < 2 {
+    if options.parallelism < 2 || count < 2 {
         return create_pileup_chunked(bam_path, reference, region, options, chunk_size);
     }
     let middle = region.start + count / 2 * chunk_size;

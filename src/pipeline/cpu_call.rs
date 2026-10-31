@@ -154,9 +154,15 @@ fn execute_inference(
     let tasks = Arc::new(tasks);
     let next = Arc::new(AtomicUsize::new(0));
     let (sender, receiver) = mpsc::channel();
+    let inference_workers = std::env::var("CLAIR3_CPU_INFERENCE_WORKERS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|workers| *workers > 0)
+        .unwrap_or(threads)
+        .min(tasks.len());
     std::thread::scope(|scope| {
         let mut handles = Vec::new();
-        for _ in 0..threads.min(tasks.len()) {
+        for _ in 0..inference_workers {
             let tasks = Arc::clone(&tasks);
             let next = Arc::clone(&next);
             let sender = sender.clone();
