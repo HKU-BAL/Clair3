@@ -1,7 +1,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#ifdef __APPLE__
+#ifdef CLAIR3_NATIVE_LSTM
 #include <Accelerate/Accelerate.h>
 #include <ATen/cpu/vec/vec.h>
 #include <cmath>

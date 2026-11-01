@@ -24,7 +24,12 @@ fn python_details(python: &str) -> (Vec<PathBuf>, Vec<PathBuf>, String) {
         } else if let Some(path) = line.strip_prefix("SLEEF_DIR: ") {
             let path = PathBuf::from(path);
             if path.is_dir() {
-                libraries.push(path);
+                libraries.push(path.clone());
+            }
+            if let Some(include) = path.parent().map(|parent| parent.join("include"))
+                && include.is_dir()
+            {
+                includes.push(include);
             }
         } else if let Some(value) = line.strip_prefix("ABI: ") {
             abi = if matches!(value, "1" | "True" | "true") {
@@ -327,9 +332,6 @@ fn main() {
         read_selector.display()
     );
     println!("cargo:rerun-if-changed=csrc/native_lstm.cpp");
-    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos") {
-        println!("cargo:rustc-link-lib=framework=Accelerate");
-    }
     if env::var_os("CARGO_FEATURE_DISTRIBUTED").is_none() {
         return;
     }
@@ -378,6 +380,10 @@ fn main() {
     libraries.retain(|path| path.is_dir());
     libraries.sort();
     libraries.dedup();
+    let native_lstm = env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos")
+        && libraries
+            .iter()
+            .any(|path| path.join("libsleef.dylib").is_file());
     assert!(
         includes
             .iter()
@@ -406,7 +412,8 @@ fn main() {
         .file("csrc/torch_bridge.cpp")
         .file("csrc/sampling_compat.cpp")
         .file("csrc/native_lstm.cpp");
-    if cfg!(target_os = "macos") {
+    if native_lstm {
+        build.define("CLAIR3_NATIVE_LSTM", "1");
         build.define("AT_BUILD_ARM_VEC256_WITH_SLEEF", "1");
     }
     if cuda {
@@ -426,8 +433,11 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=torch_cuda");
         println!("cargo:rustc-link-lib=dylib=c10_cuda");
     }
-    if cfg!(target_os = "macos") {
+    if native_lstm {
         println!("cargo:rustc-link-lib=dylib=sleef");
+        println!("cargo:rustc-link-lib=framework=Accelerate");
+    }
+    if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path/../lib/clair3");
     } else if cfg!(target_os = "linux") {
         println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../lib/clair3");
