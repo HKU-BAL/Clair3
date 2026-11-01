@@ -27,6 +27,8 @@ struct RawPosition {
     next_order: u32,
     depth: i64,
     deleted_bases: i64,
+    forward_depth: i64,
+    reverse_depth: i64,
     any_valid: bool,
 }
 
@@ -44,6 +46,8 @@ impl Default for RawPosition {
             next_order: 0,
             depth: 0,
             deleted_bases: 0,
+            forward_depth: 0,
+            reverse_depth: 0,
             any_valid: false,
         }
     }
@@ -106,6 +110,8 @@ fn finish_position(
         first_seen,
         depth,
         deleted_bases,
+        forward_depth,
+        reverse_depth,
         ..
     } = raw;
     let ref_index = reference_index(ref_base);
@@ -128,9 +134,9 @@ fn finish_position(
     matrix[13] = ins_r_sum as i32;
     matrix[14] = ins_r_best as i32;
 
-    let forward_sum: i64 = (0..4).map(|index| matrix[index] as i64).sum();
-    let reverse_sum: i64 = (0..4).map(|index| matrix[index + 9] as i64).sum();
-    let ref_count = matrix[ref_index] as i64 + matrix[ref_index + 9] as i64;
+    let forward_sum: i64 = forward_depth + (0..4).map(|index| matrix[index] as i64).sum::<i64>();
+    let reverse_sum: i64 =
+        reverse_depth + (0..4).map(|index| matrix[index + 9] as i64).sum::<i64>();
     let mut alt_count = 0_i64;
     let mut major_alt_base = 0_u8;
     let mut all_alt_count = 0_u64;
@@ -151,6 +157,12 @@ fn finish_position(
             alt_count = current;
         }
     }
+    let ref_count = depth
+        - deleted_bases
+        - (0..4)
+            .filter(|index| *index != ref_index)
+            .map(|index| matrix[index] as i64 + matrix[index + 9] as i64)
+            .sum::<i64>();
     if ins_count > 0 {
         pileup_list[pileup_len] = (b'I', ins_count);
         pileup_len += 1;
@@ -333,6 +345,14 @@ fn add_indel(
     Ok(())
 }
 
+fn add_matching_range(deltas: &mut [[i32; 2]], start: usize, end: usize, reverse: bool) {
+    if start < end {
+        let strand = usize::from(reverse);
+        deltas[start][strand] += 1;
+        deltas[end][strand] -= 1;
+    }
+}
+
 pub fn create_direct_pileup(
     reader: &mut IndexedReader,
     reference: &Reference,
@@ -390,6 +410,7 @@ pub fn create_direct_pileup(
         }
         let mut raw = Vec::new();
         raw.resize_with((window_end - window_start) as usize, RawPosition::default);
+        let mut matching_deltas = vec![[0_i32; 2]; (window_end - window_start) as usize + 1];
         for record in &pending {
             let operations = record.cigar().iter().copied().collect::<Vec<_>>();
             let reverse = record.flags() & 0x10 != 0;
@@ -400,22 +421,47 @@ pub fn create_direct_pileup(
                 let length = operation.len() as i64;
                 match operation {
                     Cigar::Match(_) | Cigar::Equal(_) | Cigar::Diff(_) => {
-                        for position in
-                            ref_position.max(window_start)..(ref_position + length).min(window_end)
-                        {
-                            let row = &mut raw[(position - window_start) as usize];
-                            row.any_valid = true;
+                        let overlap_start = ref_position.max(window_start);
+                        let overlap_end = (ref_position + length).min(window_end);
+                        let mut matching_start = overlap_start;
+                        for position in overlap_start..overlap_end {
                             let query = query_position + (position - ref_position) as usize;
                             let encoded = sequence.encoded_base(query);
+                            let ref_base = ref_seq[(position - region.start) as usize];
+                            if !options.illumina
+                                && NT16[encoded as usize] == ref_base
+                                && matches!(ref_base, b'A' | b'C' | b'G' | b'T')
+                            {
+                                continue;
+                            }
+                            if !options.illumina && matching_start < position {
+                                add_matching_range(
+                                    &mut matching_deltas,
+                                    (matching_start - window_start) as usize,
+                                    (position - window_start) as usize,
+                                    reverse,
+                                );
+                            }
+                            matching_start = position + 1;
+                            let row = &mut raw[(position - window_start) as usize];
+                            row.any_valid = true;
                             if let Some(channel) = base_index(encoded, reverse) {
                                 row.depth += 1;
                                 row.matrix[channel] += 1;
                                 let base = NT16[encoded as usize];
                                 row.record_seen(encoded);
-                                if base != ref_seq[(position - region.start) as usize] {
+                                if base != ref_base {
                                     row.record_alt(format!("X{}", base as char));
                                 }
                             }
+                        }
+                        if !options.illumina && matching_start < overlap_end {
+                            add_matching_range(
+                                &mut matching_deltas,
+                                (matching_start - window_start) as usize,
+                                (overlap_end - window_start) as usize,
+                                reverse,
+                            );
                         }
                         query_position += length as usize;
                     }
@@ -473,7 +519,16 @@ pub fn create_direct_pileup(
                 ref_position += length;
             }
         }
-        for (index, counts) in raw.into_iter().enumerate() {
+        let mut matching_depth = [0_i64; 2];
+        for (index, mut counts) in raw.into_iter().enumerate() {
+            for strand in 0..2 {
+                matching_depth[strand] += i64::from(matching_deltas[index][strand]);
+            }
+            let covered = matching_depth[0] + matching_depth[1];
+            counts.forward_depth = matching_depth[0];
+            counts.reverse_depth = matching_depth[1];
+            counts.depth += covered;
+            counts.any_valid |= covered > 0;
             let position = window_start + index as i64;
             let ref_base = ref_seq[(position - region.start) as usize].to_ascii_uppercase();
             if let Some(row) = finish_position(
