@@ -468,6 +468,9 @@ pub fn run(args: PhaseReadsArgs) -> Result<()> {
     let reference = Reference::open(&args.reference)?;
     let sequence = reference.fetch(&args.contig, 0, reference.contig_len(&args.contig) as i64)?;
     let variants = read_variants(&args.variants)?;
+    let mut reader = IndexedReader::from_path(&args.bam)?;
+    reader.set_reference(&args.reference)?;
+    reader.set_threads(1)?;
     let mut output = b"C3R1\0\0\0\0".to_vec();
     let mut read_count = 0_u32;
     let mut total = 0_usize;
@@ -477,9 +480,6 @@ pub fn run(args: PhaseReadsArgs) -> Result<()> {
         let variants = variants
             .get(first..last)
             .context("native phase region exceeds variant list")?;
-        let mut reader = IndexedReader::from_path(&args.bam)?;
-        reader.set_reference(&args.reference)?;
-        reader.set_threads(1)?;
         reader.fetch((args.contig.as_bytes(), start, end))?;
         let mut groups: BTreeMap<Vec<u8>, Vec<NativeRead>> = BTreeMap::new();
         let mut record = Record::new();

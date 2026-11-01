@@ -639,7 +639,7 @@ fn link_bam(source: &Path, destination: &Path) -> Result<()> {
 #[allow(clippy::too_many_arguments)]
 fn phase_bams(
     options: &RunOptions,
-    reference: &Reference,
+    reference: &Path,
     contigs: &[String],
     pileup: &[VcfRecord],
     pileup_header: &[String],
@@ -707,7 +707,7 @@ fn phase_bams(
                     .arg("-b")
                     .arg(&options.bam)
                     .arg("-r")
-                    .arg(reference.path())
+                    .arg(reference)
                     .arg("-t")
                     .arg(options.threads.to_string())
                     .arg("-o")
@@ -755,7 +755,7 @@ fn phase_bams(
                     .arg("--output")
                     .arg(&phased)
                     .arg("--reference")
-                    .arg(reference.path())
+                    .arg(reference)
                     .arg("--chromosome")
                     .arg(contig)
                     .arg("--distrust-genotypes")
@@ -781,7 +781,7 @@ fn phase_bams(
             .arg("--output")
             .arg(&bam)
             .arg("--reference")
-            .arg(reference.path())
+            .arg(reference)
             .arg("--ignore-read-groups");
         if !contig.contains(':') {
             haplotag.arg("--regions").arg(contig);
@@ -1078,7 +1078,7 @@ pub fn run_pipeline(options: &RunOptions) -> Result<()> {
     }
     phase_bams(
         options,
-        &reference,
+        reference.path(),
         &contigs,
         &pileup,
         &read_vcf(&options.output.join("pileup.vcf.gz"))?.header,
@@ -1522,7 +1522,7 @@ mod tests {
         let header: Vec<_> = header.lines().map(str::to_string).collect();
         phase_bams(
             &options,
-            &reference,
+            reference.path(),
             &["chrToy".to_string()],
             &[],
             &header,
@@ -1599,7 +1599,7 @@ mod tests {
         };
         phase_bams(
             &options,
-            &reference,
+            reference.path(),
             &["chrToy".to_string()],
             &[record],
             &header,

@@ -1,5 +1,8 @@
 use std::{collections::BTreeSet, path::Path};
 
+#[path = "direct_pileup.rs"]
+mod direct_pileup;
+
 use super::{kh_counter::KhCounter, raw_pileup};
 use anyhow::{Result, bail};
 use rust_htslib::bam::{self, IndexedReader, pileup::Indel};
@@ -13,7 +16,6 @@ use crate::{
 };
 
 const NT16: &[u8; 16] = b"=ACMGRSVTWYHKDBN";
-const FILTER_FLAGS: u16 = 0x4 | 0x8 | 0x100 | 0x800;
 
 #[derive(Debug, Clone)]
 pub struct PileupOptions<'a> {
@@ -346,12 +348,6 @@ fn process_position(
     for raw_alignment in pileup.alignments {
         let alignment = bam::pileup::Alignment::new(raw_alignment);
         let record = raw_pileup::RawRecord::new(raw_alignment.b);
-        if record.mapq() < options.min_mq
-            || record.flags() & FILTER_FLAGS != 0
-            || (record.flags() & 0x1 != 0 && record.flags() & 0x2 == 0)
-        {
-            continue;
-        }
         any_valid = true;
         if alignment.is_refskip() {
             continue;
@@ -631,83 +627,85 @@ fn finalize_candidates(
         {
             continue;
         }
-        for chunk in &chunks {
-            let first = chunk[0].position;
-            let last = chunk[chunk.len() - 1].position;
-            let window_start = position - FLANKING_BASES as i64;
-            let window_end = position + FLANKING_BASES as i64 + 1;
-            let offset = window_start - first - 1;
-            if window_start > first
-                && window_end <= last
-                && offset >= 0
-                && offset + POSITION_COUNT as i64 <= chunk.len() as i64
+        let chunk_index =
+            chunks.partition_point(|chunk| chunk[chunk.len() - 1].position < candidate.position);
+        let Some(chunk) = chunks.get(chunk_index) else {
+            continue;
+        };
+        let first = chunk[0].position;
+        let last = chunk[chunk.len() - 1].position;
+        let window_start = position - FLANKING_BASES as i64;
+        let window_end = position + FLANKING_BASES as i64 + 1;
+        let offset = window_start - first - 1;
+        if window_start > first
+            && window_end <= last
+            && offset >= 0
+            && offset + POSITION_COUNT as i64 <= chunk.len() as i64
+        {
+            let source = &chunk[offset as usize..offset as usize + POSITION_COUNT];
+            if !options.allow_empty_flanking
+                && source
+                    .iter()
+                    .any(|row| row.matrix.iter().all(|value| *value == 0))
             {
-                let source = &chunk[offset as usize..offset as usize + POSITION_COUNT];
-                if !options.allow_empty_flanking
-                    && source
-                        .iter()
-                        .any(|row| row.matrix.iter().all(|value| *value == 0))
-                {
-                    continue;
-                }
-                let tensor: Vec<[i32; PILEUP_CHANNELS]> =
-                    source.iter().map(|row| row.matrix).collect();
-                append_candidate(batch, contig, candidate, &tensor);
-            }
-            if position < first || position > last {
                 continue;
             }
-            if pad_head && window_start <= first {
-                let take = offset + POSITION_COUNT as i64;
-                if take < 0 || take as usize > chunk.len() {
-                    continue;
-                }
-                let mut tensor = vec![[0_i32; PILEUP_CHANNELS]; (-offset) as usize];
-                tensor.extend(chunk[..take as usize].iter().map(|row| row.matrix));
+            let tensor: Vec<[i32; PILEUP_CHANNELS]> = source.iter().map(|row| row.matrix).collect();
+            append_candidate(batch, contig, candidate, &tensor);
+        }
+        if pad_head && window_start <= first {
+            let take = offset + POSITION_COUNT as i64;
+            if take < 0 || take as usize > chunk.len() {
+                continue;
+            }
+            let mut tensor = vec![[0_i32; PILEUP_CHANNELS]; (-offset) as usize];
+            tensor.extend(chunk[..take as usize].iter().map(|row| row.matrix));
+            if tensor.len() == POSITION_COUNT {
+                append_candidate(batch, contig, candidate, &tensor);
+            }
+        }
+        if pad_tail && window_end > last && offset >= 0 && offset as usize <= chunk.len() {
+            let padding = window_end - last - 2;
+            if padding > 0 {
+                let mut tensor: Vec<[i32; PILEUP_CHANNELS]> = chunk[offset as usize..]
+                    .iter()
+                    .map(|row| row.matrix)
+                    .collect();
+                tensor.extend(std::iter::repeat_n(
+                    [0_i32; PILEUP_CHANNELS],
+                    padding as usize,
+                ));
                 if tensor.len() == POSITION_COUNT {
                     append_candidate(batch, contig, candidate, &tensor);
                 }
-            }
-            if pad_tail && window_end > last && offset >= 0 && offset as usize <= chunk.len() {
-                let padding = window_end - last - 2;
-                if padding > 0 {
-                    let mut tensor: Vec<[i32; PILEUP_CHANNELS]> = chunk[offset as usize..]
-                        .iter()
-                        .map(|row| row.matrix)
-                        .collect();
-                    tensor.extend(std::iter::repeat_n(
-                        [0_i32; PILEUP_CHANNELS],
-                        padding as usize,
-                    ));
-                    if tensor.len() == POSITION_COUNT {
-                        append_candidate(batch, contig, candidate, &tensor);
-                    }
-                } else if offset + POSITION_COUNT as i64 <= chunk.len() as i64 {
-                    let tensor: Vec<[i32; PILEUP_CHANNELS]> = chunk
-                        [offset as usize..offset as usize + POSITION_COUNT]
-                        .iter()
-                        .map(|row| row.matrix)
-                        .collect();
-                    append_candidate(batch, contig, candidate, &tensor);
-                }
+            } else if offset + POSITION_COUNT as i64 <= chunk.len() as i64 {
+                let tensor: Vec<[i32; PILEUP_CHANNELS]> = chunk
+                    [offset as usize..offset as usize + POSITION_COUNT]
+                    .iter()
+                    .map(|row| row.matrix)
+                    .collect();
+                append_candidate(batch, contig, candidate, &tensor);
             }
         }
     }
 }
 
-fn create_pileup_impl(
-    bam_path: &Path,
+fn create_pileup_impl_with_reader(
+    reader: &mut IndexedReader,
     reference: &Reference,
     region: &Region,
     options: &PileupOptions,
     pad_head: bool,
     pad_tail: bool,
 ) -> Result<PileupBatch> {
+    if !std::env::var_os("CLAIR3_DIRECT_PILEUP").is_some_and(|value| value == "0") {
+        return direct_pileup::create_direct_pileup(
+            reader, reference, region, options, pad_head, pad_tail,
+        );
+    }
     let ref_seq = reference.fetch_region(region)?;
-    let mut reader = IndexedReader::from_path(bam_path)?;
-    reader.set_reference(reference.path())?;
     reader.fetch((region.contig.as_bytes(), region.start, region.end))?;
-    let mut pileups = raw_pileup::Pileups::new(&mut reader)?;
+    let mut pileups = raw_pileup::Pileups::new(&mut *reader, options.min_mq)?;
     pileups.set_max_depth(1 << 20);
     let mut rows = vec![];
     let mut previous_position = None;
@@ -755,6 +753,20 @@ fn create_pileup_impl(
     Ok(batch)
 }
 
+#[cfg(test)]
+fn create_pileup_impl(
+    bam_path: &Path,
+    reference: &Reference,
+    region: &Region,
+    options: &PileupOptions,
+    pad_head: bool,
+    pad_tail: bool,
+) -> Result<PileupBatch> {
+    let mut reader = IndexedReader::from_path(bam_path)?;
+    reader.set_reference(reference.path())?;
+    create_pileup_impl_with_reader(&mut reader, reference, region, options, pad_head, pad_tail)
+}
+
 fn append_pileup_batch(
     output: &mut PileupBatch,
     chunk: PileupBatch,
@@ -798,9 +810,11 @@ fn create_pileup_chunked(
     if chunk_size < POSITION_COUNT as i64 {
         bail!("pileup chunk size must be at least {POSITION_COUNT}");
     }
+    let mut reader = IndexedReader::from_path(bam_path)?;
+    reader.set_reference(reference.path())?;
     if region.start == region.end {
-        return create_pileup_impl(
-            bam_path,
+        return create_pileup_impl_with_reader(
+            &mut reader,
             reference,
             region,
             options,
@@ -821,8 +835,8 @@ fn create_pileup_chunked(
             (start - 33).max(0),
             (end + 33).min(contig_length),
         )?;
-        let chunk = create_pileup_impl(
-            bam_path,
+        let chunk = create_pileup_impl_with_reader(
+            &mut reader,
             reference,
             &expanded,
             options,

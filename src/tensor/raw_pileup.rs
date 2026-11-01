@@ -10,33 +10,54 @@ pub(crate) struct Pileup<'a> {
 }
 
 pub(crate) struct Pileups<'a> {
-    reader: &'a mut IndexedReader,
+    _input: Box<Input<'a>>,
     inner: htslib::bam_plp_t,
 }
 
+struct Input<'a> {
+    reader: &'a mut IndexedReader,
+    min_mq: u8,
+}
+
 extern "C" fn next_record(data: *mut libc::c_void, record: *mut htslib::bam1_t) -> i32 {
-    let reader = unsafe { &mut *(data as *mut IndexedReader) };
+    let input = unsafe { &mut *(data as *mut Input) };
     let mut record_wrapper = Record::new();
-    match reader.read(&mut record_wrapper) {
-        Some(Ok(())) => {
-            // SAFETY: HTSlib owns the transferred allocation; Rust drops only the header.
-            unsafe { *record = record_wrapper.inner };
-            record_wrapper.inner.data = std::ptr::null_mut();
-            0
+    loop {
+        match input.reader.read(&mut record_wrapper) {
+            Some(Ok(())) => {
+                let flags = record_wrapper.flags();
+                if record_wrapper.mapq() < input.min_mq
+                    || flags & (0x4 | 0x8 | 0x100 | 0x800) != 0
+                    || (flags & 0x1 != 0 && flags & 0x2 == 0)
+                {
+                    continue;
+                }
+                // SAFETY: HTSlib owns the transferred allocation; Rust drops only the header.
+                unsafe { *record = record_wrapper.inner };
+                record_wrapper.inner.data = std::ptr::null_mut();
+                return 0;
+            }
+            _ => return -1,
         }
-        _ => -1,
     }
 }
 
 impl<'a> Pileups<'a> {
-    pub fn new(reader: &'a mut IndexedReader) -> Result<Self> {
+    pub fn new(reader: &'a mut IndexedReader, min_mq: u8) -> Result<Self> {
+        let mut input = Box::new(Input { reader, min_mq });
         let inner = unsafe {
-            htslib::bam_plp_init(Some(next_record), reader as *mut _ as *mut libc::c_void)
+            htslib::bam_plp_init(
+                Some(next_record),
+                input.as_mut() as *mut _ as *mut libc::c_void,
+            )
         };
         if inner.is_null() {
             bail!("failed to initialize BAM pileup");
         }
-        Ok(Self { reader, inner })
+        Ok(Self {
+            _input: input,
+            inner,
+        })
     }
 
     pub fn set_max_depth(&mut self, depth: i32) {
@@ -69,7 +90,6 @@ impl Iterator for Pileups<'_> {
 
 impl Drop for Pileups<'_> {
     fn drop(&mut self) {
-        let _ = self.reader;
         unsafe { htslib::bam_plp_destroy(self.inner) };
     }
 }
@@ -89,10 +109,6 @@ impl<'a> RawRecord<'a> {
 
     pub fn flags(&self) -> u16 {
         self.inner.core.flag
-    }
-
-    pub fn mapq(&self) -> u8 {
-        self.inner.core.qual
     }
 
     pub fn pos(&self) -> i64 {
