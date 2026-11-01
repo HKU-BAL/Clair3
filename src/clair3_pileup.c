@@ -45,9 +45,9 @@ plp_data create_plp_data(size_t n_cols, size_t buffer_cols, size_t feature_lengt
     data->n_cols = n_cols;
     if (fixed_size != 0) {
         assert(buffer_cols == n_cols);
-        data->matrix = xalloc(fixed_size * n_cols, sizeof(int), "matrix");
+        data->matrix = xalloc(fixed_size * n_cols, sizeof(*data->matrix), "matrix");
     } else {
-        data->matrix = xalloc(feature_length * num_dtypes * buffer_cols * num_homop, sizeof(size_t), "matrix");
+        data->matrix = xalloc(feature_length * num_dtypes * buffer_cols * num_homop, sizeof(*data->matrix), "matrix");
     }
     data->major = xalloc(buffer_cols, sizeof(size_t), "major");
     data->minor = xalloc(buffer_cols, sizeof(size_t), "minor");
@@ -69,7 +69,7 @@ void enlarge_plp_data(plp_data pileup, size_t buffer_cols, size_t feature_length
     size_t old_size = feature_length * pileup->num_dtypes * pileup->num_homop * pileup->buffer_cols;
     size_t new_size = feature_length * pileup->num_dtypes * pileup->num_homop * buffer_cols;
 
-    pileup->matrix = xrealloc(pileup->matrix, new_size * sizeof(size_t), "matrix");
+    pileup->matrix = xrealloc(pileup->matrix, new_size * sizeof(*pileup->matrix), "matrix");
     pileup->major = xrealloc(pileup->major, buffer_cols * sizeof(size_t), "major");
     pileup->minor = xrealloc(pileup->minor, buffer_cols * sizeof(size_t), "minor");
     // zero out new part of matrix
@@ -205,6 +205,13 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         memset(pileup->pos_total_count, 0, buffer_cols * sizeof(size_t));
     }
 
+    // Reuse deletion counters across columns; only the used prefix needs
+    // clearing and scanning. Most columns have no deletion starting here.
+    size_t del_buf_size = 32;
+    size_t del_buf_used = 0;
+    size_t *dels_f = xalloc(del_buf_size, sizeof(size_t), "dels_f");
+    size_t *dels_r = xalloc(del_buf_size, sizeof(size_t), "dels_r");
+
     while ((ret=bam_mplp_auto(mplp, &tid, &pos, &n_plp, plp) > 0)) {
 
         size_t depth = 0;
@@ -228,22 +235,18 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
             contiguous_flanking_num++;
         pre_pos = pos;
 
-        //update the deletion buffer in each interation
-        size_t del_buf_size = 32;
-        size_t* dels_f = xalloc(del_buf_size, sizeof(size_t), "dels_f");
-        size_t* dels_r = xalloc(del_buf_size, sizeof(size_t), "dels_r");
-
-        memset(dels_f, 0, del_buf_size * sizeof(size_t));
-        memset(dels_r, 0, del_buf_size * sizeof(size_t));
+        memset(dels_f, 0, del_buf_used * sizeof(size_t));
+        memset(dels_r, 0, del_buf_used * sizeof(size_t));
+        del_buf_used = 0;
 
         // we still need this as positions might not be contiguous
         pileup->major[major_col / featlenclair3] = pos;
         pileup->minor[major_col / featlenclair3] = 0;
 
-        // counters for insertion strings
-        khash_t(KH_COUNTER) *ins_counts_f = kh_init(KH_COUNTER);
-        khash_t(KH_COUNTER) *ins_counts_r = kh_init(KH_COUNTER);
-        khash_t(KH_COUNTER) *ins_counts_all = kh_init(KH_COUNTER);
+        // Allocate insertion counters only for columns with an insertion.
+        khash_t(KH_COUNTER) *ins_counts_f = NULL;
+        khash_t(KH_COUNTER) *ins_counts_r = NULL;
+        khash_t(KH_COUNTER) *ins_counts_all = NULL;
         // loop through all reads at this position
         for (int i = 0; i < n_plp; ++i) {
             const bam_pileup1_t *p = plp[0] + i;
@@ -254,6 +257,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
                 // record the length here and finalise after the read loop
                 //  - actually deleted bases get recorded in next block
                 size_t d = (size_t) -1 * p->indel;
+                del_buf_used = max(del_buf_used, d);
 
                 if (d >= del_buf_size) {
                     size_t new_size = max(d, 2 * del_buf_size);
@@ -283,11 +287,18 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
                 base_i = num2countbaseclair3[base_j];
                 depth++;
             }
-            pileup->matrix[major_col + base_i] += 1;
+            // Ambiguous query bases have no count channel.
+            if (base_i >= 0)
+                pileup->matrix[major_col + base_i] += 1;
 
             // handle insertion
             //  - build insert string then hash
             if (p->indel > 0) {
+                if (ins_counts_all == NULL) {
+                    ins_counts_f = kh_init(KH_COUNTER);
+                    ins_counts_r = kh_init(KH_COUNTER);
+                    ins_counts_all = kh_init(KH_COUNTER);
+                }
                 size_t first = p->is_del ? 0 : 1;
                 char* indel = (char*) xalloc(p->indel + 1, sizeof(char), "indel");
                 for (size_t i = 0, j = first; j < p->indel + first; ++i, ++j) {
@@ -309,7 +320,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         // forward
         size_t best_count = 0;
         size_t all_count = 0;
-        for (size_t i = 0; i < del_buf_size; ++i) {
+        for (size_t i = 0; i < del_buf_used; ++i) {
             size_t d = dels_f[i];
             all_count += d;
             best_count = max(best_count, d);
@@ -320,7 +331,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         // reverse
         best_count = 0;
         all_count = 0;
-        for (size_t i = 0; i < del_buf_size; ++i) {
+        for (size_t i = 0; i < del_buf_used; ++i) {
             size_t d = dels_r[i];
             all_count += d;
             best_count = max(best_count, d);
@@ -329,21 +340,20 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
         pileup->matrix[major_col + c3_rev_del_best] = best_count;
         del_count += all_count;
 
-        // finalise IS and I1S
-        // forward
-        kh_counter_stats_t stats = kh_counter_stats(ins_counts_f);
-        pileup->matrix[major_col + c3_fwd_ins_all] = stats.sum;
-        pileup->matrix[major_col + c3_fwd_ins_best] = stats.max;
-        ins_count += stats.sum;
+        // Empty insertion channels are already zero in the output matrix.
+        if (ins_counts_all != NULL) {
+            kh_counter_stats_t stats = kh_counter_stats(ins_counts_f);
+            pileup->matrix[major_col + c3_fwd_ins_all] = stats.sum;
+            pileup->matrix[major_col + c3_fwd_ins_best] = stats.max;
+            ins_count += stats.sum;
+            kh_counter_destroy(ins_counts_f);
 
-        kh_counter_destroy(ins_counts_f);
-        // reverse
-        stats = kh_counter_stats(ins_counts_r);
-        pileup->matrix[major_col + c3_rev_ins_all] = stats.sum;
-        pileup->matrix[major_col + c3_rev_ins_best] = stats.max;
-        ins_count += stats.sum;
-
-        kh_counter_destroy(ins_counts_r);
+            stats = kh_counter_stats(ins_counts_r);
+            pileup->matrix[major_col + c3_rev_ins_all] = stats.sum;
+            pileup->matrix[major_col + c3_rev_ins_best] = stats.max;
+            ins_count += stats.sum;
+            kh_counter_destroy(ins_counts_r);
+        }
         int offset = pos - ref_start;
         char ref_base = upper_base(ref_seq[offset]);
         int ref_offset_forward = base2index[ref_base - 'A'];
@@ -367,8 +377,8 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
             }
         }
 
-        pileup->matrix[major_col + ref_offset_forward] = -1 * forward_sum;
-        pileup->matrix[major_col + ref_offset_reverse] = -1 * reverse_sum;
+        pileup->matrix[major_col + ref_offset_forward] = -(int32_t)forward_sum;
+        pileup->matrix[major_col + ref_offset_reverse] = -(int32_t)reverse_sum;
 
         // calculate candidate allele frequency and apply filtering
         depth = max(1, depth);
@@ -410,7 +420,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
                     sprintf(alt_info_str + strlen(alt_info_str), "X%c %zu ", plp_bases_clair3[i], alt_sum);
             }
             //del
-            for (size_t i = 0; i < del_buf_size; i++) {
+            for (size_t i = 0; i < del_buf_used; i++) {
                 size_t d = dels_f[i] + dels_r[i];
                 ref_depth -= d;
                 if (d > 0 && i+1 <= max_indel_length) {
@@ -425,7 +435,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
 
             }
 //            //ins
-            for (khiter_t k = kh_begin(ins_counts_all); k != kh_end(ins_counts_all); ++k) {
+            for (khiter_t k = 0; ins_counts_all != NULL && k != kh_end(ins_counts_all); ++k) {
                 if (kh_exist(ins_counts_all, k)) {
                     const char *key = kh_key(ins_counts_all, k);
                     size_t val = kh_val(ins_counts_all, k);
@@ -454,13 +464,14 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
             pileup->pos_total_count[pos-start] = ref_count + all_alt_count + del_count + ins_count;
         }
 
-        free(dels_f);
-        free(dels_r);
-        kh_counter_destroy(ins_counts_all);
+        if (ins_counts_all != NULL)
+            kh_counter_destroy(ins_counts_all);
         major_col += featlenclair3;
     }
 
 
+    free(dels_f);
+    free(dels_r);
     pileup->all_alt_info = alt_info_p;
     pileup->candidates_num = candidates_num;
     pileup->n_cols = n_cols;
@@ -468,6 +479,7 @@ plp_data calculate_clair3_pileup(const char *region, const bam_fset* bam_set, co
     bam_itr_destroy(data->iter);
     bam_mplp_destroy(mplp);
     fai_destroy(fai);
+    free(ref_seq);
     free(data);
     free(plp);
     free(chr);
