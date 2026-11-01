@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    path::Path,
-};
+use std::{collections::BTreeSet, path::Path};
 
 use super::{kh_counter::KhCounter, raw_pileup};
 use anyhow::{Result, bail};
@@ -328,8 +325,20 @@ fn process_position(
         .to_ascii_uppercase();
     let ref_index = reference_index(ref_base);
     let mut alt_order = Vec::new();
-    let mut first_seen = BTreeMap::new();
+    let mut first_seen = [u32::MAX; 18];
     let mut next_order = 0;
+    let mut record_seen = |base: u8| {
+        let index = match base {
+            b'I' => 16,
+            b'D' => 17,
+            _ => base as usize,
+        };
+        let seen = &mut first_seen[index];
+        if *seen == u32::MAX {
+            *seen = next_order;
+            next_order += 1;
+        }
+    };
     let mut depth = 0_i64;
     let mut deleted_bases = 0_i64;
     let mut any_valid = false;
@@ -359,10 +368,7 @@ fn process_position(
                 depth += 1;
                 matrix[index] += 1;
                 let base = NT16[encoded as usize];
-                if !first_seen.contains_key(&base) {
-                    first_seen.insert(base, next_order);
-                    next_order += 1;
-                }
+                record_seen(encoded);
                 if base != ref_base {
                     record_alt(&mut alt_order, format!("X{}", base as char));
                 }
@@ -391,18 +397,12 @@ fn process_position(
                             b'A',
                         )?)?
                     };
-                    if !first_seen.contains_key(&b'D') {
-                        first_seen.insert(b'D', next_order);
-                        next_order += 1;
-                    }
+                    record_seen(b'D');
                     record_alt(&mut alt_order, format!("D{length}:{deleted}"));
                 }
             }
             Indel::Ins(length) => {
-                if !first_seen.contains_key(&b'I') {
-                    first_seen.insert(b'I', next_order);
-                    next_order += 1;
-                }
+                record_seen(b'I');
                 let query_position = if is_del {
                     deleted_anchor_query_offset(&record, pileup.position as i64)
                 } else {
@@ -468,11 +468,13 @@ fn process_position(
     let del_count: i64 = deletions_f.iter().map(|(_, count)| *count).sum::<i64>()
         + deletions_r.iter().map(|(_, count)| *count).sum::<i64>();
     let ins_count = ins_f_sum + ins_r_sum;
-    let mut pileup_list = Vec::new();
+    let mut pileup_list = [(0_u8, 0_i64); 6];
+    let mut pileup_len = 0;
     for (index, base) in b"ACGT".iter().enumerate() {
         let current = matrix[index] as i64 + matrix[index + 9] as i64;
         if current > 0 {
-            pileup_list.push((*base, current));
+            pileup_list[pileup_len] = (*base, current);
+            pileup_len += 1;
         }
         if index != ref_index && current > alt_count {
             major_alt_base = *base;
@@ -481,16 +483,29 @@ fn process_position(
         }
     }
     if ins_count > 0 {
-        pileup_list.push((b'I', ins_count));
+        pileup_list[pileup_len] = (b'I', ins_count);
+        pileup_len += 1;
     }
     if del_count > 0 {
-        pileup_list.push((b'D', del_count));
+        pileup_list[pileup_len] = (b'D', del_count);
+        pileup_len += 1;
     }
+    let pileup_list = &mut pileup_list[..pileup_len];
     pileup_list.sort_by(|left, right| {
-        right
-            .1
-            .cmp(&left.1)
-            .then_with(|| first_seen.get(&left.0).cmp(&first_seen.get(&right.0)))
+        right.1.cmp(&left.1).then_with(|| {
+            let order = |base: u8| {
+                let index = match base {
+                    b'I' => 16,
+                    b'D' => 17,
+                    _ => base as usize,
+                };
+                first_seen
+                    .get(index)
+                    .copied()
+                    .filter(|order| *order != u32::MAX)
+            };
+            order(left.0).cmp(&order(right.0))
+        })
     });
     let first_is_ref = pileup_list
         .first()

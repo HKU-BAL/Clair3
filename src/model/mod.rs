@@ -2,6 +2,7 @@ mod bloom;
 mod checkpoint;
 mod full_alignment;
 mod layers;
+mod lstm;
 mod nnpack;
 mod pickle;
 mod pileup;
@@ -85,6 +86,9 @@ impl Model {
         };
         if let Some(path) = checkpoint {
             load_checkpoint(&mut var_store, path)?;
+        }
+        if let Network::Pileup(model) = &network {
+            model.prepare_inference(&var_store.variables());
         }
         Ok(Self { var_store, network })
     }

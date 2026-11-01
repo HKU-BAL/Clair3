@@ -4,7 +4,7 @@ fn python_details(python: &str) -> (Vec<PathBuf>, Vec<PathBuf>, String) {
     let output = Command::new(python)
         .arg("-c")
         .arg(
-            "import torch\nfrom torch.utils import cpp_extension\nprint('ABI:', torch._C._GLIBCXX_USE_CXX11_ABI)\nfor p in cpp_extension.include_paths(): print('INCLUDE:', p)\nfor p in cpp_extension.library_paths(): print('LIB:', p)",
+            "import sysconfig\nimport torch\nfrom torch.utils import cpp_extension\nprint('ABI:', torch._C._GLIBCXX_USE_CXX11_ABI)\nprint('SLEEF_DIR:', sysconfig.get_config_var('LIBDIR'))\nfor p in cpp_extension.include_paths(): print('INCLUDE:', p)\nfor p in cpp_extension.library_paths(): print('LIB:', p)",
         )
         .output()
         .expect("failed to locate LibTorch through Python");
@@ -21,6 +21,11 @@ fn python_details(python: &str) -> (Vec<PathBuf>, Vec<PathBuf>, String) {
             includes.push(PathBuf::from(path));
         } else if let Some(path) = line.strip_prefix("LIB: ") {
             libraries.push(PathBuf::from(path));
+        } else if let Some(path) = line.strip_prefix("SLEEF_DIR: ") {
+            let path = PathBuf::from(path);
+            if path.is_dir() {
+                libraries.push(path);
+            }
         } else if let Some(value) = line.strip_prefix("ABI: ") {
             abi = if matches!(value, "1" | "True" | "true") {
                 "1".to_string()
@@ -321,6 +326,10 @@ fn main() {
         "cargo:rustc-env=CLAIR3_READSELECT={}",
         read_selector.display()
     );
+    println!("cargo:rerun-if-changed=csrc/native_lstm.cpp");
+    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos") {
+        println!("cargo:rustc-link-lib=framework=Accelerate");
+    }
     if env::var_os("CARGO_FEATURE_DISTRIBUTED").is_none() {
         return;
     }
@@ -395,7 +404,11 @@ fn main() {
         .define("GLOG_USE_GLOG_EXPORT", None)
         .define("_GLIBCXX_USE_CXX11_ABI", abi.as_str())
         .file("csrc/torch_bridge.cpp")
-        .file("csrc/sampling_compat.cpp");
+        .file("csrc/sampling_compat.cpp")
+        .file("csrc/native_lstm.cpp");
+    if cfg!(target_os = "macos") {
+        build.define("AT_BUILD_ARM_VEC256_WITH_SLEEF", "1");
+    }
     if cuda {
         build.define("USE_C10D_NCCL", "1");
         build.define("CLAIR3_WITH_CUDA", "1");
@@ -414,6 +427,7 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=c10_cuda");
     }
     if cfg!(target_os = "macos") {
+        println!("cargo:rustc-link-lib=dylib=sleef");
         println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path/../lib/clair3");
     } else if cfg!(target_os = "linux") {
         println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../lib/clair3");

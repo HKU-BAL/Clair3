@@ -180,7 +180,45 @@ def _workers():
     return max(1, int(os.environ.get("CLAIR3_PHASE_THREADS", "1")))
 
 
+def read_alleles_native(job_id):
+    import subprocess
+
+    source = _read_input._readset_reader
+    chromosome = _read_input._parallel_read_input[0]
+    directory = os.environ["CLAIR3_PHASE_NATIVE_DIR"]
+    prefix = os.path.join(directory, f"native-job-{job_id}")
+    args = [
+        os.environ["CLAIR3_BIN"],
+        "PhaseReads",
+        "--bam_fn",
+        source._paths[0],
+        "--ref_fn",
+        _read_input._fasta.filename,
+        "--variants_fn",
+        os.path.join(directory, "native-variants.tsv"),
+        "--ctg_name",
+        chromosome,
+        "--output_fn",
+        prefix + ".bin",
+        "--meta_fn",
+        prefix + ".meta",
+    ]
+    for start, end, first, last in _read_jobs[job_id]:
+        args.extend(("--region", f"{start},{end},{first},{last}"))
+    subprocess.run(args, check=True)
+    with open(prefix + ".bin", "rb") as stream:
+        output = stream.read()
+    with open(prefix + ".meta") as stream:
+        metadata = stream.read().splitlines()
+    total = int(metadata[0])
+    covered = set(map(int, metadata[1].split(","))) if len(metadata) > 1 and metadata[1] else set()
+    logger.info("Read BAM job %d: %d reads covering %d variants", job_id, total, len(covered))
+    return [output], total, covered
+
+
 def read_alleles(job_id):
+    if _native_readset_io is not None and os.environ.get("CLAIR3_NATIVE_READS") != "0":
+        return read_alleles_native(job_id)
     source = _read_input._readset_reader
     settings = {
         name[1:]: getattr(source, name)
@@ -263,6 +301,10 @@ def parallel_read(self, chromosome, variants, sample, **kwargs):
     logger.info("Reading %d independent BAM regions with %d workers", len(rows), len(jobs))
     total, covered = 0, set()
     outputs = []
+    if _native_readset_io is not None and os.environ.get("CLAIR3_NATIVE_READS") != "0":
+        with open(os.path.join(os.environ["CLAIR3_PHASE_NATIVE_DIR"], "native-variants.tsv"), "w") as stream:
+            for variant in variants:
+                stream.write(f"{variant.position}\t{variant.reference_allele}\t{variant.alternative_allele}\n")
     with ProcessPoolExecutor(max_workers=len(jobs), mp_context=_context) as pool:
         for reads, count, positions in pool.map(read_alleles, range(len(jobs))):
             total += count

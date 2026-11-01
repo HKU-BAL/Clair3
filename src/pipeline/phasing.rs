@@ -152,6 +152,7 @@ pub fn parallel_phase_command(whatshap: &str, threads: usize, regions: Option<&P
         if !OPTIMIZED_PHASE_CORE.is_empty()
             && let Some(directory) = regions.parent()
         {
+            command.env("CLAIR3_PHASE_NATIVE_DIR", directory);
             let core = directory.join("clair3_whatshap_core.so");
             if fs::write(&core, OPTIMIZED_PHASE_CORE).is_ok() {
                 command.env("CLAIR3_FAST_CORE", core);
