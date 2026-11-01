@@ -6,6 +6,7 @@
 #include <ATen/cpu/vec/vec.h>
 #include <cmath>
 #include <cstdlib>
+#include <vector>
 
 extern "C" void clair3_lstm_prepare(void) {
     setenv("VECLIB_MAXIMUM_THREADS", "1", 0);
@@ -126,6 +127,73 @@ extern "C" int32_t clair3_lstm_forward(
     }
     return 0;
 }
+
+extern "C" int32_t clair3_gemm_conv(
+    const float *input,
+    const float *weights,
+    const float *bias,
+    float *output,
+    float *columns,
+    int32_t batch,
+    int32_t channels,
+    int32_t height,
+    int32_t width,
+    int32_t output_channels,
+    int32_t stride,
+    int32_t padding
+) {
+    if (!input || !weights || !bias || !output || !columns || batch <= 0 || channels <= 0 ||
+        height <= 0 || width <= 0 || output_channels <= 0 || stride <= 0 || padding < 0) {
+        return 1;
+    }
+    clair3_lstm_prepare();
+    const int32_t output_height = (height + 2 * padding - 3) / stride + 1;
+    const int32_t output_width = (width + 2 * padding - 3) / stride + 1;
+    if (output_height <= 0 || output_width <= 0) {
+        return 1;
+    }
+    const size_t rows = static_cast<size_t>(batch) * output_height * output_width;
+    const size_t kernel = static_cast<size_t>(channels) * 9;
+    for (int32_t sample = 0; sample < batch; ++sample) {
+        for (int32_t oy = 0; oy < output_height; ++oy) {
+            for (int32_t ox = 0; ox < output_width; ++ox) {
+                const size_t row = (static_cast<size_t>(sample) * output_height + oy) * output_width + ox;
+                for (int32_t channel = 0; channel < channels; ++channel) {
+                    for (int32_t ky = 0; ky < 3; ++ky) {
+                        const int32_t y = oy * stride + ky - padding;
+                        for (int32_t kx = 0; kx < 3; ++kx) {
+                            const int32_t x = ox * stride + kx - padding;
+                            if (y >= 0 && y < height && x >= 0 && x < width) {
+                                const size_t column = (static_cast<size_t>(channel) * 3 + ky) * 3 + kx;
+                                columns[row * kernel + column] = input[
+                                    (static_cast<size_t>(sample) * channels + channel) * height * width +
+                                    static_cast<size_t>(y) * width + x
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std::vector<float> product(rows * output_channels);
+    cblas_sgemm(
+        CblasRowMajor, CblasNoTrans, CblasTrans, rows, output_channels, kernel,
+        1.0f, columns, kernel, weights, kernel, 0.0f, product.data(), output_channels
+    );
+    const size_t sample_rows = static_cast<size_t>(output_height) * output_width;
+    for (int32_t sample = 0; sample < batch; ++sample) {
+        for (int32_t channel = 0; channel < output_channels; ++channel) {
+            for (size_t row = 0; row < sample_rows; ++row) {
+                const size_t input_row = static_cast<size_t>(sample) * sample_rows + row;
+                const size_t output_row =
+                    (static_cast<size_t>(sample) * output_channels + channel) * sample_rows + row;
+                output[output_row] = product[input_row * output_channels + channel] + bias[channel];
+            }
+        }
+    }
+    return 0;
+}
 #else
 extern "C" void clair3_lstm_prepare(void) {}
 
@@ -138,6 +206,17 @@ extern "C" int32_t clair3_lstm_forward(
     (void)input; (void)input_weights; (void)bias_ih; (void)bias_hh; (void)forward_weights;
     (void)reverse_weights; (void)output; (void)input_gates; (void)hidden_gates;
     (void)states; (void)batch; (void)time; (void)features; (void)hidden;
+    return 1;
+}
+
+extern "C" int32_t clair3_gemm_conv(
+    const float *input, const float *weights, const float *bias, float *output,
+    float *columns, int32_t batch, int32_t channels, int32_t height, int32_t width,
+    int32_t output_channels, int32_t stride, int32_t padding
+) {
+    (void)input; (void)weights; (void)bias; (void)output; (void)columns;
+    (void)batch; (void)channels; (void)height; (void)width; (void)output_channels;
+    (void)stride; (void)padding;
     return 1;
 }
 #endif

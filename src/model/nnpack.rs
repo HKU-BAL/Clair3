@@ -466,6 +466,60 @@ impl NnpConv2D {
         Some(result)
     }
 
+    fn forward_gemm(&self, input: &Tensor, weight: &Tensor, bias: &Tensor) -> Option<Tensor> {
+        if self.stride[0] != self.stride[1] || self.padding[0] != self.padding[1] {
+            return None;
+        }
+        let input_size = input.size();
+        let weight_size = weight.size();
+        let batch = input_size[0];
+        let channels = input_size[1];
+        let output_channels = weight_size[0];
+        let height = (input_size[2] + 2 * self.padding[0] - weight_size[2]) / self.stride[0] + 1;
+        let width = (input_size[3] + 2 * self.padding[1] - weight_size[3]) / self.stride[1] + 1;
+        if height <= 0 || width <= 0 {
+            return None;
+        }
+        let output = Tensor::empty(
+            [batch, output_channels, height, width],
+            (Kind::Float, Device::Cpu),
+        );
+        let mut columns = vec![0_f32; (batch * height * width * channels * 9) as usize];
+        unsafe extern "C" {
+            fn clair3_gemm_conv(
+                input: *const f32,
+                weights: *const f32,
+                bias: *const f32,
+                output: *mut f32,
+                columns: *mut f32,
+                batch: i32,
+                channels: i32,
+                height: i32,
+                width: i32,
+                output_channels: i32,
+                stride: i32,
+                padding: i32,
+            ) -> i32;
+        }
+        let status = unsafe {
+            clair3_gemm_conv(
+                input.data_ptr().cast(),
+                weight.data_ptr().cast(),
+                bias.data_ptr().cast(),
+                output.data_ptr().cast(),
+                columns.as_mut_ptr(),
+                batch as i32,
+                channels as i32,
+                input_size[2] as i32,
+                input_size[3] as i32,
+                output_channels as i32,
+                self.stride[0] as i32,
+                self.padding[0] as i32,
+            )
+        };
+        (status == 0).then_some(output)
+    }
+
     pub fn forward(&self, input: &Tensor) -> Option<Tensor> {
         if input.device() != Device::Cpu
             || input.kind() != Kind::Float
@@ -489,6 +543,11 @@ impl NnpConv2D {
             || weight_size[2..] != [3, 3]
         {
             return None;
+        }
+        if !std::env::var_os("CLAIR3_CONV_GEMM").is_some_and(|value| value == "0")
+            && let Some(output) = self.forward_gemm(&input, &weight, &bias)
+        {
+            return Some(output);
         }
         self.forward_spatial(api, &input, &weight, &bias)
     }
@@ -529,5 +588,69 @@ mod tests {
                 assert!(maximum <= tolerance, "maximum error {maximum}");
             }
         }
+    }
+
+    #[test]
+    fn direct_gemm_convolution_matches_the_standard_backend() {
+        let store = nn::VarStore::new(Device::Cpu);
+        for stride in [[2, 2], [1, 1]] {
+            let layer =
+                super::super::layers::conv2d(&store.root(), 8, 64, [3, 3], stride, [1, 1], 1, true);
+            let cached = NnpConv2D::new(layer, stride, [1, 1]);
+            let input = Tensor::randn([16, 8, 55, 33], (Kind::Float, Device::Cpu));
+            let expected = cached.layer.forward(&input);
+            let weight = cached.layer.ws.contiguous();
+            let bias = cached.layer.bs.as_ref().unwrap().contiguous();
+            let Some(actual) = cached.forward_gemm(&input, &weight, &bias) else {
+                return;
+            };
+            let difference = (actual - expected).abs().max().double_value(&[]);
+            eprintln!("stride {stride:?}, direct GEMM maximum difference {difference}");
+            assert!(difference <= 0.0002);
+        }
+    }
+
+    #[test]
+    fn direct_gemm_handles_a_single_channel() {
+        let store = nn::VarStore::new(Device::Cpu);
+        let layer =
+            super::super::layers::conv2d(&store.root(), 1, 1, [3, 3], [2, 2], [1, 1], 1, false);
+        let cached = NnpConv2D::new(layer, [2, 2], [1, 1]);
+        tch::no_grad(|| {
+            let _ = cached.layer.ws.shallow_clone().fill_(1.0);
+        });
+        let input = Tensor::ones([1, 1, 5, 5], (Kind::Float, Device::Cpu));
+        let expected = cached.layer.forward(&input);
+        let weight = cached.layer.ws.contiguous();
+        let bias = Tensor::zeros([1], (Kind::Float, Device::Cpu));
+        let actual = cached.forward_gemm(&input, &weight, &bias).unwrap();
+        eprintln!(
+            "expected {:?}, actual {:?}",
+            Vec::<f32>::try_from(expected.flatten(0, -1)),
+            Vec::<f32>::try_from(actual.flatten(0, -1))
+        );
+        let difference = (actual - expected).abs().max().double_value(&[]);
+        assert!(difference <= 0.0002);
+    }
+
+    #[test]
+    fn direct_gemm_handles_multiple_channels() {
+        let store = nn::VarStore::new(Device::Cpu);
+        let layer =
+            super::super::layers::conv2d(&store.root(), 2, 2, [3, 3], [2, 2], [1, 1], 1, false);
+        let cached = NnpConv2D::new(layer, [2, 2], [1, 1]);
+        let input = Tensor::from_slice(&(1..=36).map(|value| value as f32).collect::<Vec<_>>())
+            .reshape([2, 2, 3, 3]);
+        let expected = cached.layer.forward(&input);
+        let weight = cached.layer.ws.contiguous();
+        let bias = Tensor::zeros([2], (Kind::Float, Device::Cpu));
+        let actual = cached.forward_gemm(&input, &weight, &bias).unwrap();
+        eprintln!(
+            "expected {:?}\nactual {:?}",
+            Vec::<f32>::try_from(expected.flatten(0, -1)),
+            Vec::<f32>::try_from(actual.flatten(0, -1))
+        );
+        let difference = (actual - expected).abs().max().double_value(&[]);
+        assert!(difference <= 0.0002);
     }
 }
