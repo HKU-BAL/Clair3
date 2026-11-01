@@ -5,13 +5,22 @@ PREFIX ?= /usr/local
 LIBTORCH ?=
 LONGPHASE_CC ?= $(CC)
 LONGPHASE_CXX ?= $(CXX)
+PYTHON ?= python3
 
-.PHONY: all clair3 longphase models install clean
-all: clair3 longphase
+.PHONY: all clair3 longphase python_tools models install clean
+all: clair3 longphase python_tools
 
-clair3:
+python_tools:
+	$(PYTHON) -m pip install --no-cache-dir whatshap==2.8
+	@if [ "$(OS)" = "Darwin" ] && [ -z "$(LIBTORCH)" ]; then \
+		$(PYTHON) -m pip install --no-cache-dir torch==2.13.0; \
+	fi
+
+clair3: python_tools
 	@if [ -n "$(LIBTORCH)" ]; then \
 		LIBTORCH="$(LIBTORCH)" $(CARGO) build --release --locked; \
+	elif [ "$(OS)" = "Darwin" ]; then \
+		LIBTORCH_USE_PYTORCH=1 PYTHON="$(PYTHON)" $(CARGO) build --release --locked; \
 	else \
 		$(CARGO) build --release --locked; \
 	fi
@@ -19,6 +28,8 @@ clair3:
 	cp target/release/clair3 $(PREFIX)/bin/clair3
 	@if [ -n "$(LIBTORCH)" ]; then \
 		src="$(LIBTORCH)/lib"; \
+	elif [ "$(OS)" = "Darwin" ]; then \
+		src=$$($(PYTHON) -c 'from torch.utils import cpp_extension; print(cpp_extension.library_paths()[0])'); \
 	else \
 		src=$$(find target/release/build -path '*/out/libtorch/libtorch/lib' -type d | sort | tail -n 1); \
 	fi; \

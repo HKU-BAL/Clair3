@@ -5,8 +5,6 @@ pub mod cpu_pileup;
 pub mod gvcf;
 pub mod merge;
 pub mod metrics;
-pub mod phase_reads;
-pub mod phasing;
 pub mod postprocess;
 pub mod run;
 pub mod select;

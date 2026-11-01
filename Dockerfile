@@ -14,7 +14,6 @@ WORKDIR /opt/clair3-src
 COPY Cargo.toml Cargo.lock build.rs ./
 COPY src ./src
 COPY csrc ./csrc
-COPY third_party ./third_party
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/opt/clair3-src/target \
     cargo build --release --locked
@@ -22,7 +21,9 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl wget libgomp1 libstdc++6 samtools tabix zstd lz4 \
-    && rm -rf /var/lib/apt/lists/*
+    python3 python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m pip install --no-cache-dir --break-system-packages whatshap==2.8
 COPY --from=build /opt/libtorch/lib /opt/clair3/lib/clair3
 COPY --from=build /opt/clair3-src/target/release/clair3 /opt/clair3/bin/clair3
 COPY run_clair3.sh run_clair3.py clair3.py /opt/clair3/

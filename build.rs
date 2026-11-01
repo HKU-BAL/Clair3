@@ -69,15 +69,9 @@ fn prepare_gloo() -> (PathBuf, PathBuf) {
         return (include, library);
     }
     let out = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
-    let manifest = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("manifest directory"));
-    let vendored = manifest.join("third_party/gloo");
-    let source = if vendored.join("gloo/algorithm.h").is_file() {
-        vendored
-    } else {
-        out.join("gloo-src")
-    };
+    let source = out.join("gloo-src");
     if !source.join("gloo/algorithm.h").is_file() {
-        let archive = out.join("gloo-master.tar.gz");
+        let archive = out.join("gloo.tar.gz");
         if !archive.is_file() {
             execute(
                 Command::new("curl")
@@ -86,7 +80,7 @@ fn prepare_gloo() -> (PathBuf, PathBuf) {
                     .arg("3")
                     .arg("-o")
                     .arg(&archive)
-                    .arg("https://github.com/pytorch/gloo/archive/refs/heads/master.tar.gz"),
+                    .arg("https://github.com/pytorch/gloo/archive/bcd1672ee07538123ea8f4fac76832efc58fb8ef.tar.gz"),
             );
         }
         execute(
@@ -96,7 +90,7 @@ fn prepare_gloo() -> (PathBuf, PathBuf) {
                 .arg("-C")
                 .arg(&out),
         );
-        let extracted = out.join("gloo-master");
+        let extracted = out.join("gloo-bcd1672ee07538123ea8f4fac76832efc58fb8ef");
         if extracted.is_dir() {
             fs::rename(extracted, &source).expect("failed to prepare Gloo sources");
         }
@@ -168,141 +162,8 @@ fn downloaded_libtorch() -> Option<PathBuf> {
     candidates.pop()
 }
 
-fn prepare_phase_core() -> Option<PathBuf> {
-    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "windows") {
-        return None;
-    }
-    let manifest = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR")?);
-    let root = manifest.join("third_party/whatshap");
-    let python = env::var("PYTHON").unwrap_or_else(|_| "python3".to_string());
-    let output = Command::new(python)
-        .arg("-c")
-        .arg("import sysconfig; print(sysconfig.get_paths()['include']); print(sysconfig.get_config_var('EXT_SUFFIX'))")
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let output = String::from_utf8(output.stdout).ok()?;
-    let mut lines = output.lines();
-    let include = PathBuf::from(lines.next()?);
-    if !include.join("Python.h").is_file() {
-        return None;
-    }
-    let suffix = lines.next().unwrap_or(".so");
-    let sources = [
-        "whatshap/core.cpp",
-        "src/pedigree.cpp",
-        "src/pedigreedptable.cpp",
-        "src/pedigreecolumncostcomputer.cpp",
-        "src/columnindexingiterator.cpp",
-        "src/columnindexingscheme.cpp",
-        "src/entry.cpp",
-        "src/graycodes.cpp",
-        "src/read.cpp",
-        "src/readset.cpp",
-        "src/columniterator.cpp",
-        "src/indexset.cpp",
-        "src/genotype.cpp",
-        "src/binomial.cpp",
-        "src/pedmecheuristic.cpp",
-        "src/multinomial.cpp",
-        "src/pedigreepartitions.cpp",
-        "src/phredgenotypelikelihoods.cpp",
-        "src/genotyper.cpp",
-        "src/genotypedistribution.cpp",
-        "src/genotypedptable.cpp",
-        "src/genotypecolumncostcomputer.cpp",
-        "src/backwardcolumniterator.cpp",
-        "src/transitionprobabilitycomputer.cpp",
-        "src/hapchat/basictypes.cpp",
-        "src/hapchat/balancedcombinations.cpp",
-        "src/hapchat/binomialcoefficient.cpp",
-        "src/hapchat/hapchatcore.cpp",
-        "src/hapchat/hapchatcolumniterator.cpp",
-        "src/polyphase/allelematrix.cpp",
-        "src/polyphase/clustereditingsolution.cpp",
-        "src/polyphase/clustereditingsolver.cpp",
-        "src/polyphase/edgeheap.cpp",
-        "src/polyphase/inducedcostheuristic.cpp",
-        "src/polyphase/staticsparsegraph.cpp",
-        "src/polyphase/trianglesparsematrix.cpp",
-        "src/polyphase/readscoring.cpp",
-        "src/polyphase/haplothreader.cpp",
-        "src/polyphase/tupleconverter.cpp",
-        "src/caller.cpp",
-    ];
-    let compiler = cc::Build::new().cpp(true).get_compiler();
-    let mut command = Command::new(compiler.path());
-    command
-        .args(compiler.args())
-        .arg("-std=c++11")
-        .arg("-O3")
-        .arg("-fPIC")
-        .arg("-shared")
-        .arg("-I")
-        .arg(root.join("src"))
-        .arg("-I")
-        .arg(include);
-    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos") {
-        command.arg("-undefined").arg("dynamic_lookup");
-    }
-    command.args(sources.map(|source| root.join(source)));
-    let output = PathBuf::from(env::var_os("OUT_DIR")?).join(format!("whatshap_core{suffix}"));
-    command.arg("-o").arg(&output);
-    execute(&mut command);
-    Some(output)
-}
-
-fn prepare_readselector() -> Option<PathBuf> {
-    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "windows") {
-        return None;
-    }
-    let manifest = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR")?);
-    let root = manifest.join("third_party/whatshap");
-    let python = env::var("PYTHON").unwrap_or_else(|_| "python3".to_string());
-    let output = Command::new(python)
-        .arg("-c")
-        .arg("import sysconfig; print(sysconfig.get_paths()['include']); print(sysconfig.get_config_var('EXT_SUFFIX'))")
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let output = String::from_utf8(output.stdout).ok()?;
-    let mut lines = output.lines();
-    let include = PathBuf::from(lines.next()?);
-    if !include.join("Python.h").is_file() {
-        return None;
-    }
-    let suffix = lines.next().unwrap_or(".so");
-    let compiler = cc::Build::new().cpp(true).get_compiler();
-    let mut command = Command::new(compiler.path());
-    command
-        .args(compiler.args())
-        .arg("-std=c++11")
-        .arg("-O3")
-        .arg("-fPIC")
-        .arg("-shared")
-        .arg("-I")
-        .arg(root.join("src"))
-        .arg("-I")
-        .arg(include);
-    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos") {
-        command.arg("-undefined").arg("dynamic_lookup");
-    }
-    let output = PathBuf::from(env::var_os("OUT_DIR")?).join(format!("clair3_readselect{suffix}"));
-    command
-        .arg(root.join("fast_readselect.cpp"))
-        .arg("-o")
-        .arg(&output);
-    execute(&mut command);
-    Some(output)
-}
-
 fn main() {
     println!("cargo:rerun-if-changed=csrc/torch_bridge.cpp");
-    println!("cargo:rerun-if-changed=third_party/whatshap");
     println!("cargo:rerun-if-changed=csrc/sampling_compat.cpp");
     for name in [
         "LIBTORCH",
@@ -315,22 +176,6 @@ fn main() {
     ] {
         println!("cargo:rerun-if-env-changed={name}");
     }
-    let phase_core = prepare_phase_core().unwrap_or_else(|| {
-        let path = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR")).join("whatshap_core.so");
-        fs::write(&path, []).expect("failed to prepare the fallback phase-core marker");
-        path
-    });
-    println!("cargo:rustc-env=CLAIR3_PHASE_CORE={}", phase_core.display());
-    let read_selector = prepare_readselector().unwrap_or_else(|| {
-        let path =
-            PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR")).join("clair3_readselect.so");
-        fs::write(&path, b"").expect("failed to prepare the fallback selector marker");
-        path
-    });
-    println!(
-        "cargo:rustc-env=CLAIR3_READSELECT={}",
-        read_selector.display()
-    );
     println!("cargo:rerun-if-changed=csrc/native_lstm.cpp");
     if env::var_os("CARGO_FEATURE_DISTRIBUTED").is_none() {
         return;

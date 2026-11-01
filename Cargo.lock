@@ -1846,6 +1846,8 @@ dependencies = [
 [[package]]
 name = "torch-sys"
 version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ae60ab95333c42adcc1a9e74057357e4324a1f344c403e48712a144ab731019"
 dependencies = [
  "anyhow",
  "cc",

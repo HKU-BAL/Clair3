@@ -52,7 +52,7 @@ Install Clair3 following [Installation - Option 1](https://github.com/HKU-BAL/Cl
 
 **Step 1. Native Illumina realignment**
 
-Realignment is built into Clair3; no Boost installation or C++ compilation is required. These examples use `--no_phasing_for_fa` because WhatsHap is not bundled. Supply an external WhatsHap executable with `--whatshap` if you need phased full-alignment input.
+Realignment is built into Clair3; no Boost installation or C++ compilation is required. These examples use `--no_phasing_for_fa` for a simpler self-contained run. Supply the installed upstream WhatsHap executable with `--whatshap` if you need phased full-alignment input.
 
 **Step 2. Run Clair3**
 

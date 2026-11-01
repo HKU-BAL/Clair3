@@ -1,6 +1,6 @@
 # Clair3 GPU quick start guide
 
-Clair3 supports CUDA for calling and training on Linux, and Metal Performance Shaders (MPS) for calling on Apple Silicon. The implementation is native Rust; Python and TensorFlow are not required.
+Clair3 supports CUDA for calling and training on Linux, and Metal Performance Shaders (MPS) for calling on Apple Silicon. The implementation is native Rust; core calling and training do not require Python or TensorFlow. WhatsHap phasing uses Python 3 and the unmodified upstream `whatshap==2.8` package.
 
 ## NVIDIA Docker
 
@@ -36,7 +36,7 @@ docker run -it --gpus all \
   --output=${OUTPUT_DIR}
 ```
 
-The image contains the Rust executable, LibTorch, Gloo, and LongPhase. It does not install Python, PyPy, or TensorFlow.
+The image contains the Rust executable, LibTorch, Gloo, LongPhase, and the unmodified upstream WhatsHap 2.8 Python package. PyPy and TensorFlow are not installed.
 
 ## Build locally on Linux
 
@@ -63,12 +63,13 @@ clair3 run \
 
 ## Apple Silicon
 
-Install Rust, CMake, a C++20-capable C/C++ compiler, and samtools. The default native build downloads the CPU/MPS LibTorch distribution; no Python installation is required. The downloaded Apple Silicon wheel requires macOS 14 or newer. Intel Macs need a compatible local LibTorch through `LIBTORCH`, because official PyTorch 2.13 macOS wheels are ARM64-only:
+Install Rust, CMake, a C++20-capable C/C++ compiler, Python 3, pip, and samtools. `make python_tools` installs the official PyTorch 2.13 and WhatsHap 2.8 distributions without local modifications. The build uses the upstream `LIBTORCH_USE_PYTORCH=1` path. The Apple Silicon wheel requires macOS 14 or newer. Intel Macs need a compatible local LibTorch through `LIBTORCH`, because official PyTorch 2.13 macOS wheels are ARM64-only:
 
 ```bash
 git clone https://github.com/HKU-BAL/Clair3.git
 cd Clair3
-cargo build --release --locked
+make python_tools
+LIBTORCH_USE_PYTORCH=1 cargo build --release --locked
 
 clair3 run \
   --bam_fn=input.bam \
@@ -95,4 +96,4 @@ RANK=1 WORLD_SIZE=2 LOCAL_RANK=1 MASTER_ADDR=127.0.0.1 MASTER_PORT=29500 \
   clair3 Train --bin_fn /path/to/bins --ochk_prefix /path/to/output/pileup --pileup --use_gpu
 ```
 
-Use an appropriate GPU index and distributed backend for the target system. Gloo is vendored and built automatically by the default feature set.
+Use an appropriate GPU index and distributed backend for the target system. Gloo is downloaded from pinned upstream commit `bcd1672ee07538123ea8f4fac76832efc58fb8ef` and built automatically by the default feature set, without source patches.

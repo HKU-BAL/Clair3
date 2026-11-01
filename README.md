@@ -63,7 +63,7 @@ For somatic variant calling using **tumor-only** samples, please try [ClairS-TO]
 ----
 
 ## Latest Updates
-*v2.0.0 (Feb 9, 2026)* : **A preprint describing the performance of Clair3 v2 is available at [bioRxiv](https://www.biorxiv.org/content/10.64898/2026.02.13.705285v1)** 1. Shifted the deep learning framework from TensorFlow to PyTorch (Caveat: all v1 tensorflow models are incompatible with v2, including those tensorflow models provided in rerio by ONT, we are working with ONT to provide also pytorch models for use with v2, stay tuned. Considering that ONT models are fine-tuned and perform consistently better than the HKU baseline models, please wait until ONT provide v2 models before upgrading to v2.). 2. ONT model now supports signal-aware variant calling using Dorado move tables. Use `--enable_dwell_time` for BAM files with `mv` tags (requires Dorado with `--emit-moves`). See [Dwelling Time Feature](docs/dwelling_time.md) for details. 3. Reimplemented the `run_clair3.sh` workflow in Rust, with shell-compatible launchers and no Python runtime dependency. 4. Model checkpoint format changed from TensorFlow (`.index`/`.data`) to PyTorch (`.pt`). Pre-trained PyTorch models are available for download.
+*v2.0.0 (Feb 9, 2026)* : **A preprint describing the performance of Clair3 v2 is available at [bioRxiv](https://www.biorxiv.org/content/10.64898/2026.02.13.705285v1)** 1. Shifted the deep learning framework from TensorFlow to PyTorch (Caveat: all v1 tensorflow models are incompatible with v2, including those tensorflow models provided in rerio by ONT, we are working with ONT to provide also pytorch models for use with v2, stay tuned. Considering that ONT models are fine-tuned and perform consistently better than the HKU baseline models, please wait until ONT provide v2 models before upgrading to v2.). 2. ONT model now supports signal-aware variant calling using Dorado move tables. Use `--enable_dwell_time` for BAM files with `mv` tags (requires Dorado with `--emit-moves`). See [Dwelling Time Feature](docs/dwelling_time.md) for details. 3. Reimplemented the `run_clair3.sh` workflow in Rust, with shell-compatible launchers; core calling and training do not require Python. 4. Model checkpoint format changed from TensorFlow (`.index`/`.data`) to PyTorch (`.pt`). Pre-trained PyTorch models are available for download.
 
 *v1.2.0 (Aug 1, 2025)* : 1. Clair3 now natively supports GPU on Linux and Apple Silicon. Please refer to the  [GPU quick start guide](docs/gpu_quick_start.md) for usage. Clair3 on GPU runs ~5 times compared CPU. Below is quick speed comparison. 
 
@@ -208,6 +208,8 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 
 ## Installation
 
+For the Rust implementation history, optimization milestones, rejected experiments, dependency policy, and measured output comparisons, see the [Rust optimization and verification report](docs/rust_optimization.md).
+
 Clair3 v2.0 uses **PyTorch** as its deep learning framework. For GPU-accelerated calling on Linux and Apple macOS (M1/M2/M3 chips), please refer to the [GPU quick start guide](docs/gpu_quick_start.md).
 
 > **Important**: CPU and GPU implementations are provided as separate Dockerfiles. Use `Dockerfile.gpu` for NVIDIA CUDA acceleration, or build locally with the `cuda` feature. Apple Silicon uses the `mps` device.
@@ -216,7 +218,7 @@ Clair3 v2.0 uses **PyTorch** as its deep learning framework. For GPU-accelerated
 
 Install Mamba or Conda on your machine from [miniforge](https://github.com/conda-forge/miniforge). We recommend using Mamba because it is much faster than Conda.
 
-Clair3's calling, tensor generation, training, checkpoint conversion, and metrics are implemented in Rust. **The Rust pipeline does not require Python, PyPy, or TensorFlow.** The native build links LibTorch and HTSlib directly and reads training HDF5 files without h5py. Samtools, bgzip, and tabix are used as external command-line tools. WhatsHap is optional: ONT and HiFi use LongPhase when WhatsHap is unavailable. With WhatsHap 2.8 or later, its Python interpreter runs independent allele-detection and phasing blocks in parallel; earlier versions use the original serial phasing path. On supported Unix systems with Python development headers, the build also bundles an optimized WhatsHap 2.8 core compiled from generated C++ sources; no Cython installation is needed. Other WhatsHap versions and systems without those headers retain the installed phasing implementation. Illumina phasing uses WhatsHap, or can be disabled with `--no_phasing_for_fa`.
+Clair3's calling, tensor generation, training, checkpoint conversion, and metrics are implemented in Rust. **Core calling and training do not require Python, PyPy, or TensorFlow.** The native build links LibTorch and HTSlib directly and reads training HDF5 files without h5py. Samtools, bgzip, and tabix are external command-line tools. WhatsHap phasing uses Python 3 and the unmodified upstream `whatshap==2.8` package, installed automatically by `make python_tools` and both Dockerfiles. ONT and HiFi fall back to LongPhase when WhatsHap is unavailable. Illumina phasing uses WhatsHap, or can be disabled with `--no_phasing_for_fa`.
 
 **Step 1: Install native build tools**
 
@@ -229,6 +231,8 @@ rustup default 1.88.0
 mamba create -n clair3_v2 \
   -c conda-forge \
   -c bioconda \
+  python=3.11 \
+  pip \
   samtools \
   longphase \
   zstd \
@@ -241,7 +245,7 @@ mamba create -n clair3_v2 \
 mamba activate clair3_v2
 ```
 
-LibTorch is downloaded automatically by the Rust build when `LIBTORCH` is not set. To use an existing LibTorch installation instead, set `LIBTORCH` to its root directory (containing `include` and `lib`), with the complete ATen C++ headers and libraries. If the distribution uses the old C++ ABI, also set `LIBTORCH_CXX11_ABI=0`.
+On Linux, LibTorch is downloaded automatically by the Rust build when `LIBTORCH` is not set. On macOS, `make` installs the official PyTorch 2.13 wheel with pip and uses the upstream `LIBTORCH_USE_PYTORCH=1` build path. To use an existing LibTorch installation instead, set `LIBTORCH` to its root directory (containing `include` and `lib`), with the complete ATen C++ headers and libraries. If the distribution uses the old C++ ABI, also set `LIBTORCH_CXX11_ABI=0`. Intel Macs need a compatible local installation because official PyTorch 2.13 macOS wheels are ARM64-only.
 
 Building LongPhase from source on macOS requires a compiler with OpenMP support; Apple Clang alone is insufficient. Install an OpenMP-capable GCC toolchain and, if necessary, select it explicitly with `make LONGPHASE_CC=gcc-15 LONGPHASE_CXX=g++-15`. A Conda-provided LongPhase can also be used directly.
 
@@ -253,14 +257,14 @@ git clone https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 export CLAIR3_PATH=$(pwd)
 
-# Build the native executable and LongPhase.
+# Install upstream tools, then build the native executable and LongPhase.
 make PREFIX=${CONDA_PREFIX}
 
 # Alternatively, use an existing LibTorch installation.
 # make PREFIX=${CONDA_PREFIX} LIBTORCH=/path/to/libtorch
 ```
 
-The executable is installed as `${CONDA_PREFIX}/bin/clair3`; LibTorch libraries are installed under `${CONDA_PREFIX}/lib/clair3`. Gloo is vendored and built automatically for distributed training. No Python packages are needed.
+The executable is installed as `${CONDA_PREFIX}/bin/clair3`; LibTorch libraries are installed under `${CONDA_PREFIX}/lib/clair3`. Gloo is downloaded from the pinned upstream commit during the build, and `torch-sys` comes from crates.io. No third-party source patches or vendored dependency copies are used. Python packages are installed from their official upstream distributions without local modifications.
 
 Legacy TensorFlow checkpoint conversion is included in the default native build; use `clair3 ConvertCheckpoint`. Full-alignment conversion also requires `--add_indel_length` to include the production indel-length model features.
 
@@ -634,11 +638,11 @@ Path | Purpose
 `src/model/` | Native pileup, full-alignment, and Bloom model architectures.
 `src/train/` | Training, HDF5 archives, TensorFlow checkpoint conversion, and distributed execution.
 `csrc/` | Small C++ bridge for LibTorch and C10d.
-`third_party/gloo/` | Vendored Gloo sources for distributed training.
-`third_party/torch-sys/` | Vendored tch-rs build support with current macOS LibTorch wheel selection.
+`build.rs` | Download and build the pinned upstream Gloo source for distributed training.
+`Cargo.toml`, `Cargo.lock` | Native dependencies resolved from crates.io without source patches.
 `tests/` | Unit, integration, and differential parity tests.
 
-Run `clair3 --help` or `clair3 <command> --help` for command options. `run_clair3.sh` and `run_clair3.py` are shell launchers for the standard workflow; `clair3.py` is a shell launcher for individual commands. Python and PyPy are not required.
+Run `clair3 --help` or `clair3 <command> --help` for command options. `run_clair3.sh` and `run_clair3.py` are shell launchers for the standard workflow; `clair3.py` is a shell launcher for individual commands. Python and PyPy are not required to execute these launchers; Python 3 is required only when using WhatsHap or the macOS PyTorch-wheel build path.
 
 ----
 
