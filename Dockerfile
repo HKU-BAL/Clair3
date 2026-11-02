@@ -47,7 +47,7 @@ RUN if [ "${TARGETARCH}" = "arm64" ]; then \
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl wget libgomp1 libstdc++6 samtools tabix zstd lz4 \
-    build-essential python3-dev python3-pip \
+    build-essential python3-dev python3-pip parallel \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m pip install --no-cache-dir --break-system-packages whatshap==2.8
 COPY --from=build /opt/clair3-libs /opt/clair3/lib/clair3

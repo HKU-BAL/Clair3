@@ -47,7 +47,7 @@ RUN --mount=type=cache,target=/root/.cargo/registry \
 FROM nvidia/cuda:12.9.1-cudnn-runtime-ubuntu22.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl wget libgomp1 libstdc++6 samtools tabix zstd lz4 xz-utils \
-    python3 python3-pip cuda-cupti-12-9 \
+    python3 python3-pip parallel cuda-cupti-12-9 \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m pip install --no-cache-dir whatshap==2.8
 COPY --from=build /opt/clair3-libs /opt/clair3/lib/clair3

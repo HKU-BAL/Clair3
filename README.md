@@ -191,6 +191,7 @@ We have also added the latest version of ONT-provided models in Docker and Bioco
 ## Quick Demo
 
 *   Clair3-Rust installation checks and a small end-to-end fixture, see [Quick-testing Clair3-Rust](docs/rust_quick_test.md).
+*   For the bounded native model-training workflow, see [Quick model training](docs/rust_quick_test.md#7-quick-model-training-workflow) and `scripts/run_quick_train_chr21.sh`.
 *   Oxford Nanopore (ONT) data with dwelling time feature, see [ONT Dwelling Time Quick Demo](docs/quick_demo/ont_mv_quick_demo.md).
 *   Oxford Nanopore (ONT) data, see [ONT Quick Demo](docs/quick_demo/ont_quick_demo.md).
 *   PacBio HiFi data, see [PacBio HiFi Quick Demo](docs/quick_demo/pacbio_hifi_quick_demo.md).
@@ -246,6 +247,7 @@ mamba create -n clair3_v2 \
   make \
   clang \
   curl \
+  parallel \
   -y
 mamba activate clair3_v2
 ```

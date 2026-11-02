@@ -48,7 +48,10 @@ enum Commands {
     CreateTensorPileup(CallVarBamArgs),
     #[command(name = "CreateTensorFullAlignment")]
     CreateTensorFullAlignment(CallVarBamArgs),
-    #[command(name = "CreateTrainingTensor")]
+    #[command(
+        name = "CreateTrainingTensor",
+        visible_alias = "CreateTrainingTensorDirect"
+    )]
     CreateTrainingTensor(TrainingTensorArgs),
     #[command(name = "GetTruth")]
     GetTruth(crate::pipeline::training::GetTruthArgs),
@@ -232,6 +235,14 @@ fn empty_path(value: &str) -> Option<PathBuf> {
     (value != "EMPTY" && !value.is_empty()).then(|| PathBuf::from(value))
 }
 
+fn parse_bool(value: &str) -> std::result::Result<bool, String> {
+    match value.to_ascii_lowercase().as_str() {
+        "true" | "t" | "yes" | "y" | "1" | "on" => Ok(true),
+        "false" | "f" | "no" | "n" | "0" | "off" => Ok(false),
+        _ => Err(format!("expected a boolean value, got '{value}'")),
+    }
+}
+
 impl RunArgs {
     fn options(&self) -> Result<RunOptions> {
         let _ = (
@@ -324,7 +335,7 @@ struct CallVarBamArgs {
     #[arg(long = "ref_fn")]
     reference: PathBuf,
     #[arg(long = "call_fn")]
-    output: Option<PathBuf>,
+    call_output: Option<PathBuf>,
     #[arg(long = "ctgName")]
     contig: String,
     #[arg(long = "ctgStart")]
@@ -418,7 +429,7 @@ fn call_config(args: &CallVarBamArgs) -> Result<CallConfig> {
         args.contig.clone(),
         args.common.platform,
     );
-    config.output = args.output.clone();
+    config.output = args.call_output.clone();
     config.sample_name = args.sample_name.clone();
     config.start = args.start;
     config.end = args.end;
@@ -831,38 +842,86 @@ fn select_qual(args: SelectQualArgs) -> Result<()> {
 #[command(rename_all = "snake_case")]
 struct SelectHetSnpArgs {
     #[arg(long = "vcf_fn")]
-    vcf: PathBuf,
+    vcf: Option<PathBuf>,
+    #[arg(long = "alt_fn")]
+    alternative: Option<PathBuf>,
+    #[arg(long = "all_alt_fn")]
+    all_alt: Option<PathBuf>,
     #[arg(long = "split_folder")]
     output: PathBuf,
     #[arg(long = "ctgName")]
     contig: String,
     #[arg(long, default_value_t = 0.3)]
     var_pct_full: f64,
+    #[arg(long)]
+    ref_pct_full: Option<f64>,
     #[arg(long = "qual_fn")]
     qual_name: Option<String>,
+    #[arg(long = "sampleName", default_value = "")]
+    sample_name: String,
+    #[arg(long, default_value_t = 1000)]
+    depth: usize,
+    #[arg(long)]
+    chunk_num: Option<usize>,
+    #[arg(long, default_value_t = 1000)]
+    split_bed_size: usize,
+    #[arg(long, default_value_t = false)]
+    phasing_info_in_bam: bool,
+    #[arg(long)]
+    realign_window_size: Option<i64>,
+    #[arg(long, default_value = "chr")]
+    chr_prefix: String,
+    #[arg(long, action = ArgAction::SetFalse, default_value_t = true)]
+    phase: bool,
 }
 
 fn select_het(args: SelectHetSnpArgs) -> Result<()> {
-    let file = read_vcf(&args.vcf)?;
-    let qual_path = args
-        .output
-        .join(args.qual_name.unwrap_or_else(|| "phase_qual".to_string()));
-    let cutoff = if qual_path.exists() {
-        Some(fs::read_to_string(&qual_path)?.trim().parse::<f64>()?)
-    } else {
-        None
-    };
-    let selected = select_het_snp(&file.records, &args.contig, args.var_pct_full, cutoff);
-    fs::create_dir_all(&args.output)?;
-    let mut writer = std::io::BufWriter::new(fs::File::create(
-        args.output.join(format!("{}.vcf", args.contig)),
-    )?);
-    writer.write_all(file.header.join("\n").as_bytes())?;
-    writer.write_all(b"\n")?;
-    for record in selected {
-        writeln!(writer, "{}", record.to_line())?;
+    if args.phase {
+        let vcf = args
+            .vcf
+            .as_deref()
+            .context("--vcf_fn is required for phasing selection")?;
+        let file = read_vcf(vcf)?;
+        let qual_path = args
+            .output
+            .join(args.qual_name.unwrap_or_else(|| "phase_qual".to_string()));
+        let cutoff = if qual_path.exists() {
+            Some(fs::read_to_string(&qual_path)?.trim().parse::<f64>()?)
+        } else {
+            None
+        };
+        let selected = select_het_snp(&file.records, &args.contig, args.var_pct_full, cutoff);
+        fs::create_dir_all(&args.output)?;
+        let mut writer = std::io::BufWriter::new(fs::File::create(
+            args.output.join(format!("{}.vcf", args.contig)),
+        )?);
+        writer.write_all(file.header.join("\n").as_bytes())?;
+        writer.write_all(b"\n")?;
+        for record in selected {
+            writeln!(writer, "{}", record.to_line())?;
+        }
+        writer.flush()?;
+        return Ok(());
     }
-    writer.flush()?;
+    let options = crate::pipeline::select::TrainingSelectOptions {
+        var_pct_full: args.var_pct_full,
+        ref_pct_full: args.ref_pct_full,
+        split_bed_size: args.split_bed_size,
+        phasing_info_in_bam: args.phasing_info_in_bam,
+        realign_window_size: args.realign_window_size,
+        chunk_num: args.chunk_num,
+        sample_name: args.sample_name,
+        depth: args.depth,
+        chr_prefix: args.chr_prefix,
+        phased_vcf: args.vcf,
+        all_alt_path: args.all_alt,
+    };
+    crate::pipeline::select::select_training_candidates(
+        args.alternative.as_deref(),
+        &args.output,
+        &args.contig,
+        &options,
+    )?;
     Ok(())
 }
 
@@ -1092,7 +1151,7 @@ struct TrainArgs {
     platform: Platform,
     #[arg(long, default_value_t = false)]
     pileup: bool,
-    #[arg(long, num_args = 0..=1, default_missing_value = "true", default_value_t = false)]
+    #[arg(long, num_args = 0..=1, default_missing_value = "true", default_value_t = false, value_parser = parse_bool)]
     add_indel_length: bool,
     #[arg(long, default_value_t = false)]
     enable_dwell_time: bool,
@@ -1454,4 +1513,51 @@ pub fn run() -> Result<()> {
         arguments.insert(1, "run".into());
     }
     dispatch(Cli::parse_from(arguments))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn direct_training_tensor_alias_is_supported() {
+        let cli = Cli::try_parse_from([
+            "clair3",
+            "CreateTrainingTensorDirect",
+            "--bam_fn",
+            "input.bam",
+            "--ref_fn",
+            "reference.fa",
+            "--ctgName",
+            "chr21",
+            "--var_fn",
+            "truth.var",
+            "--bin_fn",
+            "training.bin",
+        ])
+        .unwrap();
+        assert!(matches!(
+            cli.command,
+            Some(Commands::CreateTrainingTensor(_))
+        ));
+    }
+
+    #[test]
+    fn training_accepts_legacy_boolean_spelling() {
+        let cli = Cli::try_parse_from([
+            "clair3",
+            "Train",
+            "--bin_fn",
+            "bins",
+            "--ochk_prefix",
+            "model",
+            "--add_indel_length",
+            "True",
+        ])
+        .unwrap();
+        match cli.command {
+            Some(Commands::Train(args)) => assert!(args.add_indel_length),
+            _ => panic!("training command was not selected"),
+        }
+    }
 }

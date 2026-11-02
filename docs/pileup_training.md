@@ -268,6 +268,8 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/mergeBin.log -j${THREADS} \
 
 ## III. Model training
 
+On `clair3-rust`, use the installed `clair3` executable or the `clair3.py` compatibility launcher. `--device=cpu` forces CPU training and `--device=cuda:0` explicitly selects the first CUDA device; otherwise, available CUDA is selected automatically. MPS training is not validated. Each epoch writes `<ochk_prefix>.NN.pt`, such as `pileup.01.pt`. `training.log` and `best_val_loss.pt` default to the current directory; `--log_fn` and `--best_checkpoint` can select other paths. Use either `--random_validation` or `--validation_fn` with an independent validation-bin directory, not both. For a complete native smoke workflow, see [Quick-testing Clair3-Rust](rust_quick_test.md#7-quick-model-training-workflow).
+
 We provide two optional training mode:
 
 ​	**Option1**: Train  pileup model using new dataset, in this mode, we will use randomly initialized model weights and train the model until reaches max epochs(30) or converge.

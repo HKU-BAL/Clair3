@@ -12,15 +12,17 @@ pub fn open_text(path: &Path) -> Result<Box<dyn BufRead>> {
         return Ok(Box::new(BufReader::new(io::stdin())));
     }
     let file = File::open(path)?;
-    let reader = BufReader::new(file);
-    match path.extension().and_then(|value| value.to_str()) {
-        Some("gz") | Some("bgz") | Some("bgzf") => {
-            Ok(Box::new(BufReader::new(MultiGzDecoder::new(reader))))
-        }
-        Some("zst") | Some("zstd") => Ok(Box::new(BufReader::new(
-            zstd::stream::read::Decoder::new(reader)?,
-        ))),
-        _ => Ok(Box::new(reader)),
+    let mut reader = BufReader::new(file);
+    let is_gzip = reader.fill_buf()?.starts_with(&[0x1f, 0x8b]);
+    let is_zstd = reader.fill_buf()?.starts_with(&[0x28, 0xb5, 0x2f, 0xfd]);
+    if is_gzip {
+        Ok(Box::new(BufReader::new(MultiGzDecoder::new(reader))))
+    } else if is_zstd {
+        Ok(Box::new(BufReader::new(zstd::stream::read::Decoder::new(
+            reader,
+        )?)))
+    } else {
+        Ok(Box::new(reader))
     }
 }
 
@@ -54,6 +56,17 @@ mod tests {
         let mut lines = read_text_lines(&gzip).unwrap();
         assert_eq!(lines.next().unwrap().unwrap(), "three");
         assert_eq!(lines.next().unwrap().unwrap(), "four");
+
+        let gzip_without_extension = directory.path().join("input-without-extension");
+        let mut encoder = flate2::write::GzEncoder::new(
+            File::create(&gzip_without_extension).unwrap(),
+            flate2::Compression::default(),
+        );
+        encoder.write_all(b"seven\neight\n").unwrap();
+        encoder.finish().unwrap();
+        let mut lines = read_text_lines(&gzip_without_extension).unwrap();
+        assert_eq!(lines.next().unwrap().unwrap(), "seven");
+        assert_eq!(lines.next().unwrap().unwrap(), "eight");
 
         let zstd_path = directory.path().join("input.txt.zst");
         let mut encoder =

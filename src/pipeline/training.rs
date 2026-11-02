@@ -236,7 +236,7 @@ mod tests {
             ),
         )
         .unwrap();
-        let output = directory.path().join("truth.var.gz");
+        let output = directory.path().join("truth.var");
         get_truth(GetTruthArgs {
             vcf,
             output: output.clone(),

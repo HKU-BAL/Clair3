@@ -99,9 +99,9 @@ Native training uses C10d and does not require `torchrun` or Python. Start one p
 
 ```bash
 RANK=0 WORLD_SIZE=2 LOCAL_RANK=0 MASTER_ADDR=127.0.0.1 MASTER_PORT=29500 \
-  clair3 Train --bin_fn /path/to/bins --ochk_prefix /path/to/output/pileup --pileup --use_gpu
+  clair3 Train --bin_fn /path/to/bins --ochk_prefix /path/to/output/pileup --pileup
 RANK=1 WORLD_SIZE=2 LOCAL_RANK=1 MASTER_ADDR=127.0.0.1 MASTER_PORT=29500 \
-  clair3 Train --bin_fn /path/to/bins --ochk_prefix /path/to/output/pileup --pileup --use_gpu
+  clair3 Train --bin_fn /path/to/bins --ochk_prefix /path/to/output/pileup --pileup
 ```
 
-Use an appropriate GPU index and distributed backend for the target system. Gloo is downloaded from pinned upstream commit `bcd1672ee07538123ea8f4fac76832efc58fb8ef` and built automatically by the default feature set, without source patches.
+For single-process training, CUDA is selected when available unless `--device=cpu` is specified; use `--device=cuda:0` to select CUDA explicitly. Distributed mode selects CUDA by local rank. Use an appropriate GPU index and distributed backend for the target system. Gloo is downloaded from pinned upstream commit `bcd1672ee07538123ea8f4fac76832efc58fb8ef` and built automatically by the default feature set, without source patches. MPS is supported for calling, but MPS training has not been validated.

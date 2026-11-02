@@ -434,6 +434,206 @@ pub fn select_candidates(
     Ok(files)
 }
 
+#[derive(Debug, Clone)]
+pub struct TrainingSelectOptions {
+    pub var_pct_full: f64,
+    pub ref_pct_full: Option<f64>,
+    pub split_bed_size: usize,
+    pub phasing_info_in_bam: bool,
+    pub realign_window_size: Option<i64>,
+    pub chunk_num: Option<usize>,
+    pub sample_name: String,
+    pub depth: usize,
+    pub chr_prefix: String,
+    pub phased_vcf: Option<PathBuf>,
+    pub all_alt_path: Option<PathBuf>,
+}
+
+fn write_training_chunk(
+    path: &Path,
+    positions: &[i64],
+    contig: &str,
+    options: &TrainingSelectOptions,
+    phased: &BTreeMap<i64, String>,
+    selected: &BTreeSet<i64>,
+) -> Result<()> {
+    let window = options
+        .realign_window_size
+        .unwrap_or(crate::config::FLANKING_BASES as i64);
+    let mut rows = Vec::new();
+    for position in positions {
+        let start = if options.phasing_info_in_bam {
+            (position - window - 1).max(0)
+        } else {
+            position - window - 1
+        };
+        let end = position + window + i64::from(options.phasing_info_in_bam);
+        rows.push((start, format!("{contig}\t{start}\t{end}")));
+    }
+    if !options.phasing_info_in_bam && !positions.is_empty() {
+        let start = positions[0] - 100000;
+        let end = positions[positions.len() - 1] + 100000;
+        for (position, metadata) in phased.range(start..=end) {
+            if selected.contains(position) {
+                rows.push((
+                    position - 12,
+                    format!(
+                        "{contig}\t{}\t{}\t{}",
+                        position - 12,
+                        position + 10,
+                        metadata
+                    ),
+                ));
+            }
+        }
+    }
+    rows.sort_by_key(|(start, _)| *start);
+    let content = rows
+        .into_iter()
+        .map(|(_, row)| row)
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    fs::write(path, content)?;
+    Ok(())
+}
+
+pub fn select_training_candidates(
+    alternative_vcf: Option<&Path>,
+    output_dir: &Path,
+    contig: &str,
+    options: &TrainingSelectOptions,
+) -> Result<Vec<PathBuf>> {
+    if options.split_bed_size == 0 || options.chunk_num == Some(0) {
+        bail!("training chunk counts and BED size must be positive");
+    }
+    fs::create_dir_all(output_dir)?;
+    let mut phased = BTreeMap::new();
+    if let Some(path) = options.phased_vcf.as_ref().filter(|path| path.exists()) {
+        for record in read_vcf(path)?.records {
+            if record.contig != contig {
+                continue;
+            }
+            let sample = record.samples.first().context("phased VCF has no sample")?;
+            let fields: Vec<_> = sample.split(':').collect();
+            let genotype = fields[0];
+            if !genotype.contains('|') {
+                continue;
+            }
+            phased.insert(
+                record.position,
+                format!(
+                    "{}-{}-{}-{}",
+                    record.reference,
+                    record.alternate,
+                    if genotype == "0|1" { "1" } else { "2" },
+                    fields.last().unwrap()
+                ),
+            );
+        }
+    }
+
+    let mut selected = BTreeSet::new();
+    if let Some(path) = alternative_vcf {
+        let mut references = Vec::new();
+        let mut variants = Vec::new();
+        for record in read_vcf(path)?.records {
+            if record.contig != contig {
+                continue;
+            }
+            let quality = record.quality.parse::<f64>()?;
+            if record.alternate == "." || record.reference == record.alternate {
+                references.push((record.position, quality));
+            } else {
+                variants.push((record.position, quality));
+            }
+        }
+        references.sort_by(|left, right| left.1.total_cmp(&right.1));
+        variants.sort_by(|left, right| left.1.total_cmp(&right.1));
+        let reference_count = (options.ref_pct_full.unwrap_or(options.var_pct_full)
+            * references.len() as f64) as usize;
+        let variant_count = (options.var_pct_full * variants.len() as f64) as usize;
+        let low_references = &references[..reference_count];
+        let low_variants = &variants[..variant_count];
+        println!(
+            "[INFO] {} {} total low qual ref calling to process: {}",
+            options.sample_name,
+            contig,
+            low_references.len()
+        );
+        println!(
+            "[INFO] {} {} total low qual variant calling to process: {}",
+            options.sample_name,
+            contig,
+            low_variants.len()
+        );
+        if options.phasing_info_in_bam {
+            selected.extend(low_references.iter().map(|(position, _)| *position));
+            selected.extend(low_variants.iter().map(|(position, _)| *position));
+        } else {
+            selected.extend(variants.iter().map(|(position, _)| *position));
+            selected.extend(low_references.iter().map(|(position, _)| *position));
+        }
+    } else if let Some(path) = &options.all_alt_path {
+        for line in crate::io::compression::read_text_lines(path)? {
+            let line = line?;
+            if line.starts_with('#') {
+                continue;
+            }
+            let fields: Vec<_> = line.split_whitespace().collect();
+            if fields.len() < 2 || fields[0] != contig {
+                continue;
+            }
+            selected.insert(fields[1].parse()?);
+        }
+    }
+
+    let positions: Vec<i64> = selected.iter().copied().collect();
+    println!(
+        "[INFO] Total candidates need to be processed in {}: {}",
+        contig,
+        positions.len()
+    );
+    let chunks: Vec<&[i64]> = if let Some(chunk_num) = options.chunk_num {
+        let chunk_size = positions.len().div_ceil(chunk_num);
+        (0..chunk_num)
+            .map(|index| {
+                let start = index * chunk_size;
+                if start < positions.len() {
+                    &positions[start..(start + chunk_size).min(positions.len())]
+                } else {
+                    &[]
+                }
+            })
+            .collect()
+    } else {
+        positions.chunks(options.split_bed_size).collect()
+    };
+    let short_contig = contig.strip_prefix(&options.chr_prefix).unwrap_or(contig);
+    let mut files = Vec::new();
+    for (index, chunk) in chunks.into_iter().enumerate() {
+        let path = if options.chunk_num.is_some() {
+            output_dir.join(format!(
+                "{}_{}_{}_{}",
+                options.sample_name,
+                options.depth,
+                short_contig,
+                index + 1
+            ))
+        } else {
+            output_dir.join(format!(
+                "{}.{}_{}",
+                short_contig,
+                chunk[0],
+                chunk[chunk.len() - 1]
+            ))
+        };
+        write_training_chunk(&path, chunk, contig, options, &phased, &selected)?;
+        files.push(path);
+    }
+    Ok(files)
+}
+
 trait SortByQuality: Iterator<Item = (i64, f64)> + Sized {
     fn sorted_by_quality(self) -> std::vec::IntoIter<(i64, f64)> {
         let mut values: Vec<_> = self.collect();
@@ -443,3 +643,88 @@ trait SortByQuality: Iterator<Item = (i64, f64)> + Sized {
 }
 
 impl<T: Iterator<Item = (i64, f64)>> SortByQuality for T {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn options() -> TrainingSelectOptions {
+        TrainingSelectOptions {
+            var_pct_full: 1.0,
+            ref_pct_full: Some(0.5),
+            split_bed_size: 1000,
+            phasing_info_in_bam: true,
+            realign_window_size: None,
+            chunk_num: Some(2),
+            sample_name: "HG002".to_string(),
+            depth: 1000,
+            chr_prefix: "chr".to_string(),
+            phased_vcf: None,
+            all_alt_path: None,
+        }
+    }
+
+    #[test]
+    fn training_selection_matches_chunk_names_and_bed_boundaries() {
+        let directory = tempfile::tempdir().unwrap();
+        let input = directory.path().join("input.vcf");
+        fs::write(
+            &input,
+            "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n\
+chr21\t100\t.\tA\tC\t20\t.\t.\tGT\t0/1\n\
+chr21\t200\t.\tA\tA\t30\t.\t.\tGT\t0/0\n\
+chr21\t300\t.\tG\tT\t10\t.\t.\tGT\t1/1\n\
+chr21\t400\t.\tC\tC\t10\t.\t.\tGT\t0/0\n\
+chr21\t500\t.\tG\tA\t30\t.\t.\tGT\t0/1\n",
+        )
+        .unwrap();
+        let files = select_training_candidates(Some(&input), directory.path(), "chr21", &options())
+            .unwrap();
+        assert_eq!(files.len(), 2);
+        assert_eq!(
+            files,
+            [
+                directory.path().join("HG002_1000_21_1"),
+                directory.path().join("HG002_1000_21_2")
+            ]
+        );
+        assert_eq!(
+            fs::read_to_string(&files[0]).unwrap(),
+            "chr21\t83\t117\nchr21\t283\t317\n"
+        );
+        assert_eq!(
+            fs::read_to_string(&files[1]).unwrap(),
+            "chr21\t383\t417\nchr21\t483\t517\n"
+        );
+    }
+
+    #[test]
+    fn training_selection_preserves_phased_metadata() {
+        let directory = tempfile::tempdir().unwrap();
+        let input = directory.path().join("input.vcf");
+        fs::write(
+            &input,
+            "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n\
+chr21\t100\t.\tA\tC\t20\t.\t.\tGT\t0/1\n",
+        )
+        .unwrap();
+        let phased = directory.path().join("phased.vcf");
+        fs::write(
+            &phased,
+            "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n\
+chr21\t100\t.\tA\tC\t20\t.\t.\tGT:PS\t0|1:7\n",
+        )
+        .unwrap();
+        let mut options = options();
+        options.phasing_info_in_bam = false;
+        options.chunk_num = None;
+        options.phased_vcf = Some(phased);
+        let files =
+            select_training_candidates(Some(&input), directory.path(), "chr21", &options).unwrap();
+        assert_eq!(files, [directory.path().join("21.100_100")]);
+        assert_eq!(
+            fs::read_to_string(&files[0]).unwrap(),
+            "chr21\t83\t116\nchr21\t88\t110\tA-C-1-7\n"
+        );
+    }
+}

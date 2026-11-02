@@ -192,13 +192,15 @@ impl BinWriter {
             file.new_dataset::<i32>()
                 .shape(SimpleExtents::new(matrix_shape))
                 .chunk(chunk_shape(shape))
-                .blosc_lz4hc(5, true)
+                .shuffle()
+                .lzf()
                 .create("position_matrix")?
         } else {
             file.new_dataset::<i8>()
                 .shape(SimpleExtents::new(matrix_shape))
                 .chunk(chunk_shape(shape))
-                .blosc_lz4hc(5, true)
+                .shuffle()
+                .lzf()
                 .create("position_matrix")?
         };
         let labels = if pileup {
@@ -208,7 +210,8 @@ impl BinWriter {
                     Extent::fixed(LABEL_COUNT),
                 ]))
                 .chunk((500, LABEL_COUNT))
-                .blosc_lz4hc(5, true)
+                .shuffle()
+                .lzf()
                 .create("label")?
         } else {
             file.new_dataset::<i8>()
@@ -217,20 +220,23 @@ impl BinWriter {
                     Extent::fixed(LABEL_COUNT),
                 ]))
                 .chunk((500, LABEL_COUNT))
-                .blosc_lz4hc(5, true)
+                .shuffle()
+                .lzf()
                 .create("label")?
         };
         let positions = file
             .new_dataset::<FixedAscii<POSITION_WIDTH>>()
             .shape(SimpleExtents::new([Extent::resizable(0), Extent::fixed(1)]))
             .chunk((500, 1))
-            .blosc_lz4hc(5, true)
+            .shuffle()
+            .lzf()
             .create("position")?;
         let alt_info = file
             .new_dataset::<FixedAscii<ALT_INFO_WIDTH>>()
             .shape(SimpleExtents::new([Extent::resizable(0), Extent::fixed(1)]))
             .chunk((500, 1))
-            .blosc_lz4hc(5, true)
+            .shuffle()
+            .lzf()
             .create("alt_info")?;
         Ok(Self {
             _file: file,

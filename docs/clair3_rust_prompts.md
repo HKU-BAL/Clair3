@@ -1,6 +1,6 @@
 # Clair3-Rust project prompt history
 
-This document records all 34 user-authored prompts from the Clair3-Rust rewrite and optimization session in chronological order. The text inside each block is verbatim. Automated reminders, goal notifications, assistant responses, and tool output are not included.
+This document records all 35 user-authored prompts from the Clair3-Rust rewrite, optimization, and training-validation session in chronological order. The text inside each block is verbatim. Automated reminders, goal notifications, assistant responses, and tool output are not included.
 
 This is a historical request log, not a sequence of commands to execute again. For current installation, testing, implementation policy, and validation results, use [Installing Clair3-Rust](rust_installation.md), [Quick-testing Clair3-Rust](rust_quick_test.md), and the [optimization and verification report](rust_optimization.md).
 
@@ -215,4 +215,10 @@ since cuda is done, please also make sure mac, linux arm64, and linux x86_64 als
 
 ```text
 update all documentations wherever necessary; clean up the code base and remove left-over code. commit a version with all the prompts used in this project so far.
+```
+
+## Prompt 35
+
+```text
+we have tested variant calling, but we have not yet working on model training, [run_quick_train_chr21.sh](kimi-code-composer://attachments/1) is a script for model training that tested working on the original Clair3 on "ssh -p 9001 rbluo@localhost". Please test run model training on all tested platforms and fix mistakes. When done, update the documentation and commit to github.
 ```

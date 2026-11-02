@@ -276,13 +276,42 @@ A direct comparison with `CLAIR3_NATIVE_LSTM=0` on the supplied HiFi benchmark s
 
 ## Documentation and final cleanup verification
 
-The final documentation pass corrects current installation, Docker, GPU, quick-demo, dwell-time, and CLI guidance while retaining historical benchmark tables as historical references. All 25 Markdown files have valid local link targets and balanced code fences. The [project prompt history](clair3_rust_prompts.md) preserves all 34 user-authored prompts verbatim and in chronological order; automated messages and assistant or tool output are excluded.
+The final documentation pass corrects current installation, Docker, GPU, quick-demo, dwell-time, and CLI guidance while retaining historical benchmark tables as historical references. All 25 Markdown files have valid local link targets and balanced code fences. The [project prompt history](clair3_rust_prompts.md) preserves all 35 user-authored prompts verbatim and in chronological order; automated messages and assistant or tool output are excluded.
 
 Code cleanup removed the obsolete `unused_parens` suppression and 14 redundant parenthesized `break` expressions in `src/call/decode.rs`, plus the unreferenced `contains_index` helper in `csrc/fast_readselect.cpp`. No functional expression, model algorithm, compatibility option, fallback, or third-party source changed.
 
 Native macOS formatting, Clippy with warnings treated as errors, and the unfiltered release test suite passed: 59 unit tests passed and one was ignored, with all integration targets passing their applicable tests. The explicit WhatsHap selector serialization regression passed. The phased HiFi fixture produced eight `chrToy` records with exact alleles and genotypes; its comparison correctly excludes the separate `chr:colon` fixture record because the command selects only `chrToy`.
 
 A fresh supplied HG002 chr20 run completed in 62.23 seconds. All 135,180 pileup, 40,494 full-alignment, 94,551 merged, and 33,824 phased records exactly match the current native macOS Rust reference in full record content and ordering. This is a functional cleanup check, not a new optimization milestone or controlled benchmark. Earlier original-Python numerical differences and platform limitations documented above remain unchanged.
+
+## End-to-end model-training validation
+
+The supplied chr21 training workflow was run with `chr21:13000000-14000000`, depths 1000 and 222, representation unification enabled, and one epoch. The originally suggested 1–2 Mb interval has no overlapping truth BED intervals and no reads; the populated 13–14 Mb interval was selected from the supplied data instead. The workflow covers haplotagging, downsampling, representation unification, tensor generation, bin merging, candidate calling, and fine-tuning of both models. `scripts/run_quick_train_chr21.sh` provides a configurable native version without modifying the original script or original Clair3 checkout.
+
+Training-specific fixes:
+- Added the `CreateTrainingTensorDirect` alias and Python/PyPy-compatible `clair3.py` launcher, preserving direct shell execution and `CLAIR3_BIN` selection.
+- Separated the internal Clap IDs for `call_fn` and `bin_fn`, which previously shared `output` and incorrectly required an unrelated output argument.
+- Implemented native training-mode `SelectHetSnp` options, quality selection, contig-prefix handling, chunk filenames, BED intervals, and phased metadata, while retaining the existing phasing-only VCF filter.
+- Detect gzip and Zstandard text input by magic bytes rather than filename suffix. This fixes gzip-compressed `GetTruth` outputs without `.gz` extensions.
+- Accept legacy case-insensitive boolean spellings such as `--add_indel_length True` for training.
+- Replaced Blosc-only HDF5 output with the original LZF-plus-shuffle filters so original Python/h5py can read the archives without an additional plugin.
+- Added the official GNU Parallel package to both Docker runtime images for the optional training workflow.
+
+The bounded workflow completed on all requested platforms. Times below are functional timings, not controlled training benchmarks. Training and validation losses are shown as `training / validation` after one epoch:
+
+| Implementation and platform | Device | Time | Pileup loss | Full-alignment loss |
+| --- | --- | ---: | ---: | ---: |
+| Original Python, Linux x86_64 | RTX 4090 | 97.61 s | 0.601942 / 0.804108 | 8.894713 / 0.540924 |
+| Rust, native macOS ARM64 | CPU | 35.91 s | 0.552349 / 0.624374 | 10.663239 / 1.117319 |
+| Rust, local Linux ARM64 | CPU | 77.23 s | 0.412903 / 1.062350 | 10.244903 / 0.875078 |
+| Rust, emulated Linux x86_64 | CPU | 93.62 s | 0.412619 / 1.062332 | 10.170233 / 0.875076 |
+| Rust, native Linux x86_64 | RTX 4090 | 31.70 s | 0.394398 / 1.062423 | 10.109503 / 0.875232 |
+
+Original Python/h5py successfully read every resulting LZF archive and checked matrix/label dimensions and nonzero content. Original PyTorch also loaded all generated checkpoints with finite tensors. On each Rust platform, both trained models then completed the native calling fixture and produced eight records.
+
+The original archives contain 3,182/3,984 pileup rows and 3,203/3,501 full-alignment rows at depths 1000/222. Rust macOS contains 3,411/5,278 and 3,299/3,486; Linux and CUDA contain 3,411/4,235 and 3,299/3,539. The original `SplitExtendBed` does not write the final merged interval, whereas Rust includes it, explaining additional Rust candidates near the region boundary. Some residual representation-unification differences remain even with the same haplotagged BAM. Training order, dropout randomness, and numerical backends also differ. Therefore these checks demonstrate working, cross-compatible training artifacts, **not byte-identical weights or identical training datasets**. No difference whose cause was not isolated is presented as resolved.
+
+The final native macOS suite passed with 63 unit tests and one ignored, plus all applicable integration tests. New regressions cover command parsing, complete training-command arguments, exact training-selector files, extension-independent compression, LZF filters, and full-alignment four-task fine-tuning/checkpoint reload. A fresh HG002 calling run after these changes took 71.42 seconds and preserved all 135,180 pileup, 40,494 full-alignment, 94,551 merged, and 33,824 phased records exactly relative to the current native macOS Rust reference. This does not resume or revise the canceled optimization goal.
 
 ## Reproduction notes
 

@@ -36,6 +36,17 @@ fn hdf5_roundtrip_and_merge_preserve_datasets() {
         let mut writer = BinWriter::create(&path, &[33, 18], true).unwrap();
         writer.append(std::slice::from_ref(example)).unwrap();
         drop(writer);
+        let archive = hdf5_metno::File::open(&path).unwrap();
+        for name in ["position_matrix", "label", "position", "alt_info"] {
+            let properties = archive.dataset(name).unwrap().dcpl().unwrap();
+            let filters: Vec<_> = properties
+                .get_filters()
+                .unwrap()
+                .iter()
+                .map(|filter| filter.id())
+                .collect();
+            assert_eq!(filters, [2, 32000], "unexpected filters for {name}");
+        }
     }
     let first = BinArchive::open(&directory.join("part0.bin")).unwrap();
     assert_eq!(first.len(), 1);

@@ -169,7 +169,45 @@ cargo test --test pipeline_parity readset_serialization_preserves_variant_fields
 
 The test verifies position, allele, and quality through the installed core and the first-party selector. It does not modify WhatsHap or its DP solver.
 
-## 7. Optional GPU smoke test
+## 7. Quick model-training workflow
+
+The repository includes `scripts/run_quick_train_chr21.sh` for an end-to-end HiFi training smoke test. It exercises BAM/truth preparation, haplotagging, downsampling, representation unification, tensor generation, bin merging, candidate calling, and one-epoch fine-tuning of both pileup and full-alignment models. It requires external indexed input data and is not part of the small fixture test.
+
+Prepare indexed reference/BAM/truth inputs, a directory of pretrained `pileup.pt` and `full_alignment.pt` checkpoints, and the `samtools`, `bgzip`, `tabix`, `parallel`, and `whatshap` tools. The `clair3.py` launcher accepts direct shell, Python, or PyPy invocation. Set `CLAIR3_BIN` if you need to select a particular native executable.
+
+From the repository root, configure paths and run the bounded example:
+
+```bash
+REGION=chr21:13000000-14000000 \
+DEPTHS_OVERRIDE="1000 222" \
+EPOCHS=1 GPU=cpu DO_RU=1 \
+REF=/path/to/GRCh38_no_alt_analysis_set.fasta \
+TRUTH_VCF=/path/to/HG002_GRCh38_v5.0q_smvar.vcf.gz \
+TRUTH_BED=/path/to/HG002_GRCh38_v5.0q_smvar.benchmark.bed \
+BAM_RAW=/path/to/hg002_revio_1000_21.bam \
+MODEL_SRC=/path/to/hifi_revio \
+WORK="${PWD}/target/quick-test/training" \
+bash scripts/run_quick_train_chr21.sh
+```
+
+The supplied data's first chr21 interval is not covered by the truth BED; use the populated interval shown above or choose another interval with reads, truth variants, and BED regions. The default whole-chromosome run is much longer. Use `GPU=0` for CUDA training on a configured NVIDIA host; `GPU=cpu` forces CPU training. MPS training is not currently validated. `CHUNKS`, `THREADS`, `THREADS_LOW`, tool paths, and `CLAIR3_REPO` can be overridden when needed.
+
+Successful one-epoch training produces:
+
+```text
+WORK/models/pileup/pileup.01.pt
+WORK/models/pileup/best_val_loss.pt
+WORK/models/pileup/training.log
+WORK/models/fa/fa.01.pt
+WORK/models/fa/best_val_loss.pt
+WORK/models/fa/training.log
+```
+
+Check that both training and validation losses are finite, the merged bins are nonempty, and both checkpoints load successfully. The smoke test uses the same bins for training and validation to exercise that code path; real training should use an independent validation dataset. See the detailed [pileup training](pileup_training.md) and [full-alignment training](full_alignment_training_r1.md) guides for production workflows.
+
+The bounded workflow passed on native macOS ARM64 CPU, local Linux ARM64 CPU, emulated Linux x86_64 CPU, and native Linux x86_64 CUDA on an RTX 4090. Original Python/PyTorch successfully read the resulting LZF archives and loaded the generated checkpoints. Training remains stochastic; these checks establish working artifacts, not byte-identical model weights. See the [training validation results](rust_optimization.md#end-to-end-model-training-validation) for timings and known differences.
+
+## 8. Optional GPU smoke test
 
 CPU is the default. Use an explicit device to test an optional GPU backend:
 

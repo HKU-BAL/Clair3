@@ -7,6 +7,7 @@ This guide installs the `clair3-rust` branch with native Rust calling and unmodi
 - Rust 1.88 or newer, Cargo, CMake 3.26 or newer, a C++20 compiler, curl, and Make. The Docker build installs CMake 3.31.6.
 - Python 3 and pip for WhatsHap phasing. Python 3.11 is used in the tested environment. Python development headers are needed to build the native read selector.
 - samtools 1.15.1 or newer, bgzip, and tabix.
+- GNU Parallel for the optional quick-training data-preparation workflow; both Docker images install it from the official distribution packages.
 - Network access for the initial download of Rust crates, LibTorch, Gloo, WhatsHap, and optional models.
 - A model directory containing both `pileup.pt` and `full_alignment.pt`. TensorFlow checkpoints require separate conversion.
 
@@ -30,6 +31,7 @@ mamba create -n clair3_v2 \
   make \
   clang \
   curl \
+  parallel \
   -y
 mamba activate clair3_v2
 ```

@@ -93,3 +93,70 @@ fn optimizer_step_writes_a_loadable_checkpoint() {
     assert_eq!(output[1].size(), vec![2, 3]);
     assert_eq!(output[0].isfinite().all().int64_value(&[]), 1);
 }
+
+#[test]
+fn full_alignment_fine_tuning_writes_a_loadable_checkpoint() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/verify/training/full_smoke");
+    fs::create_dir_all(&root).unwrap();
+    let data = root.join("data");
+    fs::create_dir_all(&data).unwrap();
+    let mut writer = BinWriter::create(&data.join("toy.bin"), &[55, 33, 8], false).unwrap();
+    let examples: Vec<_> = (0..120)
+        .map(|index| TensorExample {
+            position: format!("chrToy:{}:{}", index + 1, "A".repeat(55)),
+            matrix: (0..55 * 33 * 8)
+                .map(|value| ((value + index) % 101) - 50)
+                .collect(),
+            alt_info: "20-RA 20".to_string(),
+            labels: if index % 3 == 0 {
+                labels_from_vcf_columns(&["chrToy", "1", "A", "C", "0", "1"]).unwrap()
+            } else {
+                labels_from_reference("A").unwrap()
+            },
+        })
+        .collect();
+    writer.append(&examples).unwrap();
+    drop(writer);
+
+    tch::manual_seed(13);
+    let initial = Model::new(ModelKind::FullAlignment, Device::Cpu, Some(8), true, None).unwrap();
+    let pretrained = root.join("pretrained.pt");
+    save_checkpoint(&initial.var_store, &pretrained).unwrap();
+    let options = TrainingOptions {
+        checkpoint: Some(pretrained),
+        pileup: false,
+        add_indel_length: true,
+        max_epochs: 1,
+        mini_epochs: 1,
+        batch_size: 10,
+        chunk_size: 5,
+        random_validation: true,
+        learning_rate: 1e-4,
+        seed: Some(7),
+        log_path: root.join("training.log"),
+        best_checkpoint: root.join("best.pt"),
+        ..TrainingOptions::new(data, root.join("model"), Platform::Hifi)
+    };
+    let report = train(&options).unwrap();
+    assert_eq!(report.epochs, 1);
+    assert!(report.final_loss.is_finite());
+    assert!(report.final_loss > 0.0);
+    assert_eq!(report.checkpoints.len(), 1);
+    assert!(report.best_validation_loss.is_some());
+
+    let model = Model::new(
+        ModelKind::FullAlignment,
+        Device::Cpu,
+        Some(8),
+        true,
+        Some(&report.checkpoints[0]),
+    )
+    .unwrap();
+    let input = Tensor::from_slice(&vec![10_i32; 2 * 55 * 33 * 8]).reshape([2, 55, 33, 8]);
+    let output = model.forward_tasks(&input, false);
+    assert_eq!(output.len(), 4);
+    for (tensor, classes) in output.iter().zip([21, 3, 33, 33]) {
+        assert_eq!(tensor.size(), vec![2, classes]);
+        assert_eq!(tensor.isfinite().all().int64_value(&[]), 1);
+    }
+}
