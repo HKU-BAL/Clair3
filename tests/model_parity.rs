@@ -101,6 +101,8 @@ fn check(case: &(&str, ModelKind, i64, bool, &str), device: Device, tolerance: f
         format!("{name}_cuda.npy")
     } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
         format!("{name}_cpu.linux-amd64.npy")
+    } else if cfg!(target_os = "macos") {
+        format!("{name}_cpu.macos.npy")
     } else if cfg!(target_os = "linux") && name.starts_with("pileup_") {
         format!("{name}_cpu.linux.npy")
     } else {

@@ -88,16 +88,15 @@ cargo test --test model_parity --release --locked
 
 The model-parity test uses official checkpoints when they are available under `target/test-data/models`. It reports a skip for unavailable checkpoints.
 
-High-depth full-alignment fixtures have Linux-specific `.linux.npy` goldens because the original C implementation's `rand()` downsampling differs between macOS and Linux. The Linux goldens were generated with the unmodified original CFFI implementation and are compared exactly with Rust. The pileup model fixtures likewise use original-Python Linux outputs to account for LSTM backend differences. Every official model case also has an original-Python x86_64 golden with a `.linux-amd64.npy` suffix. Model-parity inference runs inside `tch::no_grad`, matching production and Python's `inference_mode`. These changes affect only test fixture selection and inference context, not the calling implementation or the original macOS goldens. The wrapped-checkpoint test runs when `target/wrapped-state-dict.pt` is available and reports a skip otherwise.
+High-depth full-alignment fixtures have Linux-specific `.linux.npy` goldens because the original C implementation's `rand()` downsampling differs between macOS and Linux. The Linux goldens were generated with the unmodified original CFFI implementation and are compared exactly with Rust; the original macOS full-alignment goldens are unchanged. CPU model parity selects original-Python/PyTorch goldens by platform: `.macos.npy` on macOS, `.linux-amd64.npy` on Linux x86_64, and `.linux.npy` for Linux ARM64 pileup cases. The nine macOS model goldens were regenerated with original Python and official PyTorch 2.13 in the validated macOS environment. The official model-parity tolerance remains `1e-4`; no model-parity assertion was removed or weakened. Model-parity inference runs inside `tch::no_grad`, matching production and Python's `inference_mode`. CUDA continues to use its separate `.cuda.npy` goldens. The wrapped-checkpoint test runs when `target/wrapped-state-dict.pt` is available and reports a skip otherwise.
 
-To continue through the remaining test targets while excluding only the documented ONT LSTM assertion:
+Run the unfiltered test suite:
 
 ```bash
-cargo test --all-targets --release --locked -- \
-  --skip model::lstm::tests::official_lstm_layers_match
+cargo test --all-targets --release --locked
 ```
 
-This exclusion is a diagnostic continuation, not a claim that the unfiltered suite is green. The assertion is retained because a separate HiFi comparison showed that changing LSTM backends can alter QUAL, GQ, and downstream genotypes. Do not delete it to hide the failure.
+The unfiltered suite passed in the final native macOS validation, including `official_lstm_layers_match`. Tests with external-data ignore markers remain skipped by default.
 
 ## 5. Run the supplied HG002 chr20 benchmark
 
@@ -119,11 +118,11 @@ For stage timings, add `CLAIR3_PROFILE=1` to the environment before running it.
 
 The validated runs contain:
 
-| Output | macOS optimized Rust | Linux/ARM64 original and Rust | Linux/x86_64 original and Rust |
+| Output | Current native macOS Rust | Linux/ARM64 original and Rust | Linux/x86_64 original and Rust |
 | --- | ---: | ---: | ---: |
 | `pileup.vcf.gz` | 135,180 | 135,180 | 135,180 |
-| `full_alignment.vcf.gz` | 40,493 | 40,494 | 40,493 |
-| `merge_output.vcf.gz` | 94,572 | 94,550 | 94,559 |
+| `full_alignment.vcf.gz` | 40,494 | 40,494 | 40,493 |
+| `merge_output.vcf.gz` | 94,551 | 94,550 | 94,559 |
 | `tmp/phase_output/phase_vcf/phased_chr20.vcf.gz` | 33,824 | 33,824 | 33,824 |
 
 Record counts alone are not a parity check. Compare contig, position, reference, alternate, genotype, QUAL, GQ, and ordering against the chosen reference. The original Python output is not completely identical to the optimized-Rust output, and the original implementation itself has platform-dependent numerical differences. Use a same-platform original run as the Linux reference; see the measured differences in the [optimization and verification report](rust_optimization.md).
@@ -190,6 +189,6 @@ Pileup remains on CPU for GPU runs to preserve candidate selection. Full-alignme
 - The fixture produces a compressed, indexed VCF with the expected records.
 - Phasing completes using upstream WhatsHap 2.8 and the native helpers.
 - Build, formatting, and applicable fixture tests pass.
-- The full benchmark, when run, preserves the optimized-Rust reference values listed above.
+- The full benchmark, when run, produces the platform-appropriate counts above; use the same-platform original-Python output to assess numerical and genotype parity.
 
 For optimization history, benchmark results, and known limitations, read [Rust optimization and verification](rust_optimization.md).

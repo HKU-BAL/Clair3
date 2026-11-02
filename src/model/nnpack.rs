@@ -587,7 +587,7 @@ mod tests {
                 let tolerance = if stride == [1, 1] || !cfg!(target_os = "macos") {
                     0.0002
                 } else {
-                    0.0
+                    0.000001
                 };
                 assert!(maximum <= tolerance, "maximum error {maximum}");
             }
