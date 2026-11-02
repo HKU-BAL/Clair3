@@ -77,6 +77,11 @@ jobs:
       - name: Build and install Clair3
         run: make clair3 PREFIX="${RUNNER_TEMP}/clair3" PYTHON=python3
 
+      - name: Install upstream LongPhase
+        run: |
+          make longphase PREFIX="${RUNNER_TEMP}/clair3"
+          "${RUNNER_TEMP}/clair3/bin/longphase" --version
+
       - name: Check formatting and Clippy
         run: |
           cargo fmt --all -- --check
@@ -111,6 +116,13 @@ jobs:
             --output target/linux-test/phasing \
             --ctg_name chrToy
           test "$(gzip -dc target/linux-test/phasing/merge_output.vcf.gz | grep -vc '^#')" -eq 8
+
+      - name: Verify the native selector uses the upstream core
+        env:
+          CLAIR3_FAST_READSELECT: target/linux-test/phasing/tmp/phase_output/phase_vcf/clair3_readselect.so
+        run: |
+          python3 -c 'import runpy; namespace = runpy.run_path("src/pipeline/parallel_phase.py", run_name="selector_check"); assert namespace["_native_readselection"] is not None; assert namespace["_native_readset_io"] is not None'
+          python3 -c 'import whatshap.core; print(whatshap.core.__file__)'
 
   docker:
     needs: build-and-test

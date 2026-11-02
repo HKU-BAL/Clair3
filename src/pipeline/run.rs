@@ -1503,14 +1503,8 @@ mod tests {
             .join("must-not-run")
             .to_string_lossy()
             .into_owned();
-        options.bgzip = root
-            .join("target/legacy/env/bin/bgzip")
-            .to_string_lossy()
-            .into_owned();
-        options.tabix = root
-            .join("target/legacy/env/bin/tabix")
-            .to_string_lossy()
-            .into_owned();
+        options.bgzip = "bgzip".to_string();
+        options.tabix = "tabix".to_string();
         let header = vcf_header(
             &reference,
             None,
@@ -1568,14 +1562,8 @@ mod tests {
             .to_string_lossy()
             .into_owned();
         options.longphase = phaser.to_string_lossy().into_owned();
-        options.bgzip = root
-            .join("target/legacy/env/bin/bgzip")
-            .to_string_lossy()
-            .into_owned();
-        options.tabix = root
-            .join("target/legacy/env/bin/tabix")
-            .to_string_lossy()
-            .into_owned();
+        options.bgzip = "bgzip".to_string();
+        options.tabix = "tabix".to_string();
         let header = vcf_header(
             &reference,
             None,
