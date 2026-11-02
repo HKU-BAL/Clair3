@@ -195,7 +195,29 @@ Additional checks:
 - `cargo test --all-targets --release --locked`: 58 unit tests passed, one pre-existing LSTM assertion failed, and one test was ignored. The failing library test stopped the unfiltered run.
 - All remaining targets, run with only `model::lstm::tests::official_lstm_layers_match` excluded: passed, including 59 other unit tests and `native_phase_command_uses_current_executable`, restored phasing tests, nine pileup fixture tests, official model parity, calling, realignment, training, and integration tests. This exclusion is a diagnostic continuation, not a claim that the full suite is green.
 - Direct installed `clair3 run` without a `CLAIR3_BIN` override: passed with native phasing. The small HiFi fixture produced eight expected records both with and without phasing.
-- Docker builds, NVIDIA execution, AMD execution, and LongPhase source compilation were not verified on this macOS host.
+- On macOS, Docker builds, NVIDIA execution, AMD execution, and LongPhase source compilation were not verified. Linux/ARM64 Docker validation is recorded below; x86_64 Docker execution and GPU backends remain unverified in this environment.
+
+## Local Docker Linux validation
+
+The GitHub-based Linux workflow was removed in favor of testing with the user's local Docker daemon. The Linux/ARM64 CPU image builds successfully with the official PyTorch CPU wheel and an unmodified upstream LongPhase 1.7.3 source build. It installs official WhatsHap 2.8 and Debian samtools 1.16.1; no third-party source is patched. The build stage also contains samtools for pipeline tests. The earlier LongPhase source-build failure listed under rejected experiments was on macOS, not a failure of this validated Linux build.
+
+Local Docker formatting, Clippy with warnings treated as errors, and `cargo test --all-targets --release --locked` passed. This includes 59 unit tests with one ignored, all full-alignment tensor fixtures, model parity, pipeline tests, and training tests. External-data tests retain their documented ignore markers. The wrapped-checkpoint test was also exercised with its generated input and skips when that input is unavailable. The phased HiFi fixture produced the expected eight variants, and the native selector initialized against the unmodified upstream WhatsHap core.
+
+High-depth full-alignment golden tensors are platform-specific because the original C implementation uses the platform C library's `rand()` for downsampling. Six Linux `.linux.npy` fixtures were generated with the unmodified original CFFI implementation; Rust matches them exactly. Existing macOS fixtures were not modified. Pileup model Linux goldens were generated with the original Python/PyTorch implementation, preserving the strict `1e-4` tolerance rather than loosening it.
+
+### Original-versus-Rust HG002 comparison on Linux/ARM64
+
+Both implementations ran the supplied HG002 chr20 command with eight threads and the supplied `v0.1_chm13_mix_torch` checkpoint in local Docker. The original Python run used unmodified source from `main` with official dependencies. Results below compare Rust with that same-platform original, not with the macOS baseline:
+
+| Output | Records in each version | Positions, alleles, genotypes, and ordering | QUAL differences | GQ differences |
+| --- | ---: | --- | --- | --- |
+| Pileup | 135,180 | Exact match | 3; maximum absolute difference 0.01 | 0 |
+| Full alignment | 40,494 | Exact match | 65; maximum absolute difference 0.11 | 3 |
+| Merged | 94,550 | Exact match | 50; maximum absolute difference 0.11 | 3 |
+
+All 33,824 phased GT/PS fields and their record ordering match the original exactly. A batch-100 comparison with the supplied full-alignment checkpoint found a maximum absolute probability difference of `1.66893e-6`, accounting for the small remaining numerical differences. The larger macOS-versus-Linux differences also occur between two original Python runs and must not be attributed to the Rust port. No new optimization or production-code change was introduced during this Linux validation.
+
+The complete original run took 375.24 seconds and the Rust run took 209.22 seconds, approximately 1.79 times faster. The Rust run overlapped other validation work, so these timings document the test environment rather than a controlled performance benchmark; they do not revise the macOS optimization measurements above.
 
 A pre-existing strict `official_lstm_layers_match` assertion checks the official ONT pileup model. At the same fixtures, LSTM2 differs by `0.053098708391189575`, with first-timestep difference `0.0008534938097000122`. It reproduces at the earlier `f1d2e6b` milestone and is not a result of the range-counting or dependency-cleanup changes. The complete test suite must not be described as green while that assertion fails.
 

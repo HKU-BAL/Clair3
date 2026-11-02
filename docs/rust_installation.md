@@ -4,7 +4,7 @@ This guide installs the `clair3-rust` branch with native Rust calling and unmodi
 
 ## 1. Requirements
 
-- Rust 1.88 or newer, Cargo, CMake, a C++20 compiler, curl, and Make.
+- Rust 1.88 or newer, Cargo, CMake 3.26 or newer, a C++20 compiler, curl, and Make. The Docker build installs CMake 3.31.6.
 - Python 3 and pip for WhatsHap phasing. Python 3.11 is used in the tested environment. Python development headers are needed to build the native read selector.
 - samtools 1.15.1 or newer, bgzip, and tabix.
 - Network access for the initial download of Rust crates, LibTorch, Gloo, WhatsHap, and optional models.
@@ -138,11 +138,14 @@ Continue with the [Clair3-Rust quick test](rust_quick_test.md).
 
 ## Linux build verification
 
-The repository includes an Ubuntu 22.04 workflow at `.github/workflows/linux.yml`. It builds a compatible upstream samtools, installs the native dependencies and official models, builds and installs Clair3, runs formatting, Clippy, and the test suite, and exercises the HiFi fixture with and without native phasing. It also checks that the native selector initializes with the installed upstream core, then builds the CPU Docker image and runs the phased fixture inside the container. To inspect the runs with GitHub's CLI:
+Build and test the CPU image with a local Docker daemon:
 
 ```bash
-gh run list --workflow linux.yml --branch clair3-rust
+docker build -f Dockerfile -t clair3-rust:local .
+docker run --rm clair3-rust:local /opt/clair3/bin/clair3 --version
 ```
+
+The image supports Linux x86_64 and ARM64. On ARM64, it uses the official PyTorch wheel and builds LongPhase from the unmodified upstream source; x86_64 retains the prebuilt LibTorch and LongPhase downloads. Use the fixture and phasing commands in the [quick-test guide](rust_quick_test.md) to verify model inference and native phasing.
 
 ## Docker
 
@@ -175,7 +178,7 @@ No downloaded third-party source is patched by the build.
 
 ## Troubleshooting
 
-- **Ubuntu samtools is too old:** Ubuntu 22.04 packages samtools 1.13, below the required 1.15.1. Use the Conda package or build a newer unmodified upstream release, such as samtools 1.24. The Linux workflow builds the upstream release with ncurses and libdeflate support.
+- **Ubuntu samtools is too old:** Ubuntu 22.04 packages samtools 1.13, below the required 1.15.1. Use the Conda package or build a newer unmodified upstream release, such as samtools 1.24, with ncurses and libdeflate support. The local Docker image uses Debian's samtools 1.16.1 package.
 - **Missing Python development headers:** install the package appropriate for the environment, such as `python3-dev` on Debian/Ubuntu, then rebuild. Without them, native selector acceleration is unavailable and the pipeline falls back to the installed implementation.
 - **LibTorch not found:** select a complete distribution through `LIBTORCH`, or use the official Python wheel with `LIBTORCH_USE_PYTORCH=1`.
 - **Runtime library errors:** keep `bin/clair3` and `lib/clair3` together, or set `LD_LIBRARY_PATH` on Linux or `DYLD_LIBRARY_PATH` on macOS to the installed `lib/clair3` directory.

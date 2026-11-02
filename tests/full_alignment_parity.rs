@@ -27,8 +27,17 @@ fn expected_info(case: &str) -> (Vec<String>, Vec<String>) {
 }
 
 fn check(batch: &FullAlignmentBatch, case: &str) {
+    let tensor_case = if cfg!(target_os = "linux")
+        && matches!(
+            case,
+            "full_default" | "full_long" | "full_phased" | "full_dwell" | "full_cram" | "full_hifi"
+        ) {
+        format!("{case}.linux")
+    } else {
+        case.to_string()
+    };
     let expected =
-        Tensor::read_npy(root().join(format!("tests/fixtures/tensors/{case}.npy"))).unwrap();
+        Tensor::read_npy(root().join(format!("tests/fixtures/tensors/{tensor_case}.npy"))).unwrap();
     let shape = expected
         .size()
         .into_iter()

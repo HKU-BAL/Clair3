@@ -88,6 +88,8 @@ cargo test --test model_parity --release --locked
 
 The model-parity test uses official checkpoints when they are available under `target/test-data/models`. It reports a skip for unavailable checkpoints.
 
+High-depth full-alignment fixtures have Linux-specific `.linux.npy` goldens because the original C implementation's `rand()` downsampling differs between macOS and Linux. The Linux goldens were generated with the unmodified original CFFI implementation and are compared exactly with Rust. The pileup model fixtures likewise use original-Python Linux outputs to account for LSTM backend differences. These changes affect only test fixture selection, not the calling implementation or the original macOS goldens. The wrapped-checkpoint test runs when `target/wrapped-state-dict.pt` is available and reports a skip otherwise.
+
 To continue through the remaining test targets while excluding only the documented ONT LSTM assertion:
 
 ```bash
@@ -115,18 +117,54 @@ python3 run_clair3.py \
 
 For stage timings, add `CLAIR3_PROFILE=1` to the environment before running it.
 
-The validated run contains:
+The validated runs contain:
 
-| Output | Records |
-| --- | ---: |
-| `pileup.vcf.gz` | 135,180 |
-| `full_alignment.vcf.gz` | 40,493 |
-| `merge_output.vcf.gz` | 94,572 |
-| `tmp/phase_output/phase_vcf/phased_chr20.vcf.gz` | 33,824 |
+| Output | macOS optimized Rust | Linux original and Rust |
+| --- | ---: | ---: |
+| `pileup.vcf.gz` | 135,180 | 135,180 |
+| `full_alignment.vcf.gz` | 40,493 | 40,494 |
+| `merge_output.vcf.gz` | 94,572 | 94,550 |
+| `tmp/phase_output/phase_vcf/phased_chr20.vcf.gz` | 33,824 | 33,824 |
 
-Record counts alone are not a parity check. Compare contig, position, reference, alternate, genotype, QUAL, GQ, and ordering against the chosen reference. The original Python output is not completely identical to the optimized-Rust output; see the measured differences in the [optimization and verification report](rust_optimization.md).
+Record counts alone are not a parity check. Compare contig, position, reference, alternate, genotype, QUAL, GQ, and ordering against the chosen reference. The original Python output is not completely identical to the optimized-Rust output, and the original implementation itself has platform-dependent numerical differences. Use a same-platform original run as the Linux reference; see the measured differences in the [optimization and verification report](rust_optimization.md).
 
-## 6. Optional GPU smoke test
+## 6. Optional Docker test
+
+Build the CPU image and run the phased fixture inside it. This checks Linux installation, model loading, VCF generation, and native phasing without relying on the host's libraries:
+
+```bash
+docker build -f Dockerfile -t clair3-rust:local .
+docker run --rm -v "${PWD}:/workspace:ro" clair3-rust:local \
+  /opt/clair3/bin/clair3 run \
+  --bam_fn /workspace/tests/fixtures/data/toy.bam \
+  --ref_fn /workspace/tests/fixtures/data/toy.fa \
+  --threads 2 \
+  --platform hifi \
+  --model_path /opt/models/hifi_sequel2 \
+  --output /tmp/clair3-quick-test \
+  --ctg_name chrToy
+```
+
+The fixture should contain eight records at `/tmp/clair3-quick-test/merge_output.vcf.gz` inside the container. The Dockerfile supports Linux x86_64 and ARM64; ARM64 uses an official PyTorch wheel and an upstream LongPhase source build. Linux/ARM64 was validated with a local Docker daemon; the x86_64 build and run were not exercised in this environment.
+
+With the prepared model assets from section 2, run the complete local Docker checks as follows:
+
+```bash
+docker build --target build -t clair3-rust:build .
+docker run --rm --entrypoint /bin/bash \
+  -v "${PWD}/tests:/opt/clair3-src/tests:ro" \
+  -v "${PWD}/target/test-data/models:/opt/clair3-src/target/test-data/models:ro" \
+  -w /opt/clair3-src clair3-rust:build -c '
+    rustup component add rustfmt clippy &&
+    cargo fmt --all -- --check &&
+    cargo clippy --all-targets --locked -- -D warnings &&
+    cargo test --all-targets --release --locked
+  '
+```
+
+The Linux/ARM64 run passed these checks and the phased fixture, including native selector initialization with the unmodified WhatsHap 2.8 core. Tests requiring additional external data remain marked as ignored, and the optional wrapped-checkpoint test reports a skip if its input is unavailable.
+
+## 7. Optional GPU smoke test
 
 CPU is the default. Use an explicit device to test an optional GPU backend:
 

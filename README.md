@@ -225,7 +225,7 @@ Clair3's calling, tensor generation, training, checkpoint conversion, and metric
 
 **Step 1: Install native build tools**
 
-Install [Rust](https://rustup.rs/) 1.88.0 or newer, CMake, a C++20-capable C/C++ compiler, curl, and the bioinformatics tools you intend to use:
+Install [Rust](https://rustup.rs/) 1.88.0 or newer, CMake 3.26 or newer, a C++20-capable C/C++ compiler, curl, and the bioinformatics tools you intend to use. The Docker build installs CMake 3.31.6.
 
 ```bash
 rustup toolchain install 1.88.0
@@ -258,7 +258,7 @@ Building LongPhase from source on macOS requires a compiler with OpenMP support;
 
 ```bash
 cd ${HOME}
-git clone https://github.com/HKU-BAL/Clair3.git
+git clone --branch clair3-rust --single-branch https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 export CLAIR3_PATH=$(pwd)
 
@@ -304,6 +304,8 @@ ${CLAIR3_PATH}/run_clair3.sh \
 **Note**: You can also run Clair3 directly using `${CLAIR3_PATH}/run_clair3.py`, or through the legacy `python3 ${CLAIR3_PATH}/run_clair3.py` form. Both delegate to the native implementation; Python is not required when invoking the shell launchers directly.
 
 ### Option 2.  Docker pre-built image
+
+To build the CPU image locally, run `docker build -f Dockerfile -t clair3-rust:local .`. The Dockerfile supports Linux x86_64 and ARM64. ARM64 uses the official PyTorch wheel and builds LongPhase from unmodified upstream source; x86_64 uses the prebuilt downloads.
 
 > **Note**: The Docker pre-built image **only supports CPU execution**. For GPU or Apple Silicon acceleration, please use [Option 1 (step-by-step installation)](#option-1-build-an-environment-with-mambaconda).
 
