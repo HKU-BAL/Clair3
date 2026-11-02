@@ -1,0 +1,98 @@
+name: Linux
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - clair3-rust
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out clair3-rust
+        uses: actions/checkout@v4
+        with:
+          ref: clair3-rust
+
+      - name: Install native build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake clang libclang-dev pkg-config curl ca-certificates unzip \
+            libssl-dev zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev \
+            python3 python3-dev python3-pip python3-venv \
+            samtools tabix zstd lz4 wget
+
+      - name: Install Rust 1.88
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.88.0
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install upstream WhatsHap
+        run: python3 -m pip install --no-cache-dir whatshap==2.8
+
+      - name: Download public models for fixture tests
+        run: |
+          mkdir -p target/test-data/models/upstream
+          for model in \
+            hifi_revio \
+            ilmn \
+            r1041_e82_400bps_sup_v500 \
+            r1041_e82_400bps_hac_v500 \
+            r1041_e82_400bps_hac_with_mv; do
+            wget -q -r -np -nH --cut-dirs=2 -R 'index.html*' \
+              -P target/test-data/models/upstream \
+              "https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/${model}/"
+          done
+          ln -s upstream/hifi_revio target/test-data/models/hifi
+          ln -s upstream/ilmn target/test-data/models/ilmn
+          ln -s upstream/r1041_e82_400bps_sup_v500 target/test-data/models/ont
+          ln -s upstream/r1041_e82_400bps_hac_v500 target/test-data/models/r1041_e82_400bps_hac_v500
+          ln -s upstream/r1041_e82_400bps_hac_with_mv target/test-data/models/full_dwell
+
+      - name: Build and install Clair3
+        run: make clair3 PREFIX="${RUNNER_TEMP}/clair3" PYTHON=python3
+
+      - name: Check formatting and Clippy
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Run all tests
+        run: cargo test --all-targets --release --locked
+
+      - name: Run the HiFi fixture without phasing
+        run: |
+          export PATH="${RUNNER_TEMP}/clair3/bin:${PATH}"
+          clair3 run \
+            --bam_fn tests/fixtures/data/toy.bam \
+            --ref_fn tests/fixtures/data/toy.fa \
+            --threads 2 \
+            --platform hifi \
+            --model_path target/test-data/models/hifi \
+            --output target/linux-test/hifi \
+            --ctg_name chrToy \
+            --no_phasing_for_fa
+          test "$(gzip -dc target/linux-test/hifi/merge_output.vcf.gz | grep -vc '^#')" -eq 8
+
+      - name: Run the HiFi fixture with native phasing
+        run: |
+          export PATH="${RUNNER_TEMP}/clair3/bin:${PATH}"
+          env -u CLAIR3_BIN clair3 run \
+            --bam_fn tests/fixtures/data/toy.bam \
+            --ref_fn tests/fixtures/data/toy.fa \
+            --threads 2 \
+            --platform hifi \
+            --model_path target/test-data/models/hifi \
+            --output target/linux-test/phasing \
+            --ctg_name chrToy
+          test "$(gzip -dc target/linux-test/phasing/merge_output.vcf.gz | grep -vc '^#')" -eq 8
