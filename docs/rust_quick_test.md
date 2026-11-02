@@ -135,7 +135,6 @@ Build the CPU image and run the phased fixture inside it. This checks Linux inst
 ```bash
 docker build -f Dockerfile -t clair3-rust:local .
 docker run --rm -v "${PWD}:/workspace:ro" clair3-rust:local \
-  /opt/clair3/bin/clair3 run \
   --bam_fn /workspace/tests/fixtures/data/toy.bam \
   --ref_fn /workspace/tests/fixtures/data/toy.fa \
   --threads 2 \

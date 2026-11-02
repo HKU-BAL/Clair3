@@ -363,6 +363,23 @@ fn main() {
         "LibTorch libraries not found; set LIBTORCH to a complete distribution"
     );
     let cuda = env::var_os("CARGO_FEATURE_CUDA").is_some();
+    if cuda {
+        println!("cargo:rerun-if-env-changed=CUDA_HOME");
+        println!("cargo:rerun-if-env-changed=CUDA_PATH");
+        let root = env::var("CUDA_HOME")
+            .or_else(|_| env::var("CUDA_PATH"))
+            .unwrap_or_else(|_| "/usr/local/cuda".to_string());
+        let include = PathBuf::from(root).join("include");
+        assert!(
+            include.join("cuda_runtime.h").is_file(),
+            "CUDA headers not found; set CUDA_HOME or CUDA_PATH to the CUDA toolkit root"
+        );
+        includes.push(include);
+        println!("cargo:rerun-if-env-changed=CLAIR3_CUDA_LIBRARIES");
+        if let Ok(paths) = env::var("CLAIR3_CUDA_LIBRARIES") {
+            libraries.extend(env::split_paths(&paths));
+        }
+    }
     let mut build = cc::Build::new();
     build
         .cpp(true)
@@ -388,6 +405,12 @@ fn main() {
     for directory in libraries {
         println!("cargo:rustc-link-search=native={}", directory.display());
         println!("cargo:rustc-link-arg=-Wl,-rpath,{}", directory.display());
+        if cfg!(target_os = "linux") {
+            println!(
+                "cargo:rustc-link-arg=-Wl,-rpath-link,{}",
+                directory.display()
+            );
+        }
     }
     println!("cargo:rustc-link-lib=static=gloo");
     println!("cargo:rustc-link-lib=dylib=torch");
@@ -396,6 +419,10 @@ fn main() {
     if cuda {
         println!("cargo:rustc-link-lib=dylib=torch_cuda");
         println!("cargo:rustc-link-lib=dylib=c10_cuda");
+        if cfg!(target_os = "linux") {
+            println!("cargo:rustc-link-arg=-Wl,--no-as-needed");
+            println!("cargo:rustc-link-arg=-ltorch_cuda");
+        }
     }
     if native_lstm {
         println!("cargo:rustc-link-lib=dylib=sleef");

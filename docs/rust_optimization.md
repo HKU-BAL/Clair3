@@ -195,7 +195,7 @@ Additional checks:
 - `cargo test --all-targets --release --locked`: 58 unit tests passed, one pre-existing LSTM assertion failed, and one test was ignored. The failing library test stopped the unfiltered run.
 - All remaining targets, run with only `model::lstm::tests::official_lstm_layers_match` excluded: passed, including 59 other unit tests and `native_phase_command_uses_current_executable`, restored phasing tests, nine pileup fixture tests, official model parity, calling, realignment, training, and integration tests. This exclusion is a diagnostic continuation, not a claim that the full suite is green.
 - Direct installed `clair3 run` without a `CLAIR3_BIN` override: passed with native phasing. The small HiFi fixture produced eight expected records both with and without phasing.
-- On macOS, Docker builds, NVIDIA execution, AMD execution, and LongPhase source compilation were not verified. Linux/ARM64 and emulated Linux/x86_64 Docker validation are recorded below; NVIDIA and AMD GPU backends remain unverified in this environment.
+- On macOS, Docker builds and LongPhase source compilation were not verified. Linux/ARM64 and emulated Linux/x86_64 Docker validation are recorded below, followed by remote NVIDIA RTX 4090 validation. AMD GPU execution remains unverified.
 
 ## Local Docker Linux validation
 
@@ -236,6 +236,24 @@ The original Python and final Rust x86_64 outputs compare as follows:
 | Merged | 94,559 | Exact match | 28; maximum absolute difference 0.11 | 0 |
 
 All 33,824 phased GT/PS fields and their record ordering match the original exactly. Optimized phasing completed successfully rather than falling back to the installed selector. The complete original run took 878.63 seconds and the final Rust run took 386.89 seconds, approximately 2.27 times faster. Both ran under emulation with other validation work active, so these are validation timings rather than a controlled performance benchmark or a new optimization result.
+
+### CUDA validation on an NVIDIA RTX 4090
+
+The CUDA version was built and run on a remote native Linux/x86_64 server with an RTX 4090, driver 580.82.09, Docker, and the NVIDIA Container Toolkit. Validation used an isolated checkout and SHA-256-verified copies of the supplied HG002 inputs and checkpoints. The server had sufficient free space after the user cleaned it; no unrelated server images were removed.
+
+The CUDA packaging now installs CMake 3.31.6, preserves the compiled binary outside the BuildKit cache, discovers CUDA headers through `CUDA_HOME`/`CUDA_PATH`, and adds the required library search and link paths. Official unmodified NVIDIA cuSPARSE-Lt 0.8.1, NCCL 2.29.7, NVSHMEM 3.4.5, and CUPTI packages provide the companion libraries required by LibTorch 2.13. The runtime also builds unmodified upstream samtools 1.24 because Ubuntu 22.04's samtools 1.13 is below Clair3's minimum. Explicit CUDA linkage keeps CUDA operator registration available in model-test binaries.
+
+Formatting, Clippy, and the full CUDA-enabled test suite passed with 60 unit tests and one ignored. The opt-in CUDA model-parity test passed for every official model case against original-Python CUDA goldens generated on the same GPU, with the existing `0.001` tolerance unchanged. The explicit WhatsHap selector serialization regression passed. The phased HiFi fixture completed with eight expected variants and working selector serialization. Direct original-Python-versus-Rust ONT inference on CUDA was exactly equal at every probability.
+
+The final supplied HG002 workflow completed in **60.89 seconds** with CUDA. This is a functional validation timing, not a controlled CPU-versus-GPU benchmark. The following comparison uses the original Python **x86_64 CPU** output, not an original-Python GPU run:
+
+| Output | Records | Numerical and genotype differences from original x86_64 CPU |
+| --- | --- | --- |
+| Pileup | 135,180 in each | Exact keys, genotypes, and ordering; 111 QUAL differences, maximum 0.01; no GQ differences |
+| Full alignment | 40,493 in each | 10,215 QUAL differences, maximum 0.11; 115 GQ differences; one genotype difference and one ref/alt representation difference |
+| Merged | 94,559 original; 94,560 CUDA | 4,764 QUAL differences, maximum 0.11; 60 GQ differences; one genotype difference and one extra CUDA record |
+
+All 33,824 phased GT/PS fields match the original exactly. The residual full-alignment differences are at `chr20:1352240` and `chr20:16576770`, where genotypes or ref/alt representation cross decision thresholds while QUAL/GQ remain very close. Original Python also differs at these sites across CPU platforms. This is not exact original-Python parity, and no claim is made that every residual per-record difference has been eliminated. No production model algorithm or third-party DP solver was changed for this validation.
 
 A pre-existing strict `official_lstm_layers_match` assertion checks the official ONT pileup model. At the same fixtures, LSTM2 differs by `0.053098708391189575`, with first-timestep difference `0.0008534938097000122`. It reproduces at the earlier `f1d2e6b` milestone and is not a result of the range-counting or dependency-cleanup changes. The complete test suite must not be described as green while that assertion fails.
 

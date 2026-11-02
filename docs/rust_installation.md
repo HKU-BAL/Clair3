@@ -142,7 +142,7 @@ Build and test the CPU image with a local Docker daemon:
 
 ```bash
 docker build -f Dockerfile -t clair3-rust:local .
-docker run --rm clair3-rust:local /opt/clair3/bin/clair3 --version
+docker run --rm --entrypoint /opt/clair3/bin/clair3 clair3-rust:local --version
 ```
 
 The image supports Linux x86_64 and ARM64. On ARM64, it uses the official PyTorch wheel and builds LongPhase from the unmodified upstream source; x86_64 retains the prebuilt LibTorch and LongPhase downloads. Both architectures were validated locally, with x86_64 tested under `linux/amd64` emulation on an ARM64 host. On another architecture, select x86_64 explicitly with `docker build --platform linux/amd64 ...` and `docker run --platform linux/amd64 ...`. Use the fixture and phasing commands in the [quick-test guide](rust_quick_test.md) to verify model inference and native phasing.
@@ -173,6 +173,7 @@ Use `/opt/clair3/run_clair3.sh` as the container entry point. Pre-trained models
 - `torch-sys` is the official crates.io package recorded in `Cargo.lock`.
 - Gloo is downloaded from upstream commit `bcd1672ee07538123ea8f4fac76832efc58fb8ef`.
 - LibTorch and LongPhase retain their upstream download paths.
+- The CUDA image installs unmodified official NVIDIA cuSPARSE-Lt 0.8.1, NCCL 2.29.7, NVSHMEM 3.4.5, and CUPTI packages required by LibTorch 2.13, plus an unmodified upstream samtools 1.24 build. Custom CUDA library layouts can be supplied through `CLAIR3_CUDA_LIBRARIES` as a colon-separated list during the build.
 
 No downloaded third-party source is patched by the build.
 

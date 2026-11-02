@@ -97,7 +97,9 @@ fn check(case: &(&str, ModelKind, i64, bool, &str), device: Device, tolerance: f
     )
     .unwrap();
     let input = tensor(root().join(format!("tests/fixtures/models/npy/{name}_input.npy")));
-    let expected_name = if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+    let expected_name = if matches!(device, Device::Cuda(_)) {
+        format!("{name}_cuda.npy")
+    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
         format!("{name}_cpu.linux-amd64.npy")
     } else if cfg!(target_os = "linux") && name.starts_with("pileup_") {
         format!("{name}_cpu.linux.npy")
@@ -137,6 +139,27 @@ fn official_models_match_mps_golden_outputs() {
         )
     }) {
         check(&case, Device::Mps, 0.001);
+    }
+}
+
+#[test]
+fn official_models_match_cuda_golden_outputs() {
+    if std::env::var("CLAIR3_TEST_CUDA").is_err() {
+        return;
+    }
+    assert!(tch::Cuda::cudnn_is_available(), "CUDA test requires cuDNN");
+    assert!(
+        tch::Cuda::device_count() > 0,
+        "CUDA test requires a CUDA device"
+    );
+    let probe = Tensor::zeros([1], (tch::Kind::Float, Device::Cuda(0)));
+    assert_eq!(probe.device(), Device::Cuda(0));
+    assert!(
+        tch::Cuda::is_available(),
+        "CUDA test requires a CUDA device"
+    );
+    for case in cases() {
+        check(&case, Device::Cuda(0), 0.001);
     }
 }
 

@@ -4,33 +4,55 @@ FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu22.04 AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake clang libclang-dev pkg-config curl ca-certificates unzip \
     libssl-dev zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev \
-    python3 python3-dev \
+    bzip2 libncurses-dev libdeflate-dev \
+    python3 python3-dev python3-pip samtools tabix cuda-cupti-12-9 \
     && rm -rf /var/lib/apt/lists/*
+RUN python3 -m pip install --no-cache-dir cmake==3.31.6 && \
+    cmake --version
 RUN curl -fsSL https://sh.rustup.rs -o /tmp/rustup.sh && \
     sh /tmp/rustup.sh -y --default-toolchain 1.88.0 && rm /tmp/rustup.sh
-ENV PATH=/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV PATH=/root/.cargo/bin:/opt/clair3-tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 WORKDIR /opt
 RUN curl -fLsS -o /tmp/libtorch.zip \
     https://download.pytorch.org/libtorch/cu129/libtorch-shared-with-deps-2.13.0%2Bcu129.zip && \
     unzip -q /tmp/libtorch.zip && rm /tmp/libtorch.zip
+RUN curl -fLsS -o /tmp/samtools.tar.bz2 \
+        https://github.com/samtools/samtools/releases/download/1.24/samtools-1.24.tar.bz2 && \
+    tar -xjf /tmp/samtools.tar.bz2 -C /tmp && \
+    cd /tmp/samtools-1.24/htslib-1.24 && ./configure --disable-shared && make -j2 && \
+    cd /tmp/samtools-1.24 && ./configure && make -j2 && \
+    mkdir -p /opt/clair3-tools && cp samtools /opt/clair3-tools/ && \
+    cp htslib-1.24/bgzip htslib-1.24/tabix /opt/clair3-tools/
 ENV LIBTORCH=/opt/libtorch \
-    TORCH_CUDA_VERSION=cu129
+    TORCH_CUDA_VERSION=cu129 \
+    CLAIR3_CUDA_LIBRARIES=/opt/cuda-deps/nvidia/cusparselt/lib:/opt/cuda-deps/nvidia/nccl/lib:/opt/cuda-deps/nvidia/nvshmem/lib
+RUN python3 -m pip install --no-cache-dir --no-deps --target /opt/cuda-deps \
+        nvidia-cusparselt-cu12==0.8.1 \
+        nvidia-nccl-cu12==2.29.7 \
+        nvidia-nvshmem-cu12==3.4.5 && \
+    mkdir -p /opt/clair3-libs && \
+    cp -aL /opt/libtorch/lib/. /opt/clair3-libs/ && \
+    cp -aL /opt/cuda-deps/nvidia/cusparselt/lib/. /opt/clair3-libs/ && \
+    cp -aL /opt/cuda-deps/nvidia/nccl/lib/. /opt/clair3-libs/ && \
+    cp -aL /opt/cuda-deps/nvidia/nvshmem/lib/. /opt/clair3-libs/
 WORKDIR /opt/clair3-src
 COPY Cargo.toml Cargo.lock build.rs ./
 COPY src ./src
 COPY csrc ./csrc
 RUN --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/opt/clair3-src/target \
-    cargo build --release --locked --features cuda
+    cargo build --release --locked --features cuda && \
+    mkdir -p /opt/clair3-bin && cp target/release/clair3 /opt/clair3-bin/
 
 FROM nvidia/cuda:12.9.1-cudnn-runtime-ubuntu22.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl wget libgomp1 libstdc++6 samtools tabix zstd lz4 \
-    python3 python3-pip \
+    ca-certificates curl wget libgomp1 libstdc++6 samtools tabix zstd lz4 xz-utils \
+    python3 python3-pip cuda-cupti-12-9 \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m pip install --no-cache-dir whatshap==2.8
-COPY --from=build /opt/libtorch/lib /opt/clair3/lib/clair3
-COPY --from=build /opt/clair3-src/target/release/clair3 /opt/clair3/bin/clair3
+COPY --from=build /opt/clair3-libs /opt/clair3/lib/clair3
+COPY --from=build /opt/clair3-bin/clair3 /opt/clair3/bin/clair3
+COPY --from=build /opt/clair3-tools/ /opt/clair3/bin/
 COPY run_clair3.sh run_clair3.py clair3.py /opt/clair3/
 COPY scripts/clair3.sh /opt/clair3/scripts/clair3.sh
 RUN chmod +x /opt/clair3/bin/clair3 /opt/clair3/run_clair3.sh /opt/clair3/run_clair3.py /opt/clair3/clair3.py && \
@@ -49,7 +71,7 @@ RUN set -eux; \
         cp -a /tmp/clair3-models/. /opt/models/; \
     fi; \
     rm -rf /tmp/clair3-models
-ENV LD_LIBRARY_PATH=/opt/clair3/lib/clair3 \
+ENV LD_LIBRARY_PATH=/opt/clair3/lib/clair3:/usr/local/cuda/extras/CUPTI/lib64 \
     PATH=/opt/clair3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 WORKDIR /data
 ENTRYPOINT ["/opt/clair3/run_clair3.sh"]
