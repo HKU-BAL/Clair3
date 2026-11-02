@@ -218,7 +218,7 @@ Clair3 v2.0 uses **PyTorch** as its deep learning framework. For GPU-accelerated
 
 Install Mamba or Conda on your machine from [miniforge](https://github.com/conda-forge/miniforge). We recommend using Mamba because it is much faster than Conda.
 
-Clair3's calling, tensor generation, training, checkpoint conversion, and metrics are implemented in Rust. **Core calling and training do not require Python, PyPy, or TensorFlow.** The native build links LibTorch and HTSlib directly and reads training HDF5 files without h5py. Samtools, bgzip, and tabix are external command-line tools. WhatsHap phasing uses Python 3 and the unmodified upstream `whatshap==2.8` package, installed automatically by `make python_tools` and both Dockerfiles. ONT and HiFi fall back to LongPhase when WhatsHap is unavailable. Illumina phasing uses WhatsHap, or can be disabled with `--no_phasing_for_fa`.
+Clair3's calling, tensor generation, training, checkpoint conversion, and metrics are implemented in Rust. **Core calling and training do not require Python, PyPy, or TensorFlow.** The native build links LibTorch and HTSlib directly and reads training HDF5 files without h5py. Samtools, bgzip, and tabix are external command-line tools. WhatsHap phasing uses Python 3 and the unmodified upstream `whatshap==2.8` package, installed automatically by `make python_tools` and both Dockerfiles. For this tested version, Clair3 schedules independent phase blocks in parallel, prepares BAM alleles natively, and uses its own read selector with the installed WhatsHap core. The upstream DP solver is not replaced or modified; other WhatsHap versions use the stock phasing path. ONT and HiFi fall back to LongPhase when WhatsHap is unavailable. Illumina phasing uses WhatsHap, or can be disabled with `--no_phasing_for_fa`.
 
 **Step 1: Install native build tools**
 
@@ -637,8 +637,8 @@ Path | Purpose
 `src/pipeline/` | Calling orchestration, phasing, GVCF, post-processing, and training helpers.
 `src/model/` | Native pileup, full-alignment, and Bloom model architectures.
 `src/train/` | Training, HDF5 archives, TensorFlow checkpoint conversion, and distributed execution.
-`csrc/` | Small C++ bridge for LibTorch and C10d.
-`build.rs` | Download and build the pinned upstream Gloo source for distributed training.
+`csrc/` | Small C++ bridge for LibTorch and C10d, plus the first-party phasing read selector.
+`build.rs` | Download pristine Gloo and checksum-verified WhatsHap headers; build native helpers without changing the WhatsHap DP solver.
 `Cargo.toml`, `Cargo.lock` | Native dependencies resolved from crates.io without source patches.
 `tests/` | Unit, integration, and differential parity tests.
 

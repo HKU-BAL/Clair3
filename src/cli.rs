@@ -38,6 +38,8 @@ enum Commands {
     Run(RunArgs),
     #[command(name = "CallVarBam")]
     CallVarBam(CallVarBamArgs),
+    #[command(name = "PhaseReads")]
+    PhaseReads(crate::pipeline::phase_reads::PhaseReadsArgs),
     #[command(name = "RealignReads")]
     RealignReads(RealignArgs),
     #[command(name = "CallVariants")]
@@ -1391,6 +1393,7 @@ fn dispatch(cli: Cli) -> Result<()> {
     match cli.command {
         Some(Commands::Run(args)) => run_pipeline(&args.options()?),
         Some(Commands::CallVarBam(args)) => run_call_var_bam(args),
+        Some(Commands::PhaseReads(args)) => crate::pipeline::phase_reads::run(args),
         Some(Commands::RealignReads(args)) => realign(args),
         Some(Commands::CallVariants(args)) => call_variants_command(args),
         Some(Commands::CreateTensorPileup(args)) => create_tensor_command(args, true),

@@ -4,6 +4,7 @@ FROM rust:1.88.0-bookworm AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake clang libclang-dev pkg-config curl ca-certificates unzip \
     libssl-dev zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev \
+    python3 python3-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt
 RUN curl -fLsS -o /tmp/libtorch.zip \

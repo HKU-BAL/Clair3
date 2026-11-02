@@ -162,7 +162,90 @@ fn downloaded_libtorch() -> Option<PathBuf> {
     candidates.pop()
 }
 
+fn prepare_readselector() -> Option<PathBuf> {
+    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "windows") {
+        return None;
+    }
+    let python = env::var("PYTHON").unwrap_or_else(|_| "python3".to_string());
+    let output = Command::new(python.clone())
+        .arg("-c")
+        .arg("import sysconfig; print(sysconfig.get_paths()['include']); print(sysconfig.get_config_var('EXT_SUFFIX'))")
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let output = String::from_utf8(output.stdout).ok()?;
+    let mut lines = output.lines();
+    let include = PathBuf::from(lines.next()?);
+    if !include.join("Python.h").is_file() {
+        return None;
+    }
+    let suffix = lines.next().unwrap_or(".so");
+    let out = PathBuf::from(env::var_os("OUT_DIR")?);
+    let root = out.join("whatshap-2.8");
+    if !root.join("src/readset.h").is_file() {
+        let archive = out.join("whatshap-2.8.tar.gz");
+        if !archive.is_file() {
+            execute(
+                Command::new("curl")
+                    .arg("-fLsS")
+                    .arg("--retry")
+                    .arg("3")
+                    .arg("-o")
+                    .arg(&archive)
+                    .arg("https://pypi.org/packages/source/w/whatshap/whatshap-2.8.tar.gz"),
+            );
+        }
+        let checksum = Command::new(&python)
+            .arg("-c")
+            .arg("import hashlib,sys; print(hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest())")
+            .arg(&archive)
+            .output()
+            .ok()?;
+        if !checksum.status.success() {
+            return None;
+        }
+        let checksum = String::from_utf8(checksum.stdout).ok()?;
+        assert_eq!(
+            checksum.trim(),
+            "073ee7946d563e0125dbce58d9fc86a7a3fae377f27859dacb398309374b2cbe",
+            "unexpected WhatsHap source archive checksum"
+        );
+        execute(
+            Command::new("tar")
+                .arg("-xzf")
+                .arg(&archive)
+                .arg("-C")
+                .arg(&out),
+        );
+    }
+    let compiler = cc::Build::new().cpp(true).get_compiler();
+    let mut command = Command::new(compiler.path());
+    command
+        .args(compiler.args())
+        .arg("-std=c++11")
+        .arg("-O3")
+        .arg("-fPIC")
+        .arg("-shared")
+        .arg("-I")
+        .arg(root.join("src"))
+        .arg("-I")
+        .arg(include);
+    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos") {
+        command.arg("-undefined").arg("dynamic_lookup");
+    }
+    let output = out.join(format!("clair3_readselect{suffix}"));
+    command
+        .arg("csrc/fast_readselect.cpp")
+        .arg("-o")
+        .arg(&output);
+    execute(&mut command);
+    Some(output)
+}
+
 fn main() {
+    println!("cargo:rerun-if-changed=csrc/fast_readselect.cpp");
     println!("cargo:rerun-if-changed=csrc/torch_bridge.cpp");
     println!("cargo:rerun-if-changed=csrc/sampling_compat.cpp");
     for name in [
@@ -176,6 +259,16 @@ fn main() {
     ] {
         println!("cargo:rerun-if-env-changed={name}");
     }
+    let read_selector = prepare_readselector().unwrap_or_else(|| {
+        let path =
+            PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR")).join("clair3_readselect.so");
+        fs::write(&path, b"").expect("failed to prepare the fallback selector marker");
+        path
+    });
+    println!(
+        "cargo:rustc-env=CLAIR3_READSELECT={}",
+        read_selector.display()
+    );
     println!("cargo:rerun-if-changed=csrc/native_lstm.cpp");
     if env::var_os("CARGO_FEATURE_DISTRIBUTED").is_none() {
         return;

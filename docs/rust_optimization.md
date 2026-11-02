@@ -6,9 +6,9 @@ This report covers the `clair3-rust` branch. The `main` branch was not changed.
 
 The implementation retains the native Rust caller and the validated CPU tensor and inference optimizations described below. CPU remains the default. MPS and CUDA are optional; there is no AMD-specific backend. No quantization or candidate-filter relaxation is used.
 
-The final cleanup removes all vendored and locally patched third-party source copies. WhatsHap is invoked as the installed, unmodified upstream executable. Gloo is downloaded from a pinned upstream commit, and `torch-sys` is resolved from crates.io without a patch. Earlier phasing optimizations that required replacement WhatsHap components are documented here for completeness, but are **not** part of the final implementation.
+The final implementation uses pristine third-party sources and the installed upstream WhatsHap 2.8 DP solver. It restores four pipeline-level phasing optimizations: independent phase-block scheduling, parallel BAM preparation, native allele loading, and native read selection. DP-specific solver changes, including a replacement phase core and altered cost calculations, are excluded. Gloo is downloaded from a pinned upstream commit, and `torch-sys` is resolved from crates.io without a patch. Other WhatsHap versions use the stock phasing path.
 
-The experimental 30-second CPU target was canceled before completion. The best measured runtime with the former custom phasing integration was 42.62 seconds. The final stock-phasing benchmark is reported below; it must not be confused with that historical result.
+The experimental 30-second CPU target was canceled before completion. The best measured runtime with the former custom DP changes was 42.62 seconds. The current implementation retains only the four optimizations above; its benchmark is reported separately below.
 
 ## Benchmark
 
@@ -32,10 +32,11 @@ The output directory was changed between runs to preserve the results. Timing is
 | --- | ---: | --- |
 | Original Python implementation | 309.10 s | 626.80 s user CPU; 41.70 s system CPU; 1.97 GB peak RSS |
 | Initial native Rust implementation | 301.89 s | Native end-to-end port before the optimization milestones |
-| Best optimized CPU run with former custom phasing | 42.62 s | Historical result at `02311b1`; independent confirmation 43.19 s |
-| Final implementation with pristine upstream dependencies | 191.09 s | Stock WhatsHap 2.8; phasing 160.7 s, including 113.8 s in its DP solver |
+| Best optimized CPU run with former custom DP changes | 42.62 s | Historical result at `02311b1`; independent confirmation 43.19 s |
+| Pristine dependency baseline without restored phasing optimizations | 191.09 s | Stock WhatsHap 2.8; phasing 160.7 s, including 113.8 s in its DP solver |
+| Final four phasing optimizations with the upstream DP solver | 72.01 s | Phasing 29.2 s, including 20.6 s in the original DP solver |
 
-The final implementation is the deliverable. The 42.62-second configuration is retained only as historical context because it depended on locally modified third-party phasing components. Restoring the unmodified upstream phasing tool accounts for most of the difference between the historical best and the final runtime. The final run used 356.02 seconds of user CPU, 13.68 seconds of system CPU, and 3.94 GB peak resident memory.
+The final implementation is the last configuration. Restoring the four pipeline-level optimizations reduced the pristine dependency baseline by 62.3% without changing the DP implementation. The final run used 384.01 seconds of user CPU, 20.42 seconds of system CPU, and 3.93 GB peak resident memory. The 42.62-second historical result included DP solver changes and is not the deliverable.
 
 ## Final output verification
 
@@ -75,6 +76,13 @@ The residual differences are concentrated in full-alignment model decoding and i
 - Used bounded tensor generation, independent job scheduling, per-job model ownership, and job-indexed result collection to preserve read, candidate, and output order.
 - Used deterministic per-job random sampling and native macOS/Linux sampling bridges.
 
+### Phasing with the upstream DP solver
+
+- Schedule independent connected phase blocks in forked workers, largest first, and merge haplotypes in genomic order. Each block calls the installed upstream `PedigreeDPTable`; no solver source or cost calculation is changed.
+- Capture alignment spans while pileup calling proceeds, partition BAM reads across workers, and use native Rust/HTSlib allele loading with exact-match shortcuts, bounded edit-distance workspaces, and compatible supplementary-read merging.
+- Use the first-party C++ read selector with unmodified upstream headers and the installed WhatsHap 2.8 core. Preserve the original 15× selection and priority-queue behavior.
+- Load the official core to resolve selector symbols; do not substitute a bundled `whatshap.core`. Accelerated behavior is limited to the tested 2.8 API/ABI, with stock behavior for other versions.
+
 ### Parallel CPU inference
 
 - Scheduled the requested number of independent calling jobs with one LibTorch intra-op thread per model worker.
@@ -108,14 +116,14 @@ These are historical measurements from the optimization process, not claims that
 | Commit | Main change | Reported measurement |
 | --- | --- | --- |
 | `4754c23` | Native Rust rewrite | 301.89 s |
-| `7bf7de9` | Parallel independent WhatsHap phase blocks | Phasing 192.4 to 117.66 s; superseded by pristine-tool policy |
-| `182f317` | Parallel BAM allele loading for phasing | 162.61 s with six workers; superseded by pristine-tool policy |
+| `7bf7de9` | Parallel independent WhatsHap phase blocks | Phasing 192.4 to 117.66 s; restored with the upstream DP solver |
+| `182f317` | Parallel BAM allele loading for phasing | 162.61 s with six workers; restored |
 | `3c94f82` | Requested worker count for independent calling | 145.01 s with eight workers |
 | `e745991` | Optional dedicated MPS/CUDA inference workers | Optional MPS run 105.94 s; CPU remains default |
 | `dee6460` | Parallel CPU inference and streamlined tensors | 112.76 s |
-| `928aa07` | Decoupled pileup inference and native phasing | 94.21 s; phasing component superseded |
-| `a0526f5` | Cached NNPACK, tensor scheduling, native read selection | 74.55 s; phasing component superseded |
-| `d616e2c` | Native LSTM and native allele loading | 70.20 s; phasing component superseded |
+| `928aa07` | Decoupled pileup inference and native phasing | 94.21 s; DP changes excluded, other optimizations retained |
+| `a0526f5` | Cached NNPACK, tensor scheduling, native read selection | 74.55 s; native read selection restored |
+| `d616e2c` | Native LSTM and native allele loading | 70.20 s; native allele loading restored |
 | `bbe5a8b` | libdeflate BAM decompression | 57.69 s |
 | `f1d2e6b` | Direct full-alignment GEMM convolution | 51.72 s |
 | `fdcac30` | Cache-windowed CIGAR walking | 44.62 s |
@@ -127,10 +135,10 @@ Each accepted end-to-end improvement greater than 10% was committed with impleme
 
 The final revision makes these installation changes:
 
-- Removed `third_party/whatshap`, the custom native read selector, replacement phase core, parallel Python phasing wrapper, and the special `PhaseReads` command.
+- Removed `third_party/whatshap` and the replacement DP phase core. The first-party read selector now lives in `csrc/fast_readselect.cpp`; it is built against the official WhatsHap 2.8 headers, downloaded from PyPI and verified with SHA-256 `073ee7946d563e0125dbce58d9fc86a7a3fae377f27859dacb398309374b2cbe`.
 - Removed `third_party/torch-sys` and the Cargo source patch. `Cargo.lock` now identifies the official crates.io `torch-sys 0.26.0` package and checksum.
 - Removed `third_party/gloo`. `build.rs` downloads upstream commit `bcd1672ee07538123ea8f4fac76832efc58fb8ef`; its tree was compared with the previous vendored tree before pinning.
-- Removed the custom BAM span-capture pass and invokes the configured WhatsHap executable directly with the original phase arguments.
+- Restored background BAM span capture, native allele reading, and independent phase-block scheduling. The Python wrapper calls the installed `PedigreeDPTable` and never substitutes a replacement DP core. Accelerated paths are restricted to WhatsHap 2.8; other versions retain stock behavior.
 - Added `make python_tools`, which installs unmodified `whatshap==2.8`. On macOS it also installs the official `torch==2.13.0` wheel for the upstream `LIBTORCH_USE_PYTORCH=1` build path.
 - Updated CPU and GPU Docker images to install upstream WhatsHap 2.8 and removed their vendored-source copy steps.
 - Retained the existing upstream LibTorch, LongPhase, model, samtools, bgzip, and tabix download/install paths.
@@ -184,11 +192,13 @@ Additional checks:
 - Full supplied HG002 chr20 command and VCF comparisons: see above.
 - `cargo fmt --all -- --check`: passed.
 - `cargo clippy --all-targets --locked -- -D warnings`: passed.
-- `cargo test --all-targets --release --locked`: 51 unit tests passed, one pre-existing LSTM assertion failed, and one test was ignored. The failing library test stopped the unfiltered run.
-- All remaining targets, run with only `model::lstm::tests::official_lstm_layers_match` excluded: passed, including 52 other unit tests, nine pileup fixture tests, official model parity, calling, realignment, training, and integration tests. This exclusion is a diagnostic continuation, not a claim that the full suite is green.
+- `cargo test --all-targets --release --locked`: 57 unit tests passed, one pre-existing LSTM assertion failed, and one test was ignored. The failing library test stopped the unfiltered run.
+- All remaining targets, run with only `model::lstm::tests::official_lstm_layers_match` excluded: passed, including 58 other unit tests, restored phasing tests, nine pileup fixture tests, official model parity, calling, realignment, training, and integration tests. This exclusion is a diagnostic continuation, not a claim that the full suite is green.
 - Docker builds, NVIDIA execution, AMD execution, and LongPhase source compilation were not verified on this macOS host.
 
-A pre-existing strict `official_lstm_layers_match` assertion was observed before the final cleanup. At the same fixtures, LSTM2 differs by `0.053098708391189575`, with first-timestep difference `0.0008534938097000122`. It reproduces at the earlier `f1d2e6b` milestone and is not a result of the range-counting or dependency-cleanup changes. The complete test suite must not be described as green while that assertion fails.
+A pre-existing strict `official_lstm_layers_match` assertion checks the official ONT pileup model. At the same fixtures, LSTM2 differs by `0.053098708391189575`, with first-timestep difference `0.0008534938097000122`. It reproduces at the earlier `f1d2e6b` milestone and is not a result of the range-counting or dependency-cleanup changes. The complete test suite must not be described as green while that assertion fails.
+
+The assertion was not removed. A direct comparison with `CLAIR3_NATIVE_LSTM=0` on the supplied HiFi benchmark showed that the LSTM backend affects results: 51 pileup QUAL values changed (maximum absolute difference 0.01), one GQ value changed, and downstream full-alignment/merged outputs had 22 genotype differences and altered representations. Although the failing fixture is ONT-specific, this comparison confirms that LSTM numerical differences can be consequential. Deleting the assertion merely to obtain a green suite would hide that evidence.
 
 ## Reproduction notes
 
