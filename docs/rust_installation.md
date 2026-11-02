@@ -138,7 +138,7 @@ Continue with the [Clair3-Rust quick test](rust_quick_test.md).
 
 ## Linux build verification
 
-The repository includes an Ubuntu 22.04 workflow at `.github/workflows/linux.yml`. It builds a compatible upstream samtools, installs the native dependencies and official models, builds and installs Clair3, runs formatting, Clippy, and the test suite, and exercises the HiFi fixture with and without native phasing. To inspect the runs with GitHub's CLI:
+The repository includes an Ubuntu 22.04 workflow at `.github/workflows/linux.yml`. It builds a compatible upstream samtools, installs the native dependencies and official models, builds and installs Clair3, runs formatting, Clippy, and the test suite, and exercises the HiFi fixture with and without native phasing. It also checks that the native selector initializes with the installed upstream core, then builds the CPU Docker image and runs the phased fixture inside the container. To inspect the runs with GitHub's CLI:
 
 ```bash
 gh run list --workflow linux.yml --branch clair3-rust

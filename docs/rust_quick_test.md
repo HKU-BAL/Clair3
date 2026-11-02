@@ -14,11 +14,11 @@ samtools --version
 
 ## 2. Run the small end-to-end fixture
 
-Choose a HiFi model directory containing `pileup.pt` and `full_alignment.pt`:
+Choose a HiFi model directory containing `pileup.pt` and `full_alignment.pt`. The golden fixture uses `hifi_sequel2`; a different checkpoint, including `hifi_revio`, can produce different calls:
 
 ```bash
 # After make models PREFIX="${CONDA_PREFIX}":
-MODEL_DIR="${CONDA_PREFIX}/bin/models/hifi_revio"
+MODEL_DIR="${CONDA_PREFIX}/bin/models/hifi_sequel2"
 
 # Contributors with the prepared test assets can instead use:
 # MODEL_DIR=target/test-data/models/hifi

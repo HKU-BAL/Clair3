@@ -59,18 +59,18 @@ jobs:
         run: |
           mkdir -p target/test-data/models/upstream
           for model in \
-            hifi_revio \
+            hifi_sequel2 \
             ilmn \
-            r1041_e82_400bps_sup_v500 \
+            r941_prom_hac_g360+g422 \
             r1041_e82_400bps_hac_v500 \
             r1041_e82_400bps_hac_with_mv; do
             wget -q -r -np -nH --cut-dirs=2 -R 'index.html*' \
               -P target/test-data/models/upstream \
               "https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/${model}/"
           done
-          ln -s upstream/hifi_revio target/test-data/models/hifi
+          ln -s upstream/hifi_sequel2 target/test-data/models/hifi
           ln -s upstream/ilmn target/test-data/models/ilmn
-          ln -s upstream/r1041_e82_400bps_sup_v500 target/test-data/models/ont
+          ln -s upstream/r941_prom_hac_g360+g422 target/test-data/models/ont
           ln -s upstream/r1041_e82_400bps_hac_v500 target/test-data/models/r1041_e82_400bps_hac_v500
           ln -s upstream/r1041_e82_400bps_hac_with_mv target/test-data/models/full_dwell
 
@@ -144,7 +144,7 @@ jobs:
               --ref_fn /workspace/tests/fixtures/data/toy.fa \
               --threads 2 \
               --platform hifi \
-              --model_path /opt/models/hifi_revio \
+              --model_path /opt/models/hifi_sequel2 \
               --output /tmp/merge_output \
               --ctg_name chrToy &&
             python3 -c "import gzip,sys; stream=gzip.open(sys.argv[1], sys.argv[2]); assert sum(not line.startswith(chr(35)) for line in stream)==8" /tmp/merge_output/merge_output.vcf.gz rt'
