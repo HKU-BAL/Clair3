@@ -99,11 +99,14 @@ RUN make PREFIX=${VIRTUAL_ENV} PYTHON=${VIRTUAL_ENV}/bin/python && \
     rm -rf /opt/bin/samtools-* /opt/bin/longphase-*
 
 # Step 5 in README: install pypy3.11 and mpmath for pypy.
+# The symlinks go outside ${VIRTUAL_ENV}/bin on purpose: an interpreter invoked
+# from a venv's bin/ treats that venv as its own prefix, so pypy's ensurepip
+# would overwrite the venv's pip/pip3 and install into it.
 RUN wget -q https://downloads.python.org/pypy/pypy3.11-v7.3.20-linux64.tar.bz2 && \
     tar -xjf pypy3.11-v7.3.20-linux64.tar.bz2 && \
     rm pypy3.11-v7.3.20-linux64.tar.bz2 && \
-    ln -sf /opt/bin/pypy3.11-v7.3.20-linux64/bin/pypy3 ${VIRTUAL_ENV}/bin/pypy3 && \
-    ln -sf /opt/bin/pypy3.11-v7.3.20-linux64/bin/pypy3 ${VIRTUAL_ENV}/bin/pypy && \
+    ln -sf /opt/bin/pypy3.11-v7.3.20-linux64/bin/pypy3 /usr/local/bin/pypy3 && \
+    ln -sf /opt/bin/pypy3.11-v7.3.20-linux64/bin/pypy3 /usr/local/bin/pypy && \
     pypy3 -m ensurepip && \
     pypy3 -m pip install --no-cache-dir mpmath==1.2.1
 
