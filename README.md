@@ -305,7 +305,7 @@ ${CLAIR3_PATH}/run_clair3.sh \
 
 ### Option 2.  Docker pre-built image
 
-To build the CPU image locally, run `docker build -f Dockerfile -t clair3-rust:local .`. The Dockerfile supports Linux x86_64 and ARM64. ARM64 uses the official PyTorch wheel and builds LongPhase from unmodified upstream source; x86_64 uses the prebuilt downloads.
+To build the CPU image locally, run `docker build -f Dockerfile -t clair3-rust:local .`. The Dockerfile supports Linux x86_64 and ARM64. ARM64 uses the official PyTorch wheel and builds LongPhase from unmodified upstream source; x86_64 uses the prebuilt downloads. Both architectures were validated locally, with x86_64 tested under `linux/amd64` emulation on an ARM64 host. The native WhatsHap selector supports both C++ string ABIs of the official 2.8 core.
 
 > **Note**: The Docker pre-built image **only supports CPU execution**. For GPU or Apple Silicon acceleration, please use [Option 1 (step-by-step installation)](#option-1-build-an-environment-with-mambaconda).
 

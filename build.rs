@@ -1,4 +1,8 @@
-use std::{env, fs, path::PathBuf, process::Command};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 fn python_details(python: &str) -> (Vec<PathBuf>, Vec<PathBuf>, String) {
     let output = Command::new(python)
@@ -162,7 +166,7 @@ fn downloaded_libtorch() -> Option<PathBuf> {
     candidates.pop()
 }
 
-fn prepare_readselector() -> Option<PathBuf> {
+fn prepare_readselector() -> Option<(PathBuf, PathBuf)> {
     if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "windows") {
         return None;
     }
@@ -221,27 +225,43 @@ fn prepare_readselector() -> Option<PathBuf> {
         );
     }
     let compiler = cc::Build::new().cpp(true).get_compiler();
-    let mut command = Command::new(compiler.path());
-    command
-        .args(compiler.args())
-        .arg("-std=c++11")
-        .arg("-O3")
-        .arg("-fPIC")
-        .arg("-shared")
-        .arg("-I")
-        .arg(root.join("src"))
-        .arg("-I")
-        .arg(include);
-    if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos") {
-        command.arg("-undefined").arg("dynamic_lookup");
-    }
+    let linux = env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "linux");
+    let compile = |abi: Option<&str>, output: &Path| {
+        let mut command = Command::new(compiler.path());
+        command
+            .args(compiler.args())
+            .arg("-std=c++11")
+            .arg("-O3")
+            .arg("-fPIC")
+            .arg("-shared")
+            .arg("-I")
+            .arg(root.join("src"))
+            .arg("-I")
+            .arg(&include);
+        if let Some(abi) = abi {
+            command.arg(format!("-D_GLIBCXX_USE_CXX11_ABI={abi}"));
+        }
+        if env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos") {
+            command.arg("-undefined").arg("dynamic_lookup");
+        }
+        command
+            .arg("csrc/fast_readselect.cpp")
+            .arg("-o")
+            .arg(output);
+        execute(&mut command);
+    };
     let output = out.join(format!("clair3_readselect{suffix}"));
-    command
-        .arg("csrc/fast_readselect.cpp")
-        .arg("-o")
-        .arg(&output);
-    execute(&mut command);
-    Some(output)
+    compile(linux.then_some("1"), &output);
+    let legacy = if linux {
+        let path = out.join(format!("clair3_readselect_abi0{suffix}"));
+        compile(Some("0"), &path);
+        path
+    } else {
+        let path = out.join("clair3_readselect_abi0.so");
+        fs::write(&path, b"").ok()?;
+        path
+    };
+    Some((output, legacy))
 }
 
 fn main() {
@@ -259,15 +279,21 @@ fn main() {
     ] {
         println!("cargo:rerun-if-env-changed={name}");
     }
-    let read_selector = prepare_readselector().unwrap_or_else(|| {
-        let path =
-            PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR")).join("clair3_readselect.so");
+    let (read_selector, read_selector_abi0) = prepare_readselector().unwrap_or_else(|| {
+        let out = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
+        let path = out.join("clair3_readselect.so");
+        let abi0 = out.join("clair3_readselect_abi0.so");
         fs::write(&path, b"").expect("failed to prepare the fallback selector marker");
-        path
+        fs::write(&abi0, b"").expect("failed to prepare the fallback selector marker");
+        (path, abi0)
     });
     println!(
         "cargo:rustc-env=CLAIR3_READSELECT={}",
         read_selector.display()
+    );
+    println!(
+        "cargo:rustc-env=CLAIR3_READSELECT_ABI0={}",
+        read_selector_abi0.display()
     );
     println!("cargo:rerun-if-changed=csrc/native_lstm.cpp");
     if env::var_os("CARGO_FEATURE_DISTRIBUTED").is_none() {

@@ -97,15 +97,19 @@ fn check(case: &(&str, ModelKind, i64, bool, &str), device: Device, tolerance: f
     )
     .unwrap();
     let input = tensor(root().join(format!("tests/fixtures/models/npy/{name}_input.npy")));
-    let expected_name = if cfg!(target_os = "linux") && name.starts_with("pileup_") {
+    let expected_name = if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        format!("{name}_cpu.linux-amd64.npy")
+    } else if cfg!(target_os = "linux") && name.starts_with("pileup_") {
         format!("{name}_cpu.linux.npy")
     } else {
         format!("{name}_cpu.npy")
     };
     let expected = tensor(root().join(format!("tests/fixtures/models/npy/{expected_name}")));
-    let actual = model
-        .forward(&input.to_device(device), false)
-        .to_device(Device::Cpu);
+    let actual = tch::no_grad(|| {
+        model
+            .forward(&input.to_device(device), false)
+            .to_device(Device::Cpu)
+    });
     assert_eq!(actual.size(), expected.size(), "output shape for {name}");
     let difference = (actual - expected).abs().max().double_value(&[]);
     assert!(

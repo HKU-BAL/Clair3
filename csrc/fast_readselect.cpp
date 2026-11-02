@@ -569,7 +569,10 @@ static PyObject* deserialize(PyObject*, PyObject* args) {
 				for (size_t mapq = 1; mapq < mapqs.size(); ++mapq) read->addMapq(mapqs[mapq]);
 				uint32_t variant_count = reader.u32();
 				for (uint32_t variant = 0; variant < variant_count; ++variant) {
-					read->addVariant(reader.integer(), reader.integer(), reader.integer());
+					int position = reader.integer();
+					int allele = reader.integer();
+					int quality = reader.integer();
+					read->addVariant(position, allele, quality);
 				}
 				reads->add(read);
 			}

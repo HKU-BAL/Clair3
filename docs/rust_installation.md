@@ -145,7 +145,7 @@ docker build -f Dockerfile -t clair3-rust:local .
 docker run --rm clair3-rust:local /opt/clair3/bin/clair3 --version
 ```
 
-The image supports Linux x86_64 and ARM64. On ARM64, it uses the official PyTorch wheel and builds LongPhase from the unmodified upstream source; x86_64 retains the prebuilt LibTorch and LongPhase downloads. Use the fixture and phasing commands in the [quick-test guide](rust_quick_test.md) to verify model inference and native phasing.
+The image supports Linux x86_64 and ARM64. On ARM64, it uses the official PyTorch wheel and builds LongPhase from the unmodified upstream source; x86_64 retains the prebuilt LibTorch and LongPhase downloads. Both architectures were validated locally, with x86_64 tested under `linux/amd64` emulation on an ARM64 host. On another architecture, select x86_64 explicitly with `docker build --platform linux/amd64 ...` and `docker run --platform linux/amd64 ...`. Use the fixture and phasing commands in the [quick-test guide](rust_quick_test.md) to verify model inference and native phasing.
 
 ## Docker
 
@@ -169,7 +169,7 @@ Use `/opt/clair3/run_clair3.sh` as the container entry point. Pre-trained models
 ## Dependency policy
 
 - WhatsHap comes from its official Python package and is used without source changes.
-- The native selector is first-party Clair3 code. It builds against unmodified WhatsHap 2.8 headers downloaded from PyPI with SHA-256 `073ee7946d563e0125dbce58d9fc86a7a3fae377f27859dacb398309374b2cbe`.
+- The native selector is first-party Clair3 code. It builds against unmodified WhatsHap 2.8 headers downloaded from PyPI with SHA-256 `073ee7946d563e0125dbce58d9fc86a7a3fae377f27859dacb398309374b2cbe`. Linux builds include old- and new-C++-ABI variants, and the loader selects one using symbols exported by the installed core. Variant position, allele, and quality fields are deserialized in an explicit sequence for consistent behavior across compilers.
 - `torch-sys` is the official crates.io package recorded in `Cargo.lock`.
 - Gloo is downloaded from upstream commit `bcd1672ee07538123ea8f4fac76832efc58fb8ef`.
 - LibTorch and LongPhase retain their upstream download paths.

@@ -195,7 +195,7 @@ Additional checks:
 - `cargo test --all-targets --release --locked`: 58 unit tests passed, one pre-existing LSTM assertion failed, and one test was ignored. The failing library test stopped the unfiltered run.
 - All remaining targets, run with only `model::lstm::tests::official_lstm_layers_match` excluded: passed, including 59 other unit tests and `native_phase_command_uses_current_executable`, restored phasing tests, nine pileup fixture tests, official model parity, calling, realignment, training, and integration tests. This exclusion is a diagnostic continuation, not a claim that the full suite is green.
 - Direct installed `clair3 run` without a `CLAIR3_BIN` override: passed with native phasing. The small HiFi fixture produced eight expected records both with and without phasing.
-- On macOS, Docker builds, NVIDIA execution, AMD execution, and LongPhase source compilation were not verified. Linux/ARM64 Docker validation is recorded below; x86_64 Docker execution and GPU backends remain unverified in this environment.
+- On macOS, Docker builds, NVIDIA execution, AMD execution, and LongPhase source compilation were not verified. Linux/ARM64 and emulated Linux/x86_64 Docker validation are recorded below; NVIDIA and AMD GPU backends remain unverified in this environment.
 
 ## Local Docker Linux validation
 
@@ -203,7 +203,7 @@ The GitHub-based Linux workflow was removed in favor of testing with the user's 
 
 Local Docker formatting, Clippy with warnings treated as errors, and `cargo test --all-targets --release --locked` passed. This includes 59 unit tests with one ignored, all full-alignment tensor fixtures, model parity, pipeline tests, and training tests. External-data tests retain their documented ignore markers. The wrapped-checkpoint test was also exercised with its generated input and skips when that input is unavailable. The phased HiFi fixture produced the expected eight variants, and the native selector initialized against the unmodified upstream WhatsHap core.
 
-High-depth full-alignment golden tensors are platform-specific because the original C implementation uses the platform C library's `rand()` for downsampling. Six Linux `.linux.npy` fixtures were generated with the unmodified original CFFI implementation; Rust matches them exactly. Existing macOS fixtures were not modified. Pileup model Linux goldens were generated with the original Python/PyTorch implementation, preserving the strict `1e-4` tolerance rather than loosening it.
+High-depth full-alignment golden tensors are platform-specific because the original C implementation uses the platform C library's `rand()` for downsampling. Six Linux `.linux.npy` fixtures were generated with the unmodified original CFFI implementation; Rust matches them exactly. Existing macOS fixtures were not modified. Pileup model Linux goldens were generated with the original Python/PyTorch implementation, preserving the strict `1e-4` tolerance rather than loosening it. Every official model case also has an original-Python x86_64 `.linux-amd64.npy` golden. Model-parity inference uses `tch::no_grad`, matching production and Python's `inference_mode`; gradient-enabled test execution was not treated as a production numerical failure.
 
 ### Original-versus-Rust HG002 comparison on Linux/ARM64
 
@@ -218,6 +218,24 @@ Both implementations ran the supplied HG002 chr20 command with eight threads and
 All 33,824 phased GT/PS fields and their record ordering match the original exactly. A batch-100 comparison with the supplied full-alignment checkpoint found a maximum absolute probability difference of `1.66893e-6`, accounting for the small remaining numerical differences. The larger macOS-versus-Linux differences also occur between two original Python runs and must not be attributed to the Rust port. No new optimization or production-code change was introduced during this Linux validation.
 
 The complete original run took 375.24 seconds and the Rust run took 209.22 seconds, approximately 1.79 times faster. The Rust run overlapped other validation work, so these timings document the test environment rather than a controlled performance benchmark; they do not revise the macOS optimization measurements above.
+
+### Original-versus-Rust HG002 comparison on Linux/x86_64
+
+The x86_64 validation used `linux/amd64` containers on the ARM64 host. It verifies the x86_64 build and behavior, not native x86_64 hardware performance. Formatting, Clippy, and the complete test suite passed with 60 unit tests and one ignored, followed by an explicitly executed WhatsHap-dependent serialization regression. The phased fixture and native selector check passed on both x86_64 and ARM64.
+
+The official x86_64 WhatsHap wheel exports the old C++ string ABI, while the tested ARM64 source-built core uses the new ABI. Linux now builds the same first-party selector with `_GLIBCXX_USE_CXX11_ABI=0` and `_GLIBCXX_USE_CXX11_ABI=1` and selects the appropriate module from symbols exported by the installed WhatsHap 2.8 core. The upstream DP solver and all third-party sources remain unmodified.
+
+The first full x86_64 run also exposed an evaluation-order bug in first-party deserialization: three `reader.integer()` calls in one `addVariant` expression could be evaluated right-to-left, assigning quality to position. The fields are now read sequentially. A saved-job check retained 4,083 positions across 26,825 reads, selected 3,507 reads, and produced no unsorted reads. The permanent regression test verifies position, allele, and quality through serialization and deserialization on the installed core.
+
+The original Python and final Rust x86_64 outputs compare as follows:
+
+| Output | Records in each version | Positions, alleles, genotypes, and ordering | QUAL differences | GQ differences |
+| --- | ---: | --- | --- | --- |
+| Pileup | 135,180 | Exact match | 1; maximum absolute difference 0.01 | 0 |
+| Full alignment | 40,493 | Exact match | 29; maximum absolute difference 0.11 | 0 |
+| Merged | 94,559 | Exact match | 28; maximum absolute difference 0.11 | 0 |
+
+All 33,824 phased GT/PS fields and their record ordering match the original exactly. Optimized phasing completed successfully rather than falling back to the installed selector. The complete original run took 878.63 seconds and the final Rust run took 386.89 seconds, approximately 2.27 times faster. Both ran under emulation with other validation work active, so these are validation timings rather than a controlled performance benchmark or a new optimization result.
 
 A pre-existing strict `official_lstm_layers_match` assertion checks the official ONT pileup model. At the same fixtures, LSTM2 differs by `0.053098708391189575`, with first-timestep difference `0.0008534938097000122`. It reproduces at the earlier `f1d2e6b` milestone and is not a result of the range-counting or dependency-cleanup changes. The complete test suite must not be described as green while that assertion fails.
 

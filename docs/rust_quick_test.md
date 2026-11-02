@@ -88,7 +88,7 @@ cargo test --test model_parity --release --locked
 
 The model-parity test uses official checkpoints when they are available under `target/test-data/models`. It reports a skip for unavailable checkpoints.
 
-High-depth full-alignment fixtures have Linux-specific `.linux.npy` goldens because the original C implementation's `rand()` downsampling differs between macOS and Linux. The Linux goldens were generated with the unmodified original CFFI implementation and are compared exactly with Rust. The pileup model fixtures likewise use original-Python Linux outputs to account for LSTM backend differences. These changes affect only test fixture selection, not the calling implementation or the original macOS goldens. The wrapped-checkpoint test runs when `target/wrapped-state-dict.pt` is available and reports a skip otherwise.
+High-depth full-alignment fixtures have Linux-specific `.linux.npy` goldens because the original C implementation's `rand()` downsampling differs between macOS and Linux. The Linux goldens were generated with the unmodified original CFFI implementation and are compared exactly with Rust. The pileup model fixtures likewise use original-Python Linux outputs to account for LSTM backend differences. Every official model case also has an original-Python x86_64 golden with a `.linux-amd64.npy` suffix. Model-parity inference runs inside `tch::no_grad`, matching production and Python's `inference_mode`. These changes affect only test fixture selection and inference context, not the calling implementation or the original macOS goldens. The wrapped-checkpoint test runs when `target/wrapped-state-dict.pt` is available and reports a skip otherwise.
 
 To continue through the remaining test targets while excluding only the documented ONT LSTM assertion:
 
@@ -119,12 +119,12 @@ For stage timings, add `CLAIR3_PROFILE=1` to the environment before running it.
 
 The validated runs contain:
 
-| Output | macOS optimized Rust | Linux original and Rust |
-| --- | ---: | ---: |
-| `pileup.vcf.gz` | 135,180 | 135,180 |
-| `full_alignment.vcf.gz` | 40,493 | 40,494 |
-| `merge_output.vcf.gz` | 94,572 | 94,550 |
-| `tmp/phase_output/phase_vcf/phased_chr20.vcf.gz` | 33,824 | 33,824 |
+| Output | macOS optimized Rust | Linux/ARM64 original and Rust | Linux/x86_64 original and Rust |
+| --- | ---: | ---: | ---: |
+| `pileup.vcf.gz` | 135,180 | 135,180 | 135,180 |
+| `full_alignment.vcf.gz` | 40,493 | 40,494 | 40,493 |
+| `merge_output.vcf.gz` | 94,572 | 94,550 | 94,559 |
+| `tmp/phase_output/phase_vcf/phased_chr20.vcf.gz` | 33,824 | 33,824 | 33,824 |
 
 Record counts alone are not a parity check. Compare contig, position, reference, alternate, genotype, QUAL, GQ, and ordering against the chosen reference. The original Python output is not completely identical to the optimized-Rust output, and the original implementation itself has platform-dependent numerical differences. Use a same-platform original run as the Linux reference; see the measured differences in the [optimization and verification report](rust_optimization.md).
 
@@ -145,7 +145,7 @@ docker run --rm -v "${PWD}:/workspace:ro" clair3-rust:local \
   --ctg_name chrToy
 ```
 
-The fixture should contain eight records at `/tmp/clair3-quick-test/merge_output.vcf.gz` inside the container. The Dockerfile supports Linux x86_64 and ARM64; ARM64 uses an official PyTorch wheel and an upstream LongPhase source build. Linux/ARM64 was validated with a local Docker daemon; the x86_64 build and run were not exercised in this environment.
+The fixture should contain eight records at `/tmp/clair3-quick-test/merge_output.vcf.gz` inside the container. The Dockerfile supports Linux x86_64 and ARM64; ARM64 uses an official PyTorch wheel and an upstream LongPhase source build. Both architectures passed this fixture and the selector serialization check. x86_64 was tested under `linux/amd64` emulation on an ARM64 host; add `--platform linux/amd64` to the Docker build and run commands to reproduce that configuration.
 
 With the prepared model assets from section 2, run the complete local Docker checks as follows:
 
@@ -162,7 +162,14 @@ docker run --rm --entrypoint /bin/bash \
   '
 ```
 
-The Linux/ARM64 run passed these checks and the phased fixture, including native selector initialization with the unmodified WhatsHap 2.8 core. Tests requiring additional external data remain marked as ignored, and the optional wrapped-checkpoint test reports a skip if its input is unavailable.
+The Linux/ARM64 and emulated Linux/x86_64 runs passed these checks and the phased fixture, including native selector initialization with the unmodified WhatsHap 2.8 core. Tests requiring additional external data remain marked as ignored, and the optional wrapped-checkpoint test reports a skip if its input is unavailable. With official WhatsHap 2.8 installed, explicitly run the selector regression as follows; install `whatshap==2.8` in the test container first if necessary:
+
+```bash
+cargo test --test pipeline_parity readset_serialization_preserves_variant_fields \
+  --release --locked -- --ignored --exact
+```
+
+The test verifies position, allele, and quality through the installed core and the first-party selector. It does not modify WhatsHap or its DP solver.
 
 ## 7. Optional GPU smoke test
 

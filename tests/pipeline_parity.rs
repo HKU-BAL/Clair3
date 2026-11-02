@@ -266,3 +266,41 @@ fn bp_resolution_preserves_legacy_counts_and_end() {
         .unwrap();
     assert_eq!(site.samples[0], "./.:0:8:95,0,95");
 }
+
+#[test]
+#[ignore = "requires official WhatsHap 2.8 and Python"]
+fn readset_serialization_preserves_variant_fields() {
+    let directory = tempfile::tempdir().unwrap();
+    let regions = directory.path().join("regions");
+    fs::write(&regions, "").unwrap();
+    let command = clair3::pipeline::phasing::parallel_phase_command("whatshap", 1, Some(&regions));
+    let selector = command
+        .get_envs()
+        .find(|(name, _)| *name == "CLAIR3_FAST_READSELECT")
+        .map(|(_, value)| value)
+        .unwrap()
+        .unwrap();
+    let script = r#"
+import runpy
+from whatshap.core import Read, ReadSet
+
+namespace = runpy.run_path("src/pipeline/parallel_phase.py", run_name="selector_test")
+module = namespace["_native_readset_io"]
+reads = ReadSet()
+read = Read("ordered", 60, 0, 0)
+read.add_variant(100, 1, 30)
+read.add_variant(200, 0, 40)
+reads.add(read)
+restored = module.deserialize([module.serialize(reads)])
+variants = [(variant.position, variant.allele, variant.quality) for variant in next(iter(restored))]
+assert variants == [(100, 1, 30), (200, 0, 40)], variants
+"#;
+    let status = std::process::Command::new("python3")
+        .arg("-c")
+        .arg(script)
+        .current_dir(root())
+        .env("CLAIR3_FAST_READSELECT", selector)
+        .status()
+        .unwrap();
+    assert!(status.success());
+}

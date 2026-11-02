@@ -23,7 +23,14 @@ def load_optimized_selector():
             return
         import whatshap.core
 
-        ctypes.CDLL(whatshap.core.__file__, mode=ctypes.RTLD_GLOBAL)
+        core = ctypes.CDLL(whatshap.core.__file__, mode=ctypes.RTLD_GLOBAL)
+        root, extension = os.path.splitext(path)
+        legacy = root + "_abi0" + extension
+        if sys.platform.startswith("linux") and os.path.isfile(legacy):
+            has_new_abi = hasattr(core, "_ZNK4Read13getChromosomeB5cxx11Ev")
+            has_old_abi = hasattr(core, "_ZNK4Read13getChromosomeEv")
+            if has_old_abi and not has_new_abi:
+                path = legacy
         spec = importlib.util.spec_from_file_location("clair3_readselect", path)
         selector = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(selector)

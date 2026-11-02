@@ -9,6 +9,7 @@ use anyhow::{Result, bail};
 use rust_htslib::bam::{IndexedReader, Read as BamRead, Record};
 
 const OPTIMIZED_READSELECT: &[u8] = include_bytes!(env!("CLAIR3_READSELECT"));
+const OPTIMIZED_READSELECT_ABI0: &[u8] = include_bytes!(env!("CLAIR3_READSELECT_ABI0"));
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PhaseRegion {
@@ -160,6 +161,10 @@ pub fn parallel_phase_command(whatshap: &str, threads: usize, regions: Option<&P
             let selector = directory.join("clair3_readselect.so");
             if fs::write(&selector, OPTIMIZED_READSELECT).is_ok() {
                 command.env("CLAIR3_FAST_READSELECT", selector);
+                if !OPTIMIZED_READSELECT_ABI0.is_empty() {
+                    let legacy = directory.join("clair3_readselect_abi0.so");
+                    let _ = fs::write(legacy, OPTIMIZED_READSELECT_ABI0);
+                }
             }
         }
     }
@@ -211,6 +216,28 @@ mod tests {
         assert_eq!(groups.len(), 2);
         assert_eq!(groups[0].first_variant, 1);
         assert_eq!(groups[1].first_variant, 3);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[allow(clippy::const_is_empty)]
+    fn native_phase_command_writes_readselector_abi_variants() {
+        if OPTIMIZED_READSELECT.is_empty() {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let regions = directory.path().join("regions");
+        fs::write(&regions, "").unwrap();
+        let command = parallel_phase_command("whatshap", 2, Some(&regions));
+        let selector = command
+            .get_envs()
+            .find(|(name, _)| *name == "CLAIR3_FAST_READSELECT")
+            .map(|(_, value)| value)
+            .unwrap()
+            .unwrap();
+        assert!(Path::new(selector).is_file());
+        assert!(!OPTIMIZED_READSELECT_ABI0.is_empty());
+        assert!(directory.path().join("clair3_readselect_abi0.so").is_file());
     }
 
     #[test]
