@@ -17,6 +17,8 @@ Email: rbluo@cs.hku.hk, zxzheng@cs.hku.hk, yuxian@connect.hku.hk
 
 Clair3 is a germline small variant caller for long-reads. Clair3 makes the best of two major method categories: pileup calling handles most variant candidates with speed, and full-alignment tackles complicated candidates to maximize precision and recall. Clair3 runs fast and has superior performance, especially at lower coverage. Clair3 is simple and modular for easy deployment and integration.
 
+The `clair3-rust` branch implements calling, training, checkpoint conversion, and metrics natively in Rust. CPU is the default; MPS and CUDA are optional. Use the [Rust installation guide](docs/rust_installation.md) for this branch rather than assuming that a published image contains the rewrite.
+
 Clair3 is the 3<sup>rd</sup> generation of [Clair](https://github.com/HKU-BAL/Clair) (the 2<sup>nd</sup>) and [Clairvoyante](https://github.com/aquaskyline/Clairvoyante) (the 1<sup>st</sup>).
 
 Clair3 is published at [Nature Computational Science](https://rdcu.be/c1TPa), and available as a preprint at [bioRxiv](https://www.biorxiv.org/content/10.1101/2021.12.29.474431v2).
@@ -41,7 +43,7 @@ For somatic variant calling using **tumor-only** samples, please try [ClairS-TO]
 * [What's New in Clair3](#whats-new-in-clair3)
 * [Installation](#installation)
   + [Option 1. Build an environment with Mamba/Conda](#option-1-build-an-environment-with-mambaconda)
-  + [Option 2. Docker pre-built image](#option-2--docker-pre-built-image)
+  + [Option 2. Docker image](#option-2-docker-image)
   + [Option 3. Singularity](#option-3-singularity)
 * [Quick Demo](#quick-demo)
 * [Dwelling Time Feature](#dwelling-time-feature)
@@ -211,9 +213,9 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 
 For step-by-step native and Docker installation, see [Installing Clair3-Rust](docs/rust_installation.md). After installation, use the [Clair3-Rust quick-test guide](docs/rust_quick_test.md) to verify calling, phasing, and fixture tests.
 
-For the Rust implementation history, optimization milestones, rejected experiments, dependency policy, and measured output comparisons, see the [Rust optimization and verification report](docs/rust_optimization.md).
+For the Rust implementation history, optimization milestones, rejected experiments, dependency policy, and measured output comparisons, see the [Rust optimization and verification report](docs/rust_optimization.md). The [project prompt history](docs/clair3_rust_prompts.md) records the user requests that guided this branch.
 
-Clair3 v2.0 uses **PyTorch** as its deep learning framework. For GPU-accelerated calling on Linux and Apple macOS (M1/M2/M3 chips), please refer to the [GPU quick start guide](docs/gpu_quick_start.md).
+Clair3 v2.0 uses **PyTorch** as its deep learning framework. For GPU-accelerated calling on Linux and Apple Silicon, please refer to the [GPU quick start guide](docs/gpu_quick_start.md).
 
 > **Important**: CPU and GPU implementations are provided as separate Dockerfiles. Use `Dockerfile.gpu` for NVIDIA CUDA acceleration, or build locally with the `cuda` feature. Apple Silicon uses the `mps` device.
 
@@ -273,20 +275,17 @@ The executable is installed as `${CONDA_PREFIX}/bin/clair3`; LibTorch libraries 
 
 Legacy TensorFlow checkpoint conversion is included in the default native build; use `clair3 ConvertCheckpoint`. Full-alignment conversion also requires `--add_indel_length` to include the production indel-length model features.
 
-**Step 6: Download pre-trained models (optional)**
+**Step 3: Download pre-trained models (optional)**
 
-If you haven't downloaded the pre-trained models yet:
+Download the official pre-trained PyTorch models into the active Conda environment:
 
 ```bash
-# Download pre-trained PyTorch models
-cd ${CLAIR3_PATH}
-mkdir -p models
-wget -r -np -nH --cut-dirs=2 -R "index.html*" -P ./models https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/
+make models PREFIX="${CONDA_PREFIX}"
 ```
 
-Individual models can also be downloaded from [here](https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/).
+Individual models can also be downloaded from the [Clair3 model directory](https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/).
 
-**Step 7: Run Clair3**
+**Step 4: Run Clair3**
 
 After completing the installation, you can run Clair3 using:
 
@@ -297,19 +296,19 @@ ${CLAIR3_PATH}/run_clair3.sh \
   --ref_fn=ref.fa \
   --threads=${THREADS} \
   --platform="ont" \
-  --model_path="${CLAIR3_PATH}/models/${MODEL_NAME}" \
+  --model_path="${CONDA_PREFIX}/bin/models/${MODEL_NAME}" \
   --output=${OUTPUT_DIR}
 ```
 
 **Note**: You can also run Clair3 directly using `${CLAIR3_PATH}/run_clair3.py`, or through the legacy `python3 ${CLAIR3_PATH}/run_clair3.py` form. Both delegate to the native implementation; Python is not required when invoking the shell launchers directly.
 
-### Option 2.  Docker pre-built image
+### Option 2. Docker image
 
-To build the CPU image locally, run `docker build -f Dockerfile -t clair3-rust:local .`. The Dockerfile supports Linux x86_64 and ARM64. ARM64 uses the official PyTorch wheel and builds LongPhase from unmodified upstream source; x86_64 uses the prebuilt downloads. Both architectures were validated locally, with x86_64 tested under `linux/amd64` emulation on an ARM64 host. The native WhatsHap selector supports both C++ string ABIs of the official 2.8 core.
+Build the CPU image locally with `docker build -f Dockerfile -t clair3-rust:local .`. The Dockerfile supports Linux x86_64 and ARM64. ARM64 uses the official PyTorch wheel and builds LongPhase from unmodified upstream source; x86_64 uses the prebuilt downloads. Both architectures were validated locally, with x86_64 tested under `linux/amd64` emulation on an ARM64 host. The native WhatsHap selector supports both C++ string ABIs of the official 2.8 core.
 
-> **Note**: The Docker pre-built image **only supports CPU execution**. For GPU or Apple Silicon acceleration, please use [Option 1 (step-by-step installation)](#option-1-build-an-environment-with-mambaconda).
+> **Note**: This image supports CPU execution. For NVIDIA CUDA, use `Dockerfile.gpu`; for Apple Silicon, use the native installation. See the [GPU quick start guide](docs/gpu_quick_start.md).
 
-A pre-built docker image is available [here](https://hub.docker.com/r/hkubal/clair3). With it you can run Clair3 using a single command.
+Published images on [Docker Hub](https://hub.docker.com/r/hkubal/clair3) are not asserted to contain this branch. The examples below use the locally built `clair3-rust:local` image.
 
 **Caution**: Absolute path is needed for both `INPUT_DIR` and `OUTPUT_DIR`.
 
@@ -322,7 +321,7 @@ MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
+  clair3-rust:local \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -337,7 +336,7 @@ Check [Usage](#Usage) for more options.
 
 ### Option 3. Singularity
 
-> **Note**: The Singularity pre-built image **only supports CPU execution**. For GPU or Apple Silicon acceleration, please use [Option 1 (step-by-step installation)](#option-1-build-an-environment-with-mambaconda).
+> **Note**: This published-image Singularity example supports CPU execution and is retained for the upstream distribution; it has not been validated with the `clair3-rust` branch. The validated branch workflow uses the local Docker image from Option 2. For GPU or Apple Silicon acceleration, see the [GPU quick start guide](docs/gpu_quick_start.md).
 
 **Caution**: Absolute path is needed for both `INPUT_DIR` and `OUTPUT_DIR`.
 
@@ -402,7 +401,7 @@ singularity exec \
   -b, --bam_fn=FILE             BAM file input. The input file must be samtools indexed.
   -f, --ref_fn=FILE             FASTA reference file input. The input file must be samtools indexed.
   -m, --model_path=STR          The folder path containing a Clair3 model (requiring pileup.pt and full_alignment.pt model files).
-  -t, --threads=INT             Max threads to be used. The full genome will be divided into small chunks for parallel processing. Each chunk will use 4 threads. The chunks being processed simultaneously is ceil($threads/4)*3. 3 is the overloading factor.
+  -t, --threads=INT             Requested worker threads for parallel calling and phasing, default: 1.
   -p, --platform=STR            Select the sequencing platform of the input. Possible options: {ont,hifi,ilmn}.
   -o, --output=PATH             VCF/GVCF output directory.
 ```
@@ -416,14 +415,14 @@ singularity exec \
       --vcf_fn=FILE             Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.
       --ctg_name=STR            The name of the sequence to be processed.
       --sample_name=STR         Define the sample name to be shown in the VCF file.
-      --qual=INT                If set, variants with >$qual will be marked PASS, or LowQual otherwise.
+      --qual=FLOAT              If set, variants with >$qual will be marked PASS, or LowQual otherwise. Default: 2.0.
       --samtools=STR            Path of samtools, samtools >= 1.15.1 is required.
       --whatshap=STR            Optional path of whatshap >= 1.7; ONT and HiFi fall back to LongPhase if unavailable.
       --longphase=STR           Path of longphase, used for phasing when WhatsHap is unavailable.
       --python=STR              Legacy compatibility option; no Python runtime is required.
       --pypy=STR                Legacy compatibility option; no PyPy runtime is required.
       --parallel=STR            Legacy compatibility option; parallel execution is native.
-      --chunk_size=INT          The size of each chuck for parallel processing, default: 5000000.
+      --chunk_size=INT          The size of each chunk for parallel processing, default: 5000000.
       --pileup_only             Use the pileup model only when calling, default: disable.
       --print_ref_calls         Show reference calls (0/0) in VCF file, default: disable.
       --include_all_ctgs        Call variants on all contigs, otherwise call in chr{1..22,X,Y} and {1..22,X,Y}, default: disable.
@@ -444,7 +443,7 @@ singularity exec \
       --remove_intermediate_dir Remove intermediate directory, including intermediate phased BAM, pileup and full-alignment results. default: disable.
       --snp_min_af=FLOAT        Minimum SNP AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.08,hifi:0.08,ilmn:0.08.
       --indel_min_af=FLOAT      Minimum Indel AF required for a candidate variant. Lowering the value might increase a bit of sensitivity in trade of speed and accuracy, default: ont:0.15,hifi:0.08,ilmn:0.08.
-      --var_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.3.
+      --var_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling, default: 0.7 for ont, 0.3 for hifi and ilmn.
       --ref_pct_full=FLOAT      EXPERIMENTAL: Specify an expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling, default: 0.3 for ilmn and hifi, 0.1 for ont.
       --var_pct_phasing=FLOAT   EXPERIMENTAL: Specify an expected percentage of high quality 0/1 variants used in WhatsHap phasing, default: 0.8 for ont guppy5 and 0.7 for other platforms.
       --pileup_model_prefix=STR EXPERIMENTAL: Model prefix in pileup calling, default: pileup.
@@ -483,7 +482,7 @@ MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
+  clair3-rust:local \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -505,7 +504,7 @@ MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
+  clair3-rust:local \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -539,7 +538,7 @@ MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
+  clair3-rust:local \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used
@@ -560,7 +559,7 @@ MODEL_NAME="[YOUR_MODEL_NAME]"         # e.g. r1041_e82_400bps_sup_v500
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
+  clair3-rust:local \
   --bam_fn=${INPUT_DIR}/input.bam \    ## change your bam file name here
   --ref_fn=${INPUT_DIR}/ref.fa \       ## change your reference file name here
   --threads=${THREADS} \               ## maximum threads to be used

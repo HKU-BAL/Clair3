@@ -48,7 +48,7 @@ echo -e "${CONTIGS}\t${START_POS}\t${END_POS}" > ${INPUT_DIR}/quick_demo.bed
 
 ### Option 1. Mamba/Conda virtual environment
 
-Install Clair3 following [Installation - Option 1](https://github.com/HKU-BAL/Clair3#option-1-build-an-environment-with-mambaconda).
+Install Clair3 following the [Rust installation guide](../rust_installation.md).
 
 **Run Clair3**
 
@@ -56,12 +56,13 @@ Install Clair3 following [Installation - Option 1](https://github.com/HKU-BAL/Cl
 THREADS=4
 
 cd Clair3
+make models PREFIX="${CONDA_PREFIX}"
 ./run_clair3.sh \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
   --platform=${PLATFORM} \
-  --model_path=$(pwd)"/models/${PLATFORM}" \
+  --model_path="${CONDA_PREFIX}/bin/models/${PLATFORM}" \
   --output=${OUTPUT_DIR} \
   --bed_fn=${INPUT_DIR}/quick_demo.bed
 ```
@@ -91,7 +92,9 @@ hap.py \
     --pass-only
 ```
 
-**Hap.py Expected output:**
+**Historical hap.py reference output (original release):**
+
+These are historical reference metrics, not golden outputs for the Rust implementation; model versions and numerical backends can change calls.
 
 |   Type    | TRUTH.TP | TRUTH.FN | QUERY.FP | METRIC.Recall | METRIC.Precision | METRIC.F1-Score |
 | :-------: | :------: | :------: | :------: | :-----------: | :--------------: | :-------------: |
@@ -100,18 +103,19 @@ hap.py \
 
 Check the results using `less ${HOME}/clair3_pacbio_hifi_quickDemo/output/merge_output.vcf.gz`
 
-### Option 2. Docker pre-built image
+### Option 2. Local Docker image
+
+Build the image from the `clair3-rust` repository root, then run the demo:
 
 ```bash
+docker build -f Dockerfile -t clair3-rust:local .
 THREADS=4
 
 cd ${OUTPUT_DIR}
-# Run Clair3 using one command
 docker run -it \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
-  hkubal/clair3:v2.0.0 \
-  /opt/clair3/run_clair3.sh \
+  clair3-rust:local \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
@@ -121,7 +125,7 @@ docker run -it \
   --bed_fn=${INPUT_DIR}/quick_demo.bed
 ```
 
-**Note**: You can also use `/opt/clair3/run_clair3.py` instead of `/opt/clair3/run_clair3.sh` in the Docker command above. Both are native shell launchers.
+The image entry point invokes `run_clair3.sh` and supplies the `run` subcommand. To use the Python-named shell launcher instead, add `--entrypoint /opt/clair3/run_clair3.py` before the image name.
 
 **Run hap.py for benchmarking (optional)**
 
@@ -142,7 +146,9 @@ ${OUTPUT_DIR}/${OUTPUT_VCF_FILE_PATH} \
 --pass-only
 ```
 
-**Hap.py Expected output:**
+**Historical hap.py reference output (original release):**
+
+These are the same historical reference metrics shown above, not golden outputs for the Rust implementation.
 
 |   Type    | TRUTH.TP | TRUTH.FN | QUERY.FP | METRIC.Recall | METRIC.Precision | METRIC.F1-Score |
 | :-------: | :------: | :------: | :------: | :-----------: | :--------------: | :-------------: |

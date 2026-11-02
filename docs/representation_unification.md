@@ -67,7 +67,7 @@ CHR=(22)
 # Number of threads to be used
 THREADS=24
 
-# The number of chucks to be divided into for parallel processing
+# The number of chunks to be divided into for parallel processing
 chunk_num=15
 CHUNK_LIST=`seq 1 ${chunk_num}`
 

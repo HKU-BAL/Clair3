@@ -47,7 +47,7 @@ cd Clair3
 export LIBTORCH=/path/to/libtorch
 cargo build --release --locked --features cuda
 
-clair3 run \
+./target/release/clair3 run \
   --bam_fn=input.bam \
   --ref_fn=ref.fa \
   --threads=8 \
@@ -58,19 +58,19 @@ clair3 run \
   --output=output
 ```
 
-`--device` accepts a CUDA device such as `cuda:0`. The default when `--use_gpu` is enabled is `cuda:0`.
+`--device` accepts a CUDA device such as `cuda:0`. The default when `--use_gpu` is enabled without an explicit device is `cuda:0`. An explicit `--device=mps` or `--device=cuda:N` selects that device even without `--use_gpu`; CPU remains the default when neither option is supplied.
 
 ## Apple Silicon
 
 Install Rust, CMake, a C++20-capable C/C++ compiler, Python 3, pip, and samtools. `make python_tools` installs the official PyTorch 2.13 and WhatsHap 2.8 distributions without local modifications. The build uses the upstream `LIBTORCH_USE_PYTORCH=1` path. The Apple Silicon wheel requires macOS 14 or newer. Intel Macs need a compatible local LibTorch through `LIBTORCH`, because official PyTorch 2.13 macOS wheels are ARM64-only:
 
 ```bash
-git clone https://github.com/HKU-BAL/Clair3.git
+git clone --branch clair3-rust --single-branch https://github.com/HKU-BAL/Clair3.git
 cd Clair3
 make python_tools
 LIBTORCH_USE_PYTORCH=1 cargo build --release --locked
 
-clair3 run \
+./target/release/clair3 run \
   --bam_fn=input.bam \
   --ref_fn=ref.fa \
   --threads=8 \
@@ -82,7 +82,7 @@ clair3 run \
 
 LongPhase can be built with `make longphase` using an OpenMP-capable compiler. Apple Clang does not provide this by default; install GCC and select it with `LONGPHASE_CC` and `LONGPHASE_CXX` if needed. WhatsHap is optional for ONT and HiFi; LongPhase is used when WhatsHap is unavailable. Illumina phasing uses WhatsHap, or can be disabled with `--no_phasing_for_fa`.
 
-CPU is the default backend. With `--device=mps` or `--device=cuda:N`, full-alignment inference runs in dedicated GPU workers, with each model created and used in the same thread. Pileup remains on CPU to preserve candidate selection, and tensor generation remains parallel on CPU. GPU execution is optional; no GPU-specific runtime is needed for the default CPU pipeline. Supported CPU builds reuse cached NNPACK kernels and spatially batch eight independent samples for supported 3x3 full-alignment convolutions. Small batches, other layers, and unsupported systems use ordinary LibTorch inference. BAM decoding uses bounded background thread pools.
+CPU is the default backend. With `--device=mps` or `--device=cuda:N`, full-alignment inference runs in dedicated GPU workers, with each model created and used in the same thread. Pileup remains on CPU to preserve candidate selection, and tensor generation remains parallel on CPU. GPU execution is optional; no GPU-specific runtime is needed for the default CPU pipeline. There is no AMD-specific backend, and AMD GPU execution has not been verified. Supported CPU builds reuse cached NNPACK kernels and spatially batch eight independent samples for supported 3x3 full-alignment convolutions. Small batches, other layers, and unsupported systems use ordinary LibTorch inference. BAM decoding uses bounded background thread pools. GPU numerical behavior is platform-dependent; see the [CUDA validation and measured output differences](rust_optimization.md#cuda-validation-on-an-nvidia-rtx-4090) before using it as a parity reference.
 
 For an opt-in CUDA model-parity check on an NVIDIA host, run:
 

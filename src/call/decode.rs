@@ -239,7 +239,6 @@ fn reference_outcome(reference: String, probability: f32) -> Outcome {
     }
 }
 
-#[allow(unused_parens)]
 fn decode_outcome(
     reference_sequence: &str,
     center: usize,
@@ -459,21 +458,21 @@ fn decode_outcome(
                 continue;
             };
             if alternate.chars().next().unwrap() == reference_raw {
-                break (Outcome {
+                break Outcome {
                     kind: CallKind::HomoSnp,
                     reference: reference_raw.to_string(),
                     alternate,
                     probability: maximum,
                     hetero: false,
-                });
+                };
             }
-            break (Outcome {
+            break Outcome {
                 kind: CallKind::HomoSnp,
                 reference: reference_raw.to_string(),
                 alternate,
                 probability: maximum,
                 hetero: false,
-            });
+            };
         }
         if hetero_snp.contains(&maximum) {
             let index = index(&hetero_snp);
@@ -500,24 +499,24 @@ fn decode_outcome(
                         continue;
                     }
                     Some(base) if base.chars().next().unwrap() == reference_raw => {
-                        break (Outcome {
+                        break Outcome {
                             kind: CallKind::HeteroSnp,
                             reference: reference_raw.to_string(),
                             alternate: base,
                             probability: maximum,
                             hetero: false,
-                        });
+                        };
                     }
                     Some(base) => Some(base),
                 }
             };
-            break (Outcome {
+            break Outcome {
                 kind: CallKind::HeteroSnp,
                 reference: reference_raw.to_string(),
                 alternate: selected.unwrap(),
                 probability: maximum,
                 hetero: false,
-            });
+            };
         }
         if homo_insertion.contains(&maximum) {
             let index = index(&homo_insertion);
@@ -535,13 +534,13 @@ fn decode_outcome(
                 homo_insertion[index] = 0.0;
                 continue;
             };
-            break (Outcome {
+            break Outcome {
                 kind: CallKind::HomoInsertion,
                 reference: reference_raw.to_string(),
                 alternate,
                 probability: maximum,
                 hetero: false,
-            });
+            };
         }
         if hetero_acgt_insertion
             .iter()
@@ -574,23 +573,23 @@ fn decode_outcome(
             if hetero_base != reference_raw {
                 let (bases, _) = sorted_alt_bases(alt, None);
                 if bases.is_empty() {
-                    break (Outcome {
+                    break Outcome {
                         kind: CallKind::HeteroAcgtInsertion,
                         reference: reference_raw.to_string(),
                         alternate,
                         probability: maximum,
                         hetero: false,
-                    });
+                    };
                 }
                 alternate = format!("{},{}", bases[0], alternate);
             }
-            break (Outcome {
+            break Outcome {
                 kind: CallKind::HeteroAcgtInsertion,
                 reference: reference_raw.to_string(),
                 alternate,
                 probability: maximum,
                 hetero: false,
-            });
+            };
         }
         if hetero_ins_ins
             .iter()
@@ -638,21 +637,21 @@ fn decode_outcome(
                 continue;
             }
             if bases[0] == bases[1] {
-                break (Outcome {
+                break Outcome {
                     kind: CallKind::HeteroInsertionInsertion,
                     reference: reference_raw.to_string(),
                     alternate: bases[0].clone(),
                     probability: maximum,
                     hetero: false,
-                });
+                };
             }
-            break (Outcome {
+            break Outcome {
                 kind: CallKind::HeteroInsertionInsertion,
                 reference: reference_raw.to_string(),
                 alternate: format!("{},{}", bases[1], bases[0]),
                 probability: maximum,
                 hetero: false,
-            });
+            };
         }
         if homo_deletion.contains(&maximum) {
             let index = index(&homo_deletion);
@@ -672,13 +671,13 @@ fn decode_outcome(
             };
             let reference = format!("{reference_raw}{deleted}");
             let alternate = reference.chars().next().unwrap().to_string();
-            break (Outcome {
+            break Outcome {
                 kind: CallKind::HomoDeletion,
                 reference,
                 alternate,
                 probability: maximum,
                 hetero: false,
-            });
+            };
         }
         if hetero_acgt_deletion
             .iter()
@@ -715,13 +714,13 @@ fn decode_outcome(
                 let second = format!("{}{}", hetero_base, &reference[1..]);
                 alternate = format!("{first},{second}");
             }
-            break (Outcome {
+            break Outcome {
                 kind: CallKind::HeteroAcgtDeletion,
                 reference,
                 alternate,
                 probability: maximum,
                 hetero: false,
-            });
+            };
         }
         if hetero_del_del
             .iter()
@@ -776,21 +775,21 @@ fn decode_outcome(
             let first = reference.chars().next().unwrap().to_string();
             let second = format!("{}{}", first, &reference[bases[1].len() + 1..]);
             if first == second || reference == first || reference == second {
-                break (Outcome {
+                break Outcome {
                     kind: CallKind::HeteroDeletionDeletion,
                     reference,
                     alternate: first,
                     probability: maximum,
                     hetero: false,
-                });
+                };
             }
-            break (Outcome {
+            break Outcome {
                 kind: CallKind::HeteroDeletionDeletion,
                 reference,
                 alternate: format!("{first},{second}"),
                 probability: maximum,
                 hetero: false,
-            });
+            };
         }
         let index = insertion_deletion
             .iter()
@@ -829,13 +828,13 @@ fn decode_outcome(
             reference.chars().next().unwrap(),
             insertion.to_string() + &reference[1..]
         );
-        break (Outcome {
+        break Outcome {
             kind: CallKind::InsertionDeletion,
             reference,
             alternate,
             probability: maximum,
             hetero: false,
-        });
+        };
     };
     outcome.hetero = matches!(
         outcome.kind,

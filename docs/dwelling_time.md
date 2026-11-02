@@ -33,7 +33,7 @@ To include `mv` tags in your BAM, run Dorado with the `--emit-moves` flag. See t
 
 - **BAM files with `mv` tags** produced by Dorado (`--emit-moves`).
 - **Platform**: ONT only. Not supported for PacBio HiFi or Illumina.
-- **C implementation**: must be enabled (the default). `--disable_c_impl` is incompatible with dwell time.
+- **Native implementation**: the `clair3-rust` branch implements dwell-time tensor generation in Rust. `--disable_c_impl` is retained as a compatibility flag and does not disable dwell-time support.
 
 ---
 
@@ -42,7 +42,7 @@ To include `mv` tags in your BAM, run Dorado with the `--emit-moves` flag. See t
 Add the `--enable_dwell_time` flag to your Clair3 command:
 
 ```bash
-python run_clair3.py \
+./run_clair3.sh \
   --bam_fn=input.bam \
   --ref_fn=ref.fa \
   --threads=8 \
@@ -52,7 +52,7 @@ python run_clair3.py \
   --enable_dwell_time
 ```
 
-GPU acceleration is also supported by adding `--use_gpu`.
+Optional GPU acceleration uses `--use_gpu --device=cuda:0` on NVIDIA systems or `--device=mps` on Apple Silicon. CPU remains the default.
 
 ---
 
@@ -69,7 +69,7 @@ Expected output format:
 mv:B:c,5,1,0,1,0,1,...
 ```
 
-If no `mv` tags are found, re-run basecalling with Dorado using the `--emit-moves` flag.
+If no `mv` tags are found, re-run basecalling with Dorado using the `--emit-moves` flag. With `--enable_dwell_time`, Clair3 checks the first 50 alignments and reports an error if none has a valid move table; it does not silently substitute a zero-valued dwell-time channel.
 
 ---
 

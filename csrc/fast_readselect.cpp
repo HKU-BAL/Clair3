@@ -233,14 +233,6 @@ static void add_index(PyObject* set, int index) {
 	Py_DECREF(value);
 }
 
-static bool contains_index(PyObject* set, int index) {
-	PyObject* value = check(PyLong_FromLong(index));
-	int present = PySet_Contains(set, value);
-	Py_DECREF(value);
-	if (present < 0) throw PythonError();
-	return present != 0;
-}
-
 static void discard_index(PyObject* set, int index) {
 	PyObject* value = check(PyLong_FromLong(index));
 	check(PySet_Discard(set, value));

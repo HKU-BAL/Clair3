@@ -121,7 +121,7 @@ THREADS=36
 THREADS_LOW=$((${THREADS}*3/4))
 if [[ ${THREADS_LOW} < 1 ]]; then THREADS_LOW=1; fi
 
-# Number of chucks to be divided into for parallel processing
+# Number of chunks to be divided into for parallel processing
 chunk_num=15
 CHUNK_LIST=`seq 1 ${chunk_num}`
 

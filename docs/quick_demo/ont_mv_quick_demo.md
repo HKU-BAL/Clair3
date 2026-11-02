@@ -13,10 +13,18 @@ Feature:    Dwelling time (signal-aware calling)
 
 ### Prerequisites
 
-- Docker installed and running
-- Clair3 Docker image: `hkubal/clair3:v2.0.0`
-- hap.py Docker image: `jmcdani20/hap.py:v0.3.12`
+- Docker installed and running for the container commands
+- Local Clair3 image: `clair3-rust:local`
+- hap.py Docker image: `jmcdani20/hap.py:v0.3.12` for optional benchmarking
 - BAM file must contain `mv` tags (produced by Dorado with `--emit-moves`)
+
+Build the local image from the `clair3-rust` repository root:
+
+```bash
+docker build -f Dockerfile -t clair3-rust:local .
+```
+
+For a native Mamba/Conda run, follow the [Rust installation guide](../rust_installation.md) and install the models with `make models PREFIX="${CONDA_PREFIX}"`.
 
 ### Download data
 
@@ -74,8 +82,7 @@ mkdir -p ${OUTPUT_DIR_DWELL}
 docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR_DWELL}:${OUTPUT_DIR_DWELL} \
-  hkubal/clair3:v2.0.0 \
-  /opt/clair3/run_clair3.sh \
+  clair3-rust:local \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
@@ -99,16 +106,16 @@ cd Clair3
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
   --platform=${PLATFORM} \
-  --model_path=$(pwd)"/models/r1041_e82_400bps_hac_with_mv" \
+  --model_path="${CONDA_PREFIX}/bin/models/r1041_e82_400bps_hac_with_mv" \
   --output=${OUTPUT_DIR_DWELL} \
   --bed_fn=${INPUT_DIR}/quick_demo.bed \
   --sample_name="HG003" \
   --enable_dwell_time
 ```
 
-**Note**: You can also use `/opt/clair3/run_clair3.py` (Docker) or `./run_clair3.py` (Conda) instead of `run_clair3.sh` with the same arguments. These are native shell launchers; Python is not required.
+**Note**: The local image entry point invokes `run_clair3.sh` and supplies the `run` subcommand. To use the Python-named shell launcher instead, add `--entrypoint /opt/clair3/run_clair3.py` before the image name. A native run can use `./run_clair3.py` instead of `./run_clair3.sh`. Neither shell launcher requires Python to execute.
 
-**Note**: If the BAM file does not contain `mv` tags, Clair3 will still run but the dwell time channel will contain zero values, which may reduce accuracy. Ensure your BAM files were produced by Dorado with `--emit-moves`.
+**Note**: Dwell-time calling requires valid `mv` tags. Clair3 checks the first 50 alignments and reports an error if no valid move table is found. Re-run basecalling with Dorado `--emit-moves` when the tags are absent.
 
 ### Option 2. Run Clair3 without dwelling time
 
@@ -123,8 +130,7 @@ mkdir -p ${OUTPUT_DIR_NO_DWELL}
 docker run \
   -v ${INPUT_DIR}:${INPUT_DIR} \
   -v ${OUTPUT_DIR_NO_DWELL}:${OUTPUT_DIR_NO_DWELL} \
-  hkubal/clair3:v2.0.0 \
-  /opt/clair3/run_clair3.sh \
+  clair3-rust:local \
   --bam_fn=${INPUT_DIR}/${BAM} \
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
@@ -147,7 +153,7 @@ cd Clair3
   --ref_fn=${INPUT_DIR}/${REF} \
   --threads=${THREADS} \
   --platform=${PLATFORM} \
-  --model_path=$(pwd)"/models/r1041_e82_400bps_hac_v500" \
+  --model_path="${CONDA_PREFIX}/bin/models/r1041_e82_400bps_hac_v500" \
   --output=${OUTPUT_DIR_NO_DWELL} \
   --bed_fn=${INPUT_DIR}/quick_demo.bed \
   --sample_name="HG003"
@@ -189,7 +195,9 @@ docker run \
   --pass-only
 ```
 
-### Expected output
+### Historical reference output
+
+These tables record the original demonstration results. They are not golden outputs for the Rust implementation; model versions and numerical backends can change calls.
 
 **With dwelling time** (model: `r1041_e82_400bps_hac_with_mv`, `--enable_dwell_time`):
 
@@ -205,6 +213,6 @@ docker run \
 | **INDEL** |    52    |    7     |    7     |    0.8814     |     0.8814       |     0.8814      |
 |  **SNP**  |   402    |    0     |    1     |    1.0000     |     0.9975       |     0.9988      |
 
-**Key observation**: With dwelling time enabled, INDEL precision improves significantly (0.98 vs 0.88) and F1 score improves (0.93 vs 0.88), while SNP performance remains the same. The dwelling time feature reduces false positive INDEL calls from 7 to 1.
+**Historical observation**: In this original comparison, enabling dwelling time improved INDEL precision from 0.88 to 0.98 and F1 score from 0.88 to 0.93, while SNP performance remained the same. False-positive INDEL calls decreased from 7 to 1.
 
 For more details on the dwelling time feature, see [Dwelling Time Feature Documentation](../dwelling_time.md).

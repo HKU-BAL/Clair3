@@ -213,11 +213,11 @@ CHR=(21 22)
 # Number of threads to be used
 THREADS=8
 
-# Number of chucks to be divided into for parallel processing
+# Number of chunks to be divided into for parallel processing
 chunk_num=15
 CHUNK_LIST=`seq 1 ${chunk_num}`
 
-# The number of chucks to be divided for bin file generation for parallel processing
+# The number of chunks to be divided for bin file generation for parallel processing
 bin_chunk_num=1
 BIN_CHUNK_LIST=`seq 1 ${bin_chunk_num}`
 

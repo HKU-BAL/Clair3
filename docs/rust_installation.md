@@ -149,19 +149,19 @@ The image supports Linux x86_64 and ARM64. On ARM64, it uses the official PyTorc
 
 ## Docker
 
-The images install upstream WhatsHap and the required Python development headers for the native selector. They do not copy or patch vendored dependency sources.
+The images install upstream WhatsHap and the required Python development headers for the native selector. They do not copy or patch vendored dependency sources. The tags below refer to locally built images; published Docker Hub images are not asserted to contain the `clair3-rust` branch.
 
 Build a CPU image:
 
 ```bash
-docker build -f Dockerfile -t clair3-rust:cpu .
+docker build -f Dockerfile -t clair3-rust:local .
 ```
 
 Build a CUDA image on a host with the NVIDIA Container Toolkit:
 
 ```bash
 docker build -f Dockerfile.gpu -t clair3-rust:cuda .
-docker run --rm --gpus all clair3-rust:cuda nvidia-smi
+docker run --rm --gpus all --entrypoint nvidia-smi clair3-rust:cuda
 ```
 
 Use `/opt/clair3/run_clair3.sh` as the container entry point. Pre-trained models are installed under `/opt/models`. Use absolute host paths when mounting input and output directories.

@@ -274,6 +274,16 @@ Historically, in an earlier macOS test environment, the strict `official_lstm_la
 
 A direct comparison with `CLAIR3_NATIVE_LSTM=0` on the supplied HiFi benchmark showed that the LSTM backend affects results: 51 pileup QUAL values changed (maximum absolute difference 0.01), one GQ value changed, and downstream full-alignment/merged outputs had 22 genotype differences and altered representations. Although the historical failing fixture was ONT-specific, this comparison confirms that LSTM numerical differences can be consequential. The assertion remains in place rather than being deleted to hide numerical differences.
 
+## Documentation and final cleanup verification
+
+The final documentation pass corrects current installation, Docker, GPU, quick-demo, dwell-time, and CLI guidance while retaining historical benchmark tables as historical references. All 25 Markdown files have valid local link targets and balanced code fences. The [project prompt history](clair3_rust_prompts.md) preserves all 34 user-authored prompts verbatim and in chronological order; automated messages and assistant or tool output are excluded.
+
+Code cleanup removed the obsolete `unused_parens` suppression and 14 redundant parenthesized `break` expressions in `src/call/decode.rs`, plus the unreferenced `contains_index` helper in `csrc/fast_readselect.cpp`. No functional expression, model algorithm, compatibility option, fallback, or third-party source changed.
+
+Native macOS formatting, Clippy with warnings treated as errors, and the unfiltered release test suite passed: 59 unit tests passed and one was ignored, with all integration targets passing their applicable tests. The explicit WhatsHap selector serialization regression passed. The phased HiFi fixture produced eight `chrToy` records with exact alleles and genotypes; its comparison correctly excludes the separate `chr:colon` fixture record because the command selects only `chrToy`.
+
+A fresh supplied HG002 chr20 run completed in 62.23 seconds. All 135,180 pileup, 40,494 full-alignment, 94,551 merged, and 33,824 phased records exactly match the current native macOS Rust reference in full record content and ordering. This is a functional cleanup check, not a new optimization milestone or controlled benchmark. Earlier original-Python numerical differences and platform limitations documented above remain unchanged.
+
 ## Reproduction notes
 
 - Keep output directories distinct when comparing implementations.
