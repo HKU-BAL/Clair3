@@ -1575,7 +1575,7 @@ fn create_full_alignment_impl(
                         )
                         .map(String::from_utf8_lossy)
                         .unwrap_or_default();
-                    payload.push_str(&format!("D{} {} ", deleted, count));
+                    payload.push_str(&format!("D{deleted} {count} "));
                 }
             }
         }

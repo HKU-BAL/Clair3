@@ -136,6 +136,14 @@ Expected major versions in the tested installation are Clair3 2.0, WhatsHap 2.8,
 
 Continue with the [Clair3-Rust quick test](rust_quick_test.md).
 
+## Linux build verification
+
+The repository includes an Ubuntu 22.04 workflow at `.github/workflows/linux.yml`. It builds a compatible upstream samtools, installs the native dependencies and official models, builds and installs Clair3, runs formatting, Clippy, and the test suite, and exercises the HiFi fixture with and without native phasing. To inspect the runs with GitHub's CLI:
+
+```bash
+gh run list --workflow linux.yml --branch clair3-rust
+```
+
 ## Docker
 
 The images install upstream WhatsHap and the required Python development headers for the native selector. They do not copy or patch vendored dependency sources.
@@ -167,6 +175,7 @@ No downloaded third-party source is patched by the build.
 
 ## Troubleshooting
 
+- **Ubuntu samtools is too old:** Ubuntu 22.04 packages samtools 1.13, below the required 1.15.1. Use the Conda package or build a newer unmodified upstream release, such as samtools 1.24. The Linux workflow builds the upstream release with ncurses and libdeflate support.
 - **Missing Python development headers:** install the package appropriate for the environment, such as `python3-dev` on Debian/Ubuntu, then rebuild. Without them, native selector acceleration is unavailable and the pipeline falls back to the installed implementation.
 - **LibTorch not found:** select a complete distribution through `LIBTORCH`, or use the official Python wheel with `LIBTORCH_USE_PYTORCH=1`.
 - **Runtime library errors:** keep `bin/clair3` and `lib/clair3` together, or set `LD_LIBRARY_PATH` on Linux or `DYLD_LIBRARY_PATH` on macOS to the installed `lib/clair3` directory.

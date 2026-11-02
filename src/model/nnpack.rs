@@ -544,7 +544,7 @@ impl NnpConv2D {
         {
             return None;
         }
-        if !std::env::var_os("CLAIR3_CONV_GEMM").is_some_and(|value| value == "0")
+        if std::env::var_os("CLAIR3_CONV_GEMM").is_none_or(|value| value != "0")
             && let Some(output) = self.forward_gemm(&input, &weight, &bias)
         {
             return Some(output);

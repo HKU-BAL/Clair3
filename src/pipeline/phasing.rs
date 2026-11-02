@@ -140,6 +140,7 @@ fn whatshap_python(executable: &str) -> String {
         .to_string()
 }
 
+#[allow(clippy::const_is_empty)]
 pub fn parallel_phase_command(whatshap: &str, threads: usize, regions: Option<&Path>) -> Command {
     let mut command = Command::new(whatshap_python(whatshap));
     command

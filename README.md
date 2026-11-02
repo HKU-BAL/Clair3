@@ -248,6 +248,8 @@ mamba create -n clair3_v2 \
 mamba activate clair3_v2
 ```
 
+Ubuntu 22.04's `samtools` package is version 1.13 and is too old for Clair3. Use the Conda package or build a newer unmodified upstream release, such as samtools 1.24, instead.
+
 On Linux, LibTorch is downloaded automatically by the Rust build when `LIBTORCH` is not set. On macOS, `make` installs the official PyTorch 2.13 wheel with pip and uses the upstream `LIBTORCH_USE_PYTORCH=1` build path. To use an existing LibTorch installation instead, set `LIBTORCH` to its root directory (containing `include` and `lib`), with the complete ATen C++ headers and libraries. If the distribution uses the old C++ ABI, also set `LIBTORCH_CXX11_ABI=0`. Intel Macs need a compatible local installation because official PyTorch 2.13 macOS wheels are ARM64-only.
 
 Building LongPhase from source on macOS requires a compiler with OpenMP support; Apple Clang alone is insufficient. Install an OpenMP-capable GCC toolchain and, if necessary, select it explicitly with `make LONGPHASE_CC=gcc-15 LONGPHASE_CXX=g++-15`. A Conda-provided LongPhase can also be used directly.

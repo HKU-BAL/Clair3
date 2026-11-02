@@ -111,3 +111,28 @@ jobs:
             --output target/linux-test/phasing \
             --ctg_name chrToy
           test "$(gzip -dc target/linux-test/phasing/merge_output.vcf.gz | grep -vc '^#')" -eq 8
+
+  docker:
+    needs: build-and-test
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out clair3-rust
+        uses: actions/checkout@v4
+        with:
+          ref: clair3-rust
+
+      - name: Build the CPU Docker image
+        run: docker build -f Dockerfile -t clair3-rust:ci .
+
+      - name: Run the HiFi fixture in the CPU container
+        run: |
+          docker run --rm -v "${PWD}:/workspace:ro" clair3-rust:ci /bin/bash -c '
+            /opt/clair3/bin/clair3 run \
+              --bam_fn /workspace/tests/fixtures/data/toy.bam \
+              --ref_fn /workspace/tests/fixtures/data/toy.fa \
+              --threads 2 \
+              --platform hifi \
+              --model_path /opt/models/hifi_revio \
+              --output /tmp/merge_output \
+              --ctg_name chrToy &&
+            python3 -c "import gzip,sys; stream=gzip.open(sys.argv[1], sys.argv[2]); assert sum(not line.startswith(chr(35)) for line in stream)==8" /tmp/merge_output/merge_output.vcf.gz rt'

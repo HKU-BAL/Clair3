@@ -563,7 +563,7 @@ fn process_position(
         Candidate {
             position,
             ref_base,
-            alt_payload: format!("{}-{}", depth, payload),
+            alt_payload: format!("{depth}-{payload}"),
         }
     });
     let gvcf_total = ref_count as u64 + all_alt_count + del_count as u64 + ins_count as u64;
@@ -698,7 +698,7 @@ fn create_pileup_impl_with_reader(
     pad_head: bool,
     pad_tail: bool,
 ) -> Result<PileupBatch> {
-    if !std::env::var_os("CLAIR3_DIRECT_PILEUP").is_some_and(|value| value == "0") {
+    if std::env::var_os("CLAIR3_DIRECT_PILEUP").is_none_or(|value| value != "0") {
         return direct_pileup::create_direct_pileup(
             reader, reference, region, options, pad_head, pad_tail,
         );

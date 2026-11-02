@@ -265,14 +265,11 @@ fn decode_outcome(
         1.0
     };
     let reference_probability = length0 * homo_reference * prediction.gt21[reference_gt21];
-    if (!options.add_indel_length
-        && homo_reference >= 0.5
-        && prediction.gt21[reference_gt21] >= 0.5)
-        || (options.add_indel_length
-            && prediction.length1[LENGTH_OFFSET] >= 0.5
-            && prediction.length2[LENGTH_OFFSET] >= 0.5
-            && homo_reference >= 0.5
-            && prediction.gt21[reference_gt21] >= 0.5)
+    if homo_reference >= 0.5
+        && prediction.gt21[reference_gt21] >= 0.5
+        && (!options.add_indel_length
+            || (prediction.length1[LENGTH_OFFSET] >= 0.5
+                && prediction.length2[LENGTH_OFFSET] >= 0.5))
     {
         return Ok(reference_outcome(
             reference_acgt.to_string(),
@@ -716,7 +713,7 @@ fn decode_outcome(
             };
             if hetero_base != first {
                 let second = format!("{}{}", hetero_base, &reference[1..]);
-                alternate = format!("{},{}", first, second);
+                alternate = format!("{first},{second}");
             }
             break (Outcome {
                 kind: CallKind::HeteroAcgtDeletion,
@@ -886,8 +883,8 @@ fn long_indel_count(
     entries
         .iter()
         .filter(|(bases, _)| {
-            !(deletion && bases.len() == proposed_deletion_length)
-                && !(!deletion && bases == proposed_insertion)
+            (deletion && bases.len() != proposed_deletion_length
+                || !deletion && bases != proposed_insertion)
                 && bases.len() as f64 >= minimum
                 && bases.len() as f64 <= maximum
         })

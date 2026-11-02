@@ -247,7 +247,7 @@ fn finish_position(
         Candidate {
             position,
             ref_base,
-            alt_payload: format!("{}-{}", depth, payload),
+            alt_payload: format!("{depth}-{payload}"),
         }
     });
     let gvcf_total = ref_count as u64 + all_alt_count + del_count as u64 + ins_count as u64;
@@ -521,8 +521,8 @@ pub fn create_direct_pileup(
         }
         let mut matching_depth = [0_i64; 2];
         for (index, mut counts) in raw.into_iter().enumerate() {
-            for strand in 0..2 {
-                matching_depth[strand] += i64::from(matching_deltas[index][strand]);
+            for (strand, depth) in matching_depth.iter_mut().enumerate() {
+                *depth += i64::from(matching_deltas[index][strand]);
             }
             let covered = matching_depth[0] + matching_depth[1];
             counts.forward_depth = matching_depth[0];
