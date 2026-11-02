@@ -145,6 +145,10 @@ pub fn parallel_phase_command(whatshap: &str, threads: usize, regions: Option<&P
     command
         .arg("-c")
         .arg(include_str!("parallel_phase.py"))
+        .env(
+            "CLAIR3_BIN",
+            std::env::current_exe().unwrap_or_else(|_| PathBuf::from("clair3")),
+        )
         .env("CLAIR3_PHASE_THREADS", threads.max(1).to_string());
     if let Some(regions) = regions {
         command.env("CLAIR3_PHASE_REGIONS", regions);
@@ -206,5 +210,16 @@ mod tests {
         assert_eq!(groups.len(), 2);
         assert_eq!(groups[0].first_variant, 1);
         assert_eq!(groups[1].first_variant, 3);
+    }
+
+    #[test]
+    fn native_phase_command_uses_current_executable() {
+        let command = parallel_phase_command("whatshap", 2, None);
+        let actual = command
+            .get_envs()
+            .find(|(name, _)| *name == "CLAIR3_BIN")
+            .map(|(_, value)| value)
+            .unwrap();
+        assert_eq!(actual, Some(std::env::current_exe().unwrap().as_os_str()));
     }
 }

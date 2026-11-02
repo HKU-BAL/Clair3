@@ -192,8 +192,9 @@ Additional checks:
 - Full supplied HG002 chr20 command and VCF comparisons: see above.
 - `cargo fmt --all -- --check`: passed.
 - `cargo clippy --all-targets --locked -- -D warnings`: passed.
-- `cargo test --all-targets --release --locked`: 57 unit tests passed, one pre-existing LSTM assertion failed, and one test was ignored. The failing library test stopped the unfiltered run.
-- All remaining targets, run with only `model::lstm::tests::official_lstm_layers_match` excluded: passed, including 58 other unit tests, restored phasing tests, nine pileup fixture tests, official model parity, calling, realignment, training, and integration tests. This exclusion is a diagnostic continuation, not a claim that the full suite is green.
+- `cargo test --all-targets --release --locked`: 58 unit tests passed, one pre-existing LSTM assertion failed, and one test was ignored. The failing library test stopped the unfiltered run.
+- All remaining targets, run with only `model::lstm::tests::official_lstm_layers_match` excluded: passed, including 59 other unit tests and `native_phase_command_uses_current_executable`, restored phasing tests, nine pileup fixture tests, official model parity, calling, realignment, training, and integration tests. This exclusion is a diagnostic continuation, not a claim that the full suite is green.
+- Direct installed `clair3 run` without a `CLAIR3_BIN` override: passed with native phasing. The small HiFi fixture produced eight expected records both with and without phasing.
 - Docker builds, NVIDIA execution, AMD execution, and LongPhase source compilation were not verified on this macOS host.
 
 A pre-existing strict `official_lstm_layers_match` assertion checks the official ONT pileup model. At the same fixtures, LSTM2 differs by `0.053098708391189575`, with first-timestep difference `0.0008534938097000122`. It reproduces at the earlier `f1d2e6b` milestone and is not a result of the range-counting or dependency-cleanup changes. The complete test suite must not be described as green while that assertion fails.
