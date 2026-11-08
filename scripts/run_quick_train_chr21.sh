@@ -74,10 +74,13 @@ BAM_RAW=${BAM_RAW:?Set BAM_RAW to an indexed chr21 BAM}
 # 深度档：1000=100%，222=22.2%。
 # 加档位：例如 DEPTHS=(1000 444 222 111)， 脚本会从 1000 档降采样生成。
 DEPTHS=(${DEPTHS_OVERRIDE:-1000 222})
+VALIDATION_DEPTH=${VALIDATION_DEPTH:-222}
 
 CHUNKS=${CHUNKS:-8}             # 每条染色体的分块数
 THREADS=${THREADS:-16}
 EPOCHS=${EPOCHS:-1}             # 冒烟测试 1 个 epoch 即可
+BATCH_SIZE=${BATCH_SIZE:-1000}
+CHUNK_SIZE=${CHUNK_SIZE:-200}
 PLATFORM=${PLATFORM:-hifi}
 DO_RU=${DO_RU:-1}               # 1 = 跑 Repun 表示统一；0 = 直接用真值 VCF
 
@@ -110,10 +113,10 @@ log() { echo "[$(date '+%F %T')] $*"; }
 die() { echo "[ERROR] $*" >&2; exit 1; }
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}
 
-mkdir -p "$WORK"/{bam,truth,ru,split,var,bins/pileup/train,bins/fa/train,candidates,models}
+mkdir -p "$WORK"/{bam,truth,ru,split,var,bins/pileup/train,bins/pileup/validation,bins/fa/train,bins/fa/validation,candidates,models}
 
 log "=== Clair3 quick training: $SAMPLE $REGION ==="
-log "  depths: ${DEPTHS[*]}   chunks: $CHUNKS   epochs: $EPOCHS   DO_RU=$DO_RU"
+log "  depths: ${DEPTHS[*]}   validation depth: $VALIDATION_DEPTH   chunks: $CHUNKS   epochs: $EPOCHS   DO_RU=$DO_RU"
 
 # -----------------------------------------------------------------------------
 # 3. 准备输入：BAM 切片 + 真值子集
@@ -229,19 +232,20 @@ log "[5/9] Pileup bins: MergeBin"
 for d in "${DEPTHS[@]}"; do
     files=$(ls "$WORK"/bins/pileup/tensor_${d}_${CTG}_* 2>/dev/null)
     [ -n "$files" ] || die "depth=$d 没有 tensor"
+    split=train
+    [ "$d" = "$VALIDATION_DEPTH" ] && split=validation
     "$PY_TRAIN" "$CLAIR3" MergeBin $files \
-        --out_fn "$WORK/bins/pileup/train/bin_${SAMPLE}_${d}" --pileup \
+        --out_fn "$WORK/bins/pileup/${split}/bin_${SAMPLE}_${d}" --pileup \
         > "$WORK/bins/pileup/merge_${d}.log" 2>&1 \
         || die "pileup MergeBin depth=$d 失败"
 done
-mkdir -p "$WORK/bins/pileup/train"
 
 # =============================================================================
 # 7. Full-alignment bins
 # =============================================================================
 log "[6/9] FA bins: run_clair3 --pileup_only 产生候选"
 for d in "${DEPTHS[@]}"; do
-    [ -s "$WORK/candidates/pileup_${d}/pileup.vcf.gz" ] && { log "  跳过 depth=$d（已有候选）"; continue; }
+    [ -s "$WORK/candidates/pileup_${d}/pileup.vcf.gz" ] && { log "  跳过 depth=${d}（已有候选）"; continue; }
     bam=$BAM_1000; [ "$d" != "1000" ] && bam=$WORK/bam/${CTG}_${d}.bam
     "$PY_BIN" "$RUN_CLAIR3" \
         --bam_fn "$bam" --ref_fn "$REF" --threads "$THREADS" \
@@ -283,8 +287,10 @@ for d in "${DEPTHS[@]}"; do
 
     files=$(ls "$WORK"/bins/fa/tensor_${d}_${CTG}_* 2>/dev/null)
     [ -n "$files" ] || die "FA depth=$d 没有 tensor"
+    split=train
+    [ "$d" = "$VALIDATION_DEPTH" ] && split=validation
     "$PY_TRAIN" "$CLAIR3" MergeBin $files \
-        --out_fn "$WORK/bins/fa/train/bin_${SAMPLE}_${d}" --platform "$PLATFORM" \
+        --out_fn "$WORK/bins/fa/${split}/bin_${SAMPLE}_${d}" --platform "$PLATFORM" \
         > "$WORK/bins/fa/merge_${d}.log" 2>&1 \
         || die "FA MergeBin depth=$d 失败"
 done
@@ -293,6 +299,13 @@ done
 # 8. 训练（fine-tune from 公开 hifi_revio 权重）
 # =============================================================================
 log "[9/9] 训练"
+
+for kind in pileup fa; do
+    for split in train validation; do
+        files=$(ls "$WORK"/bins/${kind}/${split}/bin_* 2>/dev/null)
+        [ -n "$files" ] || die "$kind $split 没有独立 bins；请包含 VALIDATION_DEPTH 对应深度"
+    done
+done
 
 train_one() {
     local kind=$1 pretrain=$2 extra=$3
@@ -304,15 +317,15 @@ train_one() {
       # Train 把 training.log / best_val_loss.pt 写到当前目录，所以必须先 cd
       CUDA_VISIBLE_DEVICES="$cuda_dev" "$PY_TRAIN" "$CLAIR3" Train \
           --bin_fn "$WORK/bins/${kind}/train" \
-          --validation_fn "$WORK/bins/${kind}/train" \
+          --validation_fn "$WORK/bins/${kind}/validation" \
           --ochk_prefix "$out/${kind}" \
           --chkpnt_fn "$pretrain" \
           --learning_rate 1e-5 --platform "$PLATFORM" \
+          --batch_size "$BATCH_SIZE" --chunk_size "$CHUNK_SIZE" \
           --maxEpoch "$EPOCHS" $extra
     ) || die "$kind 训练失败"
 }
 
-# 正式训练应该用独立的验证 bins。
 train_one pileup "$PRETRAIN_PILEUP" "--pileup"
 train_one fa     "$PRETRAIN_FA"     "--add_indel_length True"
 

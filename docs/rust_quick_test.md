@@ -180,6 +180,8 @@ From the repository root, configure paths and run the bounded example:
 ```bash
 REGION=chr21:13000000-14000000 \
 DEPTHS_OVERRIDE="1000 222" \
+VALIDATION_DEPTH=222 \
+BATCH_SIZE=1000 CHUNK_SIZE=200 \
 EPOCHS=1 GPU=cpu DO_RU=1 \
 REF=/path/to/GRCh38_no_alt_analysis_set.fasta \
 TRUTH_VCF=/path/to/HG002_GRCh38_v5.0q_smvar.vcf.gz \
@@ -190,7 +192,7 @@ WORK="${PWD}/target/quick-test/training" \
 bash scripts/run_quick_train_chr21.sh
 ```
 
-The supplied data's first chr21 interval is not covered by the truth BED; use the populated interval shown above or choose another interval with reads, truth variants, and BED regions. The default whole-chromosome run is much longer. Use `GPU=0` for CUDA training on a configured NVIDIA host; `GPU=cpu` forces CPU training. MPS training is not currently validated. `CHUNKS`, `THREADS`, `THREADS_LOW`, tool paths, and `CLAIR3_REPO` can be overridden when needed.
+The supplied data's first chr21 interval is not covered by the truth BED; use the populated interval shown above or choose another interval with reads, truth variants, and BED regions. The default whole-chromosome run is much longer. By default, depth 1000 supplies training bins and the disjoint depth 222 supplies validation bins; `VALIDATION_DEPTH` selects a different validation depth that must be present in `DEPTHS_OVERRIDE`. The bounded defaults `BATCH_SIZE=1000` and `CHUNK_SIZE=200` ensure that each single-depth split has complete batches; larger datasets can use the standard 2000/200 settings. Use `GPU=0` for CUDA training on a configured NVIDIA host; `GPU=cpu` forces CPU training. MPS training is not currently validated. `CHUNKS`, `THREADS`, `THREADS_LOW`, tool paths, and `CLAIR3_REPO` can be overridden when needed.
 
 Successful one-epoch training produces:
 
@@ -203,7 +205,7 @@ WORK/models/fa/best_val_loss.pt
 WORK/models/fa/training.log
 ```
 
-Check that both training and validation losses are finite, the merged bins are nonempty, and both checkpoints load successfully. The smoke test uses the same bins for training and validation to exercise that code path; real training should use an independent validation dataset. See the detailed [pileup training](pileup_training.md) and [full-alignment training](full_alignment_training_r1.md) guides for production workflows.
+Check that both training and validation losses are finite and greater than zero, the disjoint merged bins are nonempty, and both checkpoints load successfully. Training-side `_20_` and sample exclusions do not remove independent validation archives. An explicit validation directory that yields no complete batches is an error rather than a zero-loss success. Resume with `--chkpnt_fn` is a weight-only restart with a fresh optimizer, epoch schedule, and RNG state, not exact continuation. See the detailed [pileup training](pileup_training.md) and [full-alignment training](full_alignment_training_r1.md) guides for production workflows.
 
 The bounded workflow passed on native macOS ARM64 CPU, local Linux ARM64 CPU, emulated Linux x86_64 CPU, and native Linux x86_64 CUDA on an RTX 4090. Original Python/PyTorch successfully read the resulting LZF archives and loaded the generated checkpoints. Training remains stochastic; these checks establish working artifacts, not byte-identical model weights. See the [training validation results](rust_optimization.md#end-to-end-model-training-validation) for timings and known differences.
 

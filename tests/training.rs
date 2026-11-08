@@ -176,6 +176,56 @@ fn full_alignment_fine_tuning_writes_a_loadable_checkpoint() {
     }
 }
 
+#[test]
+fn validation_directory_preserves_independent_inputs() {
+    let _guard = TORCH_TEST_LOCK.lock().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let data = write_deterministic_archive(root.path(), &[33, 18], true);
+    fs::write(data.join("ignored_20_.bin"), "not an archive").unwrap();
+    fs::write(data.join("excluded-sample.bin"), "not an archive").unwrap();
+    let validation = root.path().join("validation");
+    fs::create_dir_all(&validation).unwrap();
+    fs::copy(data.join("toy.bin"), validation.join("bin_HG002_20_chr20")).unwrap();
+    let options = TrainingOptions {
+        pileup: true,
+        add_indel_length: false,
+        max_epochs: 1,
+        mini_epochs: 1,
+        batch_size: DETERMINISTIC_BATCH_SIZE,
+        chunk_size: DETERMINISTIC_BATCH_SIZE,
+        validation_dir: Some(validation),
+        exclude_training_samples: ["excluded-sample".to_string()].into_iter().collect(),
+        seed: Some(7),
+        log_path: root.path().join("training.log"),
+        best_checkpoint: root.path().join("best.pt"),
+        ..TrainingOptions::new(data.clone(), root.path().join("model"), Platform::Ont)
+    };
+    let report = train(&options).unwrap();
+    let validation_loss = report.best_validation_loss.unwrap();
+    assert!(
+        validation_loss.is_finite() && validation_loss > 0.0,
+        "independent _20_ validation archive was lost: validation loss {validation_loss}"
+    );
+    assert!(options.best_checkpoint.is_file());
+    assert!(options.log_path.is_file());
+
+    let empty = root.path().join("empty-validation");
+    fs::create_dir_all(&empty).unwrap();
+    let error = train(&TrainingOptions {
+        validation_dir: Some(empty.clone()),
+        output_prefix: root.path().join("empty-model"),
+        log_path: root.path().join("empty-training.log"),
+        best_checkpoint: root.path().join("empty-best.pt"),
+        ..options
+    })
+    .unwrap_err();
+    assert!(
+        error.to_string().contains("no validation batches")
+            && error.to_string().contains(&empty.display().to_string()),
+        "unexpected empty-validation error: {error}"
+    );
+}
+
 #[derive(Debug, Deserialize)]
 struct OriginalMetrics {
     task_losses: Vec<f64>,
@@ -563,5 +613,229 @@ fn deterministic_full_alignment_matches_original() {
         false,
         &[55, 33, 8],
         1e-7,
+    );
+}
+
+fn real_training_inputs(test_name: &str, kind: &str) -> Option<(PathBuf, PathBuf, PathBuf)> {
+    let Some(root) = std::env::var_os("CLAIR3_REAL_TRAINING_ROOT").map(PathBuf::from) else {
+        eprintln!("SKIP {test_name}: CLAIR3_REAL_TRAINING_ROOT is not set");
+        return None;
+    };
+    let train = root.join(kind).join("train");
+    let validation = root.join(kind).join("validation");
+    let checkpoint = root.join("models").join(if kind == "pileup" {
+        "pileup.pt"
+    } else {
+        "full_alignment.pt"
+    });
+    let missing: Vec<_> = [train.clone(), validation.clone(), checkpoint.clone()]
+        .into_iter()
+        .filter(|path| !path.exists())
+        .collect();
+    if !missing.is_empty() {
+        eprintln!(
+            "SKIP {test_name}: missing {}",
+            missing
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        return None;
+    }
+    Some((train, validation, checkpoint))
+}
+
+fn real_archive_metrics(test_name: &str, path: &Path, input_channels: usize) {
+    let mut archives: Vec<_> = fs::read_dir(path)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.is_file())
+        .collect();
+    archives.sort();
+    assert!(!archives.is_empty(), "{test_name}: no archives in {path:?}");
+    for path in archives {
+        let archive = BinArchive::open(&path).unwrap();
+        let rows = archive.len();
+        assert!(rows > 0, "{test_name}: empty archive {path:?}");
+        let mut label_counts = Tensor::zeros([90], (Kind::Float, Device::Cpu));
+        for start in (0..rows).step_by(200) {
+            let (_, labels) = archive
+                .read_batch(start, (start + 200).min(rows), input_channels)
+                .unwrap();
+            label_counts += labels.sum_dim_intlist(&[0i64][..], false, Kind::Float);
+        }
+        let label_counts = Vec::<f32>::try_from(&label_counts).unwrap();
+        let expected_nonzero = rows * 4;
+        assert_eq!(
+            label_counts.iter().sum::<f32>() as usize,
+            expected_nonzero,
+            "{test_name}: labels in {path:?}"
+        );
+        assert!(
+            label_counts.iter().filter(|count| **count > 0.0).count() > 2,
+            "{test_name}: labels in {path:?} are not representative"
+        );
+        eprintln!(
+            "{test_name}: archive={} shape={:?} rows={} label_counts={label_counts:?}",
+            path.display(),
+            archive.tensor_shape(),
+            rows
+        );
+    }
+}
+
+fn training_log(path: &Path) -> Vec<(f64, f64)> {
+    let text = fs::read_to_string(path).unwrap();
+    let mut lines = text.lines();
+    assert_eq!(lines.next(), Some("epoch\tloss\tval_loss"));
+    lines
+        .enumerate()
+        .map(|(index, line)| {
+            let fields: Vec<_> = line.split('\t').collect();
+            assert_eq!(fields.len(), 3, "malformed training log line: {line}");
+            let epoch = fields[0].parse::<usize>().unwrap();
+            assert_eq!(epoch, index + 1);
+            let loss = fields[1].parse::<f64>().unwrap();
+            let validation = fields[2].parse::<f64>().unwrap();
+            assert!(loss.is_finite() && loss > 0.0);
+            assert!(validation.is_finite() && validation > 0.0);
+            (loss, validation)
+        })
+        .collect()
+}
+
+fn real_training_workflow(test_name: &str, kind: ModelKind, directory: &str, pileup: bool) {
+    let _guard = TORCH_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
+    let Some((training, validation, checkpoint)) = real_training_inputs(test_name, directory)
+    else {
+        return;
+    };
+    let input_channels = if pileup { 18 } else { 8 };
+    real_archive_metrics(test_name, &training, input_channels);
+    real_archive_metrics(test_name, &validation, input_channels);
+    let output = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target/verify/training/task4-real")
+        .join(format!("{directory}-{}", std::process::id()));
+    fs::create_dir_all(&output).unwrap();
+    let options = TrainingOptions {
+        checkpoint: Some(checkpoint),
+        pileup,
+        add_indel_length: !pileup,
+        max_epochs: 3,
+        mini_epochs: 1,
+        batch_size: 1000,
+        chunk_size: 200,
+        learning_rate: 1e-5,
+        validation_dir: Some(validation.clone()),
+        seed: Some(19),
+        log_path: output.join("convergence.log"),
+        best_checkpoint: output.join("convergence-best.pt"),
+        ..TrainingOptions::new(training.clone(), output.join("convergence"), Platform::Hifi)
+    };
+    let report = train(&options).unwrap();
+    assert_eq!(report.epochs, 3);
+    assert_eq!(report.checkpoints.len(), 3);
+    assert!(options.best_checkpoint.is_file());
+    let losses = training_log(&options.log_path);
+    assert_eq!(losses.len(), 3);
+    assert!(
+        losses.iter().skip(1).any(|(loss, _)| *loss < losses[0].0),
+        "{test_name}: training loss never improved: {losses:?}"
+    );
+    eprintln!("{test_name}: convergence losses={losses:?}");
+
+    let restart_checkpoint = report.checkpoints.last().unwrap().clone();
+    let restart = TrainingOptions {
+        checkpoint: Some(restart_checkpoint.clone()),
+        max_epochs: 1,
+        seed: Some(23),
+        output_prefix: output.join("restart"),
+        log_path: output.join("restart.log"),
+        best_checkpoint: output.join("restart-best.pt"),
+        ..options.clone()
+    };
+    let restarted = train(&restart).unwrap();
+    assert_eq!(restarted.epochs, 1);
+    assert_eq!(restarted.checkpoints.len(), 1);
+    assert!(
+        restarted.checkpoints[0]
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .ends_with(".01.pt")
+    );
+    assert_eq!(training_log(&restart.log_path).len(), 1);
+    let before = tensor_map(load_python_state_dict(&restart_checkpoint).unwrap());
+    let after = tensor_map(load_python_state_dict(&restarted.checkpoints[0]).unwrap());
+    assert!(tensors_changed(&before, &after));
+    let model = Model::new(
+        kind,
+        Device::Cpu,
+        Some(input_channels as i64),
+        !pileup,
+        Some(&restarted.checkpoints[0]),
+    )
+    .unwrap();
+    let archive = BinArchive::open(
+        &fs::read_dir(&training)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|path| path.is_file())
+            .unwrap(),
+    )
+    .unwrap();
+    let (input, _) = archive.read_batch(0, 2, input_channels).unwrap();
+    let output_tensor = model.forward(&input, false);
+    assert_eq!(output_tensor.size()[0], 2);
+    assert_eq!(output_tensor.size()[1], if pileup { 24 } else { 90 });
+    assert_eq!(output_tensor.isfinite().all().int64_value(&[]), 1);
+
+    let stopping = TrainingOptions {
+        checkpoint: restart.checkpoint.clone(),
+        max_epochs: 12,
+        learning_rate: 0.0,
+        output_prefix: output.join("stopping"),
+        log_path: output.join("stopping.log"),
+        best_checkpoint: output.join("stopping-best.pt"),
+        ..restart.clone()
+    };
+    let stopped = train(&stopping).unwrap();
+    assert_eq!(
+        stopped.epochs, 11,
+        "{test_name}: early stopping did not trigger"
+    );
+    assert_eq!(stopped.checkpoints.len(), 11);
+    assert!(stopping.best_checkpoint.is_file());
+    let stopping_losses = training_log(&stopping.log_path);
+    assert_eq!(stopping_losses.len(), 11);
+    eprintln!("{test_name}: early-stopping losses={stopping_losses:?}");
+    eprintln!(
+        "{test_name}: weight-only restart and early stopping passed; outputs={}",
+        output.display()
+    );
+}
+
+#[test]
+#[ignore = "requires independent real training archives and pretrained checkpoints"]
+fn real_data_pileup_converges_stops_and_restarts() {
+    real_training_workflow(
+        "real_data_pileup_converges_stops_and_restarts",
+        ModelKind::Pileup,
+        "pileup",
+        true,
+    );
+}
+
+#[test]
+#[ignore = "requires independent real training archives and pretrained checkpoints"]
+fn real_data_full_alignment_converges_stops_and_restarts() {
+    real_training_workflow(
+        "real_data_full_alignment_converges_stops_and_restarts",
+        ModelKind::FullAlignment,
+        "fa",
+        false,
     );
 }

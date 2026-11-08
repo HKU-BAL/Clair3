@@ -13,6 +13,22 @@ fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
+fn require_inputs(test_name: &str, paths: &[PathBuf]) -> bool {
+    let missing: Vec<_> = paths.iter().filter(|path| !path.is_file()).collect();
+    if missing.is_empty() {
+        return true;
+    }
+    eprintln!(
+        "SKIP {test_name}: missing {}",
+        missing
+            .iter()
+            .map(|path| path.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    false
+}
+
 fn expected_info(case: &str) -> (Vec<String>, Vec<String>) {
     let text =
         fs::read_to_string(root().join(format!("tests/fixtures/tensors/{case}.info"))).unwrap();
@@ -180,7 +196,21 @@ fn sampling_is_repeatable_across_concurrent_calls() {
 fn official_hifi_phased_context_matches() {
     let root = root();
     let baseline = root.join("target/legacy/baseline/official_hifi");
+    let data = root.join("target/test-data/pacbio_hifi");
     let candidate_path = baseline.join("tmp/full_alignment_output/candidate_bed/chr20.0_1");
+    if !require_inputs(
+        "official_hifi_phased_context_matches",
+        &[
+            candidate_path.clone(),
+            data.join("GRCh38_no_alt_chr20.fa"),
+            data.join("HG003_chr20_demo.bam"),
+            baseline.join("tmp/phase_output/phase_vcf/phased_chr20.vcf.gz"),
+            root.join("target/verify/hifi-cffi.npy"),
+            root.join("target/verify/hifi-cffi.npy.info"),
+        ],
+    ) {
+        return;
+    }
     let content = fs::read_to_string(&candidate_path).unwrap();
     let mut start = i64::MAX;
     let mut end = 0;
@@ -189,7 +219,6 @@ fn official_hifi_phased_context_matches() {
         start = start.min(fields[1].parse::<i64>().unwrap());
         end = end.max(fields[2].parse::<i64>().unwrap());
     }
-    let data = root.join("target/test-data/pacbio_hifi");
     let reference = Reference::open(&data.join("GRCh38_no_alt_chr20.fa")).unwrap();
     let batch = create_full_alignment(
         &data.join("HG003_chr20_demo.bam"),

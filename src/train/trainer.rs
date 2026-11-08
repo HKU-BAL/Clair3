@@ -100,7 +100,7 @@ impl Rng {
     }
 }
 
-fn archives(path: &Path, excluded: &BTreeSet<String>) -> Result<Vec<BinArchive>> {
+fn archives(path: &Path, excluded: &BTreeSet<String>, training: bool) -> Result<Vec<BinArchive>> {
     let mut names = Vec::new();
     for entry in fs::read_dir(path).with_context(|| {
         format!(
@@ -116,7 +116,9 @@ fn archives(path: &Path, excluded: &BTreeSet<String>) -> Result<Vec<BinArchive>>
             .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("");
-        if name.contains("_20_") || excluded.iter().any(|prefix| name.contains(prefix)) {
+        if training
+            && (name.contains("_20_") || excluded.iter().any(|prefix| name.contains(prefix)))
+        {
             continue;
         }
         names.push(path);
@@ -311,7 +313,7 @@ pub fn train_with_collective(
     if options.max_epochs == 0 {
         bail!("maximum epochs must be positive");
     }
-    let archives = archives(&options.bin_dir, &options.exclude_training_samples)?;
+    let archives = archives(&options.bin_dir, &options.exclude_training_samples, true)?;
     if archives.is_empty() {
         bail!(
             "no training archives were found in {}",
@@ -321,7 +323,7 @@ pub fn train_with_collective(
     let validation_archives = options
         .validation_dir
         .as_ref()
-        .map(|path| self::archives(path, &options.exclude_training_samples))
+        .map(|path| self::archives(path, &options.exclude_training_samples, false))
         .transpose()?;
     let (mut training_chunks, validation_chunks) = if let Some(validation) = &validation_archives {
         (
@@ -376,6 +378,20 @@ pub fn train_with_collective(
     let mut optimizer =
         nn::adamw(0.9, 0.999, weight_decay).build(&model.var_store, learning_rate)?;
     let chunks_per_batch = options.batch_size / options.chunk_size;
+    if let Some(path) = &options.validation_dir
+        && batches(
+            &validation_chunks,
+            chunks_per_batch,
+            collective.world_size(),
+            collective.rank(),
+        )
+        .is_empty()
+    {
+        bail!(
+            "no validation batches were found in explicit validation directory {}",
+            path.display()
+        );
+    }
     let chunks_per_epoch = (training_chunks.len() / options.mini_epochs).max(1);
     let total_epochs = options.max_epochs * options.mini_epochs;
     let main = collective.rank() == 0;
