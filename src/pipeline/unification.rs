@@ -332,11 +332,17 @@ fn phased_genotype(
             continue;
         }
         let (reference, alternate) = match variant.as_bytes()[0] {
-            b'X' => (reference_base.to_string(), variant[1..].to_string()),
-            b'I' => (reference_base.to_string(), variant[1..].to_string()),
+            b'X' => (
+                (reference_base as char).to_string(),
+                variant[1..].to_string(),
+            ),
+            b'I' => (
+                (reference_base as char).to_string(),
+                variant[1..].to_string(),
+            ),
             b'D' => (
                 format!("{}{}", reference_base as char, &variant[1..]),
-                reference_base.to_string(),
+                (reference_base as char).to_string(),
             ),
             _ => continue,
         };
@@ -944,14 +950,11 @@ impl Unification<'_> {
                 if genotype.0 + genotype.1 == 0 || candidate.alternates.is_empty() {
                     continue;
                 }
-                let mut selected = BTreeSet::new();
-                for allele in [genotype.0, genotype.1] {
-                    if allele != 0
-                        && let Some(alternate) = candidate.alternates.get(allele as usize - 1)
-                    {
-                        selected.insert(alternate.clone());
-                    }
-                }
+                let selected: BTreeSet<usize> = [genotype.0, genotype.1]
+                    .into_iter()
+                    .filter(|allele| *allele != 0)
+                    .map(|allele| allele as usize - 1)
+                    .collect();
                 let genotype_string = if genotype.0 == 0 || genotype.1 == 0 {
                     (0, 1)
                 } else if genotype.0 == genotype.1 {
@@ -959,10 +962,14 @@ impl Unification<'_> {
                 } else {
                     (1, 2)
                 };
-                let (reference, alternates) = remove_common_suffix(
-                    &candidate.reference,
-                    &selected.into_iter().collect::<Vec<_>>(),
-                );
+                let selected = candidate
+                    .alternates
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, _)| selected.contains(index))
+                    .map(|(_, alternate)| alternate.clone())
+                    .collect::<Vec<_>>();
+                let (reference, alternates) = remove_common_suffix(&candidate.reference, &selected);
                 if alternates.is_empty() {
                     continue;
                 }
@@ -1431,6 +1438,44 @@ mod tests {
         let combinations = unique_genotypes(&options);
         assert_eq!(combinations.len(), 5);
         assert!(combinations.iter().all(|genotypes| genotypes.len() == 2));
+    }
+
+    #[test]
+    fn phased_genotype_decodes_snp_reference_base() {
+        let mut candidate = Position::new(100, "C".to_string(), vec!["T".to_string()], (-1, -1));
+        candidate.variant_haplotypes = BTreeMap::from([
+            ("R".to_string(), BTreeMap::from([(2, 4)])),
+            ("XT".to_string(), BTreeMap::from([(0, 1), (1, 4)])),
+        ]);
+        candidate.haplotype_counts = BTreeMap::from([(0, 1), (1, 4), (2, 4)]);
+        assert_eq!(
+            phased_genotype(&candidate, None, b'C', 0.15, Platform::Hifi),
+            Some((1, 0))
+        );
+    }
+
+    #[test]
+    fn phased_genotype_decodes_insertion_reference_base() {
+        let mut candidate = Position::new(100, "C".to_string(), vec!["CA".to_string()], (-1, -1));
+        candidate.variant_haplotypes =
+            BTreeMap::from([("ICA".to_string(), BTreeMap::from([(0, 1), (1, 4), (2, 4)]))]);
+        candidate.haplotype_counts = BTreeMap::from([(0, 1), (1, 4), (2, 4)]);
+        assert_eq!(
+            phased_genotype(&candidate, None, b'C', 0.15, Platform::Hifi),
+            Some((1, 1))
+        );
+    }
+
+    #[test]
+    fn phased_genotype_decodes_deletion_reference_base() {
+        let mut candidate = Position::new(100, "CAT".to_string(), vec!["C".to_string()], (-1, -1));
+        candidate.variant_haplotypes =
+            BTreeMap::from([("DAT".to_string(), BTreeMap::from([(0, 1), (1, 4), (2, 4)]))]);
+        candidate.haplotype_counts = BTreeMap::from([(0, 1), (1, 4), (2, 4)]);
+        assert_eq!(
+            phased_genotype(&candidate, None, b'C', 0.15, Platform::Hifi),
+            Some((1, 1))
+        );
     }
 
     #[test]

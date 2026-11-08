@@ -270,6 +270,20 @@ ${PARALLEL} --joblog ${DATASET_FOLDER_PATH}/mergeBin.log -j${THREADS} \
 
 On `clair3-rust`, use the installed `clair3` executable or the `clair3.py` compatibility launcher. `--device=cpu` forces CPU training and `--device=cuda:0` explicitly selects the first CUDA device; otherwise, available CUDA is selected automatically. MPS training is not validated. Each epoch writes `<ochk_prefix>.NN.pt`, such as `pileup.01.pt`. `training.log` and `best_val_loss.pt` default to the current directory; `--log_fn` and `--best_checkpoint` can select other paths. Use either `--random_validation` or `--validation_fn` with an independent validation-bin directory, not both. For a complete native smoke workflow, see [Quick-testing Clair3-Rust](rust_quick_test.md#7-quick-model-training-workflow).
 
+### Independent validation and checkpoint restarts
+
+`--validation_fn` must name genuinely held-out archives. Training-only `_20_` and `exclude_training_samples` filename filters no longer remove independent validation inputs. An explicit validation directory that cannot form a complete batch now fails with a nonempty-validation error instead of silently reporting zero loss. These changes correct validation-path handling; they do not establish that a model will generalize.
+
+The bounded `scripts/run_quick_train_chr21.sh` workflow uses `samtools view -s 222.222 -U` to write depth-222 validation templates/read pairs and their complementary, non-overlapping QNAME set to `chr21_1000.training.bam`. The depth-1000 name remains nominal metadata: it contains approximately 77.8% of the haplotagged reads, not the full BAM. Any additional training depths are subsampled only from that complement. Its `BATCH_SIZE=1000` and `CHUNK_SIZE=200` defaults avoid empty batches in the bounded single-depth splits; larger datasets can override them.
+
+`--chkpnt_fn` performs a **weight-only restart**. Each call to the trainer constructs a fresh AdamW optimizer and starts a fresh epoch schedule; optimizer, epoch, and RNG continuation are not saved or claimed. Controlled one-epoch tests reproduced the fresh-run loss, validation loss, complete log, and every checkpoint tensor exactly with seed 29, and a different starting checkpoint changed the tensors. Real-data runs also produced a fresh `.01.pt` and one log row.
+
+### Pileup correctness evidence
+
+The deterministic fixture gives original Python and Rust the same 40 labeled examples, initial checkpoint, seed 0, and one fixed 20-example batch. It compares both task losses, actual total training loss, every updated checkpoint tensor, and reload outputs with zero tolerance. Two root causes were fixed: seeding before model construction consumed the intended dropout stream, so seeding now occurs after model construction/checkpoint loading; and AdamW had hardcoded `1e-7` weight decay, whereas original pileup training uses `1e-4`. The final pileup task losses were `[2.781644821166992, 0.5070092082023621]`; total-loss and maximum checkpoint differences were both exactly 0. Ordinary training RNG and dropout behavior remain unchanged.
+
+On the current complementary-read native data, three-epoch training/validation losses were `(0.696778, 0.441970)`, `(0.574981, 0.440305)`, and `(0.654248, 0.438492)`. Both real-data convergence/early-stopping/restart tests passed, with early stopping at epoch 11 of 12. Native and CUDA original h5py/DataLoader training also read their respective disjoint archives. These are bounded evidence runs, not proof of byte-identical datasets or weights across uncontrolled runs and backends. Platform timings, archive shapes, held-out chr20 F1, named skips, and remaining limitations are recorded in the [current training validation report](rust_optimization.md#end-to-end-model-training-validation).
+
 We provide two optional training mode:
 
 ​	**Option1**: Train  pileup model using new dataset, in this mode, we will use randomly initialized model weights and train the model until reaches max epochs(30) or converge.

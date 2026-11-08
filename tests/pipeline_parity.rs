@@ -23,11 +23,47 @@ fn expected(path: &Path) -> Vec<String> {
     lines(&read_vcf(path).unwrap().records)
 }
 
+fn require_inputs(test_name: &str, paths: &[PathBuf]) -> bool {
+    let missing: Vec<_> = paths.iter().filter(|path| !path.is_file()).collect();
+    if missing.is_empty() {
+        return true;
+    }
+    eprintln!(
+        "SKIP {test_name}: missing {}",
+        missing
+            .iter()
+            .map(|path| path.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    false
+}
+
 #[test]
 #[ignore = "requires official baseline outputs"]
 fn candidate_and_merge_outputs_match() {
     let root = root();
     let baseline = root.join("target/legacy/baseline/official_ilmn");
+    let hifi = root.join("target/legacy/baseline/official_hifi");
+    if !require_inputs(
+        "candidate_and_merge_outputs_match",
+        &[
+            root.join("target/test-data/illumina/GRCh38_chr20.fa"),
+            baseline.join("pileup.vcf.gz"),
+            baseline.join("full_alignment.vcf.gz"),
+            baseline.join("tmp/split_beds/chr20"),
+            baseline.join("tmp/full_alignment_output/candidate_bed/qual"),
+            baseline.join("tmp/full_alignment_output/candidate_bed/chr20.0_1"),
+            baseline.join("tmp/full_alignment_output/candidate_bed/full_aln_regions_chr20"),
+            baseline.join("tmp/phase_output/phase_vcf/chr20.vcf"),
+            baseline.join("tmp/merge_output/merge_chr20.vcf"),
+            hifi.join("pileup.vcf.gz"),
+            hifi.join("full_alignment.vcf.gz"),
+            hifi.join("tmp/merge_output/merge_chr20.vcf"),
+        ],
+    ) {
+        return;
+    }
     let pileup_path = baseline.join("pileup.vcf.gz");
     let reference =
         Reference::open(&root.join("target/test-data/illumina/GRCh38_chr20.fa")).unwrap();
@@ -90,7 +126,6 @@ fn candidate_and_merge_outputs_match() {
         expected(&baseline.join("tmp/merge_output/merge_chr20.vcf"))
     );
 
-    let hifi = root.join("target/legacy/baseline/official_hifi");
     let merged = merge_records(
         &read_vcf(&hifi.join("pileup.vcf.gz")).unwrap().records,
         &read_vcf(&hifi.join("full_alignment.vcf.gz"))
@@ -194,6 +229,18 @@ fn environment_checks_tool_versions_without_python() {
 #[ignore = "requires external phasing tools"]
 fn phasing_supports_colon_contigs() {
     let root = root();
+    if !require_inputs(
+        "phasing_supports_colon_contigs",
+        &[
+            root.join("tests/fixtures/data/toy.bam"),
+            root.join("tests/fixtures/data/toy.fa"),
+            root.join("tests/fixtures/data/regions.bed"),
+            root.join("target/test-data/models/ilmn/pileup.pt"),
+            root.join("target/test-data/models/ilmn/full_alignment.pt"),
+        ],
+    ) {
+        return;
+    }
     let output = tempfile::tempdir().unwrap();
     let mut options = clair3::pipeline::run::RunOptions::new(
         root.join("tests/fixtures/data/toy.bam"),
@@ -207,14 +254,27 @@ fn phasing_supports_colon_contigs() {
     options.include_all_contigs = true;
     options.use_whatshap_for_final_phasing = true;
     options.use_whatshap_for_final_haplotagging = true;
-    for (name, path) in [
-        ("samtools", "samtools"),
-        ("whatshap", "whatshap"),
-        ("bgzip", "bgzip"),
-        ("tabix", "tabix"),
-    ] {
-        let path = root.join("target/legacy/env/bin").join(path);
-        let path = path.to_string_lossy().into_owned();
+    for name in ["samtools", "whatshap", "bgzip", "tabix"] {
+        let legacy = root.join("target/legacy/env/bin").join(name);
+        let path = if legacy.is_file() {
+            legacy.to_string_lossy().into_owned()
+        } else {
+            name.to_string()
+        };
+        match std::process::Command::new(&path).arg("--version").output() {
+            Ok(output) if output.status.success() => {}
+            Ok(output) => {
+                eprintln!(
+                    "SKIP phasing_supports_colon_contigs: {name} --version failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                return;
+            }
+            Err(error) => {
+                eprintln!("SKIP phasing_supports_colon_contigs: {name} unavailable: {error}");
+                return;
+            }
+        }
         match name {
             "samtools" => options.samtools = path,
             "whatshap" => options.whatshap = path,
@@ -270,6 +330,28 @@ fn bp_resolution_preserves_legacy_counts_and_end() {
 #[test]
 #[ignore = "requires official WhatsHap 2.8 and Python"]
 fn readset_serialization_preserves_variant_fields() {
+    let probe = std::process::Command::new("python3")
+        .args([
+            "-c",
+            "import importlib.metadata; assert importlib.metadata.version('whatshap') == '2.8'",
+        ])
+        .output();
+    match probe {
+        Ok(output) if output.status.success() => {}
+        Ok(output) => {
+            eprintln!(
+                "SKIP readset_serialization_preserves_variant_fields: official WhatsHap 2.8 unavailable: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+        Err(error) => {
+            eprintln!(
+                "SKIP readset_serialization_preserves_variant_fields: Python unavailable: {error}"
+            );
+            return;
+        }
+    }
     let directory = tempfile::tempdir().unwrap();
     let regions = directory.path().join("regions");
     fs::write(&regions, "").unwrap();

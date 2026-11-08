@@ -74,10 +74,13 @@ BAM_RAW=${BAM_RAW:?Set BAM_RAW to an indexed chr21 BAM}
 # 深度档：1000=100%，222=22.2%。
 # 加档位：例如 DEPTHS=(1000 444 222 111)， 脚本会从 1000 档降采样生成。
 DEPTHS=(${DEPTHS_OVERRIDE:-1000 222})
+VALIDATION_DEPTH=${VALIDATION_DEPTH:-222}
 
 CHUNKS=${CHUNKS:-8}             # 每条染色体的分块数
 THREADS=${THREADS:-16}
 EPOCHS=${EPOCHS:-1}             # 冒烟测试 1 个 epoch 即可
+BATCH_SIZE=${BATCH_SIZE:-1000}
+CHUNK_SIZE=${CHUNK_SIZE:-200}
 PLATFORM=${PLATFORM:-hifi}
 DO_RU=${DO_RU:-1}               # 1 = 跑 Repun 表示统一；0 = 直接用真值 VCF
 
@@ -110,10 +113,179 @@ log() { echo "[$(date '+%F %T')] $*"; }
 die() { echo "[ERROR] $*" >&2; exit 1; }
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}
 
-mkdir -p "$WORK"/{bam,truth,ru,split,var,bins/pileup/train,bins/fa/train,candidates,models}
+QUICK_WORK="$WORK" \
+QUICK_SCRIPT="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")" \
+QUICK_CLAIR3="$CLAIR3" \
+QUICK_RUN_CLAIR3="$RUN_CLAIR3" \
+QUICK_SAMPLE="$SAMPLE" \
+QUICK_CTG="$CTG" \
+QUICK_REGION="$REGION" \
+QUICK_DEPTHS="${DEPTHS[*]}" \
+QUICK_VALIDATION_DEPTH="$VALIDATION_DEPTH" \
+QUICK_CHUNKS="$CHUNKS" \
+QUICK_PLATFORM="$PLATFORM" \
+QUICK_DO_RU="$DO_RU" \
+QUICK_REF="$REF" \
+QUICK_TRUTH_VCF="$TRUTH_VCF" \
+QUICK_TRUTH_BED="$TRUTH_BED" \
+QUICK_BAM_RAW="$BAM_RAW" \
+QUICK_PRETRAIN_PILEUP="$PRETRAIN_PILEUP" \
+QUICK_PRETRAIN_FA="$PRETRAIN_FA" \
+QUICK_PYPY3="$PYPY3" \
+QUICK_PY_BIN="$PY_BIN" \
+QUICK_PY_TRAIN="$PY_TRAIN" \
+QUICK_SAMTOOLS="$SAMTOOLS" \
+QUICK_BGZIP="$BGZIP" \
+QUICK_TABIX="$TABIX" \
+QUICK_PARALLEL="$PARALLEL" \
+QUICK_WHATSHAP="$WHATSHAP" \
+"$PY_TRAIN" - <<'PY' || die "缓存兼容性检查失败"
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def file_identity(value):
+    path = Path(value).expanduser().resolve(strict=True)
+    return {"path": str(path), "sha256": sha256(path)}
+
+
+def tool_identity(value):
+    resolved = shutil.which(os.path.expanduser(value))
+    identity = {"command": value, "path": resolved}
+    if resolved:
+        path = Path(resolved).resolve()
+        identity["path"] = str(path)
+        if path.is_file():
+            identity["sha256"] = sha256(path)
+    return identity
+
+
+def changed_keys(before, after, prefix=""):
+    if isinstance(before, dict) and isinstance(after, dict):
+        return [
+            key
+            for name in sorted(set(before) | set(after))
+            for key in changed_keys(
+                before.get(name), after.get(name), f"{prefix}.{name}" if prefix else name
+            )
+        ]
+    return [prefix] if before != after else []
+
+
+work = Path(os.environ["QUICK_WORK"]).expanduser()
+manifest_path = work / ".quick-training-manifest.json"
+try:
+    current = {
+        "format": 1,
+        "config": {
+            "sample": os.environ["QUICK_SAMPLE"],
+            "contig": os.environ["QUICK_CTG"],
+            "region": os.environ["QUICK_REGION"],
+            "depths": os.environ["QUICK_DEPTHS"].split(),
+            "validation_depth": os.environ["QUICK_VALIDATION_DEPTH"],
+            "chunks": os.environ["QUICK_CHUNKS"],
+            "platform": os.environ["QUICK_PLATFORM"],
+            "do_ru": os.environ["QUICK_DO_RU"],
+        },
+        "inputs": {
+            name: file_identity(os.environ[f"QUICK_{name.upper()}"])
+            for name in [
+                "ref",
+                "truth_vcf",
+                "truth_bed",
+                "bam_raw",
+                "pretrain_pileup",
+                "pretrain_fa",
+            ]
+        },
+        "code": {
+            name: file_identity(os.environ[f"QUICK_{name.upper()}"])
+            for name in ["script", "clair3", "run_clair3"]
+        },
+        "tools": {
+            name: tool_identity(os.environ[f"QUICK_{name.upper()}"])
+            for name in [
+                "pypy3",
+                "py_bin",
+                "py_train",
+                "samtools",
+                "bgzip",
+                "tabix",
+                "parallel",
+                "whatshap",
+            ]
+        },
+    }
+except OSError as error:
+    raise SystemExit(f"[ERROR] cannot fingerprint quick-workflow inputs/tools: {error}")
+
+if manifest_path.exists():
+    try:
+        previous = json.loads(manifest_path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise SystemExit(
+            f"[ERROR] invalid quick-workflow manifest {manifest_path}: {error}; "
+            "use a new, empty WORK; existing data was not modified"
+        )
+    changed = changed_keys(previous, current)
+    if changed:
+        raise SystemExit(
+            f"[ERROR] incompatible cached WORK {work}; changed identity: {', '.join(changed)}. "
+            "Use a new, empty WORK; existing data was not modified"
+        )
+
+    depths = current["config"]["depths"]
+    validation_depth = current["config"]["validation_depth"]
+    sample = current["config"]["sample"]
+    for kind in ["pileup", "fa"]:
+        for split in ["train", "validation"]:
+            expected = {
+                f"bin_{sample}_{depth}"
+                for depth in depths
+                if (split == "validation") == (depth == validation_depth)
+            }
+            directory = work / "bins" / kind / split
+            if not directory.is_dir():
+                continue
+            unexpected = sorted(
+                path.name
+                for path in directory.iterdir()
+                if path.is_file() and path.name not in expected
+            )
+            if unexpected:
+                raise SystemExit(
+                    f"[ERROR] unexpected cached archive(s) in {directory}: "
+                    f"{', '.join(unexpected)}; configured depths are {', '.join(depths)}. "
+                    "Use a new, empty WORK; existing data was not modified"
+                )
+else:
+    if work.exists() and (not work.is_dir() or any(work.iterdir())):
+        raise SystemExit(
+            f"[ERROR] nonempty unmanifested WORK {work} cannot be adopted as a compatible cache. "
+            "Use a new, empty WORK; existing data was not modified"
+        )
+    work.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(current, indent=2, sort_keys=True) + "\n"
+    temporary = manifest_path.with_name(f"{manifest_path.name}.{os.getpid()}.tmp")
+    temporary.write_text(encoded)
+    os.replace(temporary, manifest_path)
+PY
+
+mkdir -p "$WORK"/{bam,truth,ru,split,var,bins/pileup/train,bins/pileup/validation,bins/fa/train,bins/fa/validation,candidates,models}
 
 log "=== Clair3 quick training: $SAMPLE $REGION ==="
-log "  depths: ${DEPTHS[*]}   chunks: $CHUNKS   epochs: $EPOCHS   DO_RU=$DO_RU"
+log "  depths: ${DEPTHS[*]}   validation depth: $VALIDATION_DEPTH   chunks: $CHUNKS   epochs: $EPOCHS   DO_RU=$DO_RU"
 
 # -----------------------------------------------------------------------------
 # 3. 准备输入：BAM 切片 + 真值子集
@@ -160,17 +332,35 @@ if [ ! -s "$HT_BAM" ]; then
     "$SAMTOOLS" index -@8 "$HT_BAM"
 fi
 
+[ "$VALIDATION_DEPTH" != "1000" ] || die "VALIDATION_DEPTH 必须是非 1000 的独立深度"
+case " ${DEPTHS[*]} " in
+    *" $VALIDATION_DEPTH "*) ;;
+    *) die "DEPTHS_OVERRIDE 必须包含 VALIDATION_DEPTH" ;;
+esac
+
+TRAIN_BAM=$WORK/bam/${CTG}_1000.training.bam
+VALIDATION_BAM=$WORK/bam/${CTG}_${VALIDATION_DEPTH}.bam
+if [ ! -s "$TRAIN_BAM" ] || [ ! -s "$VALIDATION_BAM" ]; then
+    # -s 按 template/read pair 选择；-U 将未选择的互补 reads 写给训练集。
+    "$SAMTOOLS" view -@8 -s "${VALIDATION_DEPTH}.${VALIDATION_DEPTH}" \
+        -U "$TRAIN_BAM" -b -o "$VALIDATION_BAM" "$HT_BAM" "$CTG" \
+        || die "独立训练/验证 reads 分割失败"
+    "$SAMTOOLS" index -@8 "$TRAIN_BAM"
+    "$SAMTOOLS" index -@8 "$VALIDATION_BAM"
+fi
+BAM_1000=$TRAIN_BAM
+log "  depth 1000 训练使用验证集之外的互补 reads；depth $VALIDATION_DEPTH 为 held-out reads"
+
 for d in "${DEPTHS[@]}"; do
-    [ "$d" = "1000" ] && continue
+    [ "$d" = "1000" ] || [ "$d" = "$VALIDATION_DEPTH" ] && continue
     out=$WORK/bam/${CTG}_${d}.bam
     if [ ! -s "$out" ]; then
-        # -s INT.FRAC：种子 INT，抽取比例 0.FRAC（444 => 44.4%）
-        "$SAMTOOLS" view -@8 -s "${d}.${d}" -b -o "$out" "$HT_BAM" "$CTG" \
+        # 其他训练深度只能从互补训练 reads 中抽取，不能重新引入验证 reads。
+        "$SAMTOOLS" view -@8 -s "${d}.${d}" -b -o "$out" "$BAM_1000" "$CTG" \
             || die "降采样 $d 失败"
         "$SAMTOOLS" index -@8 "$out"
     fi
 done
-BAM_1000=$HT_BAM
 
 # -----------------------------------------------------------------------------
 # 5. Repun （可选）
@@ -229,19 +419,20 @@ log "[5/9] Pileup bins: MergeBin"
 for d in "${DEPTHS[@]}"; do
     files=$(ls "$WORK"/bins/pileup/tensor_${d}_${CTG}_* 2>/dev/null)
     [ -n "$files" ] || die "depth=$d 没有 tensor"
+    split=train
+    [ "$d" = "$VALIDATION_DEPTH" ] && split=validation
     "$PY_TRAIN" "$CLAIR3" MergeBin $files \
-        --out_fn "$WORK/bins/pileup/train/bin_${SAMPLE}_${d}" --pileup \
+        --out_fn "$WORK/bins/pileup/${split}/bin_${SAMPLE}_${d}" --pileup \
         > "$WORK/bins/pileup/merge_${d}.log" 2>&1 \
         || die "pileup MergeBin depth=$d 失败"
 done
-mkdir -p "$WORK/bins/pileup/train"
 
 # =============================================================================
 # 7. Full-alignment bins
 # =============================================================================
 log "[6/9] FA bins: run_clair3 --pileup_only 产生候选"
 for d in "${DEPTHS[@]}"; do
-    [ -s "$WORK/candidates/pileup_${d}/pileup.vcf.gz" ] && { log "  跳过 depth=$d（已有候选）"; continue; }
+    [ -s "$WORK/candidates/pileup_${d}/pileup.vcf.gz" ] && { log "  跳过 depth=${d}（已有候选）"; continue; }
     bam=$BAM_1000; [ "$d" != "1000" ] && bam=$WORK/bam/${CTG}_${d}.bam
     "$PY_BIN" "$RUN_CLAIR3" \
         --bam_fn "$bam" --ref_fn "$REF" --threads "$THREADS" \
@@ -283,8 +474,10 @@ for d in "${DEPTHS[@]}"; do
 
     files=$(ls "$WORK"/bins/fa/tensor_${d}_${CTG}_* 2>/dev/null)
     [ -n "$files" ] || die "FA depth=$d 没有 tensor"
+    split=train
+    [ "$d" = "$VALIDATION_DEPTH" ] && split=validation
     "$PY_TRAIN" "$CLAIR3" MergeBin $files \
-        --out_fn "$WORK/bins/fa/train/bin_${SAMPLE}_${d}" --platform "$PLATFORM" \
+        --out_fn "$WORK/bins/fa/${split}/bin_${SAMPLE}_${d}" --platform "$PLATFORM" \
         > "$WORK/bins/fa/merge_${d}.log" 2>&1 \
         || die "FA MergeBin depth=$d 失败"
 done
@@ -293,6 +486,13 @@ done
 # 8. 训练（fine-tune from 公开 hifi_revio 权重）
 # =============================================================================
 log "[9/9] 训练"
+
+for kind in pileup fa; do
+    for split in train validation; do
+        files=$(ls "$WORK"/bins/${kind}/${split}/bin_* 2>/dev/null)
+        [ -n "$files" ] || die "$kind $split 没有独立 bins；请包含 VALIDATION_DEPTH 对应深度"
+    done
+done
 
 train_one() {
     local kind=$1 pretrain=$2 extra=$3
@@ -304,15 +504,15 @@ train_one() {
       # Train 把 training.log / best_val_loss.pt 写到当前目录，所以必须先 cd
       CUDA_VISIBLE_DEVICES="$cuda_dev" "$PY_TRAIN" "$CLAIR3" Train \
           --bin_fn "$WORK/bins/${kind}/train" \
-          --validation_fn "$WORK/bins/${kind}/train" \
+          --validation_fn "$WORK/bins/${kind}/validation" \
           --ochk_prefix "$out/${kind}" \
           --chkpnt_fn "$pretrain" \
           --learning_rate 1e-5 --platform "$PLATFORM" \
+          --batch_size "$BATCH_SIZE" --chunk_size "$CHUNK_SIZE" \
           --maxEpoch "$EPOCHS" $extra
     ) || die "$kind 训练失败"
 }
 
-# 正式训练应该用独立的验证 bins。
 train_one pileup "$PRETRAIN_PILEUP" "--pileup"
 train_one fa     "$PRETRAIN_FA"     "--add_indel_length True"
 

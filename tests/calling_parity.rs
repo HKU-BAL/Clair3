@@ -38,6 +38,22 @@ fn lines(records: &[VcfRecord]) -> Vec<String> {
     records.iter().map(VcfRecord::to_line).collect()
 }
 
+fn require_inputs(test_name: &str, paths: &[PathBuf]) -> bool {
+    let missing: Vec<_> = paths.iter().filter(|path| !path.is_file()).collect();
+    if missing.is_empty() {
+        return true;
+    }
+    eprintln!(
+        "SKIP {test_name}: missing {}",
+        missing
+            .iter()
+            .map(|path| path.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    false
+}
+
 fn assert_records_match(actual: &[VcfRecord], expected_path: &Path) {
     let actual = lines(actual);
     let expected = records(expected_path);
@@ -91,10 +107,28 @@ fn assert_records_match(actual: &[VcfRecord], expected_path: &Path) {
 fn official_illumina_calls_match() {
     let root = root();
     let data = root.join("target/test-data/illumina");
-    let reference = Reference::open(&data.join("GRCh38_chr20.fa")).unwrap();
-    let region = Region::new("chr20", 0, reference.contig_len("chr20") as i64).unwrap();
     let bam = data.join("HG003_chr20_demo.bam");
     let baseline = root.join("target/legacy/baseline/official_ilmn");
+    if !require_inputs(
+        "official_illumina_calls_match",
+        &[
+            data.join("GRCh38_chr20.fa"),
+            bam.clone(),
+            root.join("tests/fixtures/tensors/official_ilmn_pileup.info"),
+            root.join("tests/fixtures/tensors/official_ilmn_pileup.npy"),
+            root.join("target/test-data/models/ilmn/pileup.pt"),
+            root.join("target/test-data/models/ilmn/full_alignment.pt"),
+            baseline.join("pileup.vcf.gz"),
+            baseline.join("tmp/split_beds/chr20"),
+            baseline.join("tmp/phase_output/phase_bam/chr20.bam"),
+            baseline.join("tmp/full_alignment_output/candidate_bed/chr20.0_1"),
+            baseline.join("tmp/full_alignment_output/full_alignment_chr20.0_1.vcf"),
+        ],
+    ) {
+        return;
+    }
+    let reference = Reference::open(&data.join("GRCh38_chr20.fa")).unwrap();
+    let region = Region::new("chr20", 0, reference.contig_len("chr20") as i64).unwrap();
     let confident_regions = clair3::io::interval::IntervalMap::from_bed(
         &baseline.join("tmp/split_beds/chr20"),
         Some("chr20"),
@@ -268,6 +302,18 @@ fn production_full_call_includes_flanking_candidates() {
     let root = root();
     let baseline = root.join("target/legacy/baseline/official_ilmn");
     let bam = root.join("target/verify/realigned_official_phased.bam");
+    if !require_inputs(
+        "production_full_call_includes_flanking_candidates",
+        &[
+            bam.clone(),
+            root.join("target/test-data/illumina/GRCh38_chr20.fa"),
+            root.join("target/test-data/models/ilmn/full_alignment.pt"),
+            baseline.join("tmp/full_alignment_output/candidate_bed/chr20.0_1"),
+            baseline.join("tmp/full_alignment_output/full_alignment_chr20.0_1.vcf"),
+        ],
+    ) {
+        return;
+    }
     let mut config = clair3::pipeline::call::CallConfig::new(
         bam,
         root.join("target/test-data/illumina/GRCh38_chr20.fa"),
