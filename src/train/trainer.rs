@@ -352,9 +352,6 @@ pub fn train_with_collective(
             );
         }
     }
-    if let Some(seed) = options.seed {
-        tch::manual_seed(seed as i64);
-    }
     let model = Model::new(
         if options.pileup {
             ModelKind::Pileup
@@ -366,13 +363,18 @@ pub fn train_with_collective(
         options.add_indel_length,
         options.checkpoint.as_deref(),
     )?;
+    if let Some(seed) = options.seed {
+        tch::manual_seed(seed as i64);
+    }
     let learning_rate = options.learning_rate
         * if options.scale_learning_rate {
             collective.world_size() as f64
         } else {
             1.0
         };
-    let mut optimizer = nn::adamw(0.9, 0.999, 1e-7).build(&model.var_store, learning_rate)?;
+    let weight_decay = if options.pileup { 1e-4 } else { 1e-7 };
+    let mut optimizer =
+        nn::adamw(0.9, 0.999, weight_decay).build(&model.var_store, learning_rate)?;
     let chunks_per_batch = options.batch_size / options.chunk_size;
     let chunks_per_epoch = (training_chunks.len() / options.mini_epochs).max(1);
     let total_epochs = options.max_epochs * options.mini_epochs;
