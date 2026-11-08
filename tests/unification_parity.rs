@@ -211,15 +211,15 @@ fn split_extend_bed(inputs: Option<&RealInputs>, bed: &Path, output: &Path) {
     }
 }
 
+type RecordsByPosition<'a> =
+    std::collections::BTreeMap<(String, u64), (Vec<&'a UnifiedRecord>, Vec<&'a UnifiedRecord>)>;
+
 fn chunk_difference(
     chunk_id: usize,
     original: &[UnifiedRecord],
     native: &[UnifiedRecord],
 ) -> String {
-    let mut positions: std::collections::BTreeMap<
-        (String, u64),
-        (Vec<&UnifiedRecord>, Vec<&UnifiedRecord>),
-    > = std::collections::BTreeMap::new();
+    let mut positions: RecordsByPosition<'_> = std::collections::BTreeMap::new();
     for record in original {
         positions
             .entry((record.contig.clone(), record.position))

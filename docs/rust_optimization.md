@@ -276,7 +276,7 @@ A direct comparison with `CLAIR3_NATIVE_LSTM=0` on the supplied HiFi benchmark s
 
 ## Documentation and final cleanup verification
 
-The final documentation pass corrects current installation, Docker, GPU, quick-demo, dwell-time, and CLI guidance while retaining historical benchmark tables as historical references. All 25 Markdown files have valid local link targets and balanced code fences. The [project prompt history](clair3_rust_prompts.md) preserves all 35 user-authored prompts verbatim and in chronological order; automated messages and assistant or tool output are excluded.
+The documentation pass corrects current installation, Docker, GPU, quick-demo, dwell-time, and CLI guidance while retaining historical benchmark tables as historical references. Documentation checks validate local link targets and balanced code fences. The [project prompt history](clair3_rust_prompts.md) preserves all 38 user-authored prompts verbatim and in chronological order; automated messages and assistant or tool output are excluded.
 
 Code cleanup removed the obsolete `unused_parens` suppression and 14 redundant parenthesized `break` expressions in `src/call/decode.rs`, plus the unreferenced `contains_index` helper in `csrc/fast_readselect.cpp`. No functional expression, model algorithm, compatibility option, fallback, or third-party source changed.
 
@@ -286,18 +286,130 @@ A fresh supplied HG002 chr20 run completed in 62.23 seconds. All 135,180 pileup,
 
 ## End-to-end model-training validation
 
-The supplied chr21 training workflow was run with `chr21:13000000-14000000`, depths 1000 and 222, representation unification enabled, and one epoch. The originally suggested 1–2 Mb interval has no overlapping truth BED intervals and no reads; the populated 13–14 Mb interval was selected from the supplied data instead. The workflow covers haplotagging, downsampling, representation unification, tensor generation, bin merging, candidate calling, and fine-tuning of both models. `scripts/run_quick_train_chr21.sh` provides a configurable native version without modifying the original script or original Clair3 checkout.
+### Current correctness-first results
 
-Training-specific fixes:
-- Added the `CreateTrainingTensorDirect` alias and Python/PyPy-compatible `clair3.py` launcher, preserving direct shell execution and `CLAIR3_BIN` selection.
-- Separated the internal Clap IDs for `call_fn` and `bin_fn`, which previously shared `output` and incorrectly required an unrelated output argument.
-- Implemented native training-mode `SelectHetSnp` options, quality selection, contig-prefix handling, chunk filenames, BED intervals, and phased metadata, while retaining the existing phasing-only VCF filter.
-- Detect gzip and Zstandard text input by magic bytes rather than filename suffix. This fixes gzip-compressed `GetTruth` outputs without `.gz` extensions.
-- Accept legacy case-insensitive boolean spellings such as `--add_indel_length True` for training.
-- Replaced Blosc-only HDF5 output with the original LZF-plus-shuffle filters so original Python/h5py can read the archives without an additional plugin.
-- Added the official GNU Parallel package to both Docker runtime images for the optional training workflow.
+The current evidence comes from the Task 4 review-fix state at `b06121c`. It uses complementary, read-disjoint training and validation splits. Earlier one-epoch figures at the end of this section are retained only as historical initial smoke results; their overlapping-read validation metrics are superseded and must not be used as current evidence.
 
-The bounded workflow completed on all requested platforms. Times below are functional timings, not controlled training benchmarks. Training and validation losses are shown as `training / validation` after one epoch:
+The supplied chr21 workflow uses `chr21:13000000-14000000`, nominal depths 1000 and 222, representation unification, and bounded batches. The originally suggested 1–2 Mb interval has no overlapping truth BED intervals and no reads; the populated 13–14 Mb interval was selected from the supplied data instead. The workflow covers haplotagging, complementary-read splitting, representation unification, tensor generation, bin merging, candidate calling, and fine-tuning of both models. `scripts/run_quick_train_chr21.sh` provides the configurable native workflow without modifying the original Clair3 checkout.
+
+#### Fixed mismatches and actual root causes
+
+| Area | Demonstrated root cause | Corrected behavior and covering evidence |
+| --- | --- | --- |
+| Candidate CIGAR decoding | `create_candidate_details` did not advance `query_pos` for `Cigar::Ins`, so later SNP bases and inserted sequences were read at stale offsets. | Advance by the insertion length. A real indexed `5M2I5M` BAM regression checks the insertion and both following bases exactly; all four real-data anchors pass. |
+| Phased SNP/insertion/deletion matching | `reference_base` was a `u8`; `to_string()` produced decimal ASCII such as `"67"` instead of `"C"`, causing allele lookup and phased genotype matching to fail. | Convert the byte to a character in all three arms. Separate SNP, insertion, and deletion regressions preserve haplotype 0 versus haplotypes 1/2 behavior. |
+| Multi-allelic ALT order | Native collected selected alleles in a lexical `BTreeSet`, changing the deterministic count-ranked candidate order. | Emit selected alleles in `candidate.alternates` order. Exact allele and GT/GQ/DP/AF/PS assertions pass at the four anchors. Original Python hash-set order remains a separate residual, not a stable reference ordering. |
+| Deterministic dropout stream | Rust seeded before model construction, so initialization consumed random values that original training reserved for the dropout stream. | Seed after model construction and checkpoint loading. This is existing trainer ordering, not a normal-training seed override; explicit seeds remain test-only. |
+| AdamW weight decay | Rust hardcoded `1e-7`, but original pileup uses `1e-4` and full alignment uses `1e-7`. | Select decay by model type. Exact checkpoint comparison exposed the pileup-only residual after the seed fix. |
+| Independent validation archives | Training `_20_` and `exclude_training_samples` filename exclusions were also applied to explicit validation directories, discarding independent data; an empty batch set could return zero loss. | Apply exclusions only to training and fail explicitly when validation has no complete batch. The regression retains `_20_` validation data, checks both training exclusions, and rejects an empty directory. |
+| Quick-workflow read independence | The initial workflow used the full depth-1000 BAM for training while selecting depth 222 from those same reads, yielding 1,340 shared native QNAMEs. | Select validation with samtools `-s` and write the `-U` complement for training; additional training depths use only that complement. Per-QNAME conservation and zero intersection are asserted on all four platforms. |
+| Validation diagnostics and bounded smoke settings | A missing validation path was described as a training archive directory; the standard 2000-row batch yielded empty bounded splits, and an existing-candidate log hit an unbound-variable error. | Select the correct directory kind in the error, use smoke defaults `BATCH_SIZE=1000` and `CHUNK_SIZE=200`, and brace `${d}`. CLI defaults for larger workflows are unchanged. |
+
+The original `SplitExtendBed` final-interval omission was **not** reproduced. Native retains the final merged interval, guarded by a fixture with both merged and final disjoint intervals. Controlled unification uses the same original extended BED on both sides so that this original boundary bug cannot change chunking and conceal candidate differences.
+
+#### Deterministic original-versus-Rust training
+
+Both fixtures create 40 labeled examples with `BinWriter`, read them through `BinArchive`, and supply identical arrays and initial checkpoints to unmodified original model/loss/epoch code and native Rust. Seed 0, one fixed 20-example batch, `batch_size=chunk_size=20`, one optimizer step, and no validation pass make the comparison controlled without changing normal RNG, dropout, or public training interfaces.
+
+- Pileup compares both task losses; full alignment compares all four task losses, including indel-length tasks. Final per-task and actual total losses match exactly.
+- Every updated checkpoint tensor matches original with **zero tolerance**. Both implementations reload the checkpoints and produce finite `(2,24)` pileup and `(2,90)` full-alignment outputs.
+- The explicit two-process native C10d test uses nonzero, rank-specific focal-loss gradients and compares every all-reduced tensor on both ranks with independently reproduced rank-local arithmetic means. Maximum gradient difference is exactly 0. The prior test's discarded reductions and zero-derivative softmax-sum were corrected in the test, not hidden by a merged-batch comparison.
+- The original deterministic core consumes arrays exported from the native archive because the initial test environment lacked h5py. Original h5py/DataLoader execution was subsequently performed separately as described below; it is not inferred from the deterministic fixture.
+
+#### Complementary reads and checkpoint restart semantics
+
+The quick script runs `samtools view -s 222.222 -U chr21_1000.training.bam ... -o chr21_222.bam`. Selection is by template/read pair, and `-U` writes reads not selected for validation. The depth-1000 filename remains nominal metadata: training now contains approximately 77.8% of the haplotagged reads rather than the full BAM. All additional training depths are subsampled only from this complement.
+
+| Platform | Full QNAMEs | Training QNAMEs | Validation QNAMEs | Shared | Per-QNAME record conservation |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Native macOS ARM64 | 6,147 | 4,807 | 1,340 | 0 | Holds for every QNAME |
+| Linux ARM64 CPU | 6,147 | 4,756 | 1,391 | 0 | Holds for every QNAME |
+| Emulated Linux x86_64 CPU | 6,147 | 4,756 | 1,391 | 0 | Holds for every QNAME |
+| Linux x86_64 CUDA, RTX 4090 | 6,147 | 4,756 | 1,391 | 0 | Holds for every QNAME |
+
+Native and Linux tool/runtime stacks select different template counts from identical raw inputs; each split is internally complementary, but identical cross-platform datasets are not claimed. Two repeated native samtools probes were identical, and a paired-SAM control kept both mates on the same side.
+
+Checkpoint resume is explicitly a **weight-only restart** with a fresh AdamW optimizer, epoch schedule, and RNG schedule, not exact optimizer/epoch/RNG continuation. Controlled tests through the actual `train()` interface used seed 29 and exactly reproduced fresh one-epoch loss, validation loss, complete log, and every checkpoint tensor: pileup loss `3.3610267639160156`, full-alignment loss `10.915680885314941`. A different-starting-checkpoint control changed tensors, proving that the selected checkpoint is used. Real-data restarts also created a fresh `.01.pt` and one log row. No production restart change was needed.
+
+#### Current bounded platform results
+
+All four runs used the same mounted input sources with disjoint output directories and the corrected complementary-read split. Times are functional validation timings, not controlled performance benchmarks. Losses are `training / validation` after one epoch.
+
+| Rust platform | Device | Review-fix image build | Bounded workflow | Pileup loss | Full-alignment loss |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Native macOS ARM64 | CPU | Native release build | 38.594 s | 0.768210 / 0.441530 | 9.129483 / 0.651172 |
+| Local Docker Linux ARM64 | CPU | 219.335 s | 75.597 s | 0.785272 / 0.416018 | 8.996529 / 0.503815 |
+| Local Docker Linux x86_64, emulated on ARM64 | CPU | 222.079 s | 82.491 s | 0.776526 / 0.416016 | 8.823021 / 0.503768 |
+| Docker Linux x86_64 | RTX 4090 CUDA | 101.704 s, including source synchronization | 36.766 s, including SSH | 0.784594 / 0.416052 | 8.933035 / 0.503819 |
+
+The current archive matrices and nonzero-label totals are:
+
+| Platform | Pileup train / validation | Full-alignment train / validation |
+| --- | --- | --- |
+| Native macOS ARM64 | `(3610,33,18)` / `(5396,33,18)`; 14,440 / 21,584 | `(3397,55,33,8)` / `(3492,55,33,8)`; 13,588 / 13,968 |
+| Linux ARM64 and emulated x86_64 | `(3649,33,18)` / `(4310,33,18)`; 14,596 / 17,240 | `(3398,55,33,8)` / `(3543,55,33,8)`; 13,592 / 14,172 |
+| Linux x86_64 CUDA | Same as Linux CPU | Same as Linux CPU |
+
+Every label matrix has shape `(rows,90)` and exactly four nonzero labels per row. Complete 90-class distributions and SHA-256 values remain in the Task 4 review-fix logs. These shapes and totals do not imply identical matrices, example order, or weights.
+
+#### Convergence, early stopping, loaders, and checkpoint compatibility
+
+On the current native disjoint data, three-epoch `(training, validation)` losses were:
+
+| Model | Epoch 1 | Epoch 2 | Epoch 3 |
+| --- | --- | --- | --- |
+| Pileup | `(0.696778, 0.441970)` | `(0.574981, 0.440305)` | `(0.654248, 0.438492)` |
+| Full alignment | `(9.195758, 0.650995)` | `(7.702460, 0.986795)` | `(8.630635, 1.689801)` |
+
+The two explicit real-data tests passed together in 422.14 seconds. Both models stopped at epoch 11 of 12 in the early-stopping runs and passed the restart checks. Pileup training improves overall and validation decreases in this bounded run. **Full-alignment validation worsens during the bounded native and CUDA tests even though training improves overall; no full-alignment validation-convergence claim is made.** A zero-learning-rate probe changed full-alignment validation from `0.658174` to `1.181838` with unchanged weights, demonstrating training-mode state effects; constant validation was therefore not used as a substitute for the actual early-stopping check.
+
+CUDA three-epoch results on the corrected bins were:
+
+| Model | Training losses | Validation losses |
+| --- | --- | --- |
+| Pileup | `0.737139, 0.599273, 0.720201` | `0.416417, 0.414775, 0.412990` |
+| Full alignment | `9.363139, 7.571423, 8.508289` | `0.504872, 0.900081, 1.585159` |
+
+Original h5py/DataLoader training read the generated LZF archives on each platform's own disjoint bins. On native macOS its training/validation losses were `0.312487 / 0.442511` for pileup and `8.875472 / 0.651737` for full alignment. On CUDA they were `0.719845 / 0.416259` and `9.286971 / 0.507250`. Native macOS stock multiprocessing spawn cannot pickle the original module's open h5py handles; the unmodified original loader was exercised with its Linux-style `fork` start method. This spawn limitation remains.
+
+Both native and original-trained checkpoints reload in Rust and original Python on the tested platforms, with 26 pileup and 81 full-alignment tensors and finite real-input outputs of `(2,24)` and `(2,90)`. CUDA reload used `cuda:0`. **Original CUDA DDP was not executed**: the host has one RTX 4090, while original rank-to-`cuda:<rank>` mapping requires distinct devices. Only original single-process CUDA DataLoader training and native two-process gradient averaging are claimed.
+
+#### Current held-out chr20 F1 evidence
+
+Upstream GIAB v5.0q truth/BED files were used without modification. Every record in the chr21 13–14 Mb training interval exactly matches the supplied training truth. Calling used the supplied HG002 chr20 BAM/reference/BED. Rust and original models were each fine-tuned for one epoch on the same current native disjoint bins; the pretrained rows remain available as the common starting-checkpoint comparison. Upstream `jmcdani20/hap.py:v0.3.12` with vcfeval and `--pass-only` produced these PASS metrics (identical to ALL here):
+
+| Model | INDEL recall / precision / F1 | SNP recall / precision / F1 |
+| --- | --- | --- |
+| Pretrained, unchanged reference | 0.959621 / 0.965542 / **0.962572** | 0.997248 / 0.997287 / **0.997268** |
+| Rust disjoint-read one-epoch | 0.945211 / 0.962045 / **0.953554** | 0.996734 / 0.997168 / **0.996951** |
+| Original disjoint-read one-epoch | 0.946526 / 0.963052 / **0.954718** | 0.997129 / 0.997050 / **0.997090** |
+
+There is **no invented F1 acceptance threshold** and no improvement claim. These one-epoch runs do not improve on pretrained INDEL F1. Current Rust and original calling times were 82.811 and 70.636 seconds; the unchanged pretrained calling run took 71.916 seconds. These are evidence timings, not a new optimization campaign.
+
+#### Executed tests, named skips, and residual differences
+
+The Task 4 review-fix native `cargo test --all-targets --release --locked` suite passed **113 tests with 0 failed and 15 ignored**. Task 5 final verification on the documentation and test-alias state again passed formatting, Clippy with warnings denied, the same 113/0/15 suite, the explicit selector regression, and the eight-record phased HiFi golden comparison; shell syntax, local-link/fence, and whitespace checks also passed. Ignored tests were not counted as executed passes. Explicit additional evidence includes:
+
+- The four real anchor assertions, independent-validation regression, two controlled restart regressions, two real-data convergence/stop/restart tests, and four complementary-read platform checks passed.
+- The explicit WhatsHap 2.8 selector regression and colon-contig phasing test passed with installed upstream tools; no WhatsHap source or DP solver changed.
+- `official_realigned_bam_matches` passed with all 28,730 BAM records matching the native golden. The original candidate BED had been generated before the original workflow later lacked its realigner binary.
+- Ordinary fixture tests cover ONT, HiFi, Illumina, dwell time, CRAM, GVCF, and long indels. Native, Linux ARM64, emulated Linux x86_64, and CUDA completed the phased HiFi fixture. The native fixture's eight `chrToy` records exactly match its golden.
+- The supplied native HG002 run took 64.082 seconds. Against the unchanged `output-rust-macos-training` reference, pileup 135,180, full-alignment 40,494, merged 94,551, and phased 33,824 records each had **0 differing records**, including complete record content and ordering. This is regression preservation, not a claim of identical original-versus-native unification.
+
+Four official-baseline comparisons remain **named skips, not passes**: `candidate_and_merge_outputs_match`, `official_illumina_calls_match`, `production_full_call_includes_flanking_candidates`, and `official_hifi_phased_context_matches`. Their messages enumerate missing official legacy baseline outputs/CFFI capture. An attempted unmodified original Illumina baseline regeneration reached full alignment but could not complete because `preprocess/realign/realigner` is absent; partial output was not promoted to a baseline. Python 3.14 also exposed an original argparse `None`/`%(default)f` incompatibility; the successful partial generation used Python 3.11.
+
+**The exact eight-chunk original/native unification differential remains RED.** The latest explicitly executed Task 4 run used all eight chunks, produced 1,547 original and 1,552 native records, and failed. Its two diagnosed residual classes are:
+
+1. Five native-only records at `chr21:13600450`, `13600728`, `13626244`, `13698384`, and `13735785`. Their indel AFs exceed the harness's explicit `--min_af 0.08` but fall below original CTFA's separately configured effective default `--indel_min_af 0.15`; original generated no candidate rows there. Giving original the native candidate rows reproduced the five records, isolating candidate selection rather than `unify_regions`. These are original-side indel-threshold policy differences, not fixed or hidden native defects.
+2. Run-dependent original Python hash-order ALT differences. Original collects selected alternates in a `set`, so exact ALT sequence order changes between runs. REF, the ALT allele set, and compared metadata agree at these sites, but the harness intentionally continues to compare exact ordered records. Task 2's final run had five such differences; Task 4's run had eight, demonstrating run dependence. Native deterministic candidate order is not a claim of identical original/native unification.
+
+The differential was not rerun in Task 5 merely to recreate this expected failure, and no threshold, assertion, ALT normalization, or original source was changed to make it pass. Other numerical original-versus-Rust calling differences documented earlier in this report also remain subject to their platform-specific evidence.
+
+Known warnings are retained: Cargo reports the pre-existing `proc-macro-error2 v2.0.1` future-incompatibility notice, and emulated x86_64 emits NNPACK `Unsupported hardware` warnings after otherwise passing checks. Neither warning is presented as a test failure or suppressed. Training order, dropout randomness, and numerical backends still prevent a general claim of byte-identical datasets or weights.
+
+### Historical initial smoke results (superseded)
+
+The following table records the earlier initial workflow before the complementary-read review fix. Its training and validation reads overlapped, so these losses are **not current independent-validation evidence**. They are retained only as historical functional timings. Losses are `training / validation` after one epoch.
 
 | Implementation and platform | Device | Time | Pileup loss | Full-alignment loss |
 | --- | --- | ---: | ---: | ---: |
@@ -307,11 +419,19 @@ The bounded workflow completed on all requested platforms. Times below are funct
 | Rust, emulated Linux x86_64 | CPU | 93.62 s | 0.412619 / 1.062332 | 10.170233 / 0.875076 |
 | Rust, native Linux x86_64 | RTX 4090 | 31.70 s | 0.394398 / 1.062423 | 10.109503 / 0.875232 |
 
-Original Python/h5py successfully read every resulting LZF archive and checked matrix/label dimensions and nonzero content. Original PyTorch also loaded all generated checkpoints with finite tensors. On each Rust platform, both trained models then completed the native calling fixture and produced eight records.
+At that initial milestone, original archives contained 3,182/3,984 pileup rows and 3,203/3,501 full-alignment rows at depths 1000/222. Rust macOS contained 3,411/5,278 and 3,299/3,486; Linux and CUDA contained 3,411/4,235 and 3,299/3,539. Original Python/h5py read the LZF archives, original PyTorch loaded the checkpoints, and both trained models completed the native calling fixture. These artifacts demonstrated cross-compatibility, not identical data or weights.
 
-The original archives contain 3,182/3,984 pileup rows and 3,203/3,501 full-alignment rows at depths 1000/222. Rust macOS contains 3,411/5,278 and 3,299/3,486; Linux and CUDA contain 3,411/4,235 and 3,299/3,539. The original `SplitExtendBed` does not write the final merged interval, whereas Rust includes it, explaining additional Rust candidates near the region boundary. Some residual representation-unification differences remain even with the same haplotagged BAM. Training order, dropout randomness, and numerical backends also differ. Therefore these checks demonstrate working, cross-compatible training artifacts, **not byte-identical weights or identical training datasets**. No difference whose cause was not isolated is presented as resolved.
+Earlier training-specific fixes retained by the current implementation include:
 
-The final native macOS suite passed with 63 unit tests and one ignored, plus all applicable integration tests. New regressions cover command parsing, complete training-command arguments, exact training-selector files, extension-independent compression, LZF filters, and full-alignment four-task fine-tuning/checkpoint reload. A fresh HG002 calling run after these changes took 71.42 seconds and preserved all 135,180 pileup, 40,494 full-alignment, 94,551 merged, and 33,824 phased records exactly relative to the current native macOS Rust reference. This does not resume or revise the canceled optimization goal.
+- Added the `CreateTrainingTensorDirect` alias and Python/PyPy-compatible `clair3.py` launcher, preserving direct shell execution and `CLAIR3_BIN` selection.
+- Separated the internal Clap IDs for `call_fn` and `bin_fn`, which previously shared `output` and incorrectly required an unrelated output argument.
+- Implemented native training-mode `SelectHetSnp` options, quality selection, contig-prefix handling, chunk filenames, BED intervals, and phased metadata, while retaining the existing phasing-only VCF filter.
+- Detect gzip and Zstandard text input by magic bytes rather than filename suffix, fixing gzip-compressed `GetTruth` outputs without `.gz` extensions.
+- Accept legacy case-insensitive boolean spellings such as `--add_indel_length True` for training.
+- Replaced Blosc-only HDF5 output with original-compatible LZF-plus-shuffle filters so original Python/h5py can read the archives without an additional plugin.
+- Added the official GNU Parallel package to both Docker runtime images for the optional training workflow.
+
+The historical native macOS suite then passed 63 unit tests and one ignored plus applicable integration tests. A fresh HG002 calling run at that milestone took 71.42 seconds and preserved all 135,180 pileup, 40,494 full-alignment, 94,551 merged, and 33,824 phased records exactly relative to the then-current native macOS Rust reference. Neither this historical timing nor the current validation resumes or revises the canceled optimization goal.
 
 ## Reproduction notes
 
