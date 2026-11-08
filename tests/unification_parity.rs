@@ -44,12 +44,18 @@ fn run(command: &mut Command) -> Output {
     output
 }
 
-fn real_inputs() -> Option<RealInputs> {
+fn real_inputs(test_name: &str) -> Option<RealInputs> {
+    let python = std::env::var_os("CLAIR3_ORIGINAL_PYTHON")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from("/Users/Aqua/Temp/Clair3/target/tmp/macos-validation-venv/bin/python")
+        });
+    let original = std::env::var_os("CLAIR3_ORIGINAL_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/Users/Aqua/Temp/Clair3/target/tmp/original-main"));
     let inputs = RealInputs {
-        python: PathBuf::from(
-            "/Users/Aqua/Temp/Clair3/target/tmp/macos-validation-venv/bin/python",
-        ),
-        original: PathBuf::from("/Users/Aqua/Temp/Clair3/target/tmp/original-main/clair3.py"),
+        python,
+        original: original.join("clair3.py"),
         bam: PathBuf::from(
             "/Users/Aqua/Temp/Clair3/target/tmp/training-original-ru-inputs/chr21.ht.bam",
         ),
@@ -78,7 +84,7 @@ fn real_inputs() -> Option<RealInputs> {
         .collect();
     if !missing.is_empty() {
         eprintln!(
-            "SKIP chunked_unification_matches_original: missing required input(s): {}",
+            "SKIP {test_name}: missing required input(s): {}",
             missing.join(", ")
         );
         return None;
@@ -283,7 +289,7 @@ fn split_extend_bed_keeps_final_interval() {
 #[test]
 #[ignore = "requires prepared original chr21 unification inputs"]
 fn anchor_records_preserve_candidate_alleles_and_metadata() {
-    let Some(inputs) = real_inputs() else {
+    let Some(inputs) = real_inputs("anchor_records_preserve_candidate_alleles_and_metadata") else {
         return;
     };
     let directory = tempfile::tempdir().unwrap();
@@ -336,7 +342,7 @@ fn anchor_records_preserve_candidate_alleles_and_metadata() {
 #[test]
 #[ignore = "requires prepared original chr21 unification inputs"]
 fn chunked_unification_matches_original() {
-    let Some(inputs) = real_inputs() else {
+    let Some(inputs) = real_inputs("chunked_unification_matches_original") else {
         return;
     };
     let directory = tempfile::tempdir().unwrap();

@@ -113,6 +113,175 @@ log() { echo "[$(date '+%F %T')] $*"; }
 die() { echo "[ERROR] $*" >&2; exit 1; }
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}
 
+QUICK_WORK="$WORK" \
+QUICK_SCRIPT="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")" \
+QUICK_CLAIR3="$CLAIR3" \
+QUICK_RUN_CLAIR3="$RUN_CLAIR3" \
+QUICK_SAMPLE="$SAMPLE" \
+QUICK_CTG="$CTG" \
+QUICK_REGION="$REGION" \
+QUICK_DEPTHS="${DEPTHS[*]}" \
+QUICK_VALIDATION_DEPTH="$VALIDATION_DEPTH" \
+QUICK_CHUNKS="$CHUNKS" \
+QUICK_PLATFORM="$PLATFORM" \
+QUICK_DO_RU="$DO_RU" \
+QUICK_REF="$REF" \
+QUICK_TRUTH_VCF="$TRUTH_VCF" \
+QUICK_TRUTH_BED="$TRUTH_BED" \
+QUICK_BAM_RAW="$BAM_RAW" \
+QUICK_PRETRAIN_PILEUP="$PRETRAIN_PILEUP" \
+QUICK_PRETRAIN_FA="$PRETRAIN_FA" \
+QUICK_PYPY3="$PYPY3" \
+QUICK_PY_BIN="$PY_BIN" \
+QUICK_PY_TRAIN="$PY_TRAIN" \
+QUICK_SAMTOOLS="$SAMTOOLS" \
+QUICK_BGZIP="$BGZIP" \
+QUICK_TABIX="$TABIX" \
+QUICK_PARALLEL="$PARALLEL" \
+QUICK_WHATSHAP="$WHATSHAP" \
+"$PY_TRAIN" - <<'PY' || die "缓存兼容性检查失败"
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def file_identity(value):
+    path = Path(value).expanduser().resolve(strict=True)
+    return {"path": str(path), "sha256": sha256(path)}
+
+
+def tool_identity(value):
+    resolved = shutil.which(os.path.expanduser(value))
+    identity = {"command": value, "path": resolved}
+    if resolved:
+        path = Path(resolved).resolve()
+        identity["path"] = str(path)
+        if path.is_file():
+            identity["sha256"] = sha256(path)
+    return identity
+
+
+def changed_keys(before, after, prefix=""):
+    if isinstance(before, dict) and isinstance(after, dict):
+        return [
+            key
+            for name in sorted(set(before) | set(after))
+            for key in changed_keys(
+                before.get(name), after.get(name), f"{prefix}.{name}" if prefix else name
+            )
+        ]
+    return [prefix] if before != after else []
+
+
+work = Path(os.environ["QUICK_WORK"]).expanduser()
+manifest_path = work / ".quick-training-manifest.json"
+try:
+    current = {
+        "format": 1,
+        "config": {
+            "sample": os.environ["QUICK_SAMPLE"],
+            "contig": os.environ["QUICK_CTG"],
+            "region": os.environ["QUICK_REGION"],
+            "depths": os.environ["QUICK_DEPTHS"].split(),
+            "validation_depth": os.environ["QUICK_VALIDATION_DEPTH"],
+            "chunks": os.environ["QUICK_CHUNKS"],
+            "platform": os.environ["QUICK_PLATFORM"],
+            "do_ru": os.environ["QUICK_DO_RU"],
+        },
+        "inputs": {
+            name: file_identity(os.environ[f"QUICK_{name.upper()}"])
+            for name in [
+                "ref",
+                "truth_vcf",
+                "truth_bed",
+                "bam_raw",
+                "pretrain_pileup",
+                "pretrain_fa",
+            ]
+        },
+        "code": {
+            name: file_identity(os.environ[f"QUICK_{name.upper()}"])
+            for name in ["script", "clair3", "run_clair3"]
+        },
+        "tools": {
+            name: tool_identity(os.environ[f"QUICK_{name.upper()}"])
+            for name in [
+                "pypy3",
+                "py_bin",
+                "py_train",
+                "samtools",
+                "bgzip",
+                "tabix",
+                "parallel",
+                "whatshap",
+            ]
+        },
+    }
+except OSError as error:
+    raise SystemExit(f"[ERROR] cannot fingerprint quick-workflow inputs/tools: {error}")
+
+if manifest_path.exists():
+    try:
+        previous = json.loads(manifest_path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise SystemExit(
+            f"[ERROR] invalid quick-workflow manifest {manifest_path}: {error}; "
+            "use a new, empty WORK; existing data was not modified"
+        )
+    changed = changed_keys(previous, current)
+    if changed:
+        raise SystemExit(
+            f"[ERROR] incompatible cached WORK {work}; changed identity: {', '.join(changed)}. "
+            "Use a new, empty WORK; existing data was not modified"
+        )
+
+    depths = current["config"]["depths"]
+    validation_depth = current["config"]["validation_depth"]
+    sample = current["config"]["sample"]
+    for kind in ["pileup", "fa"]:
+        for split in ["train", "validation"]:
+            expected = {
+                f"bin_{sample}_{depth}"
+                for depth in depths
+                if (split == "validation") == (depth == validation_depth)
+            }
+            directory = work / "bins" / kind / split
+            if not directory.is_dir():
+                continue
+            unexpected = sorted(
+                path.name
+                for path in directory.iterdir()
+                if path.is_file() and path.name not in expected
+            )
+            if unexpected:
+                raise SystemExit(
+                    f"[ERROR] unexpected cached archive(s) in {directory}: "
+                    f"{', '.join(unexpected)}; configured depths are {', '.join(depths)}. "
+                    "Use a new, empty WORK; existing data was not modified"
+                )
+else:
+    if work.exists() and (not work.is_dir() or any(work.iterdir())):
+        raise SystemExit(
+            f"[ERROR] nonempty unmanifested WORK {work} cannot be adopted as a compatible cache. "
+            "Use a new, empty WORK; existing data was not modified"
+        )
+    work.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(current, indent=2, sort_keys=True) + "\n"
+    temporary = manifest_path.with_name(f"{manifest_path.name}.{os.getpid()}.tmp")
+    temporary.write_text(encoded)
+    os.replace(temporary, manifest_path)
+PY
+
 mkdir -p "$WORK"/{bam,truth,ru,split,var,bins/pileup/train,bins/pileup/validation,bins/fa/train,bins/fa/validation,candidates,models}
 
 log "=== Clair3 quick training: $SAMPLE $REGION ==="

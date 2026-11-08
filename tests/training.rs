@@ -327,9 +327,14 @@ print(json.dumps(metrics))
 "#;
 
 fn original_support(test_name: &str) -> Option<(PathBuf, PathBuf)> {
-    let python =
-        PathBuf::from("/Users/Aqua/Temp/Clair3/target/tmp/macos-validation-venv/bin/python");
-    let original = PathBuf::from("/Users/Aqua/Temp/Clair3/target/tmp/original-main");
+    let python = std::env::var_os("CLAIR3_ORIGINAL_PYTHON")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from("/Users/Aqua/Temp/Clair3/target/tmp/macos-validation-venv/bin/python")
+        });
+    let original = std::env::var_os("CLAIR3_ORIGINAL_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/Users/Aqua/Temp/Clair3/target/tmp/original-main"));
     let missing: Vec<_> = [
         ("validation Python", python.clone()),
         ("original Clair3", original.join("clair3.py")),
@@ -1068,5 +1073,232 @@ fn quick_workflow_uses_complementary_training_and_validation_reads() {
         full_counts.len(),
         training_counts.len(),
         validation_counts.len()
+    );
+}
+
+fn write_quick_workflow_tool(path: &Path, body: &str) {
+    use std::os::unix::fs::PermissionsExt;
+
+    fs::write(path, format!("#!/bin/sh\nset -eu\n{body}\n")).unwrap();
+    let mut permissions = fs::metadata(path).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(path, permissions).unwrap();
+}
+
+fn quick_workflow_command(
+    script: &Path,
+    work: &Path,
+    inputs: &Path,
+    models: &Path,
+    tools: &Path,
+    python: &Path,
+) -> Command {
+    let mut command = Command::new("bash");
+    command
+        .arg(script)
+        .env("WORK", work)
+        .env("REF", inputs.join("ref.fa"))
+        .env("TRUTH_VCF", inputs.join("truth.vcf.gz"))
+        .env("TRUTH_BED", inputs.join("truth.bed"))
+        .env("BAM_RAW", inputs.join("raw.bam"))
+        .env("MODEL_SRC", models)
+        .env("REGION", "chr21")
+        .env("DEPTHS_OVERRIDE", "1000 333 222")
+        .env("VALIDATION_DEPTH", "222")
+        .env("CHUNKS", "2")
+        .env("THREADS", "1")
+        .env("THREADS_LOW", "1")
+        .env("DO_RU", "0")
+        .env("PYPY3", tools.join("pypy3"))
+        .env("PY_BIN", python)
+        .env("PY_TRAIN", python)
+        .env("SAMTOOLS", tools.join("samtools"))
+        .env("BGZIP", tools.join("bgzip"))
+        .env("TABIX", tools.join("tabix"))
+        .env("PARALLEL", tools.join("parallel"))
+        .env("WHATSHAP", tools.join("whatshap"))
+        .env("QUICK_TOOL_LOG", inputs.join("tool.log"));
+    command
+}
+
+#[test]
+fn quick_workflow_cache_manifest_rejects_incompatible_reuse() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path();
+    let inputs = root.join("inputs");
+    let models = root.join("models");
+    let tools = root.join("tools");
+    let work = root.join("work");
+    for directory in [&inputs, &models, &tools] {
+        fs::create_dir_all(directory).unwrap();
+    }
+    for (name, contents) in [
+        ("ref.fa", "reference"),
+        ("truth.vcf.gz", "truth"),
+        ("truth.bed", "chr21\t0\t1000\n"),
+        ("raw.bam", "original reads"),
+    ] {
+        fs::write(inputs.join(name), contents).unwrap();
+    }
+    for name in ["pileup.pt", "full_alignment.pt"] {
+        fs::write(models.join(name), "pretrained").unwrap();
+    }
+    write_quick_workflow_tool(&tools.join("tabix"), ":");
+    write_quick_workflow_tool(&tools.join("bgzip"), "gzip \"$@\"");
+    write_quick_workflow_tool(&tools.join("parallel"), "exit 42");
+    write_quick_workflow_tool(
+        &tools.join("whatshap"),
+        "printf '%s\\n' haplotag >> \"$QUICK_TOOL_LOG\"\necho 'haplotag sentinel' >&2\nexit 42",
+    );
+    write_quick_workflow_tool(
+        &tools.join("samtools"),
+        "printf '%s\\n' samtools >> \"$QUICK_TOOL_LOG\"\necho 'samtools sentinel' >&2\nexit 42",
+    );
+    write_quick_workflow_tool(
+        &tools.join("pypy3"),
+        "printf '%s\\n' GetTruth >> \"$QUICK_TOOL_LOG\"\necho 'GetTruth sentinel' >&2\nexit 42",
+    );
+    let python = std::env::var_os("PYTHON")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("python3"));
+    let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/run_quick_train_chr21.sh");
+    let output = quick_workflow_command(&script, &work, &inputs, &models, &tools, &python)
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("haplotag sentinel"),
+        "fresh workflow did not reach the expected controlled stop: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let cached = |relative: &str| {
+        let path = work.join(relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, "cached artifact").unwrap();
+    };
+    for relative in [
+        "bam/chr21.ht.bam",
+        "bam/chr21_1000.training.bam",
+        "bam/chr21_333.bam",
+        "bam/chr21_222.bam",
+    ] {
+        cached(relative);
+    }
+    for depth in ["1000", "333", "222"] {
+        cached(&format!("candidates/pileup_{depth}/pileup.vcf.gz"));
+        for kind in ["pileup", "fa"] {
+            for chunk in 1..=2 {
+                cached(&format!("bins/{kind}/tensor_{depth}_chr21_{chunk}"));
+            }
+            let split = if depth == "222" {
+                "validation"
+            } else {
+                "train"
+            };
+            cached(&format!("bins/{kind}/{split}/bin_HG002_{depth}"));
+        }
+    }
+
+    let output = quick_workflow_command(&script, &work, &inputs, &models, &tools, &python)
+        .output()
+        .unwrap();
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("GetTruth sentinel"),
+        "identical configuration did not resume through the cache gate: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let tool_log = inputs.join("tool.log");
+    let calls_before_rejection = fs::read_to_string(&tool_log).unwrap();
+
+    let output = quick_workflow_command(&script, &work, &inputs, &models, &tools, &python)
+        .env("VALIDATION_DEPTH", "333")
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success());
+    assert!(
+        stderr.contains("incompatible")
+            && stderr.contains("validation_depth")
+            && stderr.contains("new, empty WORK"),
+        "changed validation depth reused the old cache: {stderr}"
+    );
+    assert_eq!(
+        fs::read_to_string(&tool_log).unwrap(),
+        calls_before_rejection
+    );
+    assert!(work.join("candidates/pileup_222/pileup.vcf.gz").is_file());
+    assert!(work.join("bins/pileup/train/bin_HG002_333").is_file());
+    assert!(work.join("bins/pileup/validation/bin_HG002_222").is_file());
+
+    let output = quick_workflow_command(&script, &work, &inputs, &models, &tools, &python)
+        .env("DEPTHS_OVERRIDE", "1000 333 222 111")
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("incompatible") && stderr.contains("depths"),
+        "changed training depths reused the old cache: {stderr}"
+    );
+
+    fs::write(inputs.join("raw.bam"), "changed reads").unwrap();
+    let output = quick_workflow_command(&script, &work, &inputs, &models, &tools, &python)
+        .output()
+        .unwrap();
+    fs::write(inputs.join("raw.bam"), "original reads").unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("incompatible") && stderr.contains("bam_raw"),
+        "changed raw BAM reused the old cache: {stderr}"
+    );
+
+    let output = quick_workflow_command(&script, &work, &inputs, &models, &tools, &python)
+        .env("CHUNKS", "4")
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("incompatible") && stderr.contains("chunks"),
+        "changed chunking reused the old cache: {stderr}"
+    );
+
+    let alternate_samtools = tools.join("alternate-samtools");
+    write_quick_workflow_tool(&alternate_samtools, "exit 42");
+    let output = quick_workflow_command(&script, &work, &inputs, &models, &tools, &python)
+        .env("SAMTOOLS", &alternate_samtools)
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("incompatible") && stderr.contains("samtools"),
+        "changed tool identity reused the old cache: {stderr}"
+    );
+
+    cached("bins/pileup/train/bin_HG002_111");
+    let calls_before_archive_check = fs::read_to_string(&tool_log).unwrap();
+    let output = quick_workflow_command(&script, &work, &inputs, &models, &tools, &python)
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("unexpected cached archive") && stderr.contains("bin_HG002_111"),
+        "an archive outside the configured depth set was accepted: {stderr}"
+    );
+    assert_eq!(
+        fs::read_to_string(&tool_log).unwrap(),
+        calls_before_archive_check
+    );
+
+    let unmanifested = root.join("unmanifested-work");
+    let old_bam = unmanifested.join("bam/chr21.ht.bam");
+    fs::create_dir_all(old_bam.parent().unwrap()).unwrap();
+    fs::write(old_bam, "unmanifested cache").unwrap();
+    let output = quick_workflow_command(&script, &unmanifested, &inputs, &models, &tools, &python)
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("unmanifested") && stderr.contains("new, empty WORK"),
+        "nonempty unmanifested WORK was adopted: {stderr}"
     );
 }
