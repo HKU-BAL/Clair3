@@ -282,6 +282,59 @@ fn split_extend_bed_keeps_final_interval() {
 
 #[test]
 #[ignore = "requires prepared original chr21 unification inputs"]
+fn anchor_records_preserve_candidate_alleles_and_metadata() {
+    let Some(inputs) = real_inputs() else {
+        return;
+    };
+    let directory = tempfile::tempdir().unwrap();
+    let extended = directory.path().join("original-extended.bed");
+    split_extend_bed(Some(&inputs), &inputs.bed, &extended);
+    let mut records = std::collections::BTreeMap::new();
+    for chunk_id in 1..=2 {
+        let output = directory.path().join(format!("rust-anchor-{chunk_id}.vcf"));
+        run_native(&unification_args(&inputs, &extended, &output, chunk_id));
+        for record in unified_records(&output) {
+            records.insert(record.position, record);
+        }
+    }
+    let expected = |position, reference: &str, alternate: &str, genotype: &str| UnifiedRecord {
+        contig: "chr21".to_string(),
+        position,
+        reference: reference.to_string(),
+        alternate: alternate.to_string(),
+        genotype: genotype.to_string(),
+        genotype_quality: "10".to_string(),
+        depth: "10".to_string(),
+        allele_frequency: "0.5000".to_string(),
+        phase_set: None,
+    };
+    for expected in [
+        expected(13048298, "TG", "T", "1/1"),
+        expected(13093614, "CA", "CAA,C", "1/2"),
+        expected(
+            13245144,
+            "GAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAGAAAGA",
+            "GAAGAAAGAAAGA,G",
+            "1/2",
+        ),
+        expected(13251076, "C", "T", "1/1"),
+    ] {
+        assert_eq!(
+            records.get(&expected.position),
+            Some(&expected),
+            "anchor chr21:{}",
+            expected.position
+        );
+    }
+    assert!(
+        !records.contains_key(&13048299),
+        "chr21:13048299 is a nonvariant in the matched original partition: {:?}",
+        records.get(&13048299)
+    );
+}
+
+#[test]
+#[ignore = "requires prepared original chr21 unification inputs"]
 fn chunked_unification_matches_original() {
     let Some(inputs) = real_inputs() else {
         return;

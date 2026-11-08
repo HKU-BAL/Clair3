@@ -1984,7 +1984,9 @@ pub fn create_candidate_details(
                             ref_pos += length;
                         }
                         bam::record::Cigar::RefSkip(_) => ref_pos += length,
-                        bam::record::Cigar::SoftClip(_) => query_pos += length as usize,
+                        bam::record::Cigar::Ins(_) | bam::record::Cigar::SoftClip(_) => {
+                            query_pos += length as usize;
+                        }
                         _ => {}
                     }
                 }
@@ -2283,6 +2285,74 @@ mod tests {
                     .map(|names| names.split_whitespace().count()),
                 Some(expected_reads),
                 "allele {allele} at {position}"
+            );
+        }
+    }
+
+    #[test]
+    fn candidate_details_advance_query_past_insertions() {
+        use rust_htslib::bam::{
+            Header, Writer,
+            record::{Cigar, CigarString},
+        };
+
+        let directory = tempfile::tempdir().unwrap();
+        let bam_path = directory.path().join("insertion_offset.bam");
+        let mut header = Header::new();
+        let mut contig = bam::header::HeaderRecord::new(b"SQ");
+        contig.push_tag(b"SN", "chrToy").push_tag(b"LN", 4096);
+        header.push_record(&contig);
+        let mut writer = Writer::from_path(&bam_path, &header, bam::Format::Bam).unwrap();
+        let mut record = Record::new();
+        record.set(
+            b"insertion_offset",
+            Some(&CigarString(vec![
+                Cigar::Match(5),
+                Cigar::Ins(2),
+                Cigar::Match(5),
+            ])),
+            b"TACTACAGCCAA",
+            &[40; 12],
+        );
+        record.set_tid(0);
+        record.set_pos(0);
+        record.set_mapq(60);
+        record.set_flags(0);
+        record.set_mtid(-1);
+        record.set_mpos(-1);
+        record.set_insert_size(0);
+        record.push_aux(b"HP", Aux::U8(2)).unwrap();
+        writer.write(&record).unwrap();
+        drop(writer);
+        bam::index::build(&bam_path, None, bam::index::Type::Bai, 0).unwrap();
+
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/data");
+        let reference = Reference::open(&data.join("toy.fa")).unwrap();
+        let details =
+            create_candidate_details(&bam_path, &reference, "chrToy", &[4, 5, 6], false).unwrap();
+        let actual: BTreeMap<i64, BTreeMap<String, String>> = details
+            .lines()
+            .map(|line| {
+                let fields: Vec<&str> = line.split('\t').collect();
+                (
+                    fields[0]
+                        .split_whitespace()
+                        .nth(1)
+                        .unwrap()
+                        .parse()
+                        .unwrap(),
+                    serde_json::from_str(fields[2]).unwrap(),
+                )
+            })
+            .collect();
+        for (position, allele) in [(5, "IACA"), (6, "XG"), (7, "XC")] {
+            assert_eq!(
+                actual.get(&position),
+                Some(&BTreeMap::from([(
+                    allele.to_string(),
+                    "insertion_offset_2".to_string()
+                )])),
+                "decoded allele at chrToy:{position}"
             );
         }
     }
