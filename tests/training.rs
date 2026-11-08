@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
     process::{Command, Output},
@@ -216,13 +216,26 @@ fn validation_directory_preserves_independent_inputs() {
         output_prefix: root.path().join("empty-model"),
         log_path: root.path().join("empty-training.log"),
         best_checkpoint: root.path().join("empty-best.pt"),
-        ..options
+        ..options.clone()
     })
     .unwrap_err();
     assert!(
         error.to_string().contains("no validation batches")
             && error.to_string().contains(&empty.display().to_string()),
         "unexpected empty-validation error: {error}"
+    );
+
+    let missing = root.path().join("missing-validation");
+    let error = train(&TrainingOptions {
+        validation_dir: Some(missing),
+        ..options
+    })
+    .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("failed to list validation archive directory"),
+        "validation path error used the wrong directory kind: {error}"
     );
 }
 
@@ -837,5 +850,223 @@ fn real_data_full_alignment_converges_stops_and_restarts() {
         ModelKind::FullAlignment,
         "fa",
         false,
+    );
+}
+
+fn controlled_weight_only_restart(
+    test_name: &str,
+    kind: ModelKind,
+    platform: Platform,
+    pileup: bool,
+    shape: &[usize],
+) {
+    let _guard = TORCH_TEST_LOCK.lock().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let data = write_deterministic_archive(root.path(), shape, pileup);
+    let validation = root.path().join("validation");
+    fs::create_dir_all(&validation).unwrap();
+    fs::copy(data.join("toy.bin"), validation.join("validation_20.bin")).unwrap();
+    let input_channels = *shape.last().unwrap();
+    let selected = root.path().join("selected.pt");
+    let different = root.path().join("different.pt");
+    tch::manual_seed(101);
+    let model = Model::new(
+        kind,
+        Device::Cpu,
+        Some(input_channels as i64),
+        !pileup,
+        None,
+    )
+    .unwrap();
+    save_checkpoint(&model.var_store, &selected).unwrap();
+    tch::manual_seed(202);
+    let model = Model::new(
+        kind,
+        Device::Cpu,
+        Some(input_channels as i64),
+        !pileup,
+        None,
+    )
+    .unwrap();
+    save_checkpoint(&model.var_store, &different).unwrap();
+    assert!(tensors_changed(
+        &tensor_map(load_python_state_dict(&selected).unwrap()),
+        &tensor_map(load_python_state_dict(&different).unwrap()),
+    ));
+
+    let options = TrainingOptions {
+        checkpoint: Some(selected.clone()),
+        pileup,
+        add_indel_length: !pileup,
+        max_epochs: 1,
+        mini_epochs: 1,
+        batch_size: DETERMINISTIC_BATCH_SIZE,
+        chunk_size: DETERMINISTIC_BATCH_SIZE,
+        learning_rate: 1e-3,
+        validation_dir: Some(validation),
+        seed: Some(29),
+        log_path: root.path().join("restart.log"),
+        best_checkpoint: root.path().join("restart-best.pt"),
+        ..TrainingOptions::new(data, root.path().join("restart"), platform)
+    };
+    let restarted = train(&options).unwrap();
+    assert_eq!(restarted.epochs, 1);
+    assert_eq!(restarted.checkpoints.len(), 1);
+    assert_eq!(training_log(&options.log_path).len(), 1);
+    assert!(
+        restarted.checkpoints[0]
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .ends_with(".01.pt")
+    );
+
+    let reproduced = train(&TrainingOptions {
+        output_prefix: root.path().join("reproduced"),
+        log_path: root.path().join("reproduced.log"),
+        best_checkpoint: root.path().join("reproduced-best.pt"),
+        ..options.clone()
+    })
+    .unwrap();
+    assert_eq!(restarted.final_loss, reproduced.final_loss);
+    assert_eq!(
+        restarted.best_validation_loss,
+        reproduced.best_validation_loss
+    );
+    assert_eq!(
+        fs::read_to_string(&options.log_path).unwrap(),
+        fs::read_to_string(root.path().join("reproduced.log")).unwrap()
+    );
+    let restarted_tensors = tensor_map(load_python_state_dict(&restarted.checkpoints[0]).unwrap());
+    compare_tensor_maps(
+        &restarted_tensors,
+        &tensor_map(load_python_state_dict(&reproduced.checkpoints[0]).unwrap()),
+        0.0,
+        "fresh weight-only restart reproduction",
+    );
+
+    let control = train(&TrainingOptions {
+        checkpoint: Some(different),
+        output_prefix: root.path().join("different-control"),
+        log_path: root.path().join("different-control.log"),
+        best_checkpoint: root.path().join("different-control-best.pt"),
+        ..options
+    })
+    .unwrap();
+    assert!(tensors_changed(
+        &restarted_tensors,
+        &tensor_map(load_python_state_dict(&control.checkpoints[0]).unwrap()),
+    ));
+    eprintln!(
+        "{test_name}: exact fresh-run loss={}, different-checkpoint control changed tensors",
+        restarted.final_loss
+    );
+}
+
+#[test]
+fn pileup_weight_only_restart_reproduces_fresh_training() {
+    controlled_weight_only_restart(
+        "pileup_weight_only_restart_reproduces_fresh_training",
+        ModelKind::Pileup,
+        Platform::Ont,
+        true,
+        &[33, 18],
+    );
+}
+
+#[test]
+fn full_alignment_weight_only_restart_reproduces_fresh_training() {
+    controlled_weight_only_restart(
+        "full_alignment_weight_only_restart_reproduces_fresh_training",
+        ModelKind::FullAlignment,
+        Platform::Hifi,
+        false,
+        &[55, 33, 8],
+    );
+}
+
+fn bam_qname_counts(path: &Path) -> BTreeMap<Vec<u8>, usize> {
+    use rust_htslib::bam::{self, Read as _};
+
+    let mut reader = bam::Reader::from_path(path).unwrap();
+    let mut counts = BTreeMap::new();
+    for record in reader.records() {
+        *counts.entry(record.unwrap().qname().to_vec()).or_default() += 1;
+    }
+    counts
+}
+
+#[test]
+#[ignore = "requires a completed bounded quick-training workflow"]
+fn quick_workflow_uses_complementary_training_and_validation_reads() {
+    let Some(work) = std::env::var_os("CLAIR3_QUICK_WORK").map(PathBuf::from) else {
+        eprintln!(
+            "SKIP quick_workflow_uses_complementary_training_and_validation_reads: CLAIR3_QUICK_WORK is not set"
+        );
+        return;
+    };
+    let full = work.join("bam/chr21.ht.bam");
+    let validation = work.join("bam/chr21_222.bam");
+    let fixed_training = work.join("bam/chr21_1000.training.bam");
+    let training = if fixed_training.is_file() {
+        fixed_training
+    } else {
+        full.clone()
+    };
+    let missing: Vec<_> = [&full, &validation, &training]
+        .into_iter()
+        .filter(|path| !path.is_file())
+        .collect();
+    if !missing.is_empty() {
+        eprintln!(
+            "SKIP quick_workflow_uses_complementary_training_and_validation_reads: missing {}",
+            missing
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        return;
+    }
+    let full_counts = bam_qname_counts(&full);
+    let training_counts = bam_qname_counts(&training);
+    let validation_counts = bam_qname_counts(&validation);
+    assert!(!full_counts.is_empty());
+    assert!(!training_counts.is_empty());
+    assert!(!validation_counts.is_empty());
+    let shared: Vec<_> = training_counts
+        .keys()
+        .filter(|name| validation_counts.contains_key(*name))
+        .map(|name| String::from_utf8_lossy(name).into_owned())
+        .collect();
+    assert!(
+        shared.is_empty(),
+        "training and validation share {} QNAMEs; first {:?}; training path {}",
+        shared.len(),
+        &shared[..shared.len().min(5)],
+        training.display()
+    );
+    assert_eq!(
+        training_counts
+            .keys()
+            .chain(validation_counts.keys())
+            .collect::<BTreeSet<_>>()
+            .len(),
+        full_counts.len()
+    );
+    for (name, count) in &full_counts {
+        assert_eq!(
+            training_counts.get(name).copied().unwrap_or(0)
+                + validation_counts.get(name).copied().unwrap_or(0),
+            *count,
+            "QNAME {}",
+            String::from_utf8_lossy(name)
+        );
+    }
+    eprintln!(
+        "quick workflow disjoint QNAMEs: full={} training={} validation={} shared=0; per-QNAME record complement holds",
+        full_counts.len(),
+        training_counts.len(),
+        validation_counts.len()
     );
 }

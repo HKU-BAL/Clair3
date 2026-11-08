@@ -103,10 +103,8 @@ impl Rng {
 fn archives(path: &Path, excluded: &BTreeSet<String>, training: bool) -> Result<Vec<BinArchive>> {
     let mut names = Vec::new();
     for entry in fs::read_dir(path).with_context(|| {
-        format!(
-            "failed to list training archive directory {}",
-            path.display()
-        )
+        let kind = if training { "training" } else { "validation" };
+        format!("failed to list {kind} archive directory {}", path.display())
     })? {
         let path = entry?.path();
         if !path.is_file() {

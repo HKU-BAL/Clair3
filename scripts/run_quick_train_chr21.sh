@@ -163,17 +163,35 @@ if [ ! -s "$HT_BAM" ]; then
     "$SAMTOOLS" index -@8 "$HT_BAM"
 fi
 
+[ "$VALIDATION_DEPTH" != "1000" ] || die "VALIDATION_DEPTH 必须是非 1000 的独立深度"
+case " ${DEPTHS[*]} " in
+    *" $VALIDATION_DEPTH "*) ;;
+    *) die "DEPTHS_OVERRIDE 必须包含 VALIDATION_DEPTH" ;;
+esac
+
+TRAIN_BAM=$WORK/bam/${CTG}_1000.training.bam
+VALIDATION_BAM=$WORK/bam/${CTG}_${VALIDATION_DEPTH}.bam
+if [ ! -s "$TRAIN_BAM" ] || [ ! -s "$VALIDATION_BAM" ]; then
+    # -s 按 template/read pair 选择；-U 将未选择的互补 reads 写给训练集。
+    "$SAMTOOLS" view -@8 -s "${VALIDATION_DEPTH}.${VALIDATION_DEPTH}" \
+        -U "$TRAIN_BAM" -b -o "$VALIDATION_BAM" "$HT_BAM" "$CTG" \
+        || die "独立训练/验证 reads 分割失败"
+    "$SAMTOOLS" index -@8 "$TRAIN_BAM"
+    "$SAMTOOLS" index -@8 "$VALIDATION_BAM"
+fi
+BAM_1000=$TRAIN_BAM
+log "  depth 1000 训练使用验证集之外的互补 reads；depth $VALIDATION_DEPTH 为 held-out reads"
+
 for d in "${DEPTHS[@]}"; do
-    [ "$d" = "1000" ] && continue
+    [ "$d" = "1000" ] || [ "$d" = "$VALIDATION_DEPTH" ] && continue
     out=$WORK/bam/${CTG}_${d}.bam
     if [ ! -s "$out" ]; then
-        # -s INT.FRAC：种子 INT，抽取比例 0.FRAC（444 => 44.4%）
-        "$SAMTOOLS" view -@8 -s "${d}.${d}" -b -o "$out" "$HT_BAM" "$CTG" \
+        # 其他训练深度只能从互补训练 reads 中抽取，不能重新引入验证 reads。
+        "$SAMTOOLS" view -@8 -s "${d}.${d}" -b -o "$out" "$BAM_1000" "$CTG" \
             || die "降采样 $d 失败"
         "$SAMTOOLS" index -@8 "$out"
     fi
 done
-BAM_1000=$HT_BAM
 
 # -----------------------------------------------------------------------------
 # 5. Repun （可选）
