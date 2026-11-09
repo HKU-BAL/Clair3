@@ -47,7 +47,7 @@ def pileup_counts_clair3(
     """
     lib = libclair3.lib
     featlenclair3 = lib.featlenclair3
-    bam = BAMHandler(bam, fasta)
+    bam = BAMHandler(bam, fasta, size=workers)
 
     def _process_region(reg):
         # ctg start is 1-based, medaka.common.Region object is 0-based
@@ -140,9 +140,13 @@ def _plp_data_to_numpy(plp_data, n_rows, gvcf=False):
     ffi = libclair3.ffi
     size_sizet = np.dtype(int).itemsize
     _dtype = int
+    # Use the loaded module's count width, including older size_t builds.
+    # Interpret both representations as signed because reference counts
+    # are negative. The copy owns its memory after destroy_plp_data().
+    count_dtype = np.dtype('i{}'.format(ffi.sizeof(ffi.typeof(plp_data.matrix).item)))
     np_counts = np.frombuffer(ffi.buffer(
-        plp_data.matrix, size_sizet * plp_data.n_cols * n_rows),
-        dtype=_dtype
+        plp_data.matrix, count_dtype.itemsize * plp_data.n_cols * n_rows),
+        dtype=count_dtype
     ).reshape(plp_data.n_cols, n_rows).copy()
 
     alt_info_string_list = []
@@ -207,6 +211,8 @@ def __enforce_pileup_chunk_contiguity(pileups):
     # Second pass: stitch abutting chunks together, anything not neighbouring
     # is kept separate whether it came from the same chunk originally or not
     def _finalize_chunk(c_buf, p_buf):
+        if len(c_buf) == 1:
+            return c_buf[0], p_buf[0]
         chunk_counts = np.concatenate(c_buf)
         chunk_positions = np.concatenate(p_buf)
         return chunk_counts, chunk_positions
