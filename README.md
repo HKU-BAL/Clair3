@@ -216,6 +216,8 @@ For step-by-step native and Docker installation, see [Installing Clair3-Rust](do
 
 For the Rust implementation history, optimization milestones, rejected experiments, dependency policy, and measured output comparisons, see the [Rust optimization and verification report](docs/rust_optimization.md). The [project prompt history](docs/clair3_rust_prompts.md) records the user requests that guided this branch.
 
+The scientific write-up of this work — insights and best practices for maintaining and upgrading popular scientific software, using the Clair3 Rust rewrite as a worked example — is in the [manuscript prepared for *Bioinformatics*](docs/bioinformatics_submission.md).
+
 Clair3 v2.0 uses **PyTorch** as its deep learning framework. For GPU-accelerated calling on Linux and Apple Silicon, please refer to the [GPU quick start guide](docs/gpu_quick_start.md).
 
 > **Important**: CPU and GPU implementations are provided as separate Dockerfiles. Use `Dockerfile.gpu` for NVIDIA CUDA acceleration, or build locally with the `cuda` feature. Apple Silicon uses the `mps` device.
