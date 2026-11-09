@@ -40,11 +40,10 @@ fn require_inputs(test_name: &str, paths: &[PathBuf]) -> bool {
 }
 
 #[test]
-#[ignore = "requires official baseline outputs"]
 fn candidate_and_merge_outputs_match() {
     let root = root();
-    let baseline = root.join("target/legacy/baseline/official_ilmn");
-    let hifi = root.join("target/legacy/baseline/official_hifi");
+    let baseline = root.join("tests/fixtures/baselines/ilmn");
+    let hifi = root.join("tests/fixtures/baselines/hifi");
     if !require_inputs(
         "candidate_and_merge_outputs_match",
         &[

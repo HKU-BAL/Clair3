@@ -192,10 +192,9 @@ fn sampling_is_repeatable_across_concurrent_calls() {
 }
 
 #[test]
-#[ignore = "requires official HiFi inputs and CFFI baseline tensors"]
 fn official_hifi_phased_context_matches() {
     let root = root();
-    let baseline = root.join("target/legacy/baseline/official_hifi");
+    let baseline = root.join("tests/fixtures/baselines/hifi");
     let data = root.join("target/test-data/pacbio_hifi");
     let candidate_path = baseline.join("tmp/full_alignment_output/candidate_bed/chr20.0_1");
     if !require_inputs(
@@ -205,8 +204,8 @@ fn official_hifi_phased_context_matches() {
             data.join("GRCh38_no_alt_chr20.fa"),
             data.join("HG003_chr20_demo.bam"),
             baseline.join("tmp/phase_output/phase_vcf/phased_chr20.vcf.gz"),
-            root.join("target/verify/hifi-cffi.npy"),
-            root.join("target/verify/hifi-cffi.npy.info"),
+            baseline.join("hifi-cffi.npy"),
+            baseline.join("hifi-cffi.npy.info"),
         ],
     ) {
         return;
@@ -237,7 +236,7 @@ fn official_hifi_phased_context_matches() {
         },
     )
     .unwrap();
-    let expected = Tensor::read_npy(root.join("target/verify/hifi-cffi.npy")).unwrap();
+    let expected = Tensor::read_npy(baseline.join("hifi-cffi.npy")).unwrap();
     assert_eq!(
         batch.shape,
         expected
@@ -250,7 +249,7 @@ fn official_hifi_phased_context_matches() {
         batch.values,
         Vec::<i8>::try_from(&expected.flatten(0, -1)).unwrap()
     );
-    let expected_info = fs::read_to_string(root.join("target/verify/hifi-cffi.npy.info")).unwrap();
+    let expected_info = fs::read_to_string(baseline.join("hifi-cffi.npy.info")).unwrap();
     assert_eq!(
         batch.alt_info,
         expected_info

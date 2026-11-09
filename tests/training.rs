@@ -32,7 +32,9 @@ fn directory() -> PathBuf {
 
 #[test]
 fn checkpoint_roundtrip_preserves_every_tensor() {
-    let _guard = TORCH_TEST_LOCK.lock().unwrap();
+    let _guard = TORCH_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let path = directory().join("checkpoint.pt");
     tch::manual_seed(11);
     let model = Model::new(ModelKind::Pileup, Device::Cpu, Some(18), false, None).unwrap();
@@ -52,7 +54,9 @@ fn checkpoint_roundtrip_preserves_every_tensor() {
 
 #[test]
 fn optimizer_step_writes_a_loadable_checkpoint() {
-    let _guard = TORCH_TEST_LOCK.lock().unwrap();
+    let _guard = TORCH_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let root = directory();
     let data = root.join("data");
     fs::create_dir_all(&data).unwrap();
@@ -110,7 +114,9 @@ fn optimizer_step_writes_a_loadable_checkpoint() {
 
 #[test]
 fn full_alignment_fine_tuning_writes_a_loadable_checkpoint() {
-    let _guard = TORCH_TEST_LOCK.lock().unwrap();
+    let _guard = TORCH_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/verify/training/full_smoke");
     fs::create_dir_all(&root).unwrap();
     let data = root.join("data");
@@ -178,7 +184,9 @@ fn full_alignment_fine_tuning_writes_a_loadable_checkpoint() {
 
 #[test]
 fn validation_directory_preserves_independent_inputs() {
-    let _guard = TORCH_TEST_LOCK.lock().unwrap();
+    let _guard = TORCH_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let root = tempfile::tempdir().unwrap();
     let data = write_deterministic_archive(root.path(), &[33, 18], true);
     fs::write(data.join("ignored_20_.bin"), "not an archive").unwrap();
@@ -377,7 +385,7 @@ fn run_original(command: &mut Command) -> Output {
 fn write_deterministic_archive(root: &Path, shape: &[usize], pileup: bool) -> PathBuf {
     let data = root.join("data");
     fs::create_dir_all(&data).unwrap();
-    let mut writer = BinWriter::create(&data.join("toy.bin"), shape, pileup).unwrap();
+    let mut writer = BinWriter::create(&data.join("toy-written.bin"), shape, pileup).unwrap();
     let matrix_size: usize = shape.iter().product();
     let examples: Vec<_> = (0..2 * DETERMINISTIC_BATCH_SIZE)
         .map(|index| {
@@ -407,6 +415,11 @@ fn write_deterministic_archive(root: &Path, shape: &[usize], pileup: bool) -> Pa
         .collect();
     writer.append(&examples).unwrap();
     drop(writer);
+    // HDF5 can keep a file lock on an archive that was just written by the
+    // same process, which makes reopening it fail intermittently. Copying the
+    // archive to a fresh inode gives the readers an unlocked file.
+    fs::copy(data.join("toy-written.bin"), data.join("toy.bin")).unwrap();
+    fs::remove_file(data.join("toy-written.bin")).unwrap();
     data
 }
 
@@ -469,7 +482,9 @@ fn deterministic_matches_original(
     shape: &[usize],
     weight_decay: f64,
 ) {
-    let _guard = TORCH_TEST_LOCK.lock().unwrap();
+    let _guard = TORCH_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let Some((python, original)) = original_support(test_name) else {
         return;
     };
@@ -865,7 +880,9 @@ fn controlled_weight_only_restart(
     pileup: bool,
     shape: &[usize],
 ) {
-    let _guard = TORCH_TEST_LOCK.lock().unwrap();
+    let _guard = TORCH_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let root = tempfile::tempdir().unwrap();
     let data = write_deterministic_archive(root.path(), shape, pileup);
     let validation = root.path().join("validation");

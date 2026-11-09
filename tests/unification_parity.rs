@@ -27,6 +27,7 @@ struct RealInputs {
     truth: PathBuf,
     reference: PathBuf,
     bed: PathBuf,
+    contig: String,
 }
 
 fn run(command: &mut Command) -> Output {
@@ -44,6 +45,12 @@ fn run(command: &mut Command) -> Output {
     output
 }
 
+fn env_path(name: &str, default: &str) -> PathBuf {
+    std::env::var_os(name)
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(default))
+}
+
 fn real_inputs(test_name: &str) -> Option<RealInputs> {
     let python = std::env::var_os("CLAIR3_ORIGINAL_PYTHON")
         .map(PathBuf::from)
@@ -56,18 +63,23 @@ fn real_inputs(test_name: &str) -> Option<RealInputs> {
     let inputs = RealInputs {
         python,
         original: original.join("clair3.py"),
-        bam: PathBuf::from(
+        bam: env_path(
+            "CLAIR3_UNIFICATION_BAM",
             "/Users/Aqua/Temp/Clair3/target/tmp/training-original-ru-inputs/chr21.ht.bam",
         ),
-        truth: PathBuf::from(
+        truth: env_path(
+            "CLAIR3_UNIFICATION_TRUTH",
             "/Users/Aqua/Temp/Clair3/target/tmp/training-original-ru-inputs/var_chr21",
         ),
-        reference: PathBuf::from(
+        reference: env_path(
+            "CLAIR3_UNIFICATION_REFERENCE",
             "/Users/Aqua/Temp/clairBenchmark/GRCh38_no_alt_analysis_set.fasta",
         ),
-        bed: PathBuf::from(
+        bed: env_path(
+            "CLAIR3_UNIFICATION_BED",
             "/Users/Aqua/Temp/Clair3/target/tmp/training-chr21-inputs/truth/region.bed",
         ),
+        contig: std::env::var("CLAIR3_UNIFICATION_CONTIG").unwrap_or_else(|_| "chr21".to_string()),
     };
     let required = [
         ("validation Python", &inputs.python),
@@ -170,7 +182,7 @@ fn unification_args(
         OsString::from("--chunk_num"),
         OsString::from(CHUNK_COUNT.to_string()),
         OsString::from("--ctgName"),
-        OsString::from("chr21"),
+        OsString::from(inputs.contig.clone()),
     ];
     args.shrink_to_fit();
     args
@@ -192,6 +204,7 @@ fn run_native(args: &[OsString]) {
 }
 
 fn split_extend_bed(inputs: Option<&RealInputs>, bed: &Path, output: &Path) {
+    let contig = inputs.map_or("chr21", |inputs| inputs.contig.as_str());
     let args: [&OsStr; 8] = [
         OsStr::new("SplitExtendBed"),
         OsStr::new("--bed_fn"),
@@ -199,7 +212,7 @@ fn split_extend_bed(inputs: Option<&RealInputs>, bed: &Path, output: &Path) {
         OsStr::new("--output_fn"),
         output.as_os_str(),
         OsStr::new("--ctgName"),
-        OsStr::new("chr21"),
+        OsStr::new(contig),
         OsStr::new("--expand_region_size"),
     ];
     if let Some(inputs) = inputs {

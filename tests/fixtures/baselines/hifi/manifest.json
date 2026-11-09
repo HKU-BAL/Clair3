@@ -1,0 +1,32 @@
+{
+  "platform": "hifi",
+  "reference_image": "hkubal/clair3:v2.0.0",
+  "reference_image_id": "sha256:2838e97a828fda1b79cdbd4c3f740921a6bfad0b7ebc3ce21a55a99b38d0d2ce",
+  "reference_entrypoint": "/opt/bin/run_clair3.sh",
+  "contig": "chr20",
+  "region": "100000-300000",
+  "inputs": {
+    "GRCh38_no_alt_chr20.fa": {"sha256": "0ff3eab72be69fad01973c2261b965e1e4bd6bc49b77bb858d603ffbe11456d7", "bytes": 65518244},
+    "GRCh38_no_alt_chr20.fa.fai": {"sha256": "7455fb06dab8ff448f729300bc8fb43ab486a06cfb97b8d91851696c1995a887", "bytes": 23},
+    "HG003_chr20_demo.bam": {"sha256": "db752fd4bc202fa12f3d52f987caf7892f1da63aa2701b49fcd65402aeabf5a6", "bytes": 5353581},
+    "HG003_chr20_demo.bam.bai": {"sha256": "be73e1b916d3885d860c822aaf98f41ff57f0e5d6401d39fb539866f6a933e45", "bytes": 2896},
+    "HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz": {"sha256": "da3c275487ad01616809463f1364176bdaaee2ea90c9c745ae9752feb9bb35dc", "bytes": 3344467},
+    "HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz.tbi": {"sha256": "deb63977231e56c18bb6d5d5c51d0174accaf86203579b3bb9a3b9e142223d06", "bytes": 36079},
+    "HG003_GRCh38_chr20_v4.2.1_benchmark_noinconsistent.bed": {"sha256": "29d03d1395f3f55b1d25407fe53f782f528e30b386b7f8b4c0c8821c654b71f3", "bytes": 274339}
+  },
+  "outputs": {
+    "pileup.vcf.gz": {"sha256": "a86a3d934b50566487d8c761f19c250eed489916d58b7dd83666720b9ca76c95", "bytes": 12036, "records": 845},
+    "full_alignment.vcf.gz": {"sha256": "029366fc54cc15e48fb6c680c3668d6dd1e7c8e0a5c05489829d946bf0fead24", "bytes": 4832, "records": 251},
+    "merge_output.vcf.gz": {"sha256": "88c51ae99e4d29bd31d95efe8d543fd2f2a8f8ade7bbea1031fe6d6751a67b73", "bytes": 8576, "records": 567},
+    "tmp/split_beds/chr20": {"sha256": "30ce7bc28c400be2e28926bf4beb1a9b11ad4d11051dcbd650c611a7682d0870", "bytes": 18, "records": 1},
+    "tmp/phase_output/phase_vcf/chr20.vcf": {"sha256": "7df3b60a9e44d886f6432ec48b1fa54883d2a938ba87c438612f07a493f8e484", "bytes": 20151, "records": 267},
+    "tmp/phase_output/phase_vcf/phase_qual": {"sha256": "93a87615eb334a233062ee091639f8e1319472a69cc7ac0910366fbfe44518b8", "bytes": 5, "records": 1},
+    "tmp/phase_output/phase_vcf/phased_chr20.vcf.gz": {"sha256": "acfc65062973b26cdbfed1bf5a8175b2ff7ec4c1c9704f4cf5307ffa7a7fb57b", "bytes": 4352, "records": 267},
+    "tmp/full_alignment_output/candidate_bed/chr20.0_1": {"sha256": "db0aefdeebea4a2347ee0c774240b113fcbf1d5e5d9f47241391b4230bde8328", "bytes": 5020, "records": 251},
+    "tmp/full_alignment_output/candidate_bed/qual": {"sha256": "81edb727ff6efbe5fbb21c56cb42f1268b65146a42b2b2620a1080a7219ac628", "bytes": 11, "records": 1},
+    "tmp/full_alignment_output/candidate_bed/FULL_ALN_FILE_chr20": {"sha256": "536fd4045a698a6ace533ecda179ed690efa8ecdd44b645dcde516fac5cc69a8", "bytes": 58, "records": 1},
+    "tmp/full_alignment_output/candidate_bed/FULL_ALN_FILES": {"sha256": "536fd4045a698a6ace533ecda179ed690efa8ecdd44b645dcde516fac5cc69a8", "bytes": 58, "records": 1},
+    "tmp/full_alignment_output/full_alignment_chr20.0_1.vcf": {"sha256": "03fab1bf8c17e4b5a9a0251a0f2a88e72da3814aa127dab07becf269e0a00806", "bytes": 19459, "records": 251},
+    "tmp/merge_output/merge_chr20.vcf": {"sha256": "704ac63aa569715abea2b72a387cba2f69aa9d175716ee004c80d78c3bf0b99b", "bytes": 41605, "records": 567}
+  }
+}

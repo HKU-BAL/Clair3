@@ -56,20 +56,36 @@ fn snapshot(
 }
 
 #[test]
-#[ignore = "requires official demo data and native golden BAM"]
 fn official_realigned_bam_matches() {
     let root = root();
     let input = root.join("target/test-data/illumina/HG003_chr20_demo.bam");
     let expected = root.join("tests/fixtures/realign/official_realigned.bam.100967_300033");
-    assert!(input.exists() && expected.exists());
+    let reference_path = root.join("target/test-data/illumina/GRCh38_chr20.fa");
+    let candidate_bed = root
+        .join("tests/fixtures/baselines/ilmn/tmp/full_alignment_output/candidate_bed/chr20.0_1");
+    let required = [
+        input.clone(),
+        expected.clone(),
+        reference_path.clone(),
+        candidate_bed.clone(),
+    ];
+    let missing: Vec<_> = required.iter().filter(|path| !path.exists()).collect();
+    if !missing.is_empty() {
+        eprintln!(
+            "SKIP official_realigned_bam_matches: missing {}",
+            missing
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        return;
+    }
     let output = root.join("target/verify/realigned_official.bam");
     fs::create_dir_all(output.parent().unwrap()).unwrap();
-    let reference =
-        Reference::open(&root.join("target/test-data/illumina/GRCh38_chr20.fa")).unwrap();
+    let reference = Reference::open(&reference_path).unwrap();
     let options = RealignmentOptions {
-        candidate_bed: Some(root.join(
-            "target/legacy/baseline/official_ilmn/tmp/full_alignment_output/candidate_bed/chr20.0_1",
-        )),
+        candidate_bed: Some(candidate_bed),
         ..Default::default()
     };
     realign_bam(

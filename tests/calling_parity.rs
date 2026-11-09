@@ -103,12 +103,11 @@ fn assert_records_match(actual: &[VcfRecord], expected_path: &Path) {
 }
 
 #[test]
-#[ignore = "requires official demo inputs and legacy baselines"]
 fn official_illumina_calls_match() {
     let root = root();
     let data = root.join("target/test-data/illumina");
     let bam = data.join("HG003_chr20_demo.bam");
-    let baseline = root.join("target/legacy/baseline/official_ilmn");
+    let baseline = root.join("tests/fixtures/baselines/ilmn");
     if !require_inputs(
         "official_illumina_calls_match",
         &[
@@ -297,15 +296,15 @@ fn official_illumina_calls_match() {
 }
 
 #[test]
-#[ignore = "requires official demo inputs and legacy baselines"]
 fn production_full_call_includes_flanking_candidates() {
     let root = root();
-    let baseline = root.join("target/legacy/baseline/official_ilmn");
+    let baseline = root.join("tests/fixtures/baselines/ilmn");
     let bam = root.join("target/verify/realigned_official_phased.bam");
+    let phase_bam = baseline.join("tmp/phase_output/phase_bam/chr20.bam");
     if !require_inputs(
         "production_full_call_includes_flanking_candidates",
         &[
-            bam.clone(),
+            phase_bam.clone(),
             root.join("target/test-data/illumina/GRCh38_chr20.fa"),
             root.join("target/test-data/models/ilmn/full_alignment.pt"),
             baseline.join("tmp/full_alignment_output/candidate_bed/chr20.0_1"),
@@ -313,6 +312,26 @@ fn production_full_call_includes_flanking_candidates() {
         ],
     ) {
         return;
+    }
+    if !bam.exists() {
+        let reference =
+            Reference::open(&root.join("target/test-data/illumina/GRCh38_chr20.fa")).unwrap();
+        fs::create_dir_all(bam.parent().unwrap()).unwrap();
+        clair3::realign::workflow::realign_bam(
+            &phase_bam,
+            &reference,
+            "chr20",
+            Some(100000),
+            Some(300000),
+            &bam,
+            &clair3::realign::workflow::RealignmentOptions {
+                candidate_bed: Some(
+                    baseline.join("tmp/full_alignment_output/candidate_bed/chr20.0_1"),
+                ),
+                ..Default::default()
+            },
+        )
+        .unwrap();
     }
     let mut config = clair3::pipeline::call::CallConfig::new(
         bam,

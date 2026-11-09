@@ -90,6 +90,17 @@ The model-parity test uses official checkpoints when they are available under `t
 
 The original-Python training and unification comparisons use `CLAIR3_ORIGINAL_ROOT` for the original Clair3 checkout and `CLAIR3_ORIGINAL_PYTHON` for its NumPy/PyTorch interpreter. Their existing local paths remain the defaults when these variables are unset. Missing files or unavailable Python packages produce a skip naming the calling test; setting only these variables does not replace the other prepared real-data inputs.
 
+The official-demo parity tests compare the native implementation against reference outputs that are committed under `tests/fixtures/baselines/`, so they only need the external demo inputs and the pretrained models:
+
+```bash
+cargo test --test calling_parity --release --locked
+cargo test --test pipeline_parity --release --locked
+cargo test --test full_alignment_parity --release --locked
+cargo test --test realign_workflow_parity --release --locked
+```
+
+`scripts/capture_baselines.sh` regenerates those reference outputs with the unmodified original Clair3, and `scripts/prepare_unification_inputs.sh` prepares the differential unification inputs from this repository's own history. See the [reference-baseline guide](baselines.md).
+
 High-depth full-alignment fixtures have Linux-specific `.linux.npy` goldens because the original C implementation's `rand()` downsampling differs between macOS and Linux. The Linux goldens were generated with the unmodified original CFFI implementation and are compared exactly with Rust; the original macOS full-alignment goldens are unchanged. CPU model parity selects original-Python/PyTorch goldens by platform: `.macos.npy` on macOS, `.linux-amd64.npy` on Linux x86_64, and `.linux.npy` for Linux ARM64 pileup cases. The nine macOS model goldens were regenerated with original Python and official PyTorch 2.13 in the validated macOS environment. The official model-parity tolerance remains `1e-4`; no model-parity assertion was removed or weakened. Model-parity inference runs inside `tch::no_grad`, matching production and Python's `inference_mode`. CUDA continues to use its separate `.cuda.npy` goldens. The wrapped-checkpoint test runs when `target/wrapped-state-dict.pt` is available and reports a skip otherwise.
 
 Run the unfiltered test suite:

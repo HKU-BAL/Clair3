@@ -189,6 +189,38 @@ These changes were not included because they were slower, unproven, exceeded num
 | LongPhase source build | Build failed; not used to replace verified phasing |
 | Quantization and candidate-filter relaxation | Not permitted because they change model precision or biological inputs |
 
+## Reference baselines committed to the repository
+
+The parity tests that compare the native implementation against the original
+Python Clair3 used to require a machine-local `target/legacy/baseline`
+directory, so they were permanently skipped on any other checkout. The
+reference outputs for the official quick-demo datasets are now captured with
+the unmodified reference implementation and committed under
+`tests/fixtures/baselines/<platform>/`, together with a manifest that records
+the reference image digest and the SHA-256 of every input and output.
+`scripts/capture_baselines.sh` regenerates them and
+`scripts/prepare_unification_inputs.sh` builds the differential
+unification inputs from this repository's own history. See
+[Reference baselines for Clair3-Rust parity testing](baselines.md).
+
+As a result the following tests now execute instead of skipping, and pass
+against the reference outputs:
+
+| Test | Comparison |
+| --- | --- |
+| `official_illumina_calls_match` | pileup and full-alignment VCFs, GT/GQ/DP/AF/PS included |
+| `production_full_call_includes_flanking_candidates` | production calling against the reference full-alignment VCF |
+| `candidate_and_merge_outputs_match` | candidate selection, heterozygous-SNP selection, and merging for Illumina and HiFi |
+| `official_hifi_phased_context_matches` | full-alignment tensor against the reference C implementation, byte for byte |
+| `official_realigned_bam_matches` | realigned BAM against the committed reference BAM |
+
+The reference container `hkubal/clair3:v2.0.0` is used for the capture because
+the `v2.0.5` image cannot complete the reference pipeline: upstream marks the
+realigner's `free_memory` helper `static`, so the symbol is not exported and
+the reference wrapper fails to load it. The differential unification harness
+additionally accepts `CLAIR3_UNIFICATION_*` variables, so it can run on any
+prepared dataset instead of one machine-local chr21 dataset.
+
 ## Verification commands and status
 
 The final build used a new target directory so the build could not reuse the removed local `torch-sys` or Gloo copies:

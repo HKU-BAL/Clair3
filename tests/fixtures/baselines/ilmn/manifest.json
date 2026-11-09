@@ -1,0 +1,35 @@
+{
+  "platform": "ilmn",
+  "reference_image": "hkubal/clair3:v2.0.0",
+  "reference_image_id": "sha256:2838e97a828fda1b79cdbd4c3f740921a6bfad0b7ebc3ce21a55a99b38d0d2ce",
+  "reference_entrypoint": "/opt/bin/run_clair3.sh",
+  "contig": "chr20",
+  "region": "100000-300000",
+  "inputs": {
+    "GRCh38_chr20.fa": {"sha256": "0ff3eab72be69fad01973c2261b965e1e4bd6bc49b77bb858d603ffbe11456d7", "bytes": 65518244},
+    "GRCh38_chr20.fa.fai": {"sha256": "7455fb06dab8ff448f729300bc8fb43ab486a06cfb97b8d91851696c1995a887", "bytes": 23},
+    "HG003_chr20_demo.bam": {"sha256": "30c13b951f0d8f705d5e590aa4c3e0b1b44b80d7e72fd4f96d31e1d898433fa6", "bytes": 3887629},
+    "HG003_chr20_demo.bam.bai": {"sha256": "748daa4d5246fd780a3e2a446239acc93a21a720783f9f5c72402043eb26584c", "bytes": 27712},
+    "HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz": {"sha256": "da3c275487ad01616809463f1364176bdaaee2ea90c9c745ae9752feb9bb35dc", "bytes": 3344467},
+    "HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz.tbi": {"sha256": "deb63977231e56c18bb6d5d5c51d0174accaf86203579b3bb9a3b9e142223d06", "bytes": 36079},
+    "HG003_GRCh38_chr20_v4.2.1_benchmark_noinconsistent.bed": {"sha256": "29d03d1395f3f55b1d25407fe53f782f528e30b386b7f8b4c0c8821c654b71f3", "bytes": 274339}
+  },
+  "outputs": {
+    "pileup.vcf.gz": {"sha256": "8b282c5d3d6e9ea834f6ee86662eff30208a658d625f00e4151f3466c66aa4c0", "bytes": 13581, "records": 861},
+    "full_alignment.vcf.gz": {"sha256": "9fc20eeeb7723ff7173cd02ee655ab6925eac1a909d7f1e92b2364be4270ea1e", "bytes": 13096, "records": 837},
+    "merge_output.vcf.gz": {"sha256": "971fbc19b3195524ba458935a1ed045715fbef24623273e66cefe7f8b329847d", "bytes": 9567, "records": 545},
+    "tmp/split_beds/chr20": {"sha256": "30ce7bc28c400be2e28926bf4beb1a9b11ad4d11051dcbd650c611a7682d0870", "bytes": 18, "records": 1},
+    "tmp/phase_output/phase_bam/chr20.bam": {"sha256": "9f0e257f300908d2bb232108ddab1534bdbbbfceae49bdb44b5f750bfd5ed063", "bytes": 3834435, "records": 15034},
+    "tmp/phase_output/phase_bam/chr20.bam.bai": {"sha256": "7b7a0603b97f06667f0189f0f2c67aca2606358a8050c5b7bdb37be1ed891bab", "bytes": 27712, "records": 1},
+    "tmp/phase_output/phase_vcf/chr20.vcf": {"sha256": "9fe5920d477d9ced218f48cc6b62aa4a9497505a2943937b530caa01d2761391", "bytes": 19232, "records": 254},
+    "tmp/phase_output/phase_vcf/phase_qual": {"sha256": "067df26c10cbd5deb06d339dda7e7fb6beb5835c9ff7f7b1fa5fad084e489be1", "bytes": 5, "records": 1},
+    "tmp/phase_output/phase_vcf/phased_chr20.vcf.gz": {"sha256": "ba7edcd787d09fa64f2fd24fdfe21c88cbdc81c1648bbe33c831e4aba1440fcd", "bytes": 4862, "records": 254},
+    "tmp/full_alignment_output/candidate_bed/chr20.0_1": {"sha256": "6a958d2b27340cdf739209ab62272188462e6d94198d4306eb694dfbfe1d9160", "bytes": 5100, "records": 255},
+    "tmp/full_alignment_output/candidate_bed/qual": {"sha256": "a88ca840d64ed70d300ef7e8df092fcf4970573fcac851d5d8432f5f747ec7cb", "bytes": 11, "records": 1},
+    "tmp/full_alignment_output/candidate_bed/full_aln_regions_chr20": {"sha256": "6a958d2b27340cdf739209ab62272188462e6d94198d4306eb694dfbfe1d9160", "bytes": 5100, "records": 255},
+    "tmp/full_alignment_output/candidate_bed/FULL_ALN_FILE_chr20": {"sha256": "536fd4045a698a6ace533ecda179ed690efa8ecdd44b645dcde516fac5cc69a8", "bytes": 58, "records": 1},
+    "tmp/full_alignment_output/candidate_bed/FULL_ALN_FILES": {"sha256": "536fd4045a698a6ace533ecda179ed690efa8ecdd44b645dcde516fac5cc69a8", "bytes": 58, "records": 1},
+    "tmp/full_alignment_output/full_alignment_chr20.0_1.vcf": {"sha256": "e95528081be219971d0197420f499cfa1ae51c17211cc721cc99923a8fa7717c", "bytes": 60098, "records": 837},
+    "tmp/merge_output/merge_chr20.vcf": {"sha256": "c040372c08ad35ae67aadf3cc7ee87e94d7ac6f1e4d9bc9e472bf0ff40202fce", "bytes": 39910, "records": 545}
+  }
+}

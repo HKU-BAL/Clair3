@@ -214,7 +214,7 @@ Check the results using `less ${HOME}/clair3_ont_quickDemo/output/merge_output.v
 
 For step-by-step native and Docker installation, see [Installing Clair3-Rust](docs/rust_installation.md). After installation, use the [Clair3-Rust quick-test guide](docs/rust_quick_test.md) to verify calling, phasing, and fixture tests.
 
-For the Rust implementation history, optimization milestones, rejected experiments, dependency policy, and measured output comparisons, see the [Rust optimization and verification report](docs/rust_optimization.md). The [project prompt history](docs/clair3_rust_prompts.md) records the user requests that guided this branch.
+For the Rust implementation history, optimization milestones, rejected experiments, dependency policy, and measured output comparisons, see the [Rust optimization and verification report](docs/rust_optimization.md). The [project prompt history](docs/clair3_rust_prompts.md) records the user requests that guided this branch. The [reference-baseline guide](docs/baselines.md) explains how the parity tests compare the native implementation against the original Clair3 and how those reference outputs are regenerated.
 
 The scientific write-up of this work — insights and best practices for maintaining and upgrading popular scientific software, using the Clair3 Rust rewrite as a worked example — is in the [manuscript prepared for *Bioinformatics*](docs/bioinformatics_submission.md).
 
