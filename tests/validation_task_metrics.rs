@@ -64,15 +64,35 @@ fn full_alignment_validation_tasks_are_reported_per_epoch() {
         "CLAIR3_VALIDATION_ARCHIVES",
         "/Users/Aqua/Temp/Clair3/target/correctness-validation-20261108/verify/training/task4-real-inputs/fa/validation/bin_HG002_20_222",
     );
-    let checkpoints: Vec<_> = ["convergence.01.pt", "convergence.02.pt", "convergence.03.pt"]
-        .iter()
-        .map(|name| root.join(name))
+    let checkpoints: Vec<_> = fs::read_dir(&root)
+        .unwrap_or_else(|error| panic!("failed to read {root:?}: {error}"))
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| {
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            name.ends_with(".pt") && !name.contains("best") && !name.contains("restart")
+        })
         .collect();
+    let checkpoints = checkpoints
+        .iter()
+        .filter(|path| {
+            path.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .contains(".0")
+        })
+        .cloned()
+        .collect::<Vec<_>>();
     let missing: Vec<_> = checkpoints
         .iter()
         .chain(std::iter::once(&validation))
         .filter(|path| !path.exists())
         .collect();
+    if checkpoints.len() < 2 {
+        eprintln!(
+            "SKIP full_alignment_validation_tasks_are_reported_per_epoch: fewer than two epoch checkpoints in {root:?}"
+        );
+        return;
+    }
     if !missing.is_empty() {
         eprintln!(
             "SKIP full_alignment_validation_tasks_are_reported_per_epoch: missing {}",
@@ -128,10 +148,7 @@ fn full_alignment_validation_tasks_are_reported_per_epoch() {
         "tasks with the largest error increase between the first and the last epoch: {:?}",
         &changes[..changes.len().min(10)]
     );
-    let decreasing = changes
-        .iter()
-        .filter(|(_, change)| *change < 0.0)
-        .count();
+    let decreasing = changes.iter().filter(|(_, change)| *change < 0.0).count();
     eprintln!(
         "tasks that improved: {decreasing}, tasks that degraded: {}",
         changes.len() - decreasing
