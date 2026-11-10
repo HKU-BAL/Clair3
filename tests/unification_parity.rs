@@ -28,6 +28,7 @@ struct RealInputs {
     reference: PathBuf,
     bed: PathBuf,
     contig: String,
+    platform: String,
 }
 
 fn run(command: &mut Command) -> Output {
@@ -80,6 +81,8 @@ fn real_inputs(test_name: &str) -> Option<RealInputs> {
             "/Users/Aqua/Temp/Clair3/target/tmp/training-chr21-inputs/truth/region.bed",
         ),
         contig: std::env::var("CLAIR3_UNIFICATION_CONTIG").unwrap_or_else(|_| "chr21".to_string()),
+        platform: std::env::var("CLAIR3_UNIFICATION_PLATFORM")
+            .unwrap_or_else(|_| "hifi".to_string()),
     };
     let required = [
         ("validation Python", &inputs.python),
@@ -158,11 +161,13 @@ fn unification_args(
     extended_bed: &Path,
     output: &Path,
     chunk_id: usize,
+    candidate_details: Option<&Path>,
+    range: Option<(i64, i64)>,
 ) -> Vec<OsString> {
     let mut args = vec![
         OsString::from("UnifyRepresentation"),
         OsString::from("--platform"),
-        OsString::from("hifi"),
+        OsString::from(inputs.platform.clone()),
         OsString::from("--bam_fn"),
         inputs.bam.as_os_str().to_owned(),
         OsString::from("--var_fn"),
@@ -184,6 +189,16 @@ fn unification_args(
         OsString::from("--ctgName"),
         OsString::from(inputs.contig.clone()),
     ];
+    if let Some(candidate_details) = candidate_details {
+        args.push(OsString::from("--candidate_details_fn"));
+        args.push(candidate_details.as_os_str().to_owned());
+    }
+    if let Some((start, end)) = range {
+        args.push(OsString::from("--ctgStart"));
+        args.push(OsString::from(start.to_string()));
+        args.push(OsString::from("--ctgEnd"));
+        args.push(OsString::from(end.to_string()));
+    }
     args.shrink_to_fit();
     args
 }
@@ -230,53 +245,147 @@ fn split_extend_bed(inputs: Option<&RealInputs>, bed: &Path, output: &Path) {
     }
 }
 
-type RecordsByPosition<'a> =
-    std::collections::BTreeMap<(String, u64), (Vec<&'a UnifiedRecord>, Vec<&'a UnifiedRecord>)>;
-
-fn chunk_difference(
-    chunk_id: usize,
-    original: &[UnifiedRecord],
-    native: &[UnifiedRecord],
-) -> String {
-    let mut positions: RecordsByPosition<'_> = std::collections::BTreeMap::new();
-    for record in original {
-        positions
-            .entry((record.contig.clone(), record.position))
-            .or_default()
-            .0
-            .push(record);
-    }
-    for record in native {
-        positions
-            .entry((record.contig.clone(), record.position))
-            .or_default()
-            .1
-            .push(record);
-    }
-    let difference_count = positions
-        .iter()
-        .filter(|(_, (left, right))| left != right)
-        .count();
-    let mut differences = Vec::new();
-    for ((contig, position), (left, right)) in
-        positions.iter().filter(|(_, (left, right))| left != right)
-    {
-        differences.push(format!(
-            "  {contig}:{position}: original={left:?}\n             rust={right:?}"
-        ));
-        if differences.len() == 4 {
-            break;
+/// The region covered by the extended BED.
+fn extended_bed_range(path: &Path) -> (i64, i64) {
+    let mut start = i64::MAX;
+    let mut end = i64::MIN;
+    for line in fs::read_to_string(path).unwrap().lines() {
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        if fields.len() >= 3 {
+            start = start.min(fields[1].parse::<i64>().unwrap());
+            end = end.max(fields[2].parse::<i64>().unwrap());
         }
     }
-    if differences.is_empty() {
-        differences.push("  record order differs; per-position records are identical".to_string());
+    assert!(start <= end, "the extended BED {path:?} is empty");
+    (start, end)
+}
+
+/// The first and last candidate position of a candidate row file.
+fn candidate_positions(path: &Path) -> (i64, i64) {
+    let mut first = i64::MAX;
+    let mut last = i64::MIN;
+    for line in fs::read_to_string(path).unwrap().lines() {
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let position: i64 = line
+            .split_whitespace()
+            .nth(1)
+            .unwrap()
+            .parse()
+            .unwrap_or_else(|error| panic!("invalid candidate position in {line}: {error}"));
+        first = first.min(position);
+        last = last.max(position);
     }
-    format!(
-        "chunk {chunk_id}: original records={}, rust records={}, differing positions={difference_count}\n{}",
-        original.len(),
-        native.len(),
-        differences.join("\n")
-    )
+    assert!(first <= last, "the candidate file {path:?} is empty");
+    (first, last)
+}
+
+/// Generate the candidate rows with the reference implementation.
+///
+/// The reference applies an indel allele-frequency threshold inside its
+/// candidate discovery, separately from `--min_af`, and the reference
+/// unification command does not forward an indel threshold. The harness
+/// therefore drives the reference candidate discovery directly with the same
+/// thresholds the native implementation uses, so both sides work on the same
+/// candidates.
+fn original_candidate_rows(
+    inputs: &RealInputs,
+    extended_bed: &Path,
+    output: &Path,
+    start: i64,
+    end: i64,
+) {
+    let mut command = Command::new(&inputs.python);
+    command
+        .arg(&inputs.original)
+        .arg("CreateTensorFullAlignment")
+        .arg("--bam_fn")
+        .arg(&inputs.bam)
+        .arg("--ref_fn")
+        .arg(&inputs.reference)
+        .arg("--ctgName")
+        .arg(&inputs.contig)
+        .arg("--ctgStart")
+        .arg(start.to_string())
+        .arg("--ctgEnd")
+        .arg(end.to_string())
+        .arg("--platform")
+        .arg(&inputs.platform)
+        .arg("--min_af")
+        .arg("0.08")
+        .arg("--indel_min_af")
+        .arg("0.08")
+        .arg("--extend_bed")
+        .arg(extended_bed)
+        .arg("--bed_fn")
+        .arg(&inputs.bed)
+        .arg("--unify_repre")
+        .arg("--phasing_info_in_bam")
+        .arg("--unify_repre_fn")
+        .arg(output)
+        .env("PYTHONDONTWRITEBYTECODE", "1");
+    run(&mut command);
+    assert!(
+        output.exists() && fs::metadata(output).unwrap().len() > 0,
+        "the reference produced no candidate rows"
+    );
+}
+
+/// Compare the reference and native unification records.
+///
+/// The reference emits the alternate alleles of a multi-allelic record in
+/// Python hash order, which is not reproducible between runs, while the native
+/// implementation emits them in the candidate order. Every other field and the
+/// allele set must match.
+fn records_match(original: &[UnifiedRecord], native: &[UnifiedRecord]) -> Option<String> {
+    let key = |record: &UnifiedRecord| (record.contig.clone(), record.position);
+    let left: std::collections::BTreeMap<_, _> = original.iter().map(|r| (key(r), r)).collect();
+    let right: std::collections::BTreeMap<_, _> = native.iter().map(|r| (key(r), r)).collect();
+    if let Some(position) = left.keys().find(|position| !right.contains_key(position)) {
+        return Some(format!("{position:?} is missing from the native output"));
+    }
+    if let Some(position) = right.keys().find(|position| !left.contains_key(position)) {
+        return Some(format!("{position:?} is missing from the reference output"));
+    }
+    for ((_position, left), (_other, right)) in left.iter().zip(right.iter()) {
+        for (name, left_value, right_value) in [
+            ("reference allele", &left.reference, &right.reference),
+            ("genotype", &left.genotype, &right.genotype),
+            (
+                "genotype quality",
+                &left.genotype_quality,
+                &right.genotype_quality,
+            ),
+            ("depth", &left.depth, &right.depth),
+            (
+                "allele frequency",
+                &left.allele_frequency,
+                &right.allele_frequency,
+            ),
+        ] {
+            if left_value != right_value {
+                return Some(format!(
+                    "{name} differs: reference={left_value} native={right_value}"
+                ));
+            }
+        }
+        if left.phase_set != right.phase_set {
+            return Some(format!(
+                "phase set differs: reference={:?} native={:?}",
+                left.phase_set, right.phase_set
+            ));
+        }
+        let left_alleles: std::collections::BTreeSet<&str> = left.alternate.split(',').collect();
+        let right_alleles: std::collections::BTreeSet<&str> = right.alternate.split(',').collect();
+        if left_alleles != right_alleles {
+            return Some(format!(
+                "alternate alleles differ: reference={} native={}",
+                left.alternate, right.alternate
+            ));
+        }
+    }
+    None
 }
 
 #[test]
@@ -311,7 +420,9 @@ fn anchor_records_preserve_candidate_alleles_and_metadata() {
     let mut records = std::collections::BTreeMap::new();
     for chunk_id in 1..=2 {
         let output = directory.path().join(format!("rust-anchor-{chunk_id}.vcf"));
-        run_native(&unification_args(&inputs, &extended, &output, chunk_id));
+        run_native(&unification_args(
+            &inputs, &extended, &output, chunk_id, None, None,
+        ));
         for record in unified_records(&output) {
             records.insert(record.position, record);
         }
@@ -353,7 +464,6 @@ fn anchor_records_preserve_candidate_alleles_and_metadata() {
 }
 
 #[test]
-#[ignore = "requires prepared original chr21 unification inputs"]
 fn chunked_unification_matches_original() {
     let Some(inputs) = real_inputs("chunked_unification_matches_original") else {
         return;
@@ -363,38 +473,60 @@ fn chunked_unification_matches_original() {
     let native_extended = directory.path().join("rust-extended.bed");
     split_extend_bed(Some(&inputs), &inputs.bed, &original_extended);
     split_extend_bed(None, &inputs.bed, &native_extended);
+    let (start, end) = extended_bed_range(&original_extended);
 
+    // Reference candidate rows with the same allele-frequency thresholds the
+    // native implementation uses.
+    let candidates = directory.path().join("original-candidates.txt");
+    original_candidate_rows(&inputs, &original_extended, &candidates, start, end);
+
+    // The reference and the native must agree on every record. The chunk
+    // ranges are passed explicitly so both implementations cover exactly the
+    // same region.
+    let (first, last) = candidate_positions(&candidates);
+    let size = (last - first) / CHUNK_COUNT as i64 + 1;
     let mut differences = Vec::new();
     let mut original_total = 0;
     let mut native_total = 0;
     for chunk_id in 1..=CHUNK_COUNT {
+        let chunk_start = first + size * (chunk_id as i64 - 1);
+        let chunk_end = chunk_start + size;
         let original_output = directory.path().join(format!("original-{chunk_id}.vcf"));
         let native_output = directory.path().join(format!("rust-{chunk_id}.vcf"));
         run_original(
             &inputs,
-            &unification_args(&inputs, &original_extended, &original_output, chunk_id),
+            &unification_args(
+                &inputs,
+                &original_extended,
+                &original_output,
+                chunk_id,
+                Some(&candidates),
+                Some((chunk_start, chunk_end)),
+            ),
         );
         run_native(&unification_args(
             &inputs,
             &original_extended,
             &native_output,
             chunk_id,
+            Some(&candidates),
+            Some((chunk_start, chunk_end)),
         ));
         let original = unified_records(&original_output);
         let native = unified_records(&native_output);
         original_total += original.len();
         native_total += native.len();
-        if original != native {
-            differences.push(chunk_difference(chunk_id, &original, &native));
+        if let Some(difference) = records_match(&original, &native) {
+            differences.push(format!("chunk {chunk_id}: {difference}"));
         }
     }
     assert!(
         original_total > 0 && native_total > 0,
-        "empty unification comparison: original records={original_total}, rust records={native_total}"
+        "empty unification comparison: reference records={original_total}, rust records={native_total}"
     );
     assert!(
         differences.is_empty(),
-        "unification differed in {} of {CHUNK_COUNT} chunks; original records={original_total}, rust records={native_total}\n{}",
+        "unification differed in {} of {CHUNK_COUNT} chunks; reference records={original_total}, rust records={native_total}\n{}",
         differences.len(),
         differences.join("\n")
     );

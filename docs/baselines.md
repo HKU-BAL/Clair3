@@ -119,8 +119,12 @@ cargo test --test unification_parity chunked_unification_matches_original \
   --release --locked -- --ignored --exact --nocapture
 ```
 
-The differential is expected to report the residual differences documented in
-the [optimization and verification report](rust_optimization.md): the
-reference applies its own indel allele-frequency threshold separately from
-`--min_af`, and it emits alternate alleles in hash order, while the native
-implementation uses the deterministic candidate order.
+The harness generates the reference candidate rows with the same
+allele-frequency thresholds the native implementation uses and feeds the
+identical rows to both implementations, so the comparison isolates the
+unification logic and passes. The reference emits the alternate alleles of a
+multi-allelic record in Python hash order, which is not reproducible between
+runs, so the allele sets are compared while the native order is pinned by
+`tests/candidate_parity.rs`. That test also reports the residual difference
+between the two candidate discoveries, which is documented in the
+[optimization and verification report](rust_optimization.md).
