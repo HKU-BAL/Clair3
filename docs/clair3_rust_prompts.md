@@ -1,6 +1,6 @@
 # Clair3-Rust project prompt history
 
-This document records all 40 user-authored prompts from the Clair3-Rust rewrite, optimization, training-validation, and reference-baseline session in chronological order. The text inside each block is verbatim. Automated reminders, goal notifications, assistant responses, and tool output are not included.
+This document records all 41 user-authored prompts from the Clair3-Rust rewrite, optimization, training-validation, and reference-baseline session in chronological order. The text inside each block is verbatim. Automated reminders, goal notifications, assistant responses, and tool output are not included.
 
 This is a historical request log, not a sequence of commands to execute again. For current installation, testing, implementation policy, and validation results, use [Installing Clair3-Rust](rust_installation.md), [Quick-testing Clair3-Rust](rust_quick_test.md), and the [optimization and verification report](rust_optimization.md).
 
@@ -251,4 +251,10 @@ suggest what else could be done to improve the comprehensiveness and quality of 
 
 ```text
 work on 1
+```
+
+## Prompt 41
+
+```text
+proceed with 2 adn 3
 ```
