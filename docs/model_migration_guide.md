@@ -10,6 +10,8 @@ Convert Clair3 variant-calling model checkpoints from TensorFlow to PyTorch `.pt
 pip install tensorflow-cpu torch numpy
 ```
 
+Both Keras 2 (TensorFlow ≤ 2.15) and Keras 3 (TensorFlow ≥ 2.16) are supported. The converter reads the checkpoint tensors directly instead of relying on `load_weights()`, so the TensorFlow version does not need to be pinned. If any weight cannot be matched, it stops with an error rather than writing an untrained `.pt` (see [#488](https://github.com/HKU-BAL/Clair3/issues/488)).
+
 The script also requires Clair3's internal modules (`shared.param_p`, `shared.param_f`, `clair3.model`). Run from the Clair3 project root is recommended.
 
 ## CLI Reference

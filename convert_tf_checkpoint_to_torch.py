@@ -374,6 +374,112 @@ def _build_tf_models(tf, model_type, add_indel_length, input_channels):
     return model
 
 
+def _model_weight_variables(tf_model):
+    """Model weights in the order the legacy Keras 2 checkpoints store them.
+
+    Keras 2 flattens model.variables layer by layer, listing a layer's trainable
+    weights before its non-trainable ones. Keras 3 uses a different order, so the
+    Keras 2 order is rebuilt here to line up with the checkpoint's positional
+    "variables/N" entries.
+    """
+    variables, seen = [], set()
+    for layer in tf_model.layers:
+        for variable in list(layer.trainable_variables) + list(layer.non_trainable_variables):
+            # Keras 3 adds a per-layer RNG state; it is not a model weight.
+            if "seed_generator_state" in variable.name or id(variable) in seen:
+                continue
+            seen.add(id(variable))
+            variables.append(variable)
+    return variables
+
+
+def _checkpoint_variable(tf_model, path):
+    """Resolve a checkpoint path such as 'L4/kernel' to the model's variable."""
+    target = tf_model
+    for part in path.split("/"):
+        target = getattr(target, part)
+    return target
+
+
+def _restore_checkpoint(tf, tf_model, checkpoint):
+    """Assign every weight from the TF checkpoint to tf_model explicitly.
+
+    The graph-based routes (Keras 2's load_weights() and tf.train.Checkpoint
+    restore) do not work across Keras versions: Keras 3 rejects the legacy
+    checkpoint format, and its models expose different object paths. Reading the
+    checkpoint's tensors directly and assigning them by name (and, for the LSTM
+    and convolutional weights stored positionally, by order) works on both Keras
+    2 and Keras 3, and fails loudly instead of writing an untrained .pt (#488).
+    """
+    reader = tf.train.load_checkpoint(checkpoint)
+    shapes = reader.get_variable_to_shape_map()
+    entries = [name for name, _ in tf.train.list_variables(checkpoint)]
+    entries = [
+        name for name in entries
+        if ".OPTIMIZER_SLOT" not in name
+        and not name.endswith("save_counter")
+        and not name.startswith(("keras_api/", "optimizer/", "_CHECKPOINT"))
+    ]
+
+    positional, named = [], []
+    for name in entries:
+        path = name.replace("/.ATTRIBUTES/VARIABLE_VALUE", "")
+        parts = path.split("/")
+        if len(parts) == 2 and parts[0] == "variables" and parts[1].isdigit():
+            positional.append((int(parts[1]), name, path))
+        else:
+            named.append((path, name))
+
+    model_variables = _model_weight_variables(tf_model)
+    assigned, problems = set(), []
+
+    for path, name in named:
+        try:
+            target = _checkpoint_variable(tf_model, path)
+        except AttributeError:
+            problems.append("checkpoint entry '{}' has no matching model variable".format(path))
+            continue
+        if tuple(target.shape) != tuple(shapes[name]):
+            problems.append(
+                "shape mismatch for '{}': model {} vs checkpoint {}".format(
+                    path, tuple(target.shape), tuple(shapes[name])
+                )
+            )
+            continue
+        target.assign(reader.get_tensor(name))
+        assigned.add(id(target))
+
+    remaining = [variable for variable in model_variables if id(variable) not in assigned]
+    positional.sort()
+    if len(remaining) != len(positional):
+        problems.append(
+            "{} positional checkpoint variables but {} model variables left to fill".format(
+                len(positional), len(remaining)
+            )
+        )
+    for (_, name, path), target in zip(positional, remaining):
+        if tuple(target.shape) != tuple(shapes[name]):
+            problems.append(
+                "shape mismatch for positional '{}' -> {}: model {} vs checkpoint {}".format(
+                    path, target.name, tuple(target.shape), tuple(shapes[name])
+                )
+            )
+            continue
+        target.assign(reader.get_tensor(name))
+        assigned.add(id(target))
+
+    unfilled = [variable.name for variable in model_variables if id(variable) not in assigned]
+    if unfilled:
+        problems.append("model variables left unassigned: {}".format(", ".join(unfilled[:5])))
+
+    if problems:
+        sys.exit(
+            "[ERROR] Could not load TensorFlow checkpoint '{}' completely:\n  - {}".format(
+                checkpoint, "\n  - ".join(problems[:10])
+            )
+        )
+
+
 def _convert_single(tf, checkpoint, output_path, model_type, platform, add_indel_length, enable_dwell_time):
     if model_type == "pileup":
         tensor_shape = param_p.input_shape
@@ -381,11 +487,7 @@ def _convert_single(tf, checkpoint, output_path, model_type, platform, add_indel
         dummy = tf.zeros((1, tensor_shape[0], input_channels), dtype=tf.float32)
         tf_model = _build_tf_models(tf, "pileup", add_indel_length, input_channels)
         tf_model(dummy)
-        try:
-            tf_model.load_weights(checkpoint).expect_partial()
-        except Exception:
-            ckpt = tf.train.Checkpoint(model=tf_model)
-            ckpt.restore(checkpoint).expect_partial()
+        _restore_checkpoint(tf, tf_model, checkpoint)
 
         torch_model = Clair3_P(add_indel_length=add_indel_length, predict=True, input_channels=input_channels)
         _convert_pileup(tf_model, torch_model, add_indel_length)
@@ -397,11 +499,7 @@ def _convert_single(tf, checkpoint, output_path, model_type, platform, add_indel
         dummy = tf.zeros((1, tensor_shape[0], tensor_shape[1], input_channels), dtype=tf.float32)
         tf_model = _build_tf_models(tf, "full_alignment", add_indel_length, input_channels)
         tf_model(dummy)
-        try:
-            tf_model.load_weights(checkpoint).expect_partial()
-        except Exception:
-            ckpt = tf.train.Checkpoint(model=tf_model)
-            ckpt.restore(checkpoint).expect_partial()
+        _restore_checkpoint(tf, tf_model, checkpoint)
 
         torch_model = Clair3_F(add_indel_length=add_indel_length, predict=True, input_channels=input_channels)
         _convert_full_alignment(tf_model, torch_model, add_indel_length)
