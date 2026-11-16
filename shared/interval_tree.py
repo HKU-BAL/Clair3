@@ -65,3 +65,19 @@ def is_region_in(tree, contig_name, region_start=None, region_end=None):
         if region_end is None else
         interval_tree.overlap(begin=region_start, end=region_end)
     ) > 0
+
+
+def is_position_in_bed(tree, contig_name, position):
+    """Check a 1-based position (VCF convention) against a 0-based half-open BED tree.
+
+    BED intervals are 0-based and half-open, so the 1-based base `position`
+    covers [position - 1, position). Querying the tree with `position` directly
+    tests the base after the variant instead: it drops variants on the last base
+    of an interval and deletions whose first deleted base falls outside the BED
+    (issue #489).
+    """
+    if not tree or (contig_name is None) or (contig_name not in tree):
+        return False
+
+    start = int(position) - 1
+    return is_region_in(tree, contig_name, start, start + 1)
