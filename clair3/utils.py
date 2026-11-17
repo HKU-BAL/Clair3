@@ -7,7 +7,7 @@ import numpy as np
 from functools import partial
 import logging
 from clair3.task.main import *
-from shared.interval_tree import bed_tree_from, is_region_in
+from shared.interval_tree import bed_tree_from, is_position_in_bed
 from shared.utils import subprocess_popen, IUPAC_base_to_ACGT_base_dict as BASE2BASE, IUPAC_base_to_num_dict as BASE2NUM
 
 shuffle_bin_size = 50000
@@ -198,7 +198,7 @@ def variant_map_from(var_fn, tree, is_tree_empty):
         if genotype1 == '-1' or genotype2 == '-1':
             miss_variant_set.add(key)
             continue
-        if not (is_tree_empty or is_region_in(tree, ctg_name, int(position_str))):
+        if not (is_tree_empty or is_position_in_bed(tree, ctg_name, position_str)):
             continue
 
         Y[key] = output_labels_from_vcf_columns(columns)
@@ -345,7 +345,7 @@ def bin_reader_generator_from(tensor_fn, Y_true_var, Y, is_tree_empty, tree, mis
     for row_idx, row in enumerate(tensor_fn):
         chrom, coord, seq, string, alt_info = row.split("\t")
         alt_info = alt_info.rstrip()
-        if not (is_tree_empty or is_region_in(tree, chrom, int(coord))):
+        if not (is_tree_empty or is_position_in_bed(tree, chrom, coord)):
             continue
         seq = seq.upper()
         if seq[param.flankingBaseNum] not in 'ACGT':
