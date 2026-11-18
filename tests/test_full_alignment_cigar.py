@@ -54,7 +54,7 @@ class FullAlignmentCigarTest(unittest.TestCase):
             b"test:1-4000", str(bam).encode(), str(self.fasta).encode(),
             ffi.new("struct Variant *[]", 0), 0,
             ffi.new("size_t[]", candidates), len(candidates),
-            False, 5, 0, 1, 50, dwell,
+            False, 5, 0, 1, 50, dwell, False,
         )
         try:
             channels = 9 if dwell else 8
