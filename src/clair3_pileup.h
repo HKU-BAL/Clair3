@@ -1,13 +1,17 @@
 #ifndef _CLAIR3_PILEUP_H
 #define _CLAIR3_PILEUP_H
 
+#include <stdint.h>
+
 // medaka-style feature data
 typedef struct _plp_data {
     size_t buffer_cols;
     size_t num_dtypes;
     size_t num_homop;
     size_t n_cols;
-    size_t *matrix;
+    // Counts are bounded by the 2^20-read pileup limit. Reference channels
+    // store negative counts, so a signed 32-bit element is sufficient.
+    int32_t *matrix;
     size_t *major;
     size_t *minor;
     char **all_alt_info;

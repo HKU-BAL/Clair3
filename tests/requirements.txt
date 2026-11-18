@@ -1,0 +1,2 @@
+# In addition to Clair3's runtime dependencies and a built libclair3 module.
+pysam>=0.22
