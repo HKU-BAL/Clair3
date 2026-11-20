@@ -48,6 +48,36 @@ class FullAlignmentCigarTest(unittest.TestCase):
         pysam.index(str(bam))
         return bam
 
+    def write_reads(self, reads):
+        """Write forward-strand all-A reads given as (start, cigar) pairs."""
+        bam = self.root / "reads.bam"
+        with pysam.AlignmentFile(bam, "wb", header={
+            "HD": {"VN": "1.6", "SO": "coordinate"},
+            "SQ": [{"SN": "test", "LN": 4000}],
+        }) as out:
+            for index, (start, cigar) in enumerate(
+                    sorted(reads, key=lambda read: read[0])):
+                length = sum(n for op, n in cigar if op in (0, 1, 4, 7, 8))
+                read = pysam.AlignedSegment()
+                read.query_name = "read%d" % index
+                read.flag = 0
+                read.reference_id = 0
+                read.reference_start = start
+                read.mapping_quality = 60
+                read.cigartuples = cigar
+                read.query_sequence = "A" * length
+                read.query_qualities = array("B", [40] * length)
+                out.write(read)
+        pysam.index(str(bam))
+        return bam
+
+    @staticmethod
+    def depth_and_counts(alt_info):
+        """Return (depth, {allele: count}) from a native alt_info string."""
+        _, depth, _, alleles = alt_info.decode().split("-", 3)
+        fields = alleles.split()
+        return int(depth), dict(zip(fields[::2], map(int, fields[1::2])))
+
     def tensors(self, bam, candidates, dwell=False):
         ffi, lib = libclair3.ffi, libclair3.lib
         result = lib.calculate_clair3_full_alignment(
@@ -132,6 +162,28 @@ class FullAlignmentCigarTest(unittest.TestCase):
         empty, empty_alleles = self.tensors(bam, [])
         self.assertEqual(empty.shape, (0, 33, 8))
         self.assertEqual(empty_alleles, [])
+
+    def test_reads_clipped_at_deletion_breakpoint_are_not_reference(self):
+        # Candidate 200 is the anchor of a 20 bp deletion. Reads that stop
+        # within a few bases after the anchor and are then clipped cannot show
+        # whether the deletion is present and must not count as reference.
+        reads = (
+            [(150, [(0, 51), (2, 20), (0, 50)])] * 2      # deletion carriers
+            + [(150, [(0, 52), (4, 50)])] * 3             # clipped at breakpoint
+            + [(150, [(0, 120)])]                         # spans as reference
+            + [(150, [(0, 60), (4, 30)])]                 # clipped 9 bp later
+            + [(150, [(0, 51), (2, 2), (0, 2), (4, 50)])]  # 2 bp deletion carrier
+        )
+        _, alleles = self.tensors(self.write_reads(reads), [200])
+        depth, counts = self.depth_and_counts(alleles[0])
+        # Previously depth 8 and reference 5 (8 reference bases - 3 deletions).
+        self.assertEqual(depth, 5)
+        self.assertEqual(counts, {"D" + "A" * 20: 2, "DAA": 1, "RA": 2})
+
+    def test_clipped_read_at_snv_only_candidate_is_reference(self):
+        reads = [(550, [(0, 51), (4, 40)]), (550, [(0, 100)])]
+        _, alleles = self.tensors(self.write_reads(reads), [600])
+        self.assertEqual(alleles[0], b"601-2-A-RA 2 ")
 
 
 if __name__ == "__main__":

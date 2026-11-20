@@ -73,6 +73,15 @@ static int32_t *compute_signal_lengths_from_mv_tag(const bam1_t *alignment, bool
     return signals;
 }
 
+// Aligners often clip reads carrying a long deletion at the breakpoint instead
+// of emitting a D, leaving the read's last aligned base at (or just after) the
+// deletion anchor. Such a read cannot show whether the deletion is present, but
+// it carries the reference base at the anchor and would otherwise be reported as
+// reference support. At deletion candidates, reads whose alignment ends fewer
+// than this many reference bases after the candidate and is followed only by
+// soft/hard clips are left out of the reported reference count and depth.
+static const size_t min_junction_flank = 5;
+
 typedef struct Pos_alt_info
 {
 
@@ -80,6 +89,8 @@ typedef struct Pos_alt_info
     khash_t(KH_INT_COUNTER) * del_counter;
     size_t acgt_count[4];
     size_t depth;
+    // reference-base observations from reads clipped just after this position
+    size_t clipped_ref;
 
 } Pos_alt_info;
 
@@ -515,6 +526,7 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
         pos_alt_info[i].ins_counter = kh_init(KH_COUNTER);
         pos_alt_info[i].del_counter = kh_init(KH_INT_COUNTER);
         pos_alt_info[i].depth = 0;
+        pos_alt_info[i].clipped_ref = 0;
         for (size_t j = 0; j < 4; j++)
             pos_alt_info[i].acgt_count[j] = 0;
 
@@ -727,6 +739,14 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
         size_t flanking_cursor = flanking_start;
         const size_t flanking_end = flanking_start + overlap_candidates_num;
 
+        // index of the first CIGAR operation in the read's trailing clip run
+        // (n_cigar when the read has no trailing soft/hard clip)
+        size_t trailing_clip_start = n_cigar;
+        while (trailing_clip_start > 0 &&
+               (bam_cigar_op(cigartuples[trailing_clip_start - 1]) == BAM_CSOFT_CLIP ||
+                bam_cigar_op(cigartuples[trailing_clip_start - 1]) == BAM_CHARD_CLIP))
+            trailing_clip_start--;
+
         for (size_t i = 0; i < n_cigar; i++)
         {
             size_t cigar_op = bam_cigar_op(cigartuples[i]);
@@ -759,6 +779,12 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
                         char alt_base = seq_nt16_str[pos_info[offset].alt_base];
                         pos_alt_info[center_pos_index].acgt_count[acgt2num[alt_base - 'A']]++;
                         pos_alt_info[center_pos_index].depth++;
+
+                        // reference base followed only by clipping within min_junction_flank bases
+                        if (i + 1 == trailing_clip_start && trailing_clip_start < n_cigar &&
+                            ref_pos + length - 1 - p < min_junction_flank &&
+                            alt_base == upper_base(ref_seq[p - (size_t)ref_start]))
+                            pos_alt_info[center_pos_index].clipped_ref++;
 
                     }
                 }
@@ -1111,7 +1137,16 @@ size_t min_mq, size_t min_bq, size_t matrix_depth, size_t max_indel_length, bool
 
         int ref_count = pos_alt_info[i].acgt_count[acgt2num[center_ref_base - 'A']];
 
-        sprintf(alt_info_str, "%zu-%zu-%c-", candidate + 1, candidate_depth, center_ref_base);
+        // at deletion candidates, reads clipped at the breakpoint are uninformative
+        // (see min_junction_flank); the tensor above still uses the full depth
+        size_t alt_info_depth = candidate_depth;
+        if (kh_size(pos_alt_info[i].del_counter) > 0)
+        {
+            ref_count -= (int)pos_alt_info[i].clipped_ref;
+            alt_info_depth -= pos_alt_info[i].clipped_ref;
+        }
+
+        sprintf(alt_info_str, "%zu-%zu-%c-", candidate + 1, alt_info_depth, center_ref_base);
         for (int8_t j = 0; j < 4; j++)
         {
             if (j != acgt2num[center_ref_base - 'A'] && pos_alt_info[i].acgt_count[j] > 0)

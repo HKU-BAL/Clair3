@@ -16,6 +16,3 @@ samtools-*.tar.bz2
 longphase-*/
 longphase-*.tar.xz
 /v*.tar.gz
-
-# Local-only tests (not tracked in the release repository)
-tests/
