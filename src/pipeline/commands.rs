@@ -10,7 +10,7 @@ use anyhow::{Context, Result, bail};
 use clap::Args;
 
 use crate::{
-    config::Platform,
+    config::{Gender, Platform},
     io::{
         compression::open_text,
         reference::Reference,
@@ -192,6 +192,10 @@ pub struct SortVcfArgs {
     haploid_precise: bool,
     #[arg(long, num_args = 0..=1, default_missing_value = "true", default_value_t = false)]
     haploid_sensitive: bool,
+    #[arg(long, value_enum, default_value = "unknown")]
+    gender: Gender,
+    #[arg(long)]
+    par_regions_bed: Option<PathBuf>,
     #[arg(long, default_value = "2")]
     qual: Option<f64>,
     #[arg(long, num_args = 0..=1, default_missing_value = "true", default_value_t = false)]
@@ -411,6 +415,13 @@ pub fn sort_vcf(args: SortVcfArgs) -> Result<()> {
                 print_ref_calls: args.print_ref_calls,
                 haploid_precise: args.haploid_precise,
                 haploid_sensitive: args.haploid_sensitive,
+                gender: args.gender,
+                par_regions: args
+                    .par_regions_bed
+                    .as_ref()
+                    .map(|path| crate::io::interval::IntervalMap::from_bed(path, None))
+                    .transpose()?
+                    .map(std::sync::Arc::new),
                 qual: args.qual,
             },
         );

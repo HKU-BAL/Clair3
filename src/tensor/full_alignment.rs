@@ -269,6 +269,7 @@ struct CandidateAltInfo {
     del_counter: KhCounter<usize>,
     acgt_count: [i64; 4],
     depth: i64,
+    clipped_ref: i64,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1044,6 +1045,37 @@ fn update_candidate_alt(counts: &mut CandidateAltInfo, window: &ReadWindow) {
     }
 }
 
+fn clipped_reference(read: &ReadAlignment, candidate: i64, center_ref: u8, info: &PosInfo) -> bool {
+    let mut operations = read.cigar.iter().rev();
+    if !matches!(
+        operations.next(),
+        Some(bam::record::Cigar::SoftClip(_) | bam::record::Cigar::HardClip(_))
+    ) {
+        return false;
+    }
+    let Some(operation) = operations.find(|operation| {
+        !matches!(
+            operation,
+            bam::record::Cigar::SoftClip(_) | bam::record::Cigar::HardClip(_)
+        )
+    }) else {
+        return false;
+    };
+    let aligned_length = match operation {
+        bam::record::Cigar::Match(length)
+        | bam::record::Cigar::Equal(length)
+        | bam::record::Cigar::Diff(length) => *length as i64,
+        _ => return false,
+    };
+    candidate >= read.read_end - aligned_length
+        && read.read_end > candidate
+        && read.read_end - 1 - candidate < 5
+        && info.alt_base >= 0
+        && info.del_length == 0
+        && info.ins_length == 0
+        && NT16[info.alt_base as usize].to_ascii_uppercase() == center_ref
+}
+
 fn matrix_index(
     candidate: usize,
     depth: usize,
@@ -1296,7 +1328,22 @@ fn create_full_alignment_impl(
         let start = candidate - FLANKING_BASES as i64;
         let end = candidate + FLANKING_BASES as i64 + 1;
         let mut read_windows = Vec::new();
-        if !options.illumina {
+        if options.illumina {
+            let Some(flanking_index) = flanking_indices.get(candidate).copied() else {
+                continue;
+            };
+            for read in reads {
+                if flanking_index < read.flanking_start {
+                    continue;
+                }
+                let Some(info) = read.pos_info.get(flanking_index - read.flanking_start) else {
+                    continue;
+                };
+                if clipped_reference(read, *candidate, center_ref, info) {
+                    candidate_alt[candidate_index].clipped_ref += 1;
+                }
+            }
+        } else {
             let read_end = reads.partition_point(|read| read.read_start < end);
             let mut counts = CandidateAltInfo::default();
             for (read_index, read) in reads[..read_end]
@@ -1305,6 +1352,14 @@ fn create_full_alignment_impl(
                 .filter(|(_, read)| read.read_end > start)
             {
                 let window = read_window(read, start, options.enable_dwell_time);
+                if clipped_reference(
+                    read,
+                    *candidate,
+                    center_ref,
+                    &window.positions[FLANKING_BASES],
+                ) {
+                    counts.clipped_ref += 1;
+                }
                 update_candidate_alt(&mut counts, &window);
                 read_windows.push((read_index, window));
             }
@@ -1459,7 +1514,18 @@ fn create_full_alignment_impl(
             }
         }
 
+        let clipped_ref = if candidate_alt[candidate_index]
+            .del_counter
+            .iter()
+            .next()
+            .is_some()
+        {
+            candidate_alt[candidate_index].clipped_ref
+        } else {
+            0
+        };
         let candidate_depth = candidate_alt[candidate_index].depth;
+        let alt_info_depth = (candidate_depth - clipped_ref).max(0);
         for (depth_index, alt) in alt_rows.iter().enumerate() {
             if !alt.has_alt_info || candidate_depth == 0 {
                 continue;
@@ -1530,7 +1596,7 @@ fn create_full_alignment_impl(
             || candidate_alt[candidate_index].acgt_count[acgt_index(center_ref)],
             |(_, count)| *count,
         );
-        let ref_count = if python_alt.is_some() {
+        let ref_count = (if python_alt.is_some() {
             raw_ref_count
         } else {
             let insertions: i64 = candidate_alt[candidate_index]
@@ -1544,7 +1610,7 @@ fn create_full_alignment_impl(
                 .map(|(_, count)| *count)
                 .sum();
             raw_ref_count - insertions - deletions
-        };
+        }) - clipped_ref;
         let mut payload = String::new();
         if let Some((entries, _)) = &python_alt {
             for (allele, count) in entries {
@@ -1590,7 +1656,7 @@ fn create_full_alignment_impl(
         ));
         batch
             .alt_info
-            .push(format!("{}-{}", candidate_depth, payload.trim_end()));
+            .push(format!("{}-{}", alt_info_depth, payload.trim_end()));
     }
     Ok(batch)
 }
@@ -2355,5 +2421,102 @@ mod tests {
                 "decoded allele at chrToy:{position}"
             );
         }
+    }
+
+    #[test]
+    fn clipped_reads_do_not_support_deletion_reference() {
+        use rust_htslib::bam::{
+            Header, Writer,
+            record::{Cigar, CigarString},
+        };
+
+        let directory = tempfile::tempdir().unwrap();
+        let reference_path = directory.path().join("reference.fa");
+        std::fs::write(
+            &reference_path,
+            ">chrToy\n".to_string() + &"A".repeat(4000) + "\n",
+        )
+        .unwrap();
+        rust_htslib::faidx::build(&reference_path).unwrap();
+        let reference = Reference::open(&reference_path).unwrap();
+        let bam_path = directory.path().join("clipped.bam");
+        let mut header = Header::new();
+        let mut contig = bam::header::HeaderRecord::new(b"SQ");
+        contig.push_tag(b"SN", "chrToy").push_tag(b"LN", 4000);
+        header.push_record(&contig);
+        let mut writer = Writer::from_path(&bam_path, &header, bam::Format::Bam).unwrap();
+        let reads = vec![
+            (
+                CigarString(vec![Cigar::Match(51), Cigar::Del(20), Cigar::Match(50)]),
+                101,
+            ),
+            (
+                CigarString(vec![Cigar::Match(51), Cigar::Del(20), Cigar::Match(50)]),
+                101,
+            ),
+            (
+                CigarString(vec![Cigar::Match(52), Cigar::SoftClip(50)]),
+                102,
+            ),
+            (
+                CigarString(vec![Cigar::Match(52), Cigar::SoftClip(50)]),
+                102,
+            ),
+            (
+                CigarString(vec![Cigar::Match(52), Cigar::SoftClip(50)]),
+                102,
+            ),
+            (CigarString(vec![Cigar::Match(120)]), 120),
+            (CigarString(vec![Cigar::Match(60), Cigar::SoftClip(30)]), 90),
+            (
+                CigarString(vec![
+                    Cigar::Match(51),
+                    Cigar::Del(2),
+                    Cigar::Match(2),
+                    Cigar::SoftClip(50),
+                ]),
+                103,
+            ),
+        ];
+        for (index, (cigar, query_length)) in reads.into_iter().enumerate() {
+            let mut record = Record::new();
+            record.set(
+                format!("read{index}").as_bytes(),
+                Some(&cigar),
+                &vec![b'A'; query_length],
+                &vec![40; query_length],
+            );
+            record.set_tid(0);
+            record.set_pos(150);
+            record.set_mapq(60);
+            record.set_flags(0);
+            record.set_mtid(-1);
+            record.set_mpos(-1);
+            writer.write(&record).unwrap();
+        }
+        drop(writer);
+        bam::index::build(&bam_path, None, bam::index::Type::Bai, 0).unwrap();
+        let batch = create_full_alignment(
+            &bam_path,
+            &reference,
+            &Region::new("chrToy", 0, 4000).unwrap(),
+            &[200],
+            &[],
+            &FullAlignmentOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            batch.alt_info,
+            vec![format!("5-D{} 2 DAA 1 RA 2", "A".repeat(20))]
+        );
+        let mut deletion_af: Vec<_> = (0..batch.shape[1])
+            .filter(|depth| {
+                batch.values[matrix_index(0, *depth, FLANKING_BASES, 1, 89, 8)]
+                    == channel_base(b'D')
+            })
+            .map(|depth| batch.values[matrix_index(0, depth, FLANKING_BASES, 5, 89, 8)])
+            .collect();
+        deletion_af.sort_unstable();
+        assert_eq!(deletion_af, [12, 25, 25]);
     }
 }

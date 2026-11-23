@@ -1,6 +1,6 @@
 # Clair3 GPU quick start guide
 
-Clair3 supports CUDA for calling and training on Linux, and Metal Performance Shaders (MPS) for calling on Apple Silicon. The implementation is native Rust; core calling and training do not require Python or TensorFlow. WhatsHap phasing uses Python 3 and the unmodified upstream `whatshap==2.8` package.
+Clair3 supports CUDA for calling and training on Linux, ROCm through LibTorch's CUDA-compatible device interface, and Metal Performance Shaders (MPS) for calling on Apple Silicon. The implementation is native Rust; core calling and training do not require Python or TensorFlow. WhatsHap phasing uses Python 3 and the unmodified upstream `whatshap==2.8` package.
 
 ## NVIDIA Docker
 
@@ -36,6 +36,20 @@ docker run -it --gpus all \
 ```
 
 The image contains the Rust executable, LibTorch, Gloo, LongPhase, and the unmodified upstream WhatsHap 2.8 Python package. PyPy and TensorFlow are not installed. The entry point supplies the `run` subcommand automatically.
+
+## AMD ROCm Docker
+
+`Dockerfile.amd` builds the native Rust executable against AMD's ROCm PyTorch distribution. Select the GPU architecture with `GFX_ARCH` (`gfx942` for MI300X or the default `gfx950` for MI350X/MI355X), then run with the ROCm devices passed through:
+
+```bash
+docker build -f Dockerfile.amd --build-arg GFX_ARCH=gfx942 -t clair3-rocm .
+docker run --rm --device=/dev/kfd --device=/dev/dri --group-add=video \
+  clair3-rocm --bam_fn=/data/input.bam --ref_fn=/data/ref.fa \
+  --threads=8 --platform=ont --model_path=/opt/models/MODEL_NAME \
+  --use_gpu --device=cuda:0 --output=/data/output
+```
+
+ROCm PyTorch uses `cuda:N` device names; CPU remains the default. The ROCm image has not been hardware-validated in this integration environment, so its successful upstream package selection is not presented as an AMD correctness or performance result.
 
 ## Build locally on Linux
 
@@ -82,7 +96,7 @@ LIBTORCH_USE_PYTORCH=1 cargo build --release --locked
 
 LongPhase can be built with `make longphase` using an OpenMP-capable compiler. Apple Clang does not provide this by default; install GCC and select it with `LONGPHASE_CC` and `LONGPHASE_CXX` if needed. WhatsHap is optional for ONT and HiFi; LongPhase is used when WhatsHap is unavailable. Illumina phasing uses WhatsHap, or can be disabled with `--no_phasing_for_fa`.
 
-CPU is the default backend. With `--device=mps` or `--device=cuda:N`, full-alignment inference runs in dedicated GPU workers, with each model created and used in the same thread. Pileup remains on CPU to preserve candidate selection, and tensor generation remains parallel on CPU. GPU execution is optional; no GPU-specific runtime is needed for the default CPU pipeline. There is no AMD-specific backend, and AMD GPU execution has not been verified. Supported CPU builds reuse cached NNPACK kernels and spatially batch eight independent samples for supported 3x3 full-alignment convolutions. Small batches, other layers, and unsupported systems use ordinary LibTorch inference. BAM decoding uses bounded background thread pools. GPU numerical behavior is platform-dependent; see the [CUDA validation and measured output differences](rust_optimization.md#cuda-validation-on-an-nvidia-rtx-4090) before using it as a parity reference.
+CPU is the default backend. With `--device=mps` or `--device=cuda:N`, full-alignment inference runs in dedicated GPU workers, with each model created and used in the same thread. Pileup remains on CPU to preserve candidate selection, and tensor generation remains parallel on CPU. GPU execution is optional; no GPU-specific runtime is needed for the default CPU pipeline. Supported CPU builds reuse cached NNPACK kernels and spatially batch eight independent samples for supported 3x3 full-alignment convolutions. Small batches, other layers, and unsupported systems use ordinary LibTorch inference. BAM decoding uses bounded background thread pools. GPU numerical behavior is platform-dependent; see the [CUDA validation and measured output differences](rust_optimization.md#cuda-validation-on-an-nvidia-rtx-4090) before using it as a parity reference.
 
 For an opt-in CUDA model-parity check on an NVIDIA host, run:
 

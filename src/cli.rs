@@ -9,7 +9,7 @@ use clap::{ArgAction, Args, CommandFactory, Parser, Subcommand};
 
 use crate::{
     VERSION,
-    config::Platform,
+    config::{Gender, Platform},
     io::{
         reference::Reference,
         variant::{VcfRecord, vcf_header},
@@ -138,6 +138,10 @@ struct CommonCallArgs {
     haploid_precise: bool,
     #[arg(long, num_args = 0..=1, default_missing_value = "true", default_value_t = false)]
     haploid_sensitive: bool,
+    #[arg(long, value_enum, default_value = "unknown")]
+    gender: Gender,
+    #[arg(long, default_value = "EMPTY")]
+    par_regions_bed: String,
     #[arg(long, num_args = 0..=1, default_missing_value = "true", default_value_t = false)]
     use_gpu: bool,
     #[arg(long, default_value = "EMPTY")]
@@ -316,6 +320,8 @@ impl RunArgs {
         options.print_ref_calls = self.common.print_ref_calls;
         options.haploid_precise = self.common.haploid_precise;
         options.haploid_sensitive = self.common.haploid_sensitive;
+        options.gender = self.common.gender;
+        options.par_regions_bed = empty_path(&self.common.par_regions_bed);
         options.use_gpu = self.common.use_gpu;
         options.device = self.common.device.clone();
         options.command = Some(std::env::args().collect::<Vec<_>>().join(" "));
@@ -1015,6 +1021,10 @@ struct MergeVcfArgs {
     haploid_precise: bool,
     #[arg(long, num_args = 0..=1, default_missing_value = "true", default_value_t = false)]
     haploid_sensitive: bool,
+    #[arg(long, value_enum, default_value = "unknown")]
+    gender: Gender,
+    #[arg(long)]
+    par_regions_bed: Option<PathBuf>,
     #[arg(long, num_args = 0..=1, default_missing_value = "true", default_value_t = false)]
     gvcf: bool,
     #[arg(long = "non_var_gvcf_fn")]
@@ -1030,6 +1040,13 @@ fn merge_vcf(args: MergeVcfArgs) -> Result<()> {
         print_ref_calls: args.print_ref_calls,
         haploid_precise: args.haploid_precise,
         haploid_sensitive: args.haploid_sensitive,
+        gender: args.gender,
+        par_regions: args
+            .par_regions_bed
+            .as_ref()
+            .map(|path| crate::io::interval::IntervalMap::from_bed(path, None))
+            .transpose()?
+            .map(std::sync::Arc::new),
         qual: Some(args.qual),
     };
     let pileup = read_vcf(&args.pileup)?;

@@ -1,11 +1,18 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::Path,
+    sync::Arc,
 };
 
 use anyhow::Result;
 
-use crate::io::variant::{VcfReader, VcfRecord};
+use crate::{
+    config::Gender,
+    io::{
+        interval::IntervalMap,
+        variant::{VcfReader, VcfRecord},
+    },
+};
 
 #[derive(Debug, Default)]
 pub struct VcfFile {
@@ -30,6 +37,8 @@ pub struct MergeOptions {
     pub print_ref_calls: bool,
     pub haploid_precise: bool,
     pub haploid_sensitive: bool,
+    pub gender: Gender,
+    pub par_regions: Option<Arc<IntervalMap>>,
     pub qual: Option<f64>,
 }
 
@@ -39,9 +48,15 @@ impl Default for MergeOptions {
             print_ref_calls: false,
             haploid_precise: false,
             haploid_sensitive: false,
+            gender: Gender::Unknown,
+            par_regions: None,
             qual: Some(2.0),
         }
     }
+}
+
+pub(crate) fn should_call_contig(contig: &str, gender: Gender) -> bool {
+    gender != Gender::Female || !matches!(contig, "chrY" | "Y")
 }
 
 fn is_reference(record: &VcfRecord) -> bool {
@@ -54,7 +69,17 @@ fn update_haploid(record: &mut VcfRecord, options: &MergeOptions) -> bool {
         .next()
         .unwrap_or("")
         .replace('|', "/");
-    if options.haploid_precise {
+    let sex_chromosome = matches!(record.contig.as_str(), "chrX" | "X" | "chrY" | "Y");
+    let in_par = options.par_regions.as_ref().is_some_and(|regions| {
+        regions.overlaps(&record.contig, record.position - 1, record.position)
+    });
+    let precise = options.haploid_precise
+        || (!options.haploid_sensitive
+            && options.gender == Gender::Male
+            && sex_chromosome
+            && !in_par);
+    let sensitive = options.haploid_sensitive;
+    if precise {
         let genotype = match genotype.as_str() {
             "1/1" => "1",
             "0/0" => "0",
@@ -66,7 +91,7 @@ fn update_haploid(record: &mut VcfRecord, options: &MergeOptions) -> bool {
             .collect::<Vec<_>>()
             .join(":");
     }
-    if options.haploid_sensitive {
+    if sensitive {
         if record.alternate.contains(',') {
             return false;
         }
@@ -193,4 +218,69 @@ pub fn sort_records(records: &mut Vec<VcfRecord>, contigs: &[String]) {
         );
     }
     records.extend(ordered.into_values());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{config::Gender, io::interval::Region};
+    use std::sync::Arc;
+
+    fn record(contig: &str, position: i64, genotype: &str) -> VcfRecord {
+        VcfRecord::from_line(&format!(
+            "{contig}\t{position}\t.\tA\tG\t20\tPASS\t.\tGT:GQ\t{genotype}:20"
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn gender_controls_sex_chromosome_ploidy_and_par() {
+        let mut par = crate::io::interval::IntervalMap::default();
+        par.insert(Region::new("chrX", 50, 150).unwrap());
+        par.insert(Region::new("chrY", 50, 150).unwrap());
+        par.merge_overlaps();
+        let options = MergeOptions {
+            gender: Gender::Male,
+            par_regions: Some(Arc::new(par)),
+            ..Default::default()
+        };
+        let records = merge_records(
+            &[
+                record("chr1", 200, "0/1"),
+                record("chrX", 100, "1/1"),
+                record("chrX", 200, "1/1"),
+                record("chrY", 200, "0/1"),
+                record("Y", 100, "1/1"),
+            ],
+            &[],
+            &options,
+        );
+        let genotypes: BTreeMap<_, _> = records
+            .iter()
+            .map(|record| {
+                (
+                    (record.contig.as_str(), record.position),
+                    record.samples[0].split(':').next().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(genotypes.len(), 4);
+        assert_eq!(genotypes[&("chr1", 200)], "0/1");
+        assert_eq!(genotypes[&("chrX", 100)], "1/1");
+        assert_eq!(genotypes[&("chrX", 200)], "1");
+        assert_eq!(genotypes[&("Y", 100)], "1");
+        assert!(should_call_contig("chrX", Gender::Female));
+        assert!(!should_call_contig("chrY", Gender::Female));
+        assert!(!should_call_contig("Y", Gender::Female));
+        assert!(should_call_contig("chrY", Gender::Unknown));
+
+        let global = MergeOptions {
+            haploid_sensitive: true,
+            gender: Gender::Male,
+            par_regions: options.par_regions.clone(),
+            ..Default::default()
+        };
+        let records = merge_records(&[record("chrX", 100, "0/1")], &[], &global);
+        assert!(records[0].samples[0].starts_with("1:"));
+    }
 }

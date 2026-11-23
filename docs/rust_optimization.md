@@ -4,11 +4,19 @@
 
 This report covers the `clair3-rust` branch. The `main` branch was not changed.
 
-The implementation retains the native Rust caller and the validated CPU tensor and inference optimizations described below. CPU remains the default. MPS and CUDA are optional; there is no AMD-specific backend. No quantization or candidate-filter relaxation is used.
+The implementation retains the native Rust caller and the validated CPU tensor and inference optimizations described below. CPU remains the default. MPS and CUDA are optional; `Dockerfile.amd` provides a ROCm LibTorch path that has been Docker-linted but not hardware-validated. No quantization or candidate-filter relaxation is used.
 
 The final implementation uses pristine third-party sources and the installed upstream WhatsHap 2.8 DP solver. It restores four pipeline-level phasing optimizations: independent phase-block scheduling, parallel BAM preparation, native allele loading, and native read selection. DP-specific solver changes, including a replacement phase core and altered cost calculations, are excluded. Gloo is downloaded from a pinned upstream commit, and `torch-sys` is resolved from crates.io without a patch. Other WhatsHap versions use the stock phasing path.
 
 The experimental 30-second CPU target was canceled before completion. The best measured runtime with the former custom DP changes was 42.62 seconds. The current implementation retains only the four optimizations above; its benchmark is reported separately below.
+
+## Upstream main synchronization
+
+The branch integrates upstream `main` through commit `7974945` without restoring the removed Python/C runtime as the default pipeline. Native ports include `--gender` and `--par_regions_bed` for sex-chromosome-aware calling, global-haploid precedence, female Y-contig exclusion, and deletion-breakpoint clipped-read exclusion from full-alignment reference DP/AD/AF metadata. The tensor AF channel retains the original depth, matching upstream. Existing native training readers already use `[position-1, position)` for BED filtering, so the upstream training-only off-by-one patch does not require a calling change.
+
+The ROCm image builds the Rust binary with upstream AMD PyTorch wheels and the same `cuda:N` LibTorch device interface. No AMD hardware result is claimed. Upstream C-allocation and likelihood-cache optimizations were reviewed but not blindly ported to the independent Rust implementations.
+
+The HG002 regression compared the integrated branch directly with pre-merge commit `a397484`. Pileup output remained exactly identical at 135,180 records. Full alignment retained all 40,494 records and merged calling retained all 94,551 records, with unchanged keys, ordering, alleles, genotypes, and qualities. The upstream clipped-read correction changed only DP/reference-AD/AF in 61 full-alignment and 33 merged records. The adapted Illumina fixture records its single corresponding change and original hash in `tests/fixtures/baselines/ilmn/manifest.json`.
 
 ## Benchmark
 

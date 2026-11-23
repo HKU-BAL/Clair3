@@ -34,6 +34,14 @@ for the official quick-demo datasets:
 size of every input and every captured output, and the record count of each
 VCF. It is the provenance record for the fixtures.
 
+When an upstream correctness fix intentionally changes a captured result, the
+fixture may be adapted without regenerating the entire dataset. Such changes
+must be listed in the manifest's `adaptations` array with the upstream commit,
+affected record, reason, and original hash. The Illumina full-alignment fixture
+currently adapts `chr20:279120` for upstream commit `7cefd6e`: reads clipped at
+a deletion breakpoint no longer contribute reference DP/AD/AF support. No
+other record changed, and the record count remains 837.
+
 ## Regenerating the baselines
 
 ```bash

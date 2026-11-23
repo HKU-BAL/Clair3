@@ -14,6 +14,15 @@
     "HG003_GRCh38_chr20_v4.2.1_benchmark.vcf.gz.tbi": {"sha256": "deb63977231e56c18bb6d5d5c51d0174accaf86203579b3bb9a3b9e142223d06", "bytes": 36079},
     "HG003_GRCh38_chr20_v4.2.1_benchmark_noinconsistent.bed": {"sha256": "29d03d1395f3f55b1d25407fe53f782f528e30b386b7f8b4c0c8821c654b71f3", "bytes": 274339}
   },
+  "adaptations": [
+    {
+      "path": "tmp/full_alignment_output/full_alignment_chr20.0_1.vcf",
+      "upstream_commit": "7cefd6e62ead6e25716ddddadbd3d52905dc3676",
+      "record": "chr20:279120",
+      "reason": "Exclude three reads clipped at the deletion breakpoint from reference DP/AD/AF metadata",
+      "original_sha256": "e95528081be219971d0197420f499cfa1ae51c17211cc721cc99923a8fa7717c"
+    }
+  ],
   "outputs": {
     "pileup.vcf.gz": {"sha256": "8b282c5d3d6e9ea834f6ee86662eff30208a658d625f00e4151f3466c66aa4c0", "bytes": 13581, "records": 861},
     "full_alignment.vcf.gz": {"sha256": "9fc20eeeb7723ff7173cd02ee655ab6925eac1a909d7f1e92b2364be4270ea1e", "bytes": 13096, "records": 837},
@@ -29,7 +38,7 @@
     "tmp/full_alignment_output/candidate_bed/full_aln_regions_chr20": {"sha256": "6a958d2b27340cdf739209ab62272188462e6d94198d4306eb694dfbfe1d9160", "bytes": 5100, "records": 255},
     "tmp/full_alignment_output/candidate_bed/FULL_ALN_FILE_chr20": {"sha256": "536fd4045a698a6ace533ecda179ed690efa8ecdd44b645dcde516fac5cc69a8", "bytes": 58, "records": 1},
     "tmp/full_alignment_output/candidate_bed/FULL_ALN_FILES": {"sha256": "536fd4045a698a6ace533ecda179ed690efa8ecdd44b645dcde516fac5cc69a8", "bytes": 58, "records": 1},
-    "tmp/full_alignment_output/full_alignment_chr20.0_1.vcf": {"sha256": "e95528081be219971d0197420f499cfa1ae51c17211cc721cc99923a8fa7717c", "bytes": 60098, "records": 837},
+    "tmp/full_alignment_output/full_alignment_chr20.0_1.vcf": {"sha256": "654256d710bad2b7d1c788c557b604f5f0c4a41274c4b54c15f0abbaeebc1e1a", "bytes": 60098, "records": 837},
     "tmp/merge_output/merge_chr20.vcf": {"sha256": "c040372c08ad35ae67aadf3cc7ee87e94d7ac6f1e4d9bc9e472bf0ff40202fce", "bytes": 39910, "records": 545}
   }
 }

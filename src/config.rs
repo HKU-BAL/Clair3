@@ -2,6 +2,14 @@ use std::{fmt, str::FromStr};
 
 use clap::ValueEnum;
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum Gender {
+    #[default]
+    Unknown,
+    Male,
+    Female,
+}
+
 pub const FLANKING_BASES: usize = 16;
 pub const POSITION_COUNT: usize = FLANKING_BASES * 2 + 1;
 pub const PILEUP_CHANNELS: usize = 18;

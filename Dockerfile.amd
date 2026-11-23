@@ -1,0 +1,74 @@
+# syntax=docker/dockerfile:1.4
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
+
+ARG GFX_ARCH=gfx950
+ARG ROCM_INDEX_URL=https://stable.repo.amd.com/rocm/whl-next/
+ARG ROCM_VERSION=10.0
+ARG TORCH_VERSION=2.13
+
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive
+WORKDIR /opt/bin
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates wget curl bzip2 xz-utils unzip \
+      build-essential autoconf automake cmake clang libclang-dev pkg-config \
+      zlib1g-dev libbz2-dev liblzma-dev libcurl4-openssl-dev libssl-dev libdeflate-dev \
+      python3 python3-venv python3-dev \
+      samtools tabix parallel pigz libnuma1 libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv ${VIRTUAL_ENV}
+ENV PATH=${VIRTUAL_ENV}/bin:/opt/bin:/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+RUN set -eu; \
+    pip install --no-cache-dir --upgrade pip setuptools wheel; \
+    GFX_EXTRAS="$(echo "${GFX_ARCH}" | tr ',;' '\n\n' | sed '/^$/d; s/^/device-/' | paste -sd, -)"; \
+    pip install --no-cache-dir --index-url "${ROCM_INDEX_URL}" \
+      "rocm[libraries,devel,${GFX_EXTRAS}]==${ROCM_VERSION}.*" \
+      "torch[${GFX_EXTRAS}]==${TORCH_VERSION}.*"; \
+    pip install --no-cache-dir numpy h5py hdf5plugin numexpr tqdm torchmetrics whatshap==2.8
+
+RUN curl -fsSL https://sh.rustup.rs -o /tmp/rustup.sh && \
+    sh /tmp/rustup.sh -y --default-toolchain 1.88.0 && rm /tmp/rustup.sh
+
+COPY . /opt/bin
+ENV LIBTORCH_USE_PYTORCH=1 PYTHON=/opt/venv/bin/python
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/opt/bin/target \
+    cargo build --release --locked --features cuda && \
+    mkdir -p /opt/clair3-runtime && \
+    cp /opt/bin/target/release/clair3 /opt/clair3-runtime/clair3 && \
+    test -x /opt/clair3-runtime/clair3 && \
+    curl -fLsS -o /tmp/longphase.tar.xz \
+      https://github.com/twolinin/longphase/releases/download/v1.7.3/longphase_linux-x64.tar.xz && \
+    tar -xJf /tmp/longphase.tar.xz -C /tmp && \
+    cp /tmp/longphase_linux-x64 /opt/venv/bin/longphase && \
+    chmod +x /opt/venv/bin/longphase && rm /tmp/longphase.tar.xz
+
+ARG CLAIR3_MODELS_URL=https://www.bio8.cs.hku.hk/clair3/clair3_models_pytorch/
+ARG CLAIR3_RERIO_MODELS_URL=https://www.bio8.cs.hku.hk/clair3/clair3_models_rerio_pytorch/
+ARG CLAIR3_BUNDLED_RERIO_MODELS="r1041_e82_400bps_sup_v520 r1041_e82_400bps_hac_v520 r1041_e82_400bps_hac_v600"
+ARG MODEL_CACHE_BUST=0
+RUN set -eux; \
+    echo "MODEL_CACHE_BUST=${MODEL_CACHE_BUST}"; \
+    mkdir -p /opt/models /tmp/clair3-models; \
+    wget -r -np -nH --cut-dirs=2 -R "index.html*" -P /tmp/clair3-models "${CLAIR3_MODELS_URL%/}/"; \
+    if [ -d /tmp/clair3-models/clair3_models_pytorch ]; then \
+        cp -a /tmp/clair3-models/clair3_models_pytorch/. /opt/models/; \
+    else \
+        cp -a /tmp/clair3-models/. /opt/models/; \
+    fi; \
+    rm -rf /tmp/clair3-models; \
+    for model in ${CLAIR3_BUNDLED_RERIO_MODELS}; do \
+        rm -rf "/opt/models/${model}"; mkdir -p "/opt/models/${model}"; \
+        wget -r -np -nd -R "index.html*" -P "/opt/models/${model}" \
+          "${CLAIR3_RERIO_MODELS_URL%/}/${model}/"; \
+        test -f "/opt/models/${model}/pileup.pt" -a -f "/opt/models/${model}/full_alignment.pt"; \
+    done
+
+ENV LD_LIBRARY_PATH=/opt/venv/lib/python3.12/site-packages/torch/lib \
+    CLAIR3_BIN=/opt/clair3-runtime/clair3
+WORKDIR /data
+ENTRYPOINT ["/opt/bin/run_clair3.sh"]

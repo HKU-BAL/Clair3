@@ -18,7 +18,7 @@ use tch::Device;
 
 use crate::{
     call::caller::write_vcf,
-    config::Platform,
+    config::{Gender, Platform},
     io::{
         interval::IntervalMap,
         reference::Reference,
@@ -31,7 +31,10 @@ use crate::{
             checkpoint_path, inference_job,
         },
         gvcf::{GvcfOptions, merge_nonvariants, write_gvcf},
-        merge::{MergeOptions, merge_illumina_records, merge_records, read_vcf, sort_records},
+        merge::{
+            MergeOptions, merge_illumina_records, merge_records, read_vcf, should_call_contig,
+            sort_records,
+        },
         phasing::{parallel_phase_command, phase_regions_from_files, scan_phase_regions},
         select::{SelectOptions, full_quality, phase_quality, select_candidates, select_het_snp},
     },
@@ -80,6 +83,8 @@ pub struct RunOptions {
     pub bp_resolution: bool,
     pub haploid_precise: bool,
     pub haploid_sensitive: bool,
+    pub gender: Gender,
+    pub par_regions_bed: Option<PathBuf>,
     pub include_all_contigs: bool,
     pub no_phasing_for_fa: bool,
     pub remove_intermediate_dir: bool,
@@ -146,6 +151,8 @@ impl RunOptions {
             bp_resolution: false,
             haploid_precise: false,
             haploid_sensitive: false,
+            gender: Gender::Unknown,
+            par_regions_bed: None,
             include_all_contigs: false,
             no_phasing_for_fa: false,
             remove_intermediate_dir: false,
@@ -366,6 +373,9 @@ fn prepare_contigs(
     reader.set_reference(reference.path())?;
     let mut contigs = Vec::new();
     for contig in reference_contigs {
+        if !should_call_contig(&contig, options.gender) {
+            continue;
+        }
         if let Some(requested) = &requested
             && !requested.contains(&contig)
         {
@@ -875,6 +885,16 @@ pub fn run_pipeline(options: &RunOptions) -> Result<()> {
     if options.gvcf && options.gq_bin_size <= 0 {
         bail!("GVCF GQ bin size must be positive");
     }
+    let par_regions = if options.gender == Gender::Male {
+        options
+            .par_regions_bed
+            .as_ref()
+            .map(|path| IntervalMap::from_bed(path, None))
+            .transpose()?
+            .map(Arc::new)
+    } else {
+        None
+    };
     let pileup_checkpoint = checkpoint_path(&options.model_path, &options.pileup_model_prefix)?;
     let full_checkpoint =
         checkpoint_path(&options.model_path, &options.full_alignment_model_prefix)?;
@@ -1060,6 +1080,8 @@ pub fn run_pipeline(options: &RunOptions) -> Result<()> {
                 print_ref_calls: options.print_ref_calls,
                 haploid_precise: options.haploid_precise,
                 haploid_sensitive: options.haploid_sensitive,
+                gender: options.gender,
+                par_regions: par_regions.clone(),
                 qual: options.qual,
             },
         );
@@ -1200,6 +1222,8 @@ pub fn run_pipeline(options: &RunOptions) -> Result<()> {
         print_ref_calls: options.print_ref_calls,
         haploid_precise: options.haploid_precise,
         haploid_sensitive: options.haploid_sensitive,
+        gender: options.gender,
+        par_regions: par_regions.clone(),
         qual: options.qual,
     };
     let mut merged = Vec::new();

@@ -59,6 +59,7 @@ fn assert_records_match(actual: &[VcfRecord], expected_path: &Path) {
     let expected = records(expected_path);
     let expected_count = expected.len();
     let mut maximum_quality_difference = 0.0_f64;
+    let mut mismatches = Vec::new();
     for (index, (actual, expected)) in actual.iter().zip(&expected).enumerate() {
         let mut actual_record = VcfRecord::from_line(actual).unwrap();
         let mut expected_record = VcfRecord::from_line(expected).unwrap();
@@ -90,11 +91,23 @@ fn assert_records_match(actual: &[VcfRecord], expected_path: &Path) {
                 })
                 .collect();
         }
-        assert!(
-            actual_record == expected_record && gq_difference <= 1,
-            "record {index}: actual {actual}, expected {expected}; quality difference {quality_difference}, GQ difference {gq_difference}"
-        );
+        if actual_record != expected_record || gq_difference > 1 {
+            mismatches.push(format!(
+                "record {index}: actual {actual}, expected {expected}; quality difference {quality_difference}, GQ difference {gq_difference}"
+            ));
+        }
     }
+    assert!(
+        mismatches.is_empty(),
+        "{} mismatches:\n{}",
+        mismatches.len(),
+        mismatches
+            .iter()
+            .take(20)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
     assert_eq!(actual.len(), expected_count, "VCF record count differs");
     assert!(
         maximum_quality_difference <= 0.5,
