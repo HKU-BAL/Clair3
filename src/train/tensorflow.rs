@@ -420,19 +420,21 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires the TensorFlow test checkpoint"]
     fn restores_dense_checkpoint() {
         let checkpoint =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/tf-checkpoints/pileup-1");
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tensorflow/dense");
         let mappings = vec![Mapping::new(
             "L4/kernel".to_string(),
             "L4.weight".to_string(),
-            vec![128, 10560],
+            vec![2, 4],
             Transform::Dense,
         )];
         let restored = restore(&checkpoint, &mappings).unwrap();
         assert_eq!(restored.len(), 1);
-        assert_eq!(restored[0].1.size(), vec![128, 10560]);
-        assert!(restored[0].1.isfinite().all().int64_value(&[]) == 1);
+        assert_eq!(restored[0].1.size(), vec![2, 4]);
+        assert_eq!(
+            Vec::<f32>::try_from(restored[0].1.flatten(0, -1)).unwrap(),
+            vec![1.0, 3.0, 5.0, 7.0, 2.0, 4.0, 6.0, 8.0]
+        );
     }
 }

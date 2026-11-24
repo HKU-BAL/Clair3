@@ -6,17 +6,15 @@ Convert Clair3 variant-calling model checkpoints from TensorFlow to PyTorch `.pt
 
 ## Environment Dependencies
 
-```bash
-pip install tensorflow-cpu torch numpy
-```
+The `clair3-rust` branch performs conversion natively. Install or build the Rust executable as described in [Installing Clair3-Rust](rust_installation.md); TensorFlow, Python, and PyTorch packages are not required at runtime. The build must retain the default `tf-checkpoint` Cargo feature.
 
-Both Keras 2 (TensorFlow ≤ 2.15) and Keras 3 (TensorFlow ≥ 2.16) are supported. The converter reads the checkpoint tensors directly instead of relying on `load_weights()`, so the TensorFlow version does not need to be pinned. If any weight cannot be matched, it stops with an error rather than writing an untrained `.pt` (see [#488](https://github.com/HKU-BAL/Clair3/issues/488)).
+Both Keras 2 (TensorFlow ≤ 2.15) and Keras 3 (TensorFlow ≥ 2.16) checkpoint layouts are supported. The converter reads the checkpoint tensors directly instead of relying on Keras `load_weights()`, so conversion is independent of the installed Keras version. If any weight cannot be matched, it stops with an error rather than writing an untrained `.pt` (see [#488](https://github.com/HKU-BAL/Clair3/issues/488)).
 
-The script also requires Clair3's internal modules (`shared.param_p`, `shared.param_f`, `clair3.model`). Run from the Clair3 project root is recommended.
+Run the command from the Clair3 project root, or use an installed `clair3` executable.
 
 ## CLI Reference
 
-**Script:** `convert_tf_checkpoint_to_torch.py`
+**Native command:** `clair3 ConvertCheckpoint` (also available as `clair3 convert-tf-checkpoint`)
 
 ### Single-Model Mode
 
@@ -54,14 +52,12 @@ Expected input directory structure — each model directory contains TF checkpoi
 └── full_alignment.data-00000-of-NNNNN
 ```
 
-Each checkpoint consists of an `.index` file and one or more `.data-*` shard files. The `--checkpoint` argument should point to the checkpoint prefix (e.g. `<model_dir>/pileup`), and the script resolves it automatically.
+Each checkpoint consists of an `.index` file and one or more `.data-*` shard files. The `--checkpoint` argument should point to the checkpoint prefix (e.g. `<model_dir>/pileup`), and the native command resolves it automatically.
 
 ### 1. Single pileup model
 
 ```bash
-cd Clair3_no_change_v2.0
-
-python convert_tf_checkpoint_to_torch.py \
+clair3 ConvertCheckpoint \
     --checkpoint /path/to/tf_models/r1041_e82_400bps_sup_v500/pileup \
     --output /path/to/output/pileup.pt \
     --model-type pileup \
@@ -71,7 +67,7 @@ python convert_tf_checkpoint_to_torch.py \
 ### 2. Single full-alignment model (with indel length)
 
 ```bash
-python convert_tf_checkpoint_to_torch.py \
+clair3 ConvertCheckpoint \
     --checkpoint /path/to/tf_models/r1041_e82_400bps_sup_v500/full_alignment \
     --output /path/to/output/full_alignment.pt \
     --model-type full_alignment \
@@ -82,7 +78,7 @@ python convert_tf_checkpoint_to_torch.py \
 ### 3. Batch-convert both models from one directory
 
 ```bash
-python convert_tf_checkpoint_to_torch.py \
+clair3 ConvertCheckpoint \
     --checkpoint-dir /path/to/tf_models/r1041_e82_400bps_sup_v500 \
     --output-dir /path/to/output/r1041_e82_400bps_sup_v500 \
     --platform ont \
@@ -99,3 +95,4 @@ r1041_e82_400bps_sup_v500/
 ## Key Notes
 
 - Pileup models do **not** use indel-length heads; full-alignment models **do**.
+- `tests/fixtures/tensorflow/dense` is a tiny real TensorFlow 2.20 checkpoint generated with upstream `tensorflow-cpu` in an x86_64 Python 3.11 container. The non-ignored `restores_dense_checkpoint` test checks its exact dense-weight transposition, so checkpoint parsing no longer depends on a machine-local TensorFlow fixture.

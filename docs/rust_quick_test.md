@@ -164,6 +164,9 @@ With the prepared model assets from section 2, run the complete local Docker che
 docker build --target build -t clair3-rust:build .
 docker run --rm --entrypoint /bin/bash \
   -v "${PWD}/tests:/opt/clair3-src/tests:ro" \
+  -v "${PWD}/scripts:/opt/clair3-src/scripts:ro" \
+  -v "${PWD}/clair3.py:/opt/clair3-src/clair3.py:ro" \
+  -v "${PWD}/run_clair3.py:/opt/clair3-src/run_clair3.py:ro" \
   -v "${PWD}/target/test-data/models:/opt/clair3-src/target/test-data/models:ro" \
   -w /opt/clair3-src clair3-rust:build -c '
     rustup component add rustfmt clippy &&
@@ -224,7 +227,40 @@ Check that both training and validation losses are finite and greater than zero,
 
 The bounded workflow passed on native macOS ARM64 CPU, local Linux ARM64 CPU, emulated Linux x86_64 CPU, and native Linux x86_64 CUDA on an RTX 4090. Original Python/PyTorch successfully read the resulting LZF archives and loaded the generated checkpoints. Training remains stochastic; these checks establish working artifacts, not byte-identical model weights. See the [training validation results](rust_optimization.md#end-to-end-model-training-validation) for timings and known differences.
 
-## 8. Optional GPU smoke test
+## 8. Extended validation tests
+
+The long-running training and distributed checks are intentionally opt-in rather than hidden passes in the default suite. Prepare `CLAIR3_REAL_TRAINING_ROOT` with `pileup/{train,validation}`, `fa/{train,validation}`, and `models/{pileup.pt,full_alignment.pt}`, then run:
+
+```bash
+CLAIR3_REAL_TRAINING_ROOT=/path/to/real-inputs \
+  cargo test --test training real_data_ --release --locked -- --ignored --nocapture
+
+CLAIR3_VALIDATION_RUN=/path/to/multi-epoch-output \
+CLAIR3_REAL_TRAINING_ROOT=/path/to/real-inputs \
+  cargo test --test validation_task_metrics --release --locked -- --nocapture
+
+CLAIR3_QUICK_WORK=/path/to/completed-training-work \
+  cargo test --test training quick_workflow_uses_complementary_training_and_validation_reads \
+  --release --locked -- --ignored --exact --nocapture
+
+cargo test --test distributed two_process_collectives_work \
+  --release --locked -- --ignored --exact --nocapture
+```
+
+The distributed test compares actual two-process gradients with independently reproduced arithmetic means. It uses the native CPU collective implementation; CUDA distributed training requires a configured NVIDIA host and is not implied by this CPU result.
+
+Model tests have explicit MPS and CUDA opt-ins so unsupported hosts produce a named skip instead of an unexecuted pass:
+
+```bash
+CLAIR3_TEST_MPS=1 cargo test --test model_parity \
+  official_models_match_mps_golden_outputs --release --locked -- --exact --nocapture
+CLAIR3_TEST_CUDA=1 cargo test --test model_parity \
+  official_models_match_cuda_golden_outputs --release --locked --features cuda -- --exact --nocapture
+```
+
+Committed model fixtures include production full-alignment inputs and original-model outputs. The `full_ont`, `full_hifi`, `full_ilmn`, `full_dwell`, and `full_v500` cases in `tests/model_parity.rs` cover the former machine-local production-model test without requiring files under `target/verify`.
+
+## 9. Optional GPU smoke test
 
 CPU is the default. Use an explicit device to test an optional GPU backend:
 
@@ -236,7 +272,7 @@ clair3 run ... --use_gpu --device mps
 clair3 run ... --use_gpu --device cuda:0
 ```
 
-Pileup remains on CPU for GPU runs to preserve candidate selection. Full-alignment inference uses dedicated GPU workers. See [GPU quick start](gpu_quick_start.md) for setup. There is currently no AMD-specific backend.
+Pileup remains on CPU for GPU runs to preserve candidate selection. Full-alignment inference uses dedicated GPU workers. See [GPU quick start](gpu_quick_start.md) for setup. `Dockerfile.amd` provides an unverified ROCm configuration that uses the same `cuda:N` device names.
 
 ## Expected results and next checks
 

@@ -132,6 +132,9 @@ fn official_models_match_cpu_golden_outputs() {
 #[test]
 fn official_models_match_mps_golden_outputs() {
     if std::env::var("CLAIR3_TEST_MPS").is_err() {
+        eprintln!(
+            "SKIP official_models_match_mps_golden_outputs: set CLAIR3_TEST_MPS=1 on an Apple Silicon host"
+        );
         return;
     }
     for case in cases().into_iter().filter(|case| {
@@ -147,6 +150,9 @@ fn official_models_match_mps_golden_outputs() {
 #[test]
 fn official_models_match_cuda_golden_outputs() {
     if std::env::var("CLAIR3_TEST_CUDA").is_err() {
+        eprintln!(
+            "SKIP official_models_match_cuda_golden_outputs: set CLAIR3_TEST_CUDA=1 on a CUDA host"
+        );
         return;
     }
     assert!(tch::Cuda::cudnn_is_available(), "CUDA test requires cuDNN");
@@ -202,9 +208,6 @@ fn checkpoint_loader_rejects_wrong_architecture() {
 #[test]
 fn checkpoint_loader_supports_ddp_prefixes() {
     let source = root().join("tests/fixtures/models/pileup_indel.pt");
-    if !source.exists() {
-        return;
-    }
     let tensors = clair3::model::load_python_state_dict(&source).unwrap();
     let prefixed: Vec<(String, Tensor)> = tensors
         .into_iter()
@@ -241,30 +244,10 @@ fn model_checkpoint_path_is_used() {
     if Path::new(&path).exists() {
         let model = Model::new(ModelKind::Pileup, Device::Cpu, None, false, Some(&path)).unwrap();
         assert!(!model.var_store.is_empty());
+    } else {
+        eprintln!(
+            "SKIP model_checkpoint_path_is_used: missing {}",
+            path.display()
+        );
     }
-}
-
-#[test]
-#[ignore = "requires captured production full-alignment tensors"]
-fn full_production_model_matches_original() {
-    let model = Model::new(
-        ModelKind::FullAlignment,
-        Device::Cpu,
-        Some(8),
-        true,
-        Some(&root().join("target/test-data/models/ont/full_alignment.pt")),
-    )
-    .unwrap();
-    let input = Tensor::read_npy(root().join("target/verify/full-python.npy"))
-        .unwrap()
-        .reshape([5, 89, 33, 8]);
-    let expected = Tensor::read_npy(root().join("target/verify/full-python-output.npy")).unwrap();
-    let difference = (model.forward(&input, false) - expected)
-        .abs()
-        .max()
-        .double_value(&[]);
-    assert!(
-        difference <= 1e-4,
-        "full-alignment probabilities differ by {difference}"
-    );
 }

@@ -226,7 +226,8 @@ fn official_illumina_calls_match() {
     .unwrap();
     assert_records_match(&actual, &baseline.join("pileup.vcf.gz"));
 
-    let realigned = root.join("target/verify/realigned_official_phased.bam");
+    let verification = tempfile::tempdir().unwrap();
+    let realigned = verification.path().join("official_illumina_realigned.bam");
     clair3::realign::workflow::realign_bam(
         &baseline.join("tmp/phase_output/phase_bam/chr20.bam"),
         &reference,
@@ -312,7 +313,8 @@ fn official_illumina_calls_match() {
 fn production_full_call_includes_flanking_candidates() {
     let root = root();
     let baseline = root.join("tests/fixtures/baselines/ilmn");
-    let bam = root.join("target/verify/realigned_official_phased.bam");
+    let verification = tempfile::tempdir().unwrap();
+    let bam = verification.path().join("production_realigned.bam");
     let phase_bam = baseline.join("tmp/phase_output/phase_bam/chr20.bam");
     if !require_inputs(
         "production_full_call_includes_flanking_candidates",

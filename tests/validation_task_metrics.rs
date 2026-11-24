@@ -13,12 +13,6 @@ use tch::{Device, Kind};
 /// the training loss falls. This diagnostic reports the error of every one of
 /// the 90 model outputs separately, for each epoch, so that the tasks that
 /// degrade are visible instead of being hidden in the aggregate.
-fn env_path(name: &str, default: &str) -> PathBuf {
-    std::env::var_os(name)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(default))
-}
-
 fn archives(directory: &PathBuf) -> Vec<PathBuf> {
     let mut paths: Vec<_> = fs::read_dir(directory)
         .unwrap_or_else(|error| panic!("failed to read {directory:?}: {error}"))
@@ -56,14 +50,32 @@ fn per_task_error(model: &Model, directory: &PathBuf, input_channels: i64) -> Ve
 
 #[test]
 fn full_alignment_validation_tasks_are_reported_per_epoch() {
-    let root = env_path(
-        "CLAIR3_VALIDATION_RUN",
-        "/Users/Aqua/Temp/Clair3/target/correctness-validation-20261108/verify/training/task4-real/fa-403",
-    );
-    let validation = env_path(
-        "CLAIR3_VALIDATION_ARCHIVES",
-        "/Users/Aqua/Temp/Clair3/target/correctness-validation-20261108/verify/training/task4-real-inputs/fa/validation/bin_HG002_20_222",
-    );
+    let Some(root) = std::env::var_os("CLAIR3_VALIDATION_RUN").map(PathBuf::from) else {
+        eprintln!(
+            "SKIP full_alignment_validation_tasks_are_reported_per_epoch: CLAIR3_VALIDATION_RUN is not set"
+        );
+        return;
+    };
+    let validation = std::env::var_os("CLAIR3_VALIDATION_ARCHIVES")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("CLAIR3_REAL_TRAINING_ROOT")
+                .map(|root| PathBuf::from(root).join("fa/validation"))
+        });
+    let Some(validation) = validation else {
+        eprintln!(
+            "SKIP full_alignment_validation_tasks_are_reported_per_epoch: set CLAIR3_VALIDATION_ARCHIVES or CLAIR3_REAL_TRAINING_ROOT"
+        );
+        return;
+    };
+    if !root.is_dir() || !validation.exists() {
+        eprintln!(
+            "SKIP full_alignment_validation_tasks_are_reported_per_epoch: missing {} or {}",
+            root.display(),
+            validation.display()
+        );
+        return;
+    }
     let checkpoints: Vec<_> = fs::read_dir(&root)
         .unwrap_or_else(|error| panic!("failed to read {root:?}: {error}"))
         .map(|entry| entry.unwrap().path())
@@ -72,7 +84,7 @@ fn full_alignment_validation_tasks_are_reported_per_epoch() {
             name.ends_with(".pt") && !name.contains("best") && !name.contains("restart")
         })
         .collect();
-    let checkpoints = checkpoints
+    let mut checkpoints = checkpoints
         .iter()
         .filter(|path| {
             path.file_name()
@@ -82,6 +94,7 @@ fn full_alignment_validation_tasks_are_reported_per_epoch() {
         })
         .cloned()
         .collect::<Vec<_>>();
+    checkpoints.sort();
     let missing: Vec<_> = checkpoints
         .iter()
         .chain(std::iter::once(&validation))
