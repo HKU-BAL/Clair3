@@ -25,7 +25,8 @@ RUN curl -fLsS -o /tmp/samtools.tar.bz2 \
     cp htslib-1.24/bgzip htslib-1.24/tabix /opt/clair3-tools/
 ENV LIBTORCH=/opt/libtorch \
     TORCH_CUDA_VERSION=cu129 \
-    CLAIR3_CUDA_LIBRARIES=/opt/cuda-deps/nvidia/cusparselt/lib:/opt/cuda-deps/nvidia/nccl/lib:/opt/cuda-deps/nvidia/nvshmem/lib
+    CLAIR3_CUDA_LIBRARIES=/opt/cuda-deps/nvidia/cusparselt/lib:/opt/cuda-deps/nvidia/nccl/lib:/opt/cuda-deps/nvidia/nvshmem/lib \
+    LD_LIBRARY_PATH=/opt/clair3-libs:/usr/local/cuda/extras/CUPTI/lib64
 RUN python3 -m pip install --no-cache-dir --no-deps --target /opt/cuda-deps \
         nvidia-cusparselt-cu12==0.8.1 \
         nvidia-nccl-cu12==2.29.7 \

@@ -24,18 +24,13 @@ const DETERMINISTIC_LOSS_TOLERANCE: f64 = 0.0;
 const DETERMINISTIC_CHECKPOINT_TOLERANCE: f64 = 0.0;
 static TORCH_TEST_LOCK: Mutex<()> = Mutex::new(());
 
-fn directory() -> PathBuf {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/verify/training/smoke");
-    fs::create_dir_all(&path).unwrap();
-    path
-}
-
 #[test]
 fn checkpoint_roundtrip_preserves_every_tensor() {
     let _guard = TORCH_TEST_LOCK
         .lock()
         .unwrap_or_else(|poison| poison.into_inner());
-    let path = directory().join("checkpoint.pt");
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("checkpoint.pt");
     tch::manual_seed(11);
     let model = Model::new(ModelKind::Pileup, Device::Cpu, Some(18), false, None).unwrap();
     save_checkpoint(&model.var_store, &path).unwrap();
@@ -57,7 +52,8 @@ fn optimizer_step_writes_a_loadable_checkpoint() {
     let _guard = TORCH_TEST_LOCK
         .lock()
         .unwrap_or_else(|poison| poison.into_inner());
-    let root = directory();
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path().to_path_buf();
     let data = root.join("data");
     fs::create_dir_all(&data).unwrap();
     let mut writer = BinWriter::create(&data.join("toy.bin"), &[33, 18], true).unwrap();
@@ -117,7 +113,8 @@ fn full_alignment_fine_tuning_writes_a_loadable_checkpoint() {
     let _guard = TORCH_TEST_LOCK
         .lock()
         .unwrap_or_else(|poison| poison.into_inner());
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/verify/training/full_smoke");
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path().to_path_buf();
     fs::create_dir_all(&root).unwrap();
     let data = root.join("data");
     fs::create_dir_all(&data).unwrap();
