@@ -59,14 +59,22 @@ Clair3 is the 3rd generation of [Clair](https://github.com/HKU-BAL/Clair) (2nd) 
 ---
 
 ## Latest Updates
+### v2.0.6 — *Nov 27, 2026*
+- **[#475](https://github.com/HKU-BAL/Clair3/pull/475) — Faster tensor preparation, lower peak memory.** Pileup preparation skips bases outside candidate windows, uses 32-bit pileup counts, allocates indel counters only when needed and caches repeated gVCF likelihoods; full-alignment generation no longer scans every reference base. Native output is unchanged, but `libclair3` must be rebuilt.
+- **[#486](https://github.com/HKU-BAL/Clair3/pull/486) — AMD image: `pip` is no longer shadowed.** `Dockerfile.amd` keeps pypy outside the CPython venv, so `pip3` installs into the venv instead of pypy.
+- **[#488](https://github.com/HKU-BAL/Clair3/pull/488) — Model conversion supports Keras 3.** `convert_tf_checkpoint_to_torch.py` reads the checkpoint tensors directly, so it works with both TensorFlow 2.15 (Keras 2) and 2.16+ (Keras 3), and stops with an error instead of writing an untrained `.pt` when a weight cannot be matched ([Issue#488](https://github.com/HKU-BAL/Clair3/issues/488)).
+- **[#489](https://github.com/HKU-BAL/Clair3/pull/489) — BED off-by-one in the training filters.** Truth variants and candidate tensors now test the 1-based anchor base against the 0-based BED, so variants on the last base of a region and deletions next to a BED gap are no longer dropped ([Issue#489](https://github.com/HKU-BAL/Clair3/issues/489)).
+- **[#493](https://github.com/HKU-BAL/Clair3/pull/493) — Indel allele frequency.** Reads clipped at a deletion breakpoint are no longer counted as reference support, fixing inflated reference counts and deflated AF at those candidates.
+- **New prebuilt ROCm image:** `hkubal/clair3:v2.0.6_amd` (rolling tag `hkubal/clair3:amd`), with kernels for both gfx942 (MI300X) and gfx950 (MI350X/MI355X). See [GPU (AMD Instinct ROCm on Linux)](#gpu-amd-instinct-rocm-on-linux).
+
+<details>
+<summary><b>v2.0.5 – v2.0.0</b> (click to expand)</summary>
+
 ### v2.0.5 — *Oct 28, 2026*
 - **[#480](https://github.com/HKU-BAL/Clair3/pull/480) — AMD Instinct (ROCm) GPUs.** Adds `Dockerfile.amd` and a `rocm-smi` fallback in the GPU scheduler. Tested on MI300X (gfx942) and MI355X (gfx950); NVIDIA/CUDA behaviour is unchanged.
 - **[#481](https://github.com/HKU-BAL/Clair3/pull/481) — CRAM 3.1 input.** `libclair3` now links htslib 1.24 instead of 1.15.1, and the `--disable_c_impl` path passes the reference to `samtools mpileup` and handles the match symbols it then emits, so CRAM 3.1 records decode ([Issue#453](https://github.com/HKU-BAL/Clair3/issues/453)).
 - **[#474](https://github.com/HKU-BAL/Clair3/pull/474) — `getMyMaxItem` boundary fix.** The loop read one element past the end of the array; it now stops at the last element, with a regression test.
 - **[#465](https://github.com/HKU-BAL/Clair3/pull/465) — `CheckEnvs` error messages.** Two `format()` calls had mismatched placeholder counts; one raised `IndexError` instead of printing the message it was meant to show.
-
-<details>
-<summary><b>v2.0.4 – v2.0.0</b> (click to expand)</summary>
 
 ### v2.0.4 — *Oct 5, 2026*
 - `--device=cuda:N` now runs on the requested physical GPU. The GPU scheduler mixed up the 0-based indices of the *visible* devices with physical GPU ids, so `--device=cuda:3` handed every worker `--gpu_id 0` and the job landed on GPU 0; setting `CUDA_VISIBLE_DEVICES` by hand failed the same way, because the worker overwrote it with that logical index ([Issue#472](https://github.com/HKU-BAL/Clair3/issues/472)). A requested device that does not exist on the host is now refused with a clear message instead of silently falling back to GPU 0.
@@ -185,7 +193,7 @@ Native GPU support on Linux (NVIDIA CUDA and AMD Instinct ROCm) and Apple Silico
 > **Pick the right install method for your hardware:**
 > - **CPU** → Docker (Option 1), Singularity (Option 2), or Bioconda (Option 3).
 > - **NVIDIA GPU (Linux)** → Docker GPU (Option 1) or Singularity GPU (Option 2); fall back to Step-by-step (Option 4) if unsupported.
-> - **AMD Instinct GPU (Linux, ROCm)** → use the prebuilt Clair3 from Bioconda with ROCm PyTorch, or build the ROCm GPU image from `Dockerfile.amd`. See the [GPU Quick Start](docs/gpu_quick_start.md#option-4-amd-instinct-rocm-prebuilt-clair3-from-bioconda).
+> - **AMD Instinct GPU (Linux, ROCm)** → prebuilt image `hkubal/clair3:amd` (see [GPU (AMD Instinct ROCm on Linux)](#gpu-amd-instinct-rocm-on-linux)); Bioconda + ROCm PyTorch and building from `Dockerfile.amd` remain alternatives.
 > - **Apple Silicon (M1/M2/M3/M4)** → Step-by-step (Option 4).
 >
 > See the [GPU Quick Start](docs/gpu_quick_start.md) for tuned settings.
@@ -246,8 +254,34 @@ docker run -it --gpus all \
 **Notes**
 
 - Select specific GPUs with `--gpus '"device=0,1"'` (Docker) and `--device=cuda:0,1` (Clair3).
-- **AMD Instinct (ROCm):** run with `--device=/dev/kfd --device=/dev/dri --group-add=video` instead of `--gpus all`. The quickest path is the prebuilt Clair3 from Bioconda with ROCm PyTorch; `Dockerfile.amd` builds the current source tree instead. See the [GPU Quick Start](docs/gpu_quick_start.md#option-4-amd-instinct-rocm-prebuilt-clair3-from-bioconda).
+- **AMD Instinct (ROCm):** use the prebuilt `hkubal/clair3:amd` image below and run with `--device=/dev/kfd --device=/dev/dri --group-add=video` instead of `--gpus all`. Bioconda + ROCm PyTorch and building from `Dockerfile.amd` remain alternatives (see the [GPU Quick Start](docs/gpu_quick_start.md#amd-instinct-rocm-prebuilt-image)).
 - If the image does not work on your setup (unsupported driver/CUDA, no NVIDIA Container Toolkit, Apple Silicon, etc.), fall back to [Step-by-step (Option 4)](#option-4-step-by-step-conda).
+
+#### GPU (AMD Instinct ROCm on Linux)
+
+Image: `hkubal/clair3:amd` (ROCm PyTorch; kernels for gfx942 and gfx950). The versioned image is `hkubal/clair3:v2.0.6_amd`.
+
+**Requirements**
+
+- The `amdgpu` kernel driver on the host. No system ROCm and no container toolkit are needed — the image bundles its own ROCm SDK and the GPU is passed through with `--device`.
+
+```bash
+docker run -it \
+  --device=/dev/kfd --device=/dev/dri --group-add=video \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  hkubal/clair3:amd \
+  /opt/bin/run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \                       ## {ont,hifi,ilmn}
+    --model_path=/opt/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR} \
+    --use_gpu
+```
+
+See the [GPU Quick Start](docs/gpu_quick_start.md#amd-instinct-rocm-prebuilt-image) for per-architecture notes.
 
 ### Option 2. Singularity
 
