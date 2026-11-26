@@ -4,7 +4,7 @@ Starting from v1.2, Clair3 natively supports NVIDIA GPU acceleration. Using a si
 
 The quickest way to run Clair3 on GPU is the pre-built Docker / Singularity image `hkubal/clair3:gpu` (built on CUDA 12.1, bundled with all pre-trained models).
 
-For AMD Instinct GPUs (ROCm on Linux), the quickest path is the prebuilt Clair3 from Bioconda paired with ROCm PyTorch — see [Option 4](#option-4-amd-instinct-rocm-prebuilt-clair3-from-bioconda) below; nothing is compiled. To build the current source tree instead, use `Dockerfile.amd` — see [Option 5](#option-5-amd-instinct-rocm-build-from-source).
+For AMD Instinct GPUs (ROCm on Linux), use the prebuilt image `hkubal/clair3:amd` — see [AMD Instinct (ROCm): prebuilt image](#amd-instinct-rocm-prebuilt-image) below. The Bioconda + ROCm PyTorch route ([Option 4](#option-4-amd-instinct-rocm-prebuilt-clair3-from-bioconda)) and building from source ([Option 5](#option-5-amd-instinct-rocm-build-from-source)) remain supported alternatives.
 
 ## Requirements
 
@@ -118,6 +118,39 @@ python3 ${CLAIR3_PATH}/run_clair3.py \
 ```
 
 See the [main README](../README.md#option-4-step-by-step-conda) for the complete step-by-step instructions (PyPy install, model download, etc.).
+
+## AMD Instinct (ROCm): prebuilt image
+
+`hkubal/clair3:amd` is built from `Dockerfile.amd` with ROCm PyTorch and bundles kernels for both gfx942 (MI300X) and gfx950 (MI350X/MI355X). The versioned image is `hkubal/clair3:v2.0.6_amd`.
+
+This is the quickest way onto AMD Instinct: nothing is compiled and all pre-trained models are included.
+
+**Requirements**
+
+- The `amdgpu` kernel driver on the host, with the GPU passed through at `docker run`. No system ROCm and no container toolkit are needed — the wheels bundle their own ROCm SDK and the container never uses `/opt/rocm`.
+- Run with `--device=/dev/kfd --device=/dev/dri --group-add=video` (not `--gpus all`).
+
+```shell
+docker run --rm \
+  --device=/dev/kfd --device=/dev/dri --group-add=video \
+  -v ${INPUT_DIR}:${INPUT_DIR} \
+  -v ${OUTPUT_DIR}:${OUTPUT_DIR} \
+  hkubal/clair3:amd \
+  /opt/bin/run_clair3.sh \
+    --bam_fn=${INPUT_DIR}/input.bam \
+    --ref_fn=${INPUT_DIR}/ref.fa \
+    --threads=${THREADS} \
+    --platform=ont \
+    --model_path=/opt/models/${MODEL_NAME} \
+    --output=${OUTPUT_DIR} \
+    --use_gpu
+```
+
+**Notes**
+
+- All GPU work goes through the `torch.cuda.*` API, which ROCm maps onto HIP, so `--device=cuda:0` and `CUDA_VISIBLE_DEVICES` / `HIP_VISIBLE_DEVICES` behave exactly as on NVIDIA.
+- If `--use_gpu` reports that no GPU is available, check that `/dev/kfd` and `/dev/dri` are passed through and that the container user is in the `video` group.
+- Options 4 and 5 below document the Bioconda and from-source routes.
 
 ## Option 4. AMD Instinct (ROCm): prebuilt Clair3 from Bioconda
 
