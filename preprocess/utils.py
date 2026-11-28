@@ -171,7 +171,8 @@ class gvcfGenerator(object):
         tmp = curNonVarCall.split('\t')
         tmp[1] = str(block_new_start)
         tmp[3] = str(new_ref)
-        save_writer.write('\t'.join(tmp) + '\n')
+        line = re.sub("END=[0-9]*\t", "END=" + str(curNonVarEnd) + '\t', '\t'.join(tmp))
+        save_writer.write(line + '\n')
 
     def _writeLeftBlock(self, end_pos, curNonVarCall, save_writer):
 
@@ -181,6 +182,8 @@ class gvcfGenerator(object):
 
     def writeNonVarBlock(self, start, end, pos_flag, curNonVarCall, save_writer):
 
+        if start > end:
+            return
         if (pos_flag == 'left'):
             self._writeLeftBlock(end, curNonVarCall, save_writer)
         elif (pos_flag == 'right'):
@@ -203,13 +206,11 @@ class gvcfGenerator(object):
 
         varCallGenerator = self.readCalls(variantCallPath, 'variant', ctgName, ctgStart, ctgEnd)
         nonVarCallGenerator = self.readCalls(nonVarCallPath, 'non-variant', ctgName, ctgStart, ctgEnd, add_header=True, writer=save_writer, haploid_calling=haploid_calling)
-        hasVar = True
         # in case of empty file
         try:
             curVarCall, curVarStart, curVarEnd = next(varCallGenerator)
         except StopIteration:
             varCallStop = True
-            hasVar = False
         try:
             curNonVarCall, curNonVarStart, curNonVarEnd, curNonVarPos = next(nonVarCallGenerator)
         except StopIteration:
@@ -238,7 +239,7 @@ class gvcfGenerator(object):
                 var region is on the left, no overlapped region
                 '''
                 # print("{_____} |_____|")
-                save_writer.write(curNonVarCall + '\n')
+                save_writer.write(curVarCall + '\n')
                 try:
                     curVarCall, curVarStart, curVarEnd = next(varCallGenerator)
                 except StopIteration:
@@ -256,31 +257,24 @@ class gvcfGenerator(object):
                 # write the current variant Call
                 save_writer.write(curVarCall + '\n')
                 block_new_start = curVarEnd + 1
-                try:
-                    curVarCall, curVarStart, curVarEnd = next(varCallGenerator)
-                except StopIteration:
-                    varCallStop = True
-                    break
 
                 while (block_new_start > curNonVarEnd):
                     # skip the non-variant block within the current variant block
-
                     try:
-
                         curNonVarCall, curNonVarStart, curNonVarEnd, curNonVarPos = next(nonVarCallGenerator)
                     except StopIteration:
                         nonVarCallStop = True
                         break
 
-                if (nonVarCallStop):
-                    break
-
-                # check if the start of the current non-variant block
-                if ((block_new_start - 1) >= curNonVarStart):
-                    # there is overlap between variants and non-variant block
-                    # just write the right part of the non-variant block
+                # check if the start of the current non-variant block overlaps the variant
+                if (not nonVarCallStop) and (block_new_start > curNonVarStart):
                     curNonVarStart = block_new_start
                     curNonVarPos = 'right'
+
+                try:
+                    curVarCall, curVarStart, curVarEnd = next(varCallGenerator)
+                except StopIteration:
+                    varCallStop = True
 
             elif (curVarStart > curNonVarStart):
                 '''
@@ -292,39 +286,28 @@ class gvcfGenerator(object):
                 # split the non-var block
                 non_var_block_left_end = curVarStart - 1
                 if (non_var_block_left_end >= curNonVarStart):
-                    self._writeLeftBlock(non_var_block_left_end, curNonVarCall, save_writer)
+                    left_flag = 'right' if curNonVarPos == 'right' else 'left'
+                    self.writeNonVarBlock(curNonVarStart, non_var_block_left_end, left_flag, curNonVarCall, save_writer)
                 # print out variant call
                 save_writer.write(curVarCall + '\n')
-                # take care here, whether write the left right non-variant block,
-                # it dependes on the position of the next variant calls
+                # advance or trim non-variant blocks covered by the current variant
                 non_var_block_right_start = curVarEnd + 1
+
+                while (non_var_block_right_start > curNonVarEnd):
+                    try:
+                        curNonVarCall, curNonVarStart, curNonVarEnd, curNonVarPos = next(nonVarCallGenerator)
+                    except StopIteration:
+                        nonVarCallStop = True
+                        break
+
+                if (not nonVarCallStop) and (non_var_block_right_start > curNonVarStart):
+                    curNonVarStart = non_var_block_right_start
+                    curNonVarPos = 'right'
 
                 try:
                     curVarCall, curVarStart, curVarEnd = next(varCallGenerator)
                 except StopIteration:
                     varCallStop = True
-                    break
-
-                # still has the right left block
-                if (non_var_block_right_start <= curNonVarEnd):
-                    curNonVarStart = non_var_block_right_start
-                    curNonVarPos = 'right'
-                else:
-                    # get the next non-variant block,skip the non-var block that is within the variant
-                    while True:
-                        try:
-                            curNonVarCall, curNonVarStart, curNonVarEnd, curNonVarPos = next(nonVarCallGenerator)
-                        except StopIteration:
-                            nonVarCallStop = True
-                            break
-                        if (non_var_block_right_start <= curNonVarEnd):
-                            break
-
-                    if (nonVarCallStop):
-                        break
-
-                    curNonVarStart = non_var_block_right_start
-                    curNonVarPos = 'right'
 
             else:
                 print("[ERROR] CurVarStart", curVarStart, 'curVarEnd', curVarEnd, 'curNonVarStart', curNonVarStart,
@@ -338,8 +321,7 @@ class gvcfGenerator(object):
             for curVarCall, curVarStart, curVarEnd in varCallGenerator:
                 save_writer.write(curVarCall + '\n')
         if (not nonVarCallStop):
-            if (hasVar and curNonVarEnd > curVarEnd):
-                self.writeNonVarBlock(curVarEnd + 1, curNonVarEnd, curNonVarPos, curNonVarCall, save_writer)
+            self.writeNonVarBlock(curNonVarStart, curNonVarEnd, curNonVarPos, curNonVarCall, save_writer)
             for curNonVarCall, curNonVarStart, curNonVarEnd, curNonVarPos in nonVarCallGenerator:
                 save_writer.write(curNonVarCall + '\n')
 
